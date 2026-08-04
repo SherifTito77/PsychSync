@@ -3,36 +3,38 @@ Database Integration Tests with Actual Database Connections
 Critical for testing database functionality, schema validation, and data integrity
 """
 
-import pytest
 import asyncio
-import sys
-from pathlib import Path
-from typing import AsyncGenerator, Dict, Any
-from unittest.mock import Mock, AsyncMock
-from datetime import datetime, timedelta
-import tempfile
 import os
+import sys
+import tempfile
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, AsyncGenerator, Dict
+from unittest.mock import AsyncMock, Mock
+
+import pytest
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 # Set test environment before imports
-os.environ['ENVIRONMENT'] = 'testing'
-os.environ['TESTING'] = 'True'
-os.environ['DATABASE_URL'] = 'sqlite+aiosqlite:///:memory:'  # Use in-memory SQLite
+os.environ["ENVIRONMENT"] = "testing"
+os.environ["TESTING"] = "True"
+os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"  # Use in-memory SQLite
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.pool import StaticPool
-from sqlalchemy.orm import Session
 from httpx import AsyncClient
-from app.main import app
-from app.core.database import get_async_db, Base
-from app.db.models.user import User, UserRole
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
+
+from app.core.config import settings
+from app.core.database import Base, get_async_db
+from app.db.models.assessment import Assessment, AssessmentCategory, AssessmentStatus
 from app.db.models.organization import Organization
 from app.db.models.team import Team, TeamMember, TeamRole
-from app.db.models.assessment import Assessment, AssessmentCategory, AssessmentStatus
-from app.core.config import settings
+from app.db.models.user import User, UserRole
+from app.main import app
 
 
 class TestDatabaseIntegration:
@@ -79,22 +81,30 @@ class TestDatabaseIntegration:
     async def test_database_schema_creation(self, test_db: AsyncSession):
         """Test that database schema is created correctly"""
         # Test User table
-        result = await test_db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+        result = await test_db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
+        )
         user_table_exists = result.fetchone() is not None
         assert user_table_exists, "Users table should exist"
 
         # Test Organization table
-        result = await test_db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='organizations'")
+        result = await test_db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='organizations'"
+        )
         org_table_exists = result.fetchone() is not None
         assert org_table_exists, "Organizations table should exist"
 
         # Test Team table
-        result = await test_db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='teams'")
+        result = await test_db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='teams'"
+        )
         team_table_exists = result.fetchone() is not None
         assert team_table_exists, "Teams table should exist"
 
         # Test Assessment table
-        result = await test_db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='assessments'")
+        result = await test_db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='assessments'"
+        )
         assessment_table_exists = result.fetchone() is not None
         assert assessment_table_exists, "Assessments table should exist"
 
@@ -106,7 +116,7 @@ class TestDatabaseIntegration:
             email="test@example.com",
             full_name="Test User",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
         )
         test_db.add(user)
         await test_db.commit()
@@ -139,9 +149,7 @@ class TestDatabaseIntegration:
         """Test organization-user relationships"""
         # Create organization
         org = Organization(
-            name="Test Organization",
-            description="Test Description",
-            is_active=True
+            name="Test Organization", description="Test Description", is_active=True
         )
         test_db.add(org)
         await test_db.commit()
@@ -153,7 +161,7 @@ class TestDatabaseIntegration:
             full_name="Org User",
             role=UserRole.USER,
             organization_id=org.id,
-            is_active=True
+            is_active=True,
         )
         test_db.add(user)
         await test_db.commit()
@@ -179,7 +187,7 @@ class TestDatabaseIntegration:
             name="Test Team",
             description="Test team description",
             organization_id=org.id,
-            is_active=True
+            is_active=True,
         )
         test_db.add(team)
         await test_db.commit()
@@ -191,14 +199,14 @@ class TestDatabaseIntegration:
             full_name="Team Member 1",
             role=UserRole.USER,
             organization_id=org.id,
-            is_active=True
+            is_active=True,
         )
         user2 = User(
             email="member2@test.com",
             full_name="Team Member 2",
             role=UserRole.USER,
             organization_id=org.id,
-            is_active=True
+            is_active=True,
         )
 
         test_db.add_all([user1, user2])
@@ -211,13 +219,13 @@ class TestDatabaseIntegration:
             team_id=team.id,
             user_id=user1.id,
             role=TeamRole.MEMBER,
-            organization_id=org.id
+            organization_id=org.id,
         )
         membership2 = TeamMember(
             team_id=team.id,
             user_id=user2.id,
             role=TeamRole.ADMIN,
-            organization_id=org.id
+            organization_id=org.id,
         )
 
         test_db.add_all([membership1, membership2])
@@ -244,7 +252,7 @@ class TestDatabaseIntegration:
             full_name="Assessment User",
             role=UserRole.USER,
             organization_id=org.id,
-            is_active=True
+            is_active=True,
         )
         test_db.add(user)
         await test_db.commit()
@@ -257,7 +265,7 @@ class TestDatabaseIntegration:
             category=AssessmentCategory.PERSONALITY,
             status=AssessmentStatus.DRAFT,
             organization_id=org.id,
-            created_by_id=user.id
+            created_by_id=user.id,
         )
         test_db.add(assessment)
         await test_db.commit()
@@ -265,15 +273,21 @@ class TestDatabaseIntegration:
 
         # Verify assessment creation
         assert assessment.id is not None, "Assessment should have ID"
-        assert assessment.title == "Test Assessment", "Assessment title should be preserved"
-        assert assessment.organization_id == org.id, "Assessment should belong to organization"
+        assert (
+            assessment.title == "Test Assessment"
+        ), "Assessment title should be preserved"
+        assert (
+            assessment.organization_id == org.id
+        ), "Assessment should belong to organization"
         assert assessment.created_by_id == user.id, "Assessment should have creator"
 
         # Test assessment status transitions
         assessment.status = AssessmentStatus.PUBLISHED
         await test_db.commit()
         await test_db.refresh(assessment)
-        assert assessment.status == AssessmentStatus.PUBLISHED, "Assessment status should update"
+        assert (
+            assessment.status == AssessmentStatus.PUBLISHED
+        ), "Assessment status should update"
 
     # TODO(human): Implement database constraint validation tests
     async def test_database_constraints(self, test_db: AsyncSession):
@@ -283,7 +297,7 @@ class TestDatabaseIntegration:
             email="duplicate@test.com",
             full_name="User 1",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
         )
         test_db.add(user1)
         await test_db.commit()
@@ -293,7 +307,7 @@ class TestDatabaseIntegration:
             email="duplicate@test.com",  # Same email
             full_name="User 2",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
         )
         test_db.add(user2)
 
@@ -310,7 +324,7 @@ class TestDatabaseIntegration:
             full_name="Invalid User",
             role=UserRole.USER,
             organization_id=99999,  # Non-existent ID
-            is_active=True
+            is_active=True,
         )
         test_db.add(invalid_user)
 
@@ -332,7 +346,7 @@ class TestDatabaseIntegration:
                 email=f"user{i}@performance.com",
                 full_name=f"Performance User {i}",
                 role=UserRole.USER,
-                is_active=True
+                is_active=True,
             )
             users.append(user)
 
@@ -345,7 +359,9 @@ class TestDatabaseIntegration:
         # Test query performance
         start_time = time.time()
 
-        result = await test_db.execute("SELECT COUNT(*) FROM users WHERE is_active = true")
+        result = await test_db.execute(
+            "SELECT COUNT(*) FROM users WHERE is_active = true"
+        )
         count = result.scalar()
 
         query_time = time.time() - start_time
@@ -366,7 +382,7 @@ class TestDatabaseIntegration:
                     email=f"rollback_user{i}@test.com",
                     full_name=f"Rollback User {i}",
                     role=UserRole.USER,
-                    is_active=True
+                    is_active=True,
                 )
                 test_db.add(user)
 
@@ -381,11 +397,14 @@ class TestDatabaseIntegration:
         result = await test_db.execute("SELECT COUNT(*) FROM users")
         final_count = result.scalar()
 
-        assert final_count == initial_count, "Rollback should have restored initial state"
+        assert (
+            final_count == initial_count
+        ), "Rollback should have restored initial state"
 
     # TODO(human): Implement database connection resilience tests
     async def test_database_connection_resilience(self, test_db: AsyncSession):
         """Test database connection handling"""
+
         # Test multiple concurrent connections
         async def concurrent_query():
             result = await test_db.execute("SELECT 1")
@@ -409,5 +428,5 @@ class TestDatabaseIntegration:
         assert result.scalar() == 1, "Connection should recover after error"
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

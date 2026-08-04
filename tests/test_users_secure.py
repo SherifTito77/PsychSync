@@ -14,22 +14,22 @@ This test suite covers:
 
 import asyncio
 import json
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import app
-from app.db.models.user import User, UserRole
-from app.schemas.user import UserResponse
-from app.core.security import hash_password, verify_password
-from app.core.rate_limiting import RateLimiter
 from app.core.cache import cache_result
+from app.core.rate_limiting import RateLimiter
+from app.core.security import hash_password, verify_password
+from app.db.models.user import User, UserRole
+from app.main import app
+from app.schemas.user import UserResponse
 
 
 class TestSecureUserEndpoints:
@@ -58,7 +58,7 @@ class TestSecureUserEndpoints:
             is_active=True,
             is_verified=True,
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
         )
         test_db.add(user)
         await test_db.commit()
@@ -76,7 +76,7 @@ class TestSecureUserEndpoints:
             is_active=True,
             is_verified=True,
             created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            updated_at=datetime.utcnow(),
         )
         test_db.add(admin)
         await test_db.commit()
@@ -134,7 +134,7 @@ class TestSecureUserEndpoints:
     @pytest.mark.asyncio
     async def test_get_user_profile_caching(self, test_client, auth_headers, test_user):
         """Test that profile endpoint uses caching"""
-        with patch('app.core.cache.cache_result') as mock_cache:
+        with patch("app.core.cache.cache_result") as mock_cache:
             mock_cache.return_value = lambda func: func
 
             # First call
@@ -154,13 +154,11 @@ class TestSecureUserEndpoints:
         """Test successful password change"""
         password_data = {
             "current_password": "TestPass123!",
-            "new_password": "NewPass456!"
+            "new_password": "NewPass456!",
         }
 
         response = await test_client.post(
-            "/users/change-password",
-            json=password_data,
-            headers=auth_headers
+            "/users/change-password", json=password_data, headers=auth_headers
         )
 
         assert response.status_code == 200
@@ -169,7 +167,9 @@ class TestSecureUserEndpoints:
         assert "updated successfully" in data["message"].lower()
 
         # Verify password was actually changed in database
-        updated_user = await test_db.execute(select(User).where(User.id == test_user.id))
+        updated_user = await test_db.execute(
+            select(User).where(User.id == test_user.id)
+        )
         user = updated_user.scalar_one()
         assert verify_password("NewPass456!", user.password_hash)
 
@@ -178,13 +178,11 @@ class TestSecureUserEndpoints:
         """Test password change with invalid current password"""
         password_data = {
             "current_password": "WrongPassword123!",
-            "new_password": "NewPass456!"
+            "new_password": "NewPass456!",
         }
 
         response = await test_client.post(
-            "/users/change-password",
-            json=password_data,
-            headers=auth_headers
+            "/users/change-password", json=password_data, headers=auth_headers
         )
 
         assert response.status_code == 400
@@ -196,13 +194,11 @@ class TestSecureUserEndpoints:
         """Test password change with weak new password"""
         password_data = {
             "current_password": "TestPass123!",
-            "new_password": "weak"  # Too short, no complexity
+            "new_password": "weak",  # Too short, no complexity
         }
 
         response = await test_client.post(
-            "/users/change-password",
-            json=password_data,
-            headers=auth_headers
+            "/users/change-password", json=password_data, headers=auth_headers
         )
 
         assert response.status_code == 422  # Validation error
@@ -212,13 +208,11 @@ class TestSecureUserEndpoints:
         """Test password change with same password as current"""
         password_data = {
             "current_password": "TestPass123!",
-            "new_password": "TestPass123!"
+            "new_password": "TestPass123!",
         }
 
         response = await test_client.post(
-            "/users/change-password",
-            json=password_data,
-            headers=auth_headers
+            "/users/change-password", json=password_data, headers=auth_headers
         )
 
         assert response.status_code == 400
@@ -230,16 +224,14 @@ class TestSecureUserEndpoints:
         """Test rate limiting on password change endpoint"""
         password_data = {
             "current_password": "WrongPassword123!",
-            "new_password": "NewPass456!"
+            "new_password": "NewPass456!",
         }
 
         # Make multiple failed attempts
         responses = []
         for _ in range(5):
             response = await test_client.post(
-                "/users/change-password",
-                json=password_data,
-                headers=auth_headers
+                "/users/change-password", json=password_data, headers=auth_headers
             )
             responses.append(response)
 
@@ -251,27 +243,19 @@ class TestSecureUserEndpoints:
     async def test_change_password_missing_fields(self, test_client, auth_headers):
         """Test password change with missing required fields"""
         # Missing current_password
-        password_data = {
-            "new_password": "NewPass456!"
-        }
+        password_data = {"new_password": "NewPass456!"}
 
         response = await test_client.post(
-            "/users/change-password",
-            json=password_data,
-            headers=auth_headers
+            "/users/change-password", json=password_data, headers=auth_headers
         )
 
         assert response.status_code == 422  # Validation error
 
         # Missing new_password
-        password_data = {
-            "current_password": "TestPass123!"
-        }
+        password_data = {"current_password": "TestPass123!"}
 
         response = await test_client.post(
-            "/users/change-password",
-            json=password_data,
-            headers=auth_headers
+            "/users/change-password", json=password_data, headers=auth_headers
         )
 
         assert response.status_code == 422  # Validation error
@@ -304,8 +288,7 @@ class TestSecureUserEndpoints:
         """Test user listing with various filters"""
         # Test with search filter
         response = await test_client.get(
-            "/users/?search=test&is_active=true",
-            headers=admin_headers
+            "/users/?search=test&is_active=true", headers=admin_headers
         )
 
         assert response.status_code == 200
@@ -313,20 +296,18 @@ class TestSecureUserEndpoints:
         assert data["success"] is True
 
         # Test with role filter
-        response = await test_client.get(
-            "/users/?role=user",
-            headers=admin_headers
-        )
+        response = await test_client.get("/users/?role=user", headers=admin_headers)
 
         assert response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_list_users_sql_injection_protection(self, test_client, admin_headers):
+    async def test_list_users_sql_injection_protection(
+        self, test_client, admin_headers
+    ):
         """Test SQL injection protection in search"""
         malicious_search = "'; DROP TABLE users; --"
         response = await test_client.get(
-            f"/users/?search={malicious_search}",
-            headers=admin_headers
+            f"/users/?search={malicious_search}", headers=admin_headers
         )
 
         # Should not cause server error
@@ -340,8 +321,7 @@ class TestSecureUserEndpoints:
     async def test_list_users_invalid_sort_field(self, test_client, admin_headers):
         """Test invalid sort field validation"""
         response = await test_client.get(
-            "/users/?sort_by=invalid_field",
-            headers=admin_headers
+            "/users/?sort_by=invalid_field", headers=admin_headers
         )
 
         assert response.status_code == 400
@@ -352,10 +332,7 @@ class TestSecureUserEndpoints:
     async def test_list_users_pagination(self, test_client, admin_headers):
         """Test pagination functionality"""
         # Test first page
-        response = await test_client.get(
-            "/users/?page=1&size=5",
-            headers=admin_headers
-        )
+        response = await test_client.get("/users/?page=1&size=5", headers=admin_headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -363,10 +340,7 @@ class TestSecureUserEndpoints:
         assert data["pagination"]["size"] == 5
 
         # Test second page
-        response = await test_client.get(
-            "/users/?page=2&size=5",
-            headers=admin_headers
-        )
+        response = await test_client.get("/users/?page=2&size=5", headers=admin_headers)
 
         assert response.status_code == 200
 
@@ -375,10 +349,7 @@ class TestSecureUserEndpoints:
     @pytest.mark.asyncio
     async def test_get_user_by_id_self(self, test_client, auth_headers, test_user):
         """Test getting own user by ID"""
-        response = await test_client.get(
-            f"/users/{test_user.id}",
-            headers=auth_headers
-        )
+        response = await test_client.get(f"/users/{test_user.id}", headers=auth_headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -389,8 +360,7 @@ class TestSecureUserEndpoints:
     async def test_get_user_by_id_admin(self, test_client, admin_headers, test_user):
         """Test admin getting any user by ID"""
         response = await test_client.get(
-            f"/users/{test_user.id}",
-            headers=admin_headers
+            f"/users/{test_user.id}", headers=admin_headers
         )
 
         assert response.status_code == 200
@@ -399,11 +369,12 @@ class TestSecureUserEndpoints:
         assert data["data"]["id"] == str(test_user.id)
 
     @pytest.mark.asyncio
-    async def test_get_user_by_id_unauthorized(self, test_client, auth_headers, admin_user):
+    async def test_get_user_by_id_unauthorized(
+        self, test_client, auth_headers, admin_user
+    ):
         """Test user trying to get another user's profile"""
         response = await test_client.get(
-            f"/users/{admin_user.id}",
-            headers=auth_headers
+            f"/users/{admin_user.id}", headers=auth_headers
         )
 
         assert response.status_code == 403
@@ -424,7 +395,9 @@ class TestSecureUserEndpoints:
     async def test_get_user_not_found(self, test_client, admin_headers):
         """Test getting non-existent user"""
         non_existent_id = uuid4()
-        response = await test_client.get(f"/users/{non_existent_id}", headers=admin_headers)
+        response = await test_client.get(
+            f"/users/{non_existent_id}", headers=admin_headers
+        )
 
         assert response.status_code == 404
         data = response.json()
@@ -435,12 +408,11 @@ class TestSecureUserEndpoints:
     @pytest.mark.asyncio
     async def test_update_profile_success(self, test_client, auth_headers):
         """Test successful profile update"""
-        update_data = {
-            "full_name": "Updated Name",
-            "timezone": "America/New_York"
-        }
+        update_data = {"full_name": "Updated Name", "timezone": "America/New_York"}
 
-        response = await test_client.put("/users/me", json=update_data, headers=auth_headers)
+        response = await test_client.put(
+            "/users/me", json=update_data, headers=auth_headers
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -448,13 +420,15 @@ class TestSecureUserEndpoints:
         assert data["data"]["full_name"] == "Updated Name"
 
     @pytest.mark.asyncio
-    async def test_update_profile_email_conflict(self, test_client, auth_headers, admin_user):
+    async def test_update_profile_email_conflict(
+        self, test_client, auth_headers, admin_user
+    ):
         """Test profile update with conflicting email"""
-        update_data = {
-            "email": admin_user.email  # Try to use admin's email
-        }
+        update_data = {"email": admin_user.email}  # Try to use admin's email
 
-        response = await test_client.put("/users/me", json=update_data, headers=auth_headers)
+        response = await test_client.put(
+            "/users/me", json=update_data, headers=auth_headers
+        )
 
         assert response.status_code == 409
         data = response.json()
@@ -463,11 +437,11 @@ class TestSecureUserEndpoints:
     @pytest.mark.asyncio
     async def test_update_profile_invalid_timezone(self, test_client, auth_headers):
         """Test profile update with invalid timezone"""
-        update_data = {
-            "timezone": "Invalid/Timezone"
-        }
+        update_data = {"timezone": "Invalid/Timezone"}
 
-        response = await test_client.put("/users/me", json=update_data, headers=auth_headers)
+        response = await test_client.put(
+            "/users/me", json=update_data, headers=auth_headers
+        )
 
         assert response.status_code == 422  # Validation error
 
@@ -475,11 +449,11 @@ class TestSecureUserEndpoints:
     async def test_update_profile_xss_protection(self, test_client, auth_headers):
         """Test XSS protection in profile update"""
         xss_payload = "<script>alert('xss')</script>"
-        update_data = {
-            "full_name": xss_payload
-        }
+        update_data = {"full_name": xss_payload}
 
-        response = await test_client.put("/users/me", json=update_data, headers=auth_headers)
+        response = await test_client.put(
+            "/users/me", json=update_data, headers=auth_headers
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -494,7 +468,7 @@ class TestSecureUserEndpoints:
         user_data = {
             "email": "newuser@example.com",
             "password": "SecurePass123!",
-            "full_name": "New User"
+            "full_name": "New User",
         }
 
         response = await test_client.post("/users/", json=user_data)
@@ -510,7 +484,7 @@ class TestSecureUserEndpoints:
         user_data = {
             "email": "weak@example.com",
             "password": "weak",  # Too weak
-            "full_name": "Weak User"
+            "full_name": "Weak User",
         }
 
         response = await test_client.post("/users/", json=user_data)
@@ -523,7 +497,7 @@ class TestSecureUserEndpoints:
         user_data = {
             "email": test_user.email,  # Already exists
             "password": "SecurePass123!",
-            "full_name": "Duplicate User"
+            "full_name": "Duplicate User",
         }
 
         response = await test_client.post("/users/", json=user_data)
@@ -540,7 +514,7 @@ class TestSecureUserEndpoints:
         user_data = {
             "email": "ratelimit@example.com",
             "password": "SecurePass123!",
-            "full_name": "Rate Limit User"
+            "full_name": "Rate Limit User",
         }
 
         # Make multiple registration attempts
@@ -560,7 +534,7 @@ class TestSecureUserEndpoints:
         user_data = {
             "email": "invalid-email",  # Invalid format
             "password": "SecurePass123!",
-            "full_name": "Invalid Email User"
+            "full_name": "Invalid Email User",
         }
 
         response = await test_client.post("/users/", json=user_data)
@@ -573,7 +547,7 @@ class TestSecureUserEndpoints:
         user_data = {
             "email": "injection@example.com",
             "password": "SecurePass123!",
-            "full_name": "'; DROP TABLE users; --"
+            "full_name": "'; DROP TABLE users; --",
         }
 
         response = await test_client.post("/users/", json=user_data)
@@ -590,14 +564,10 @@ class TestSecureUserEndpoints:
     @pytest.mark.asyncio
     async def test_delete_account_success(self, test_client, auth_headers):
         """Test successful account deletion"""
-        delete_data = {
-            "password": "TestPass123!"
-        }
+        delete_data = {"password": "TestPass123!"}
 
         response = await test_client.delete(
-            "/users/me",
-            json=delete_data,
-            headers=auth_headers
+            "/users/me", json=delete_data, headers=auth_headers
         )
 
         assert response.status_code == 200
@@ -608,14 +578,10 @@ class TestSecureUserEndpoints:
     @pytest.mark.asyncio
     async def test_delete_account_wrong_password(self, test_client, auth_headers):
         """Test account deletion with wrong password"""
-        delete_data = {
-            "password": "WrongPassword123!"
-        }
+        delete_data = {"password": "WrongPassword123!"}
 
         response = await test_client.delete(
-            "/users/me",
-            json=delete_data,
-            headers=auth_headers
+            "/users/me", json=delete_data, headers=auth_headers
         )
 
         assert response.status_code == 400
@@ -625,17 +591,13 @@ class TestSecureUserEndpoints:
     @pytest.mark.asyncio
     async def test_delete_account_rate_limiting(self, test_client, auth_headers):
         """Test rate limiting on account deletion"""
-        delete_data = {
-            "password": "WrongPassword123!"
-        }
+        delete_data = {"password": "WrongPassword123!"}
 
         # Make multiple deletion attempts
         responses = []
         for _ in range(3):
             response = await test_client.delete(
-                "/users/me",
-                json=delete_data,
-                headers=auth_headers
+                "/users/me", json=delete_data, headers=auth_headers
             )
             responses.append(response)
 
@@ -653,7 +615,7 @@ class TestSecureUserEndpoints:
         response = await test_client.post(
             "/users/",
             data=malformed_json,
-            headers={**auth_headers, "Content-Type": "application/json"}
+            headers={**auth_headers, "Content-Type": "application/json"},
         )
 
         assert response.status_code == 422
@@ -661,11 +623,11 @@ class TestSecureUserEndpoints:
     @pytest.mark.asyncio
     async def test_oversized_payload(self, test_client, auth_headers):
         """Test handling of oversized payloads"""
-        oversized_data = {
-            "full_name": "x" * 1000  # Exceeds max length
-        }
+        oversized_data = {"full_name": "x" * 1000}  # Exceeds max length
 
-        response = await test_client.put("/users/me", json=oversized_data, headers=auth_headers)
+        response = await test_client.put(
+            "/users/me", json=oversized_data, headers=auth_headers
+        )
 
         assert response.status_code == 422
 
@@ -681,13 +643,15 @@ class TestSecureUserEndpoints:
         responses = await asyncio.gather(*tasks, return_exceptions=True)
 
         # All requests should succeed
-        success_count = sum(1 for r in responses if hasattr(r, 'status_code') and r.status_code == 200)
+        success_count = sum(
+            1 for r in responses if hasattr(r, "status_code") and r.status_code == 200
+        )
         assert success_count == 10
 
     @pytest.mark.asyncio
     async def test_database_connection_error(self, test_client, auth_headers):
         """Test handling of database connection errors"""
-        with patch('app.api.v1.endpoints.users_secure.get_async_db') as mock_db:
+        with patch("app.api.v1.endpoints.users_secure.get_async_db") as mock_db:
             mock_db.side_effect = Exception("Database connection failed")
 
             response = await test_client.get("/users/me", headers=auth_headers)
@@ -697,27 +661,29 @@ class TestSecureUserEndpoints:
     @pytest.mark.asyncio
     async def test_cache_invalidation_on_update(self, test_client, auth_headers):
         """Test cache invalidation when user is updated"""
-        with patch('app.core.cache.invalidate_user_cache') as mock_invalidate:
+        with patch("app.core.cache.invalidate_user_cache") as mock_invalidate:
             update_data = {"full_name": "Updated Name"}
 
-            response = await test_client.put("/users/me", json=update_data, headers=auth_headers)
+            response = await test_client.put(
+                "/users/me", json=update_data, headers=auth_headers
+            )
 
             assert response.status_code == 200
             mock_invalidate.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_audit_logging_on_sensitive_operations(self, test_client, auth_headers):
+    async def test_audit_logging_on_sensitive_operations(
+        self, test_client, auth_headers
+    ):
         """Test audit logging for sensitive operations"""
-        with patch('app.core.audit.log_security_event') as mock_audit:
+        with patch("app.core.audit.log_security_event") as mock_audit:
             password_data = {
                 "current_password": "TestPass123!",
-                "new_password": "NewPass456!"
+                "new_password": "NewPass456!",
             }
 
             response = await test_client.post(
-                "/users/change-password",
-                json=password_data,
-                headers=auth_headers
+                "/users/change-password", json=password_data, headers=auth_headers
             )
 
             # Should call audit logging
@@ -761,7 +727,7 @@ class TestUserEndpointIntegration:
         user_data = {
             "email": "lifecycle@example.com",
             "password": "LifecyclePass123!",
-            "full_name": "Lifecycle User"
+            "full_name": "Lifecycle User",
         }
 
         register_response = await test_client.post("/users/", json=user_data)
@@ -787,10 +753,11 @@ class TestUserEndpointIntegration:
 
 # ============== Test Utilities ==============
 
+
 @pytest.fixture
 def mock_rate_limiter():
     """Mock rate limiter for testing"""
-    with patch('app.core.rate_limiting.RateLimiter') as mock:
+    with patch("app.core.rate_limiting.RateLimiter") as mock:
         mock.return_value.is_allowed = AsyncMock(return_value=True)
         mock.return_value.record_failure = AsyncMock()
         mock.return_value.clear = AsyncMock()
@@ -800,7 +767,7 @@ def mock_rate_limiter():
 @pytest.fixture
 def mock_cache():
     """Mock cache for testing"""
-    with patch('app.core.cache.cache_result') as mock:
+    with patch("app.core.cache.cache_result") as mock:
         mock.return_value = lambda func: func
         yield mock
 
@@ -808,11 +775,12 @@ def mock_cache():
 @pytest.fixture
 def mock_audit():
     """Mock audit logging for testing"""
-    with patch('app.core.audit.log_security_event') as mock:
+    with patch("app.core.audit.log_security_event") as mock:
         yield mock
 
 
 # ============== Error Handling Tests ==============
+
 
 class TestErrorHandling:
     """Test error handling and edge cases"""
@@ -820,7 +788,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_500_error_handling(self, test_client, auth_headers):
         """Test 500 error handling doesn't expose sensitive information"""
-        with patch('app.api.v1.endpoints.users_secure.get_async_db') as mock_db:
+        with patch("app.api.v1.endpoints.users_secure.get_async_db") as mock_db:
             mock_db.side_effect = Exception("Internal database error")
 
             response = await test_client.get("/users/me", headers=auth_headers)
@@ -834,10 +802,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_validation_error_format(self, test_client):
         """Test validation error response format"""
-        invalid_data = {
-            "email": "not-an-email",
-            "password": "123"  # Too short
-        }
+        invalid_data = {"email": "not-an-email", "password": "123"}  # Too short
 
         response = await test_client.post("/users/", json=invalid_data)
 
@@ -852,7 +817,7 @@ class TestErrorHandling:
         response = await test_client.put(
             "/users/me",
             data="not-json",
-            headers={**auth_headers, "Content-Type": "application/json"}
+            headers={**auth_headers, "Content-Type": "application/json"},
         )
 
         assert response.status_code == 422

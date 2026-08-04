@@ -4,11 +4,11 @@ Query Performance Monitoring System for PsychSync
 Real-time monitoring and analysis of database query performance
 """
 
+import time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-import time
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -69,7 +69,9 @@ class QueryMonitor:
         self.last_alert_check = datetime.utcnow()
 
         # Performance tracking by operation type
-        self.operation_stats: dict[str, QueryPerformanceStats] = defaultdict(QueryPerformanceStats)
+        self.operation_stats: dict[str, QueryPerformanceStats] = defaultdict(
+            QueryPerformanceStats
+        )
 
     @asynccontextmanager
     async def monitor_query(
@@ -107,7 +109,12 @@ class QueryMonitor:
         except Exception as e:
             execution_time_ms = (time.time() - start_time) * 1000
             await self._record_query_execution(
-                query, execution_time_ms, operation_name, query_id, success=False, error=str(e)
+                query,
+                execution_time_ms,
+                operation_name,
+                query_id,
+                success=False,
+                error=str(e),
             )
 
             # Re-raise the exception
@@ -184,10 +191,13 @@ class QueryMonitor:
         op_stats = self.operation_stats[operation_name]
         op_stats.total_queries += 1
         op_stats.avg_execution_time = (
-            (op_stats.avg_execution_time * (op_stats.total_queries - 1)) + execution_time_ms
+            (op_stats.avg_execution_time * (op_stats.total_queries - 1))
+            + execution_time_ms
         ) / op_stats.total_queries
 
-        op_stats.max_execution_time = max(op_stats.max_execution_time, execution_time_ms)
+        op_stats.max_execution_time = max(
+            op_stats.max_execution_time, execution_time_ms
+        )
 
         # Analyze query using optimizer
         try:
@@ -257,7 +267,9 @@ class QueryMonitor:
 
         # Check error rate
         if self.current_stats.total_queries > 0:
-            error_rate = (self.current_stats.error_count / self.current_stats.total_queries) * 100
+            error_rate = (
+                self.current_stats.error_count / self.current_stats.total_queries
+            ) * 100
 
             if error_rate > self.alert_thresholds.max_error_rate:
                 alert = {
@@ -269,7 +281,10 @@ class QueryMonitor:
                 alerts_generated.append(alert)
 
         # Check queries per second
-        if self.current_stats.queries_per_second > self.alert_thresholds.max_queries_per_second:
+        if (
+            self.current_stats.queries_per_second
+            > self.alert_thresholds.max_queries_per_second
+        ):
             alert = {
                 "type": "high_qps",
                 "message": f"Queries per second is {self.current_stats.queries_per_second:.1f} (threshold: {self.alert_thresholds.max_queries_per_second})",
@@ -318,7 +333,9 @@ class QueryMonitor:
 
     def get_operation_breakdown(self) -> dict[str, Any]:
         """Get performance breakdown by operation type"""
-        return {op_name: asdict(stats) for op_name, stats in self.operation_stats.items()}
+        return {
+            op_name: asdict(stats) for op_name, stats in self.operation_stats.items()
+        }
 
     def get_recent_slow_queries(self, limit: int = 50) -> list[dict[str, Any]]:
         """Get recent slow queries"""
@@ -337,7 +354,9 @@ class QueryMonitor:
         cutoff_time = datetime.utcnow() - timedelta(minutes=minutes)
 
         # Filter recent queries
-        recent_queries = [q for q in self.query_history if q["timestamp"] >= cutoff_time]
+        recent_queries = [
+            q for q in self.query_history if q["timestamp"] >= cutoff_time
+        ]
 
         if not recent_queries:
             return {
@@ -371,7 +390,9 @@ class QueryMonitor:
         throughput_score = min(100, (throughput / 100) * 100)  # 100 QPM = 100 score
 
         # Latency score: inverse of average execution time (scaled)
-        latency_score = max(0, 100 - (avg_time / 10))  # 1000ms = 0 score, 0ms = 100 score
+        latency_score = max(
+            0, 100 - (avg_time / 10)
+        )  # 1000ms = 0 score, 0ms = 100 score
 
         # Reliability score: based on error rate (100% success = 100 score)
         reliability_score = ((total_queries - error_count) / total_queries) * 100
@@ -436,7 +457,9 @@ class QueryPerformanceDashboard:
 
     def __init__(self, monitor: QueryMonitor):
         self.monitor = monitor
-        self.performance_trends: deque = deque(maxlen=1440)  # 24 hours of minute-by-minute data
+        self.performance_trends: deque = deque(
+            maxlen=1440
+        )  # 24 hours of minute-by-minute data
 
     def get_dashboard_data(self) -> dict[str, Any]:
         """Get all data needed for the performance dashboard"""
@@ -470,11 +493,16 @@ class QueryPerformanceDashboard:
 
                 opportunities.append(
                     {
-                        "pattern": pattern[:100] + "..." if len(pattern) > 100 else pattern,
+                        "pattern": (
+                            pattern[:100] + "..." if len(pattern) > 100 else pattern
+                        ),
                         "occurrence_count": len(queries),
                         "avg_execution_time": avg_time,
-                        "max_execution_time": max(q["execution_time_ms"] for q in queries),
-                        "impact_score": len(queries) * avg_time,  # Simple impact calculation
+                        "max_execution_time": max(
+                            q["execution_time_ms"] for q in queries
+                        ),
+                        "impact_score": len(queries)
+                        * avg_time,  # Simple impact calculation
                         "recommendation": self._get_pattern_recommendation(pattern),
                     }
                 )
@@ -493,10 +521,14 @@ class QueryPerformanceDashboard:
         if "count(" in pattern_lower:
             return "Consider caching count results or using materialized views"
         if "order by" in pattern_lower and "created_at" in pattern_lower:
-            return "Add index on created_at with DESC order for better sorting performance"
+            return (
+                "Add index on created_at with DESC order for better sorting performance"
+            )
         if "assessment_responses" in pattern_lower:
             return "Add indexes on (user_id, assessment_id) and created_at for this frequently queried table"
-        return "Analyze query execution plan and consider appropriate indexing strategies"
+        return (
+            "Analyze query execution plan and consider appropriate indexing strategies"
+        )
 
     def export_performance_report(self, hours: int = 24) -> dict[str, Any]:
         """Export comprehensive performance report"""

@@ -3,18 +3,20 @@ Unit Tests for Security Module
 
 Tests authentication, authorization, password hashing, JWT tokens, etc.
 """
-import pytest
+
 from datetime import datetime, timedelta
-from jose import jwt, JWTError
 from unittest.mock import Mock, patch
 
-from app.services.security import (
-create_access_token,
-    verify_password,
-    get_password_hash,
-    decode_access_token
-)
+import pytest
+from jose import JWTError, jwt
+
 from app.core.config import settings
+from app.services.security import (
+    create_access_token,
+    decode_access_token,
+    get_password_hash,
+    verify_password,
+)
 
 
 class TestPasswordHashing:
@@ -29,7 +31,7 @@ class TestPasswordHashing:
         assert hashed != password
 
         # Hash should be bcrypt format
-        assert hashed.startswith('$2b$')
+        assert hashed.startswith("$2b$")
 
         # Hash should be deterministic (same input = same output)
         hashed2 = get_password_hash(password)
@@ -82,7 +84,7 @@ class TestJWTTokens:
         assert len(token) > 0
 
         # Token should have 3 parts (header.payload.signature)
-        parts = token.split('.')
+        parts = token.split(".")
         assert len(parts) == 3
 
     def test_decode_access_token(self):
@@ -101,10 +103,7 @@ class TestJWTTokens:
         user_data = {"sub": "user@example.com"}
 
         # Create token with 1 second expiration
-        token = create_access_token(
-            data=user_data,
-            expires_delta=timedelta(seconds=1)
-        )
+        token = create_access_token(data=user_data, expires_delta=timedelta(seconds=1))
 
         # Token should be valid immediately
         decoded = decode_access_token(token)
@@ -112,6 +111,7 @@ class TestJWTTokens:
 
         # Wait for expiration
         import time
+
         time.sleep(2)
 
         # Token should be expired
@@ -131,9 +131,9 @@ class TestJWTTokens:
         token = create_access_token(data=user_data)
 
         # Tamper with token
-        parts = token.split('.')
+        parts = token.split(".")
         parts[1] = parts[1][:-5] + "AAAAA"  # Modify payload
-        tampered_token = '.'.join(parts)
+        tampered_token = ".".join(parts)
 
         decoded = decode_access_token(tampered_token)
         assert decoded is None
@@ -144,7 +144,7 @@ class TestJWTTokens:
             "sub": "user@example.com",
             "user_id": 123,
             "role": "admin",
-            "organization_id": 456
+            "organization_id": 456,
         }
         token = create_access_token(data=user_data)
 
@@ -156,6 +156,7 @@ class TestJWTTokens:
 
 # TODO(human): Complete the security critical sections below
 # Security tests are critical for protecting user data and preventing unauthorized access
+
 
 class TestAuthorization:
     """Test authorization and permission checks"""
@@ -193,12 +194,20 @@ class TestAuthorization:
         assert token1 != token2, "CSRF tokens should be unique"
 
         # Test that valid tokens are accepted
-        assert validate_csrf_token(token1, token1) is True, "Valid CSRF token should be accepted"
+        assert (
+            validate_csrf_token(token1, token1) is True
+        ), "Valid CSRF token should be accepted"
 
         # Test that invalid tokens are rejected
-        assert validate_csrf_token("invalid_token", token1) is False, "Invalid CSRF token should be rejected"
-        assert validate_csrf_token("", token1) is False, "Empty CSRF token should be rejected"
-        assert validate_csrf_token(token1, "") is False, "Empty expected token should be rejected"
+        assert (
+            validate_csrf_token("invalid_token", token1) is False
+        ), "Invalid CSRF token should be rejected"
+        assert (
+            validate_csrf_token("", token1) is False
+        ), "Empty CSRF token should be rejected"
+        assert (
+            validate_csrf_token(token1, "") is False
+        ), "Empty expected token should be rejected"
 
         print("✅ CSRF protection working correctly")
 
@@ -212,18 +221,24 @@ class TestAuthorization:
             "1' OR '1'='1",
             "admin'--",
             "UNION SELECT * FROM users",
-            "'; INSERT INTO users VALUES('hacker', 'password'); --"
+            "'; INSERT INTO users VALUES('hacker', 'password'); --",
         ]
 
         for input_str in malicious_inputs:
             sanitized = sanitize_input(input_str)
 
             # Should remove dangerous SQL keywords
-            assert "DROP TABLE" not in sanitized, f"DROP TABLE not removed from: {input_str[:50]}"
-            assert "UNION SELECT" not in sanitized, f"UNION SELECT not removed from: {input_str[:50]}"
+            assert (
+                "DROP TABLE" not in sanitized
+            ), f"DROP TABLE not removed from: {input_str[:50]}"
+            assert (
+                "UNION SELECT" not in sanitized
+            ), f"UNION SELECT not removed from: {input_str[:50]}"
 
             # Should not contain unescaped quotes
-            assert "';" not in sanitized or not "DROP" in sanitized, "Unescaped semicolon detected"
+            assert (
+                "';" not in sanitized or not "DROP" in sanitized
+            ), "Unescaped semicolon detected"
 
         # Test that normal input is preserved
         normal_input = "john.doe@example.com"
@@ -242,7 +257,7 @@ class TestAuthorization:
             "<img src=x onerror=alert('xss')>",
             "javascript:alert('xss')",
             "';alert('xss');//",
-            "<svg onload=alert('xss')>"
+            "<svg onload=alert('xss')>",
         ]
 
         for input_str in xss_inputs:
@@ -250,11 +265,17 @@ class TestAuthorization:
 
             # Should escape HTML entities
             assert "<script>" not in escaped, f"<script> not escaped in: {input_str}"
-            assert "<img" not in escaped or "onerror" not in escaped, f"onerror not escaped in: {input_str}"
-            assert "javascript:" not in escaped, f"javascript: not escaped in: {input_str}"
+            assert (
+                "<img" not in escaped or "onerror" not in escaped
+            ), f"onerror not escaped in: {input_str}"
+            assert (
+                "javascript:" not in escaped
+            ), f"javascript: not escaped in: {input_str}"
 
             # Should contain escaped entities
-            assert "&lt;" in escaped or "&gt;" in escaped, "HTML entities not found in escaped output"
+            assert (
+                "&lt;" in escaped or "&gt;" in escaped
+            ), "HTML entities not found in escaped output"
 
         # Test that normal text is preserved (mostly)
         normal_text = "Hello, world!"
@@ -265,7 +286,11 @@ class TestAuthorization:
 
     def test_session_security(self):
         """Test session security implementation"""
-        from app.core.security import create_session, validate_session, invalidate_session
+        from app.core.security import (
+            create_session,
+            invalidate_session,
+            validate_session,
+        )
 
         # Test that session tokens are properly generated
         user_id = 12345
@@ -277,7 +302,9 @@ class TestAuthorization:
         assert len(session["session_id"]) > 20, "Session ID should be substantial"
 
         # Test that sessions are valid
-        assert validate_session(session["session_id"]) is True, "Valid session should pass validation"
+        assert (
+            validate_session(session["session_id"]) is True
+        ), "Valid session should pass validation"
 
         # Test session invalidation
         result = invalidate_session(session["session_id"])
@@ -285,7 +312,9 @@ class TestAuthorization:
 
         # Test invalid sessions
         assert validate_session("") is False, "Empty session ID should be invalid"
-        assert validate_session("invalid_session") is False, "Invalid session ID should be invalid"
+        assert (
+            validate_session("invalid_session") is False
+        ), "Invalid session ID should be invalid"
 
         print("✅ Session security working correctly")
 
@@ -324,7 +353,7 @@ class TestInputValidation:
         valid_emails = [
             "user@example.com",
             "john.doe@company.co.uk",
-            "test+tag@domain.com"
+            "test+tag@domain.com",
         ]
 
         invalid_emails = [
@@ -333,7 +362,7 @@ class TestInputValidation:
             "user@",
             "user space@example.com",
             "user@domain",
-            ""
+            "",
         ]
 
         for email in valid_emails:
@@ -350,7 +379,7 @@ class TestInputValidation:
             "'; DROP TABLE users; --",
             "1' OR '1'='1",
             "admin'--",
-            "<script>alert('xss')</script>"
+            "<script>alert('xss')</script>",
         ]
 
         for input_str in malicious_inputs:
@@ -366,7 +395,7 @@ class TestInputValidation:
         xss_inputs = [
             "<script>alert('xss')</script>",
             "<img src=x onerror=alert('xss')>",
-            "javascript:alert('xss')"
+            "javascript:alert('xss')",
         ]
 
         for input_str in xss_inputs:
@@ -458,6 +487,7 @@ class TestCSRFProtection:
 
         # Wait for expiration
         import time
+
         time.sleep(2)
 
         # Should be expired
@@ -470,6 +500,7 @@ class TestSecureHeaders:
     def test_security_headers_present(self):
         """Test that security headers are set"""
         from fastapi.testclient import TestClient
+
         from app.main import app
 
         client = TestClient(app)
@@ -487,6 +518,7 @@ class TestSecureHeaders:
     def test_cors_headers(self):
         """Test CORS headers configuration"""
         from fastapi.testclient import TestClient
+
         from app.main import app
 
         client = TestClient(app)
@@ -503,12 +535,7 @@ class TestPasswordPolicy:
         """Test that weak passwords are rejected"""
         from app.services.security import validate_password_strength
 
-        weak_passwords = [
-            "password",
-            "12345678",
-            "qwerty",
-            "abc123"
-        ]
+        weak_passwords = ["password", "12345678", "qwerty", "abc123"]
 
         for password in weak_passwords:
             is_valid, message = validate_password_strength(password)
@@ -522,7 +549,7 @@ class TestPasswordPolicy:
         strong_passwords = [
             "MySecure123!Password",
             "C0mpl3x@P@ssw0rd",
-            "Str0ng#Passw0rd!"
+            "Str0ng#Passw0rd!",
         ]
 
         for password in strong_passwords:
@@ -543,10 +570,7 @@ class TestPasswordPolicy:
         from app.services.security import validate_password_strength
 
         no_special = "Password123"
-        is_valid, message = validate_password_strength(
-            no_special,
-            require_special=True
-        )
+        is_valid, message = validate_password_strength(no_special, require_special=True)
         assert is_valid is False
         assert "special" in message.lower()
 
@@ -595,7 +619,7 @@ class TestEncryption:
 
     def test_encrypt_decrypt_data(self):
         """Test encrypting and decrypting data"""
-        from app.core.security import encrypt_data, decrypt_data
+        from app.core.security import decrypt_data, encrypt_data
 
         sensitive_data = "This is sensitive information"
 
@@ -629,11 +653,7 @@ class TestAuditLogging:
         """Test logging login attempts"""
         from app.core.security import log_login_attempt
 
-        result = log_login_attempt(
-            user_id=123,
-            success=True,
-            ip_address="192.168.1.1"
-        )
+        result = log_login_attempt(user_id=123, success=True, ip_address="192.168.1.1")
 
         assert result is True
 
@@ -645,7 +665,7 @@ class TestAuditLogging:
             user_id=None,
             success=False,
             ip_address="192.168.1.1",
-            reason="Invalid password"
+            reason="Invalid password",
         )
 
         assert result is True
@@ -665,5 +685,5 @@ class TestAuditLogging:
         assert is_brute_force is True
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

@@ -16,9 +16,9 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
+import logging
 from abc import ABC
 from datetime import datetime
-import logging
 from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
@@ -51,9 +51,13 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
         """
         self.db = db
         self.model_class = model_class
-        self.logger = logging.getLogger(f"app.repositories.{model_class.__name__.lower()}")
+        self.logger = logging.getLogger(
+            f"app.repositories.{model_class.__name__.lower()}"
+        )
 
-    async def get_by_id(self, id: Any, include_deleted: bool = False) -> ModelType | None:
+    async def get_by_id(
+        self, id: Any, include_deleted: bool = False
+    ) -> ModelType | None:
         """
         Get entity by ID with optional soft-delete filtering
 
@@ -82,7 +86,9 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             return entity
 
         except Exception as e:
-            self.logger.error(f"Error getting {self.model_class.__name__} by ID {id}: {e}")
+            self.logger.error(
+                f"Error getting {self.model_class.__name__} by ID {id}: {e}"
+            )
             raise
 
     async def get_by_field(
@@ -101,7 +107,9 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
         """
         try:
             if not hasattr(self.model_class, field_name):
-                raise ValueError(f"Model {self.model_class.__name__} has no field {field_name}")
+                raise ValueError(
+                    f"Model {self.model_class.__name__} has no field {field_name}"
+                )
 
             field = getattr(self.model_class, field_name)
             query = select(self.model_class).where(field == field_value)
@@ -276,7 +284,9 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             # Get existing entity
             entity = await self.get_by_id(id)
             if not entity:
-                self.logger.warning(f"Cannot update {self.model_class.__name__} {id}: not found")
+                self.logger.warning(
+                    f"Cannot update {self.model_class.__name__} {id}: not found"
+                )
                 return None
 
             # Convert Pydantic schema to dictionary
@@ -330,7 +340,9 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             # Get existing entity
             entity = await self.get_by_id(id)
             if not entity:
-                self.logger.warning(f"Cannot delete {self.model_class.__name__} {id}: not found")
+                self.logger.warning(
+                    f"Cannot delete {self.model_class.__name__} {id}: not found"
+                )
                 return False
 
             if hard_delete:
@@ -376,7 +388,9 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             True if entity exists, False otherwise
         """
         try:
-            query = select(func.count(self.model_class.id)).where(self.model_class.id == id)
+            query = select(func.count(self.model_class.id)).where(
+                self.model_class.id == id
+            )
 
             # Apply soft-delete filter if model supports it
             if hasattr(self.model_class, "deleted_at") and not include_deleted:
@@ -387,7 +401,9 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             return count > 0
 
         except Exception as e:
-            self.logger.error(f"Error checking {self.model_class.__name__} existence {id}: {e}")
+            self.logger.error(
+                f"Error checking {self.model_class.__name__} existence {id}: {e}"
+            )
             raise
 
     async def bulk_create(
@@ -549,7 +565,9 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             return None
 
         except Exception as e:
-            self.logger.error(f"Error getting fields from {self.model_class.__name__} {id}: {e}")
+            self.logger.error(
+                f"Error getting fields from {self.model_class.__name__} {id}: {e}"
+            )
             raise
 
     async def get_with_relations(
@@ -598,14 +616,11 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
                 if relations:
                     # Need to select the full entity to load relations
                     # Fall back to standard query
-                    query = (
-                        select(self.model_class)
-                        .options(
-                            *[
-                                selectinload(getattr(self.model_class, relation))
-                                for relation in relations
-                            ]
-                        )
+                    query = select(self.model_class).options(
+                        *[
+                            selectinload(getattr(self.model_class, relation))
+                            for relation in relations
+                        ]
                     )
             else:
                 # Build select query with relations
@@ -646,5 +661,7 @@ class BaseRepository(Generic[ModelType, CreateSchemaType, UpdateSchemaType], ABC
             return entity
 
         except Exception as e:
-            self.logger.error(f"Error getting {self.model_class.__name__} with relations {id}: {e}")
+            self.logger.error(
+                f"Error getting {self.model_class.__name__} with relations {id}: {e}"
+            )
             raise

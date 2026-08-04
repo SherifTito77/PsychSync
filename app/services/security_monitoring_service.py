@@ -3,11 +3,11 @@ Security Monitoring and Alerting System
 Real-time threat detection, monitoring, and alerting for PsychSync
 """
 
+import logging
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class AlertSeverity(str, Enum):
     """Alert severity levels."""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -23,6 +24,7 @@ class AlertSeverity(str, Enum):
 
 class ThreatType(str, Enum):
     """Types of security threats."""
+
     BRUTE_FORCE = "brute_force"
     SQL_INJECTION = "sql_injection"
     XSS_ATTEMPT = "xss_attempt"
@@ -38,6 +40,7 @@ class ThreatType(str, Enum):
 @dataclass
 class SecurityAlert:
     """Security alert data structure."""
+
     alert_id: str
     threat_type: ThreatType
     severity: AlertSeverity
@@ -54,6 +57,7 @@ class SecurityAlert:
 @dataclass
 class SecurityMetrics:
     """Real-time security metrics."""
+
     total_requests: int = 0
     failed_auth_attempts: int = 0
     blocked_requests: int = 0
@@ -129,7 +133,7 @@ class SecurityMonitoringService:
         self,
         request_data: dict[str, Any],
         response_status: int,
-        response_time_ms: float
+        response_time_ms: float,
     ) -> SecurityAlert | None:
         """
         Monitor a request for security threats.
@@ -144,12 +148,14 @@ class SecurityMonitoringService:
         """
         # Update metrics
         self.metrics.total_requests += 1
-        self.request_history.append({
-            "timestamp": datetime.utcnow(),
-            "status": response_status,
-            "response_time_ms": response_time_ms,
-            **request_data
-        })
+        self.request_history.append(
+            {
+                "timestamp": datetime.utcnow(),
+                "status": response_status,
+                "response_time_ms": response_time_ms,
+                **request_data,
+            }
+        )
 
         # Run detection rules
         for threat_type, detector in self.detection_rules.items():
@@ -167,7 +173,7 @@ class SecurityMonitoringService:
         self,
         request_data: dict[str, Any],
         response_status: int,
-        response_time_ms: float
+        response_time_ms: float,
     ) -> SecurityAlert | None:
         """Detect brute force login attempts."""
         endpoint = request_data.get("endpoint", "")
@@ -175,15 +181,20 @@ class SecurityMonitoringService:
         source_ip = request_data.get("source_ip")
 
         # Only check auth endpoints
-        if not any(x in endpoint for x in ["/auth/login", "/auth/register", "/auth/reset-password"]):
+        if not any(
+            x in endpoint
+            for x in ["/auth/login", "/auth/register", "/auth/reset-password"]
+        ):
             return None
 
         # Check for multiple failed attempts from same IP
         recent_failures = [
-            r for r in self.request_history
+            r
+            for r in self.request_history
             if r.get("source_ip") == source_ip
             and r.get("status") in [401, 403]
-            and r.get("timestamp", datetime.utcnow()) > datetime.utcnow() - timedelta(minutes=5)
+            and r.get("timestamp", datetime.utcnow())
+            > datetime.utcnow() - timedelta(minutes=5)
         ]
 
         if len(recent_failures) >= 5:
@@ -198,8 +209,8 @@ class SecurityMonitoringService:
                 description=f"Brute force attack detected from {source_ip}: {len(recent_failures)} failed attempts",
                 metadata={
                     "failed_attempts": len(recent_failures),
-                    "time_window": "5 minutes"
-                }
+                    "time_window": "5 minutes",
+                },
             )
 
         return None
@@ -208,7 +219,7 @@ class SecurityMonitoringService:
         self,
         request_data: dict[str, Any],
         response_status: int,
-        response_time_ms: float
+        response_time_ms: float,
     ) -> SecurityAlert | None:
         """Detect SQL injection attempts."""
         # Check if SQL injection was flagged by input validation middleware
@@ -222,9 +233,7 @@ class SecurityMonitoringService:
                 user_id=request_data.get("user_id"),
                 endpoint=request_data.get("endpoint"),
                 description=f"SQL injection attempt blocked from {request_data.get('source_ip')}",
-                metadata={
-                    "payload_preview": request_data.get("sql_payload", "")[:100]
-                }
+                metadata={"payload_preview": request_data.get("sql_payload", "")[:100]},
             )
 
         return None
@@ -233,7 +242,7 @@ class SecurityMonitoringService:
         self,
         request_data: dict[str, Any],
         response_status: int,
-        response_time_ms: float
+        response_time_ms: float,
     ) -> SecurityAlert | None:
         """Detect XSS attempts."""
         if request_data.get("xss_detected"):
@@ -246,9 +255,7 @@ class SecurityMonitoringService:
                 user_id=request_data.get("user_id"),
                 endpoint=request_data.get("endpoint"),
                 description=f"XSS attempt blocked from {request_data.get('source_ip')}",
-                metadata={
-                    "payload_preview": request_data.get("xss_payload", "")[:100]
-                }
+                metadata={"payload_preview": request_data.get("xss_payload", "")[:100]},
             )
 
         return None
@@ -257,7 +264,7 @@ class SecurityMonitoringService:
         self,
         request_data: dict[str, Any],
         response_status: int,
-        response_time_ms: float
+        response_time_ms: float,
     ) -> SecurityAlert | None:
         """Detect rate limit violations."""
         if response_status == 429:  # Too Many Requests
@@ -270,7 +277,7 @@ class SecurityMonitoringService:
                 user_id=request_data.get("user_id"),
                 endpoint=request_data.get("endpoint"),
                 description=f"Rate limit exceeded by {request_data.get('source_ip')}",
-                metadata={"endpoint": request_data.get("endpoint")}
+                metadata={"endpoint": request_data.get("endpoint")},
             )
 
         return None
@@ -279,7 +286,7 @@ class SecurityMonitoringService:
         self,
         request_data: dict[str, Any],
         response_status: int,
-        response_time_ms: float
+        response_time_ms: float,
     ) -> SecurityAlert | None:
         """Detect abnormal traffic patterns (DDoS, scraping, etc.)."""
         # Calculate requests per minute in last minute
@@ -287,8 +294,7 @@ class SecurityMonitoringService:
         one_minute_ago = now - timedelta(minutes=1)
 
         recent_requests = [
-            r for r in self.request_history
-            if r.get("timestamp", now) > one_minute_ago
+            r for r in self.request_history if r.get("timestamp", now) > one_minute_ago
         ]
 
         requests_per_minute = len(recent_requests)
@@ -306,8 +312,8 @@ class SecurityMonitoringService:
                 description=f"Abnormal traffic detected: {requests_per_minute} requests/min (baseline: {self.baseline_requests_per_minute})",
                 metadata={
                     "requests_per_minute": requests_per_minute,
-                    "baseline": self.baseline_requests_per_minute
-                }
+                    "baseline": self.baseline_requests_per_minute,
+                },
             )
 
         return None
@@ -316,7 +322,7 @@ class SecurityMonitoringService:
         self,
         request_data: dict[str, Any],
         response_status: int,
-        response_time_ms: float
+        response_time_ms: float,
     ) -> SecurityAlert | None:
         """Check if IP is in blocklist."""
         source_ip = request_data.get("source_ip")
@@ -329,7 +335,7 @@ class SecurityMonitoringService:
                 source_ip=source_ip,
                 endpoint=request_data.get("endpoint"),
                 description=f"Request from blocked IP: {source_ip}",
-                metadata={"reason": "IP in blocklist"}
+                metadata={"reason": "IP in blocklist"},
             )
 
         return None
@@ -338,16 +344,25 @@ class SecurityMonitoringService:
         self,
         request_data: dict[str, Any],
         response_status: int,
-        response_time_ms: float
+        response_time_ms: float,
     ) -> SecurityAlert | None:
         """Detect malicious user agents (bots, scanners, etc.)."""
         user_agent = request_data.get("user_agent", "")
 
         # Common malicious user agent patterns
         malicious_patterns = [
-            "sqlmap", "nikto", "nmap", "masscan", "zmap",
-            "wget", "curl", "python-requests", "go-http-client",
-            "metasploit", "burpcollaborator", "scanner"
+            "sqlmap",
+            "nikto",
+            "nmap",
+            "masscan",
+            "zmap",
+            "wget",
+            "curl",
+            "python-requests",
+            "go-http-client",
+            "metasploit",
+            "burpcollaborator",
+            "scanner",
         ]
 
         user_agent_lower = user_agent.lower()
@@ -360,7 +375,7 @@ class SecurityMonitoringService:
                 source_ip=request_data.get("source_ip"),
                 endpoint=request_data.get("endpoint"),
                 description=f"Malicious user agent detected: {user_agent[:100]}",
-                metadata={"user_agent": user_agent[:200]}
+                metadata={"user_agent": user_agent[:200]},
             )
 
         return None
@@ -369,7 +384,7 @@ class SecurityMonitoringService:
         self,
         request_data: dict[str, Any],
         response_status: int,
-        response_time_ms: float
+        response_time_ms: float,
     ) -> SecurityAlert | None:
         """Detect privilege escalation attempts."""
         endpoint = request_data.get("endpoint", "")
@@ -388,7 +403,7 @@ class SecurityMonitoringService:
                     user_id=user_id,
                     endpoint=endpoint,
                     description=f"Privilege escalation attempt by user {user_id} to {endpoint}",
-                    metadata={"blocked": True}
+                    metadata={"blocked": True},
                 )
 
         return None
@@ -397,7 +412,7 @@ class SecurityMonitoringService:
         self,
         request_data: dict[str, Any],
         response_status: int,
-        response_time_ms: float
+        response_time_ms: float,
     ) -> SecurityAlert | None:
         """Detect potential data exfiltration."""
         endpoint = request_data.get("endpoint", "")
@@ -419,7 +434,7 @@ class SecurityMonitoringService:
                     user_id=user_id,
                     endpoint=endpoint,
                     description=f"Potential data exfiltration: {record_count} records exported by {user_id}",
-                    metadata={"record_count": record_count}
+                    metadata={"record_count": record_count},
                 )
 
         return None
@@ -430,7 +445,10 @@ class SecurityMonitoringService:
         cooldown_key = f"{alert.threat_type}_{alert.source_ip}"
         last_alert_time = self.alert_cooldowns.get(cooldown_key)
 
-        if last_alert_time and datetime.utcnow() - last_alert_time < self.alert_cooldown:
+        if (
+            last_alert_time
+            and datetime.utcnow() - last_alert_time < self.alert_cooldown
+        ):
             # In cooldown, skip but log
             logger.debug(f"Alert in cooldown: {cooldown_key}")
             return
@@ -444,7 +462,11 @@ class SecurityMonitoringService:
         self.metrics.alerts_triggered += 1
 
         # Log alert
-        log_method = logger.critical if alert.severity == AlertSeverity.CRITICAL else logger.warning
+        log_method = (
+            logger.critical
+            if alert.severity == AlertSeverity.CRITICAL
+            else logger.warning
+        )
         log_method(f"Security Alert: {alert.description}")
 
         # Send notifications
@@ -483,25 +505,45 @@ class SecurityMonitoringService:
         }
 
         payload = {
-            "attachments": [{
-                "color": color_map.get(alert.severity, "#36a64f"),
-                "title": f"🚨 Security Alert: {alert.threat_type.value.upper()}",
-                "text": alert.description,
-                "fields": [
-                    {"title": "Severity", "value": alert.severity.value, "short": True},
-                    {"title": "Source IP", "value": alert.source_ip, "short": True},
-                    {"title": "Endpoint", "value": alert.endpoint or "N/A", "short": True},
-                    {"title": "User ID", "value": alert.user_id or "N/A", "short": True},
-                    {"title": "Timestamp", "value": alert.timestamp.isoformat(), "short": True},
-                ],
-                "footer": "PsychSync Security Monitor",
-                "ts": int(alert.timestamp.timestamp())
-            }]
+            "attachments": [
+                {
+                    "color": color_map.get(alert.severity, "#36a64f"),
+                    "title": f"🚨 Security Alert: {alert.threat_type.value.upper()}",
+                    "text": alert.description,
+                    "fields": [
+                        {
+                            "title": "Severity",
+                            "value": alert.severity.value,
+                            "short": True,
+                        },
+                        {"title": "Source IP", "value": alert.source_ip, "short": True},
+                        {
+                            "title": "Endpoint",
+                            "value": alert.endpoint or "N/A",
+                            "short": True,
+                        },
+                        {
+                            "title": "User ID",
+                            "value": alert.user_id or "N/A",
+                            "short": True,
+                        },
+                        {
+                            "title": "Timestamp",
+                            "value": alert.timestamp.isoformat(),
+                            "short": True,
+                        },
+                    ],
+                    "footer": "PsychSync Security Monitor",
+                    "ts": int(alert.timestamp.timestamp()),
+                }
+            ]
         }
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(self.slack_webhook_url, json=payload) as response:
+                async with session.post(
+                    self.slack_webhook_url, json=payload
+                ) as response:
                     if response.status != 200:
                         logger.error(f"Failed to send Slack alert: {response.status}")
         except Exception as e:
@@ -535,7 +577,13 @@ class SecurityMonitoringService:
             "alerts_triggered_24h": len(recent_alerts),
             "alerts_by_severity": self._get_alerts_by_severity(recent_alerts),
             "alerts_by_threat_type": self._get_alerts_by_threat_type(recent_alerts),
-            "active_threats": len([a for a in recent_alerts if a.severity in [AlertSeverity.ERROR, AlertSeverity.CRITICAL]]),
+            "active_threats": len(
+                [
+                    a
+                    for a in recent_alerts
+                    if a.severity in [AlertSeverity.ERROR, AlertSeverity.CRITICAL]
+                ]
+            ),
         }
 
     def _get_alerts_by_severity(self, alerts: list[SecurityAlert]) -> dict[str, int]:

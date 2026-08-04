@@ -46,23 +46,23 @@ def print_stats(stats: dict):
     print(f"   Errors/Minute: {stats['errors_per_minute']:.2f}")
     print(f"   Uptime: {stats['uptime_percentage']:.2f}%")
 
-    if stats['top_error_types']:
+    if stats["top_error_types"]:
         print("\n🔴 TOP ERROR TYPES:")
-        for error_type, count in stats['top_error_types']:
+        for error_type, count in stats["top_error_types"]:
             bar = "█" * min(50, count * 2)
             print(f"   {error_type}: {count} {bar}")
 
-    if stats['top_services']:
+    if stats["top_services"]:
         print("\n🔧 TOP SERVICES WITH ERRORS:")
-        for service, count in stats['top_services']:
+        for service, count in stats["top_services"]:
             bar = "█" * min(50, count * 2)
             print(f"   {service}: {count} {bar}")
 
 
 def print_health_check(stats: dict):
     """Print system health assessment."""
-    errors_per_min = stats['errors_per_minute']
-    uptime = stats['uptime_percentage']
+    errors_per_min = stats["errors_per_minute"]
+    uptime = stats["uptime_percentage"]
 
     print("\n🏥 SYSTEM HEALTH:")
 
@@ -103,12 +103,14 @@ def print_recent_errors(count: int = 10):
         return
 
     for error in recent_errors:
-        timestamp = error['timestamp'][:19]  # Strip microseconds
+        timestamp = error["timestamp"][:19]  # Strip microseconds
         print(f"\n   [{timestamp}] {error['service']}.{error['operation']}")
         print(f"   Type: {error['error_type']}")
-        print(f"   Message: {error['error_message'][:80]}{'...' if len(error['error_message']) > 80 else ''}")
+        print(
+            f"   Message: {error['error_message'][:80]}{'...' if len(error['error_message']) > 80 else ''}"
+        )
 
-        if error.get('context'):
+        if error.get("context"):
             print(f"   Context: {error['context']}")
 
 
@@ -119,31 +121,31 @@ def generate_actionable_insights(stats: dict):
     insights = []
 
     # Check error rate
-    if stats['errors_per_minute'] > 10:
+    if stats["errors_per_minute"] > 10:
         insights.append("🚨 CRITICAL: Error rate exceeds 10 errors/min")
         insights.append("   → Check database connection pool")
         insights.append("   → Review recent deployments")
         insights.append("   → Check database server health")
-    elif stats['errors_per_minute'] > 5:
+    elif stats["errors_per_minute"] > 5:
         insights.append("⚠️  WARNING: Elevated error rate detected")
         insights.append("   → Monitor for degradation")
 
     # Check specific error types
-    error_types = dict(stats['top_error_types'])
-    if 'IntegrityError' in error_types and error_types['IntegrityError'] > 5:
+    error_types = dict(stats["top_error_types"])
+    if "IntegrityError" in error_types and error_types["IntegrityError"] > 5:
         insights.append("🔒 Multiple integrity errors (constraint violations)")
         insights.append("   → Review business logic for race conditions")
         insights.append("   → Check unique constraint violations")
 
-    if 'OperationalError' in error_types and error_types['OperationalError'] > 5:
+    if "OperationalError" in error_types and error_types["OperationalError"] > 5:
         insights.append("🔌 Multiple operational errors (connection issues)")
         insights.append("   → Check database connectivity")
         insights.append("   → Verify network stability")
 
     # Check top services
-    if stats['top_services']:
-        top_service, top_count = stats['top_services'][0]
-        if top_count > stats['total_errors'] * 0.5:
+    if stats["top_services"]:
+        top_service, top_count = stats["top_services"][0]
+        if top_count > stats["total_errors"] * 0.5:
             insights.append(f"🎯 {top_count}% of errors from {top_service}")
             insights.append(f"   → Review {top_service} for issues")
 
@@ -186,7 +188,9 @@ def watch_mode(interval: int = 10):
         iteration = 0
         while True:
             iteration += 1
-            print(f"\n🔄 Update #{iteration} - {datetime.utcnow().strftime('%H:%M:%S')}")
+            print(
+                f"\n🔄 Update #{iteration} - {datetime.utcnow().strftime('%H:%M:%S')}"
+            )
 
             stats = db_monitor.get_error_stats(minutes=5)
             print_stats(stats)
@@ -219,33 +223,26 @@ Examples:
 
   # Watch mode with custom interval
   python scripts/view_db_monitoring_stats.py --watch --interval 30
-        """
+        """,
     )
 
     parser.add_argument(
-        "--minutes",
-        type=int,
-        default=5,
-        help="Time window in minutes (default: 5)"
+        "--minutes", type=int, default=5, help="Time window in minutes (default: 5)"
     )
 
     parser.add_argument(
-        "--full-report",
-        action="store_true",
-        help="Generate full detailed report"
+        "--full-report", action="store_true", help="Generate full detailed report"
     )
 
     parser.add_argument(
-        "--watch",
-        action="store_true",
-        help="Enable watch mode (auto-refresh)"
+        "--watch", action="store_true", help="Enable watch mode (auto-refresh)"
     )
 
     parser.add_argument(
         "--interval",
         type=int,
         default=10,
-        help="Watch mode refresh interval in seconds (default: 10)"
+        help="Watch mode refresh interval in seconds (default: 10)",
     )
 
     args = parser.parse_args()
@@ -253,7 +250,9 @@ Examples:
     # Check if monitor has any data
     if len(db_monitor.error_history) == 0:
         print("⚠️  No monitoring data available yet.")
-        print("   The monitoring system may not have started, or no errors have occurred.")
+        print(
+            "   The monitoring system may not have started, or no errors have occurred."
+        )
         print("   Start the application to begin monitoring.\n")
         print("   To start standalone monitoring:")
         print("   python scripts/start_db_monitoring.py\n")

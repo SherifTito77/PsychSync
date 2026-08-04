@@ -19,36 +19,39 @@ Test Categories:
 - Contract Tests: API contract validation
 """
 
-import pytest
 import asyncio
 import json
 import time
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.v1.endpoints.users_production import (
+    DIContainer,
+    RequestContext,
+    get_current_user_with_context,
+)
+from app.core.config import settings
+from app.core.database import get_async_db
+from app.core.exceptions import PsychSyncException, ValidationError
+from app.db.models.user import User, UserRole, UserStatus
 
 # Application imports
 from app.main import app
-from app.core.database import get_async_db
-from app.core.config import settings
-from app.db.models.user import User, UserRole, UserStatus
-from app.schemas.user import UserCreate, UserUpdate, UserProfile, PasswordChangeRequest
+from app.schemas.user import PasswordChangeRequest, UserCreate, UserProfile, UserUpdate
 from app.services.security import create_access_token, hash_password
-from app.core.exceptions import PsychSyncException, ValidationError
-from app.api.v1.endpoints.users_production import (
-    RequestContext,
-    DIContainer,
-    get_current_user_with_context
-)
 
 # Test configuration
 TEST_USER_EMAIL = "test@example.com"
 TEST_USER_PASSWORD = "SecureTestPassword123!"
 ADMIN_USER_EMAIL = "admin@example.com"
 ADMIN_USER_PASSWORD = "SecureAdminPassword123!"
+
 
 class TestUserManagementProduction:
     """Comprehensive test suite for production user management"""
@@ -73,7 +76,7 @@ class TestUserManagementProduction:
             password_hash=hash_password(TEST_USER_PASSWORD),
             role=UserRole.USER,
             is_active=True,
-            is_verified=True
+            is_verified=True,
         )
         db_session.add(user)
         await db_session.commit()
@@ -89,7 +92,7 @@ class TestUserManagementProduction:
             password_hash=hash_password(ADMIN_USER_PASSWORD),
             role=UserRole.ADMIN,
             is_active=True,
-            is_verified=True
+            is_verified=True,
         )
         db_session.add(user)
         await db_session.commit()
@@ -258,14 +261,11 @@ class TestUserManagementProduction:
     ):
         """Test successful password change"""
         password_data = PasswordChangeRequest(
-            current_password=TEST_USER_PASSWORD,
-            new_password="NewSecurePassword456!"
+            current_password=TEST_USER_PASSWORD, new_password="NewSecurePassword456!"
         )
 
         response = await client.post(
-            "/users/change-password",
-            json=password_data.dict(),
-            headers=user_headers
+            "/users/change-password", json=password_data.dict(), headers=user_headers
         )
 
         assert response.status_code == 200
@@ -283,14 +283,11 @@ class TestUserManagementProduction:
     ):
         """Test password change with weak password"""
         password_data = PasswordChangeRequest(
-            current_password=TEST_USER_PASSWORD,
-            new_password="weak"  # Too weak
+            current_password=TEST_USER_PASSWORD, new_password="weak"  # Too weak
         )
 
         response = await client.post(
-            "/users/change-password",
-            json=password_data.dict(),
-            headers=user_headers
+            "/users/change-password", json=password_data.dict(), headers=user_headers
         )
 
         assert response.status_code == 422
@@ -304,14 +301,11 @@ class TestUserManagementProduction:
     ):
         """Test password change with incorrect current password"""
         password_data = PasswordChangeRequest(
-            current_password="WrongPassword123!",
-            new_password="NewSecurePassword456!"
+            current_password="WrongPassword123!", new_password="NewSecurePassword456!"
         )
 
         response = await client.post(
-            "/users/change-password",
-            json=password_data.dict(),
-            headers=user_headers
+            "/users/change-password", json=password_data.dict(), headers=user_headers
         )
 
         assert response.status_code == 401
@@ -324,8 +318,7 @@ class TestUserManagementProduction:
     ):
         """Test rate limiting on password change endpoint"""
         password_data = PasswordChangeRequest(
-            current_password=TEST_USER_PASSWORD,
-            new_password="NewSecurePassword456!"
+            current_password=TEST_USER_PASSWORD, new_password="NewSecurePassword456!"
         )
 
         # Make requests up to the limit (5 per 15 minutes)
@@ -334,7 +327,7 @@ class TestUserManagementProduction:
             response = await client.post(
                 "/users/change-password",
                 json=password_data.dict(),
-                headers=user_headers
+                headers=user_headers,
             )
             responses.append(response)
             await asyncio.sleep(0.01)
@@ -346,9 +339,7 @@ class TestUserManagementProduction:
     # ==================== USERS LIST TESTS ====================
 
     @pytest.mark.asyncio
-    async def test_list_users_unauthorized(
-        self, client: AsyncClient
-    ):
+    async def test_list_users_unauthorized(self, client: AsyncClient):
         """Test users list without authentication"""
         response = await client.get("/users/")
         assert response.status_code == 401
@@ -377,7 +368,11 @@ class TestUserManagementProduction:
 
     @pytest.mark.asyncio
     async def test_list_users_as_admin(
-        self, client: AsyncClient, admin_headers: Dict[str, str], test_user: User, admin_user: User
+        self,
+        client: AsyncClient,
+        admin_headers: Dict[str, str],
+        test_user: User,
+        admin_user: User,
     ):
         """Test users list as admin (should see all users)"""
         response = await client.get("/users/", headers=admin_headers)
@@ -412,8 +407,7 @@ class TestUserManagementProduction:
         """Test users list search functionality"""
         # Search by email
         response = await client.get(
-            f"/users/?search={test_user.email}",
-            headers=user_headers
+            f"/users/?search={test_user.email}", headers=user_headers
         )
         assert response.status_code == 200
 
@@ -446,7 +440,9 @@ class TestUserManagementProduction:
     ):
         """Test users list sorting"""
         # Sort by email
-        response = await client.get("/users/?sort_by=email&sort_order=asc", headers=user_headers)
+        response = await client.get(
+            "/users/?sort_by=email&sort_order=asc", headers=user_headers
+        )
         assert response.status_code == 200
 
         response_data = response.json()
@@ -479,30 +475,21 @@ class TestUserManagementProduction:
         # Test missing current password
         invalid_data = {"new_password": "NewPassword123!"}
         response = await client.post(
-            "/users/change-password",
-            json=invalid_data,
-            headers=user_headers
+            "/users/change-password", json=invalid_data, headers=user_headers
         )
         assert response.status_code == 422
 
         # Test missing new password
         invalid_data = {"current_password": TEST_USER_PASSWORD}
         response = await client.post(
-            "/users/change-password",
-            json=invalid_data,
-            headers=user_headers
+            "/users/change-password", json=invalid_data, headers=user_headers
         )
         assert response.status_code == 422
 
         # Test empty passwords
-        invalid_data = {
-            "current_password": "",
-            "new_password": ""
-        }
+        invalid_data = {"current_password": "", "new_password": ""}
         response = await client.post(
-            "/users/change-password",
-            json=invalid_data,
-            headers=user_headers
+            "/users/change-password", json=invalid_data, headers=user_headers
         )
         assert response.status_code == 422
 
@@ -526,7 +513,9 @@ class TestUserManagementProduction:
         assert response.status_code == 422
 
         # Test search input sanitization
-        response = await client.get('/users/?search=<script>alert("xss")</script>', headers=user_headers)
+        response = await client.get(
+            '/users/?search=<script>alert("xss")</script>', headers=user_headers
+        )
         assert response.status_code == 200
         # Should not execute script (sanitized)
 
@@ -538,7 +527,7 @@ class TestUserManagementProduction:
     ):
         """Test database error handling"""
         # Mock database error
-        with patch('app.api.v1.endpoints.users_production.get_async_db') as mock_db:
+        with patch("app.api.v1.endpoints.users_production.get_async_db") as mock_db:
             mock_db.side_effect = Exception("Database connection failed")
 
             response = await client.get("/users/me", headers=user_headers)
@@ -550,7 +539,9 @@ class TestUserManagementProduction:
     ):
         """Test cache error handling"""
         # Mock cache error
-        with patch('app.api.v1.endpoints.users_production.di_container._cache') as mock_cache:
+        with patch(
+            "app.api.v1.endpoints.users_production.di_container._cache"
+        ) as mock_cache:
             mock_cache.get.side_effect = Exception("Cache connection failed")
 
             # Should still work even if cache fails
@@ -568,7 +559,7 @@ class TestUserManagementProduction:
         user_data = UserCreate(
             email="workflow@example.com",
             full_name="Workflow User",
-            password="WorkflowPassword123!"
+            password="WorkflowPassword123!",
         )
 
         # This would typically be through registration endpoint
@@ -579,7 +570,7 @@ class TestUserManagementProduction:
             password_hash=hash_password(user_data.password),
             role=UserRole.USER,
             is_active=True,
-            is_verified=True
+            is_verified=True,
         )
         db_session.add(user)
         await db_session.commit()
@@ -595,13 +586,10 @@ class TestUserManagementProduction:
 
         # 4. Change password
         password_data = PasswordChangeRequest(
-            current_password=user_data.password,
-            new_password="NewWorkflowPassword456!"
+            current_password=user_data.password, new_password="NewWorkflowPassword456!"
         )
         response = await client.post(
-            "/users/change-password",
-            json=password_data.dict(),
-            headers=headers
+            "/users/change-password", json=password_data.dict(), headers=headers
         )
         assert response.status_code == 200
 
@@ -621,6 +609,7 @@ class TestUserManagementProduction:
         self, client: AsyncClient, user_headers: Dict[str, str]
     ):
         """Test concurrent profile requests"""
+
         async def make_request():
             return await client.get("/users/me", headers=user_headers)
 
@@ -659,13 +648,12 @@ class TestUserManagementProduction:
         malicious_inputs = [
             "'; DROP TABLE users; --",
             "1' OR '1'='1",
-            "admin@example.com'; DELETE FROM users WHERE '1'='1' --"
+            "admin@example.com'; DELETE FROM users WHERE '1'='1' --",
         ]
 
         for malicious_input in malicious_inputs:
             response = await client.get(
-                f"/users/?search={malicious_input}",
-                headers=admin_headers
+                f"/users/?search={malicious_input}", headers=admin_headers
             )
             # Should not crash the server
             assert response.status_code in [200, 422]
@@ -677,8 +665,7 @@ class TestUserManagementProduction:
         """Test XSS protection in search"""
         xss_payload = '<script>alert("xss")</script>'
         response = await client.get(
-            f"/users/?search={xss_payload}",
-            headers=admin_headers
+            f"/users/?search={xss_payload}", headers=admin_headers
         )
 
         if response.status_code == 200:
@@ -707,8 +694,15 @@ class TestUserManagementProduction:
         # Verify data fields
         user_data = response_data["data"]
         required_user_fields = [
-            "id", "email", "full_name", "role", "is_active",
-            "is_verified", "created_at", "profile_completion", "security_score"
+            "id",
+            "email",
+            "full_name",
+            "role",
+            "is_active",
+            "is_verified",
+            "created_at",
+            "profile_completion",
+            "security_score",
         ]
         for field in required_user_fields:
             assert field in user_data
@@ -731,7 +725,12 @@ class TestUserManagementProduction:
         # Verify pagination fields
         pagination = response_data["pagination"]
         required_pagination_fields = [
-            "page", "size", "total", "total_pages", "has_next", "has_prev"
+            "page",
+            "size",
+            "total",
+            "total_pages",
+            "has_next",
+            "has_prev",
         ]
         for field in required_pagination_fields:
             assert field in pagination
@@ -741,14 +740,21 @@ class TestUserManagementProduction:
         assert isinstance(users, list)
         if users:  # If there are users
             required_user_fields = [
-                "id", "email", "full_name", "role", "is_active",
-                "is_verified", "created_at", "updated_at"
+                "id",
+                "email",
+                "full_name",
+                "role",
+                "is_active",
+                "is_verified",
+                "created_at",
+                "updated_at",
             ]
             for field in required_user_fields:
                 assert field in users[0]
 
 
 # ==================== TEST UTILITIES ====================
+
 
 class TestUtils:
     """Utility functions for testing"""
@@ -759,24 +765,21 @@ class TestUtils:
         return UserCreate(
             email=f"test_{datetime.utcnow().timestamp()}@example.com",
             full_name="Test User",
-            password="TestPassword123!"
+            password="TestPassword123!",
         )
 
     @staticmethod
     def create_password_change_data(
-        current_password: str,
-        new_password: str
+        current_password: str, new_password: str
     ) -> PasswordChangeRequest:
         """Create password change data"""
         return PasswordChangeRequest(
-            current_password=current_password,
-            new_password=new_password
+            current_password=current_password, new_password=new_password
         )
 
     @staticmethod
     async def assert_response_structure(
-        response_data: Dict[str, Any],
-        has_pagination: bool = False
+        response_data: Dict[str, Any], has_pagination: bool = False
     ):
         """Assert standard response structure"""
         assert "success" in response_data
@@ -794,10 +797,7 @@ class TestUtils:
 
     @staticmethod
     async def assert_audit_log_contains(
-        db_session: AsyncSession,
-        user_id: str,
-        action: str,
-        request_id: str = None
+        db_session: AsyncSession, user_id: str, action: str, request_id: str = None
     ):
         """Assert audit log contains specific entry"""
         # This would check the audit log table
@@ -807,11 +807,14 @@ class TestUtils:
 
 # ==================== PERFORMANCE TESTING UTILITIES ====================
 
+
 class PerformanceTestUtils:
     """Utilities for performance testing"""
 
     @staticmethod
-    async def measure_response_time(client: AsyncClient, method: str, url: str, **kwargs):
+    async def measure_response_time(
+        client: AsyncClient, method: str, url: str, **kwargs
+    ):
         """Measure response time for API call"""
         start_time = time.time()
         response = await client.request(method, url, **kwargs)
@@ -825,28 +828,30 @@ class PerformanceTestUtils:
         method: str,
         url: str,
         concurrent_requests: int = 10,
-        **kwargs
+        **kwargs,
     ):
         """Perform load test on endpoint"""
+
         async def make_request():
             return await client.request(method, url, **kwargs)
 
         tasks = [make_request() for _ in range(concurrent_requests)]
         responses = await asyncio.gather(*tasks, return_exceptions=True)
 
-        successful_responses = [r for r in responses if hasattr(r, 'status_code')]
-        failed_responses = [r for r in responses if not hasattr(r, 'status_code')]
+        successful_responses = [r for r in responses if hasattr(r, "status_code")]
+        failed_responses = [r for r in responses if not hasattr(r, "status_code")]
 
         return {
             "total_requests": concurrent_requests,
             "successful_requests": len(successful_responses),
             "failed_requests": len(failed_responses),
             "success_rate": len(successful_responses) / concurrent_requests * 100,
-            "responses": successful_responses
+            "responses": successful_responses,
         }
 
 
 # ==================== TEST CONFIGURATION ====================
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -866,11 +871,13 @@ pytest.mark.contract = pytest.mark.contract
 
 if __name__ == "__main__":
     # Run tests
-    pytest.main([
-        __file__,
-        "-v",
-        "--tb=short",
-        "--cov=app.api.v1.endpoints.users_production",
-        "--cov-report=html",
-        "--cov-report=term-missing"
-    ])
+    pytest.main(
+        [
+            __file__,
+            "-v",
+            "--tb=short",
+            "--cov=app.api.v1.endpoints.users_production",
+            "--cov-report=html",
+            "--cov-report=term-missing",
+        ]
+    )

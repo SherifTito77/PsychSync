@@ -1,8 +1,14 @@
-
-import pytest
-import pandas as pd
 import numpy as np
-from app.services.prediction_service import PredictionService, TargetType, ModelPerformance, ModelType
+import pandas as pd
+import pytest
+
+from app.services.prediction_service import (
+    ModelPerformance,
+    ModelType,
+    PredictionService,
+    TargetType,
+)
+
 
 def test_compare_models_empty():
     service = PredictionService()
@@ -11,21 +17,28 @@ def test_compare_models_empty():
     assert metrics == {}
     assert "No models were trained" in rec
 
+
 def test_compare_models_no_scores_regression():
     service = PredictionService()
     perf = ModelPerformance()
-    best_model, metrics, rec = service._compare_models({"test_model": perf}, TargetType.REGRESSION)
+    best_model, metrics, rec = service._compare_models(
+        {"test_model": perf}, TargetType.REGRESSION
+    )
     assert best_model == "test_model"
     assert metrics == {}
     assert "No valid regression metrics" in rec
 
+
 def test_compare_models_no_scores_classification():
     service = PredictionService()
     perf = ModelPerformance()
-    best_model, metrics, rec = service._compare_models({"test_model": perf}, TargetType.CLASSIFICATION)
+    best_model, metrics, rec = service._compare_models(
+        {"test_model": perf}, TargetType.CLASSIFICATION
+    )
     assert best_model == "test_model"
     assert metrics == {}
     assert "No valid classification metrics" in rec
+
 
 def test_compare_models_valid_regression():
     service = PredictionService()
@@ -39,6 +52,7 @@ def test_compare_models_valid_regression():
     assert metrics["model2"] == 0.9
     assert "Excellent model" in rec
 
+
 def test_compare_models_valid_classification():
     service = PredictionService()
     perf1 = ModelPerformance(accuracy=0.7)
@@ -51,16 +65,14 @@ def test_compare_models_valid_classification():
     assert metrics["model2"] == 0.85
     assert "Good model" in rec
 
+
 def test_preprocessing_pipeline_import():
     # This verifies OneHotEncoder is available and the pipeline can be created
     service = PredictionService()
-    df = pd.DataFrame({
-        'numeric': [1.0, 2.0, 3.0],
-        'categorical': ['A', 'B', 'A']
-    })
+    df = pd.DataFrame({"numeric": [1.0, 2.0, 3.0], "categorical": ["A", "B", "A"]})
     pipeline = service._create_preprocessing_pipeline(df, False, TargetType.REGRESSION)
     assert pipeline is not None
-    
+
     # Test fitting (with dummy target)
     y = np.array([10, 20, 30])
     pipeline.fit(df, y)

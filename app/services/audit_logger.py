@@ -18,11 +18,11 @@ Author: Security Team
 Version: 1.0
 """
 
+import json
+import logging
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
-import json
-import logging
 from typing import Any
 
 from app.db.models.user import User
@@ -258,7 +258,9 @@ class AuditLogger:
             denial_reason: Reason for denial (if denied)
         """
         event_type = (
-            AuditEventType.AUTHZ_ACCESS_GRANTED if granted else AuditEventType.AUTHZ_ACCESS_DENIED
+            AuditEventType.AUTHZ_ACCESS_GRANTED
+            if granted
+            else AuditEventType.AUTHZ_ACCESS_DENIED
         )
 
         severity = AuditSeverity.MEDIUM if not granted else AuditSeverity.LOW
@@ -308,7 +310,11 @@ class AuditLogger:
         """
         event_type = AuditEventType.DATA_ACCESSED
 
-        details = {"fields_accessed": fields_accessed, "action": action, "encrypted": is_encrypted}
+        details = {
+            "fields_accessed": fields_accessed,
+            "action": action,
+            "encrypted": is_encrypted,
+        }
 
         severity = AuditSeverity.LOW
         if is_encrypted:
@@ -454,7 +460,9 @@ class AuditLogger:
 
         return results
 
-    def get_security_summary(self, start_time: datetime, end_time: datetime) -> dict[str, Any]:
+    def get_security_summary(
+        self, start_time: datetime, end_time: datetime
+    ) -> dict[str, Any]:
         """
         Generate security summary for a time period
 
@@ -465,7 +473,9 @@ class AuditLogger:
         Returns:
             Dictionary with security metrics
         """
-        events_in_period = [e for e in self.audit_log if start_time <= e.timestamp <= end_time]
+        events_in_period = [
+            e for e in self.audit_log if start_time <= e.timestamp <= end_time
+        ]
 
         # Count by event type
         event_counts = {}

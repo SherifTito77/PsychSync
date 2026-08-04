@@ -8,17 +8,17 @@ Access: Administrators and auditors
 """
 
 import logging
-from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.users import get_async_db, get_current_user
 from app.db.models.user import User
-from app.services.audit_service import audit_service, AuditEventType, AuditSeverity
+from app.services.audit_service import AuditEventType, AuditSeverity, audit_service
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ router = APIRouter(prefix="/audit", tags=["audit-logging"])
 # Dependencies
 # =============================================================================
 
+
 async def get_admin_or_auditor(current_user: User = Depends(get_current_user)) -> User:
     """Verify user is admin or auditor"""
     if current_user.is_superuser:
@@ -40,8 +41,7 @@ async def get_admin_or_auditor(current_user: User = Depends(get_current_user)) -
     #     return current_user
 
     raise HTTPException(
-        status_code=403,
-        detail="Administrator or auditor access required"
+        status_code=403, detail="Administrator or auditor access required"
     )
 
 
@@ -49,8 +49,10 @@ async def get_admin_or_auditor(current_user: User = Depends(get_current_user)) -
 # Pydantic Schemas
 # =============================================================================
 
+
 class AuditLogResponse(BaseModel):
     """Response schema for audit log entry"""
+
     id: UUID
     event_type: str
     user_id: Optional[UUID]
@@ -68,6 +70,7 @@ class AuditLogResponse(BaseModel):
 
 class AuditLogsResponse(BaseModel):
     """Response schema for audit logs query"""
+
     logs: List[AuditLogResponse]
     total: int
     page: int
@@ -76,13 +79,17 @@ class AuditLogsResponse(BaseModel):
 
 class ComplianceReportRequest(BaseModel):
     """Request schema for compliance report generation"""
+
     start_date: datetime = Field(..., description="Report start date")
     end_date: datetime = Field(..., description="Report end date")
-    report_type: str = Field(default="hipaa", description="Type of report (hipaa, gdpr, soc2)")
+    report_type: str = Field(
+        default="hipaa", description="Type of report (hipaa, gdpr, soc2)"
+    )
 
 
 class SuspiciousActivityResponse(BaseModel):
     """Response schema for suspicious activity"""
+
     multiple_failed_logins: List[Dict[str, Any]]
     bulk_data_access: List[Dict[str, Any]]
     unauthorized_attempts: List[Dict[str, Any]]
@@ -91,6 +98,7 @@ class SuspiciousActivityResponse(BaseModel):
 # =============================================================================
 # API Endpoints
 # =============================================================================
+
 
 @router.get("/logs/user/{user_id}", response_model=AuditLogsResponse)
 async def get_user_audit_logs(
@@ -136,10 +144,15 @@ async def get_user_audit_logs(
         )
 
         # Get total count
-        from app.db.models.audit import AuditLog
-        from sqlalchemy import select, func
+        from sqlalchemy import func, select
 
-        count_query = select(func.count()).select_from(AuditLog).where(AuditLog.user_id == user_id)
+        from app.db.models.audit import AuditLog
+
+        count_query = (
+            select(func.count())
+            .select_from(AuditLog)
+            .where(AuditLog.user_id == user_id)
+        )
         count_result = await db.execute(count_query)
         total = count_result.scalar() or 0
 
@@ -152,7 +165,9 @@ async def get_user_audit_logs(
 
     except Exception as e:
         logger.error(f"Failed to get user audit logs: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve logs: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve logs: {str(e)}"
+        )
 
 
 @router.get("/logs/event/{event_type}", response_model=AuditLogsResponse)
@@ -197,12 +212,16 @@ async def get_logs_by_event_type(
 
     except Exception as e:
         logger.error(f"Failed to get logs by event type: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve logs: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve logs: {str(e)}"
+        )
 
 
 @router.get("/logs/failed-logins", response_model=List[AuditLogResponse])
 async def get_failed_login_attempts(
-    hours: int = Query(24, ge=1, le=168, description="Lookback period in hours (max 7 days)"),
+    hours: int = Query(
+        24, ge=1, le=168, description="Lookback period in hours (max 7 days)"
+    ),
     limit: int = Query(100, ge=1, le=200, description="Max results"),
     admin_user: User = Depends(get_admin_or_auditor),
     db: AsyncSession = Depends(get_async_db),
@@ -244,7 +263,9 @@ async def get_failed_login_attempts(
 
     except Exception as e:
         logger.error(f"Failed to get failed login attempts: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve logs: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve logs: {str(e)}"
+        )
 
 
 @router.get("/suspicious-activity", response_model=SuspiciousActivityResponse)
@@ -286,7 +307,9 @@ async def get_suspicious_activity(
 
     except Exception as e:
         logger.error(f"Failed to get suspicious activity: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to analyze activity: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to analyze activity: {str(e)}"
+        )
 
 
 @router.post("/compliance-report")
@@ -355,7 +378,9 @@ async def generate_compliance_report(
 
     except Exception as e:
         logger.error(f"Failed to generate compliance report: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to generate report: {str(e)}"
+        )
 
 
 @router.get("/stats/summary")
@@ -389,67 +414,94 @@ async def get_audit_statistics(
     """
 
     try:
-        from app.db.models.audit import AuditLog
-        from sqlalchemy import select, func, and_
         from datetime import timedelta
+
+        from sqlalchemy import and_, func, select
+
+        from app.db.models.audit import AuditLog
 
         cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
 
         # Total events
-        total_query = select(func.count()).select_from(AuditLog).where(AuditLog.timestamp >= cutoff_time)
+        total_query = (
+            select(func.count())
+            .select_from(AuditLog)
+            .where(AuditLog.timestamp >= cutoff_time)
+        )
         total_result = await db.execute(total_query)
         total_events = total_result.scalar() or 0
 
         # Unique users
-        users_query = select(func.count(func.distinct(AuditLog.user_id))).select_from(AuditLog).where(
-            and_(
-                AuditLog.timestamp >= cutoff_time,
-                AuditLog.user_id.isnot(None)
+        users_query = (
+            select(func.count(func.distinct(AuditLog.user_id)))
+            .select_from(AuditLog)
+            .where(
+                and_(AuditLog.timestamp >= cutoff_time, AuditLog.user_id.isnot(None))
             )
         )
         users_result = await db.execute(users_query)
         unique_users = users_result.scalar() or 0
 
         # Logins
-        logins_query = select(func.count()).select_from(AuditLog).where(
-            and_(
-                AuditLog.timestamp >= cutoff_time,
-                AuditLog.event_type.in_([AuditEventType.LOGIN_SUCCESS, AuditEventType.LOGIN_FAILED])
+        logins_query = (
+            select(func.count())
+            .select_from(AuditLog)
+            .where(
+                and_(
+                    AuditLog.timestamp >= cutoff_time,
+                    AuditLog.event_type.in_(
+                        [AuditEventType.LOGIN_SUCCESS, AuditEventType.LOGIN_FAILED]
+                    ),
+                )
             )
         )
         logins_result = await db.execute(logins_query)
         logins = logins_result.scalar() or 0
 
         # Failed logins
-        failed_logins_query = select(func.count()).select_from(AuditLog).where(
-            and_(
-                AuditLog.timestamp >= cutoff_time,
-                AuditLog.event_type == AuditEventType.LOGIN_FAILED
+        failed_logins_query = (
+            select(func.count())
+            .select_from(AuditLog)
+            .where(
+                and_(
+                    AuditLog.timestamp >= cutoff_time,
+                    AuditLog.event_type == AuditEventType.LOGIN_FAILED,
+                )
             )
         )
         failed_result = await db.execute(failed_logins_query)
         failed_logins = failed_result.scalar() or 0
 
         # Data access events
-        data_access_query = select(func.count()).select_from(AuditLog).where(
-            and_(
-                AuditLog.timestamp >= cutoff_time,
-                AuditLog.event_type.in_([
-                    AuditEventType.DATA_READ,
-                    AuditEventType.DATA_CREATED,
-                    AuditEventType.DATA_UPDATED,
-                    AuditEventType.DATA_DELETED
-                ])
+        data_access_query = (
+            select(func.count())
+            .select_from(AuditLog)
+            .where(
+                and_(
+                    AuditLog.timestamp >= cutoff_time,
+                    AuditLog.event_type.in_(
+                        [
+                            AuditEventType.DATA_READ,
+                            AuditEventType.DATA_CREATED,
+                            AuditEventType.DATA_UPDATED,
+                            AuditEventType.DATA_DELETED,
+                        ]
+                    ),
+                )
             )
         )
         data_access_result = await db.execute(data_access_query)
         data_access = data_access_result.scalar() or 0
 
         # Suspicious events (high or critical severity)
-        suspicious_query = select(func.count()).select_from(AuditLog).where(
-            and_(
-                AuditLog.timestamp >= cutoff_time,
-                AuditLog.severity.in_([AuditSeverity.HIGH, AuditSeverity.CRITICAL])
+        suspicious_query = (
+            select(func.count())
+            .select_from(AuditLog)
+            .where(
+                and_(
+                    AuditLog.timestamp >= cutoff_time,
+                    AuditLog.severity.in_([AuditSeverity.HIGH, AuditSeverity.CRITICAL]),
+                )
             )
         )
         suspicious_result = await db.execute(suspicious_query)
@@ -467,7 +519,9 @@ async def get_audit_statistics(
 
     except Exception as e:
         logger.error(f"Failed to get audit statistics: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to get statistics: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get statistics: {str(e)}"
+        )
 
 
 @router.get("/events/types")
@@ -502,16 +556,37 @@ async def list_event_types(
 
     event_categories = {
         "authentication_events": [
-            {"type": AuditEventType.LOGIN_SUCCESS, "description": "Successful user login"},
-            {"type": AuditEventType.LOGIN_FAILED, "description": "Failed login attempt"},
+            {
+                "type": AuditEventType.LOGIN_SUCCESS,
+                "description": "Successful user login",
+            },
+            {
+                "type": AuditEventType.LOGIN_FAILED,
+                "description": "Failed login attempt",
+            },
             {"type": AuditEventType.LOGOUT, "description": "User logout"},
             {"type": AuditEventType.MFA_ENABLED, "description": "MFA enabled for user"},
-            {"type": AuditEventType.MFA_DISABLED, "description": "MFA disabled for user"},
-            {"type": AuditEventType.MFA_VERIFIED, "description": "MFA verified during login"},
-            {"type": AuditEventType.MFA_FAILED, "description": "MFA verification failed"},
+            {
+                "type": AuditEventType.MFA_DISABLED,
+                "description": "MFA disabled for user",
+            },
+            {
+                "type": AuditEventType.MFA_VERIFIED,
+                "description": "MFA verified during login",
+            },
+            {
+                "type": AuditEventType.MFA_FAILED,
+                "description": "MFA verification failed",
+            },
             {"type": AuditEventType.PASSWORD_CHANGE, "description": "Password changed"},
-            {"type": AuditEventType.PASSWORD_RESET, "description": "Password reset completed"},
-            {"type": AuditEventType.PASSWORD_RESET_REQUESTED, "description": "Password reset requested"},
+            {
+                "type": AuditEventType.PASSWORD_RESET,
+                "description": "Password reset completed",
+            },
+            {
+                "type": AuditEventType.PASSWORD_RESET_REQUESTED,
+                "description": "Password reset requested",
+            },
         ],
         "data_access_events": [
             {"type": AuditEventType.DATA_READ, "description": "Data read operation"},
@@ -519,30 +594,78 @@ async def list_event_types(
             {"type": AuditEventType.DATA_UPDATED, "description": "Data updated"},
             {"type": AuditEventType.DATA_DELETED, "description": "Data deleted"},
             {"type": AuditEventType.DATA_EXPORTED, "description": "Data exported"},
-            {"type": AuditEventType.BULK_DATA_ACCESS, "description": "Bulk data access (multiple records)"},
+            {
+                "type": AuditEventType.BULK_DATA_ACCESS,
+                "description": "Bulk data access (multiple records)",
+            },
         ],
         "user_management_events": [
             {"type": AuditEventType.USER_CREATED, "description": "New user created"},
-            {"type": AuditEventType.USER_UPDATED, "description": "User details updated"},
+            {
+                "type": AuditEventType.USER_UPDATED,
+                "description": "User details updated",
+            },
             {"type": AuditEventType.USER_DELETED, "description": "User deleted"},
-            {"type": AuditEventType.USER_ROLE_CHANGED, "description": "User role modified"},
-            {"type": AuditEventType.USER_PERMISSION_GRANTED, "description": "Permission granted to user"},
-            {"type": AuditEventType.USER_PERMISSION_REVOKED, "description": "Permission revoked from user"},
+            {
+                "type": AuditEventType.USER_ROLE_CHANGED,
+                "description": "User role modified",
+            },
+            {
+                "type": AuditEventType.USER_PERMISSION_GRANTED,
+                "description": "Permission granted to user",
+            },
+            {
+                "type": AuditEventType.USER_PERMISSION_REVOKED,
+                "description": "Permission revoked from user",
+            },
         ],
         "clinical_events": [
-            {"type": AuditEventType.PATIENT_DATA_ACCESS, "description": "Patient data accessed (HIPAA)"},
-            {"type": AuditEventType.CLINICAL_ASSESSMENT_CREATED, "description": "Clinical assessment created"},
-            {"type": AuditEventType.CLINICAL_ASSESSMENT_UPDATED, "description": "Clinical assessment updated"},
-            {"type": AuditEventType.CLINICAL_NOTES_ACCESS, "description": "Clinical notes accessed"},
-            {"type": AuditEventType.DIAGNOSIS_CREATED, "description": "Diagnosis created"},
-            {"type": AuditEventType.DIAGNOSIS_UPDATED, "description": "Diagnosis updated"},
+            {
+                "type": AuditEventType.PATIENT_DATA_ACCESS,
+                "description": "Patient data accessed (HIPAA)",
+            },
+            {
+                "type": AuditEventType.CLINICAL_ASSESSMENT_CREATED,
+                "description": "Clinical assessment created",
+            },
+            {
+                "type": AuditEventType.CLINICAL_ASSESSMENT_UPDATED,
+                "description": "Clinical assessment updated",
+            },
+            {
+                "type": AuditEventType.CLINICAL_NOTES_ACCESS,
+                "description": "Clinical notes accessed",
+            },
+            {
+                "type": AuditEventType.DIAGNOSIS_CREATED,
+                "description": "Diagnosis created",
+            },
+            {
+                "type": AuditEventType.DIAGNOSIS_UPDATED,
+                "description": "Diagnosis updated",
+            },
         ],
         "security_events": [
-            {"type": AuditEventType.SUSPICIOUS_ACTIVITY, "description": "Suspicious activity detected"},
-            {"type": AuditEventType.MULTIPLE_FAILED_LOGINS, "description": "Multiple failed logins detected"},
-            {"type": AuditEventType.UNUSUAL_DATA_ACCESS, "description": "Unusual data access pattern"},
-            {"type": AuditEventType.PRIVILEGE_ESCALATION, "description": "Privilege escalation attempt"},
-            {"type": AuditEventType.UNAUTHORIZED_ACCESS_ATTEMPT, "description": "Unauthorized access attempt"},
+            {
+                "type": AuditEventType.SUSPICIOUS_ACTIVITY,
+                "description": "Suspicious activity detected",
+            },
+            {
+                "type": AuditEventType.MULTIPLE_FAILED_LOGINS,
+                "description": "Multiple failed logins detected",
+            },
+            {
+                "type": AuditEventType.UNUSUAL_DATA_ACCESS,
+                "description": "Unusual data access pattern",
+            },
+            {
+                "type": AuditEventType.PRIVILEGE_ESCALATION,
+                "description": "Privilege escalation attempt",
+            },
+            {
+                "type": AuditEventType.UNAUTHORIZED_ACCESS_ATTEMPT,
+                "description": "Unauthorized access attempt",
+            },
         ],
     }
 

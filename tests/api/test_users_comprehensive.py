@@ -2,14 +2,16 @@
 """
 Comprehensive test suite for user endpoints with standardized response testing
 """
+import json
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from httpx import AsyncClient
-from unittest.mock import AsyncMock, patch
-from app.main import app
-from app.schemas.user import UserCreate, UserUpdate
-from app.schemas.auth import PasswordChange
+
 from app.core.exceptions import UserAlreadyExistsError, UserNotFoundError
-import json
+from app.main import app
+from app.schemas.auth import PasswordChange
+from app.schemas.user import UserCreate, UserUpdate
 
 
 class TestUserEndpoints:
@@ -26,7 +28,7 @@ class TestUserEndpoints:
         return {
             "email": "test@example.com",
             "password": "SecurePass123!",
-            "full_name": "Test User"
+            "full_name": "Test User",
         }
 
     @pytest.fixture
@@ -35,16 +37,13 @@ class TestUserEndpoints:
         return {
             "full_name": "Updated Name",
             "timezone": "America/New_York",
-            "locale": "en-US"
+            "locale": "en-US",
         }
 
     @pytest.fixture
     def password_change_data(self):
         """Valid password change data"""
-        return {
-            "current_password": "OldPass123!",
-            "new_password": "NewPass456!"
-        }
+        return {"current_password": "OldPass123!", "new_password": "NewPass456!"}
 
     # =============================================================================
     # USER REGISTRATION TESTS
@@ -53,8 +52,9 @@ class TestUserEndpoints:
     @pytest.mark.asyncio
     async def test_register_user_success(self, client, valid_user_data):
         """Test successful user registration returns standardized response"""
-        with patch('app.services.async_user_service.get_user_by_email_async', return_value=None), \
-             patch('app.services.async_user_service.create_user_async') as mock_create:
+        with patch(
+            "app.services.async_user_service.get_user_by_email_async", return_value=None
+        ), patch("app.services.async_user_service.create_user_async") as mock_create:
 
             # Mock the created user
             mock_user = {
@@ -63,7 +63,7 @@ class TestUserEndpoints:
                 "full_name": valid_user_data["full_name"],
                 "is_active": True,
                 "is_verified": False,
-                "created_at": "2024-01-01T00:00:00Z"
+                "created_at": "2024-01-01T00:00:00Z",
             }
             mock_create.return_value = mock_user
 
@@ -82,7 +82,9 @@ class TestUserEndpoints:
     @pytest.mark.asyncio
     async def test_register_user_duplicate_email(self, client, valid_user_data):
         """Test registration with duplicate email returns proper error response"""
-        with patch('app.services.async_user_service.get_user_by_email_async') as mock_get:
+        with patch(
+            "app.services.async_user_service.get_user_by_email_async"
+        ) as mock_get:
             mock_get.return_value = {"email": valid_user_data["email"]}
 
             response = await client.post("/users/register", json=valid_user_data)
@@ -97,7 +99,7 @@ class TestUserEndpoints:
         invalid_data = {
             "email": "invalid-email",
             "password": "123",  # Too short
-            "full_name": ""  # Empty name
+            "full_name": "",  # Empty name
         }
 
         response = await client.post("/users/register", json=invalid_data)
@@ -120,10 +122,10 @@ class TestUserEndpoints:
             "id": "550e8400-e29b-41d4-a716-446655440000",
             "email": "test@example.com",
             "full_name": "Test User",
-            "is_active": True
+            "is_active": True,
         }
 
-        with patch('app.api.deps.get_current_active_user', return_value=mock_user):
+        with patch("app.api.deps.get_current_active_user", return_value=mock_user):
             response = await client.get("/users/me")
 
             assert response.status_code == 200
@@ -138,7 +140,10 @@ class TestUserEndpoints:
     @pytest.mark.asyncio
     async def test_get_user_profile_unauthorized(self, client):
         """Test getting profile without authentication"""
-        with patch('app.api.deps.get_current_active_user', side_effect=Exception("Unauthorized")):
+        with patch(
+            "app.api.deps.get_current_active_user",
+            side_effect=Exception("Unauthorized"),
+        ):
             response = await client.get("/users/me")
             # Should return 500 due to unhandled exception, which our global handler will catch
             assert response.status_code == 500
@@ -155,8 +160,12 @@ class TestUserEndpoints:
             {"id": "2", "email": "user2@example.com", "full_name": "User 2"},
         ]
 
-        with patch('app.api.deps.get_current_active_user', return_value={"id": "admin"}), \
-             patch('app.services.async_user_service.get_all_users_async', return_value=mock_users):
+        with patch(
+            "app.api.deps.get_current_active_user", return_value={"id": "admin"}
+        ), patch(
+            "app.services.async_user_service.get_all_users_async",
+            return_value=mock_users,
+        ):
 
             response = await client.get("/users/?skip=0&limit=100")
 
@@ -178,8 +187,12 @@ class TestUserEndpoints:
         """Test user listing pagination parameters"""
         mock_users = [{"id": str(i), "email": f"user{i}@example.com"} for i in range(5)]
 
-        with patch('app.api.deps.get_current_active_user', return_value={"id": "admin"}), \
-             patch('app.services.async_user_service.get_all_users_async', return_value=mock_users):
+        with patch(
+            "app.api.deps.get_current_active_user", return_value={"id": "admin"}
+        ), patch(
+            "app.services.async_user_service.get_all_users_async",
+            return_value=mock_users,
+        ):
 
             response = await client.get("/users/?skip=2&limit=2")
 
@@ -198,11 +211,15 @@ class TestUserEndpoints:
         mock_user = {
             "id": "550e8400-e29b-41d4-a716-446655440000",
             "email": "test@example.com",
-            "full_name": "Test User"
+            "full_name": "Test User",
         }
 
-        with patch('app.api.deps.get_current_active_user', return_value={"id": "admin"}), \
-             patch('app.services.async_user_service.get_user_by_id_async', return_value=mock_user):
+        with patch(
+            "app.api.deps.get_current_active_user", return_value={"id": "admin"}
+        ), patch(
+            "app.services.async_user_service.get_user_by_id_async",
+            return_value=mock_user,
+        ):
 
             response = await client.get("/users/550e8400-e29b-41d4-a716-446655440000")
 
@@ -215,8 +232,11 @@ class TestUserEndpoints:
     @pytest.mark.asyncio
     async def test_get_user_by_id_not_found(self, client):
         """Test retrieving non-existent user returns 404"""
-        with patch('app.api.deps.get_current_active_user', return_value={"id": "admin"}), \
-             patch('app.services.async_user_service.get_user_by_id_async', return_value=None):
+        with patch(
+            "app.api.deps.get_current_active_user", return_value={"id": "admin"}
+        ), patch(
+            "app.services.async_user_service.get_user_by_id_async", return_value=None
+        ):
 
             response = await client.get("/users/550e8400-e29b-41d4-a716-446655440000")
 
@@ -235,11 +255,16 @@ class TestUserEndpoints:
             "id": "550e8400-e29b-41d4-a716-446655440000",
             "email": "test@example.com",
             "full_name": "Updated Name",
-            "timezone": "America/New_York"
+            "timezone": "America/New_York",
         }
 
-        with patch('app.api.deps.get_current_active_user', return_value={"id": "550e8400-e29b-41d4-a716-446655440000"}), \
-             patch('app.services.async_user_service.update_user_async', return_value=mock_updated_user):
+        with patch(
+            "app.api.deps.get_current_active_user",
+            return_value={"id": "550e8400-e29b-41d4-a716-446655440000"},
+        ), patch(
+            "app.services.async_user_service.update_user_async",
+            return_value=mock_updated_user,
+        ):
 
             response = await client.put("/users/me", json=user_update_data)
 
@@ -252,8 +277,12 @@ class TestUserEndpoints:
     @pytest.mark.asyncio
     async def test_update_user_profile_not_found(self, client, user_update_data):
         """Test updating user that doesn't exist"""
-        with patch('app.api.deps.get_current_active_user', return_value={"id": "550e8400-e29b-41d4-a716-446655440000"}), \
-             patch('app.services.async_user_service.update_user_async', return_value=None):
+        with patch(
+            "app.api.deps.get_current_active_user",
+            return_value={"id": "550e8400-e29b-41d4-a716-446655440000"},
+        ), patch(
+            "app.services.async_user_service.update_user_async", return_value=None
+        ):
 
             response = await client.put("/users/me", json=user_update_data)
 
@@ -270,14 +299,18 @@ class TestUserEndpoints:
         """Test successful password change"""
         mock_user = {
             "id": "550e8400-e29b-41d4-a716-446655440000",
-            "password_hash": "$2b$12$hashedpassword"
+            "password_hash": "$2b$12$hashedpassword",
         }
 
-        with patch('app.api.deps.get_current_active_user', return_value=mock_user), \
-             patch('app.core.security.verify_password', return_value=True), \
-             patch('app.services.async_user_service.update_user_async', return_value=mock_user):
+        with patch(
+            "app.api.deps.get_current_active_user", return_value=mock_user
+        ), patch("app.core.security.verify_password", return_value=True), patch(
+            "app.services.async_user_service.update_user_async", return_value=mock_user
+        ):
 
-            response = await client.post("/users/me/change-password", json=password_change_data)
+            response = await client.post(
+                "/users/me/change-password", json=password_change_data
+            )
 
             assert response.status_code == 200
             data = response.json()
@@ -286,17 +319,22 @@ class TestUserEndpoints:
             assert data["data"] is None
 
     @pytest.mark.asyncio
-    async def test_change_password_incorrect_current(self, client, password_change_data):
+    async def test_change_password_incorrect_current(
+        self, client, password_change_data
+    ):
         """Test password change with incorrect current password"""
         mock_user = {
             "id": "550e8400-e29b-41d4-a716-446655440000",
-            "password_hash": "$2b$12$hashedpassword"
+            "password_hash": "$2b$12$hashedpassword",
         }
 
-        with patch('app.api.deps.get_current_active_user', return_value=mock_user), \
-             patch('app.core.security.verify_password', return_value=False):
+        with patch(
+            "app.api.deps.get_current_active_user", return_value=mock_user
+        ), patch("app.core.security.verify_password", return_value=False):
 
-            response = await client.post("/users/me/change-password", json=password_change_data)
+            response = await client.post(
+                "/users/me/change-password", json=password_change_data
+            )
 
             assert response.status_code == 400
             data = response.json()
@@ -305,12 +343,9 @@ class TestUserEndpoints:
     @pytest.mark.asyncio
     async def test_change_password_invalid_data(self, client):
         """Test password change with invalid data"""
-        invalid_data = {
-            "current_password": "short",
-            "new_password": "123"  # Too short
-        }
+        invalid_data = {"current_password": "short", "new_password": "123"}  # Too short
 
-        with patch('app.api.deps.get_current_active_user', return_value={"id": "user"}):
+        with patch("app.api.deps.get_current_active_user", return_value={"id": "user"}):
             response = await client.post("/users/me/change-password", json=invalid_data)
 
             assert response.status_code == 422
@@ -325,8 +360,12 @@ class TestUserEndpoints:
     @pytest.mark.asyncio
     async def test_database_error_handling(self, client, valid_user_data):
         """Test that database errors are properly handled"""
-        with patch('app.services.async_user_service.get_user_by_email_async', return_value=None), \
-             patch('app.services.async_user_service.create_user_async', side_effect=Exception("Database connection failed")):
+        with patch(
+            "app.services.async_user_service.get_user_by_email_async", return_value=None
+        ), patch(
+            "app.services.async_user_service.create_user_async",
+            side_effect=Exception("Database connection failed"),
+        ):
 
             response = await client.post("/users/register", json=valid_user_data)
 
@@ -339,8 +378,12 @@ class TestUserEndpoints:
     @pytest.mark.asyncio
     async def test_custom_service_exception_handling(self, client, valid_user_data):
         """Test that custom service exceptions are properly handled"""
-        with patch('app.services.async_user_service.get_user_by_email_async', return_value=None), \
-             patch('app.services.async_user_service.create_user_async', side_effect=UserAlreadyExistsError("email", "test@example.com")):
+        with patch(
+            "app.services.async_user_service.get_user_by_email_async", return_value=None
+        ), patch(
+            "app.services.async_user_service.create_user_async",
+            side_effect=UserAlreadyExistsError("email", "test@example.com"),
+        ):
 
             response = await client.post("/users/register", json=valid_user_data)
 
@@ -348,10 +391,9 @@ class TestUserEndpoints:
             data = response.json()
             assert "already exists" in data["detail"]
 
-
-# =============================================================================
+    # =============================================================================
     # INTEGRATION TESTS
-# =============================================================================
+    # =============================================================================
 
     @pytest.mark.asyncio
     async def test_user_registration_and_profile_flow(self, client, valid_user_data):
@@ -361,18 +403,23 @@ class TestUserEndpoints:
             "email": valid_user_data["email"],
             "full_name": valid_user_data["full_name"],
             "is_active": True,
-            "is_verified": False
+            "is_verified": False,
         }
 
         # Step 1: Register user
-        with patch('app.services.async_user_service.get_user_by_email_async', return_value=None), \
-             patch('app.services.async_user_service.create_user_async', return_value=mock_user):
+        with patch(
+            "app.services.async_user_service.get_user_by_email_async", return_value=None
+        ), patch(
+            "app.services.async_user_service.create_user_async", return_value=mock_user
+        ):
 
-            register_response = await client.post("/users/register", json=valid_user_data)
+            register_response = await client.post(
+                "/users/register", json=valid_user_data
+            )
             assert register_response.status_code == 201
 
         # Step 2: Get user profile
-        with patch('app.api.deps.get_current_active_user', return_value=mock_user):
+        with patch("app.api.deps.get_current_active_user", return_value=mock_user):
             profile_response = await client.get("/users/me")
             assert profile_response.status_code == 200
             profile_data = profile_response.json()
@@ -382,8 +429,12 @@ class TestUserEndpoints:
         update_data = {"full_name": "Updated Name"}
         mock_updated_user = {**mock_user, "full_name": "Updated Name"}
 
-        with patch('app.api.deps.get_current_active_user', return_value=mock_user), \
-             patch('app.services.async_user_service.update_user_async', return_value=mock_updated_user):
+        with patch(
+            "app.api.deps.get_current_active_user", return_value=mock_user
+        ), patch(
+            "app.services.async_user_service.update_user_async",
+            return_value=mock_updated_user,
+        ):
 
             update_response = await client.put("/users/me", json=update_data)
             assert update_response.status_code == 200

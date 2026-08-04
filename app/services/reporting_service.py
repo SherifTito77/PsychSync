@@ -3,30 +3,39 @@ Advanced Reporting Service
 Comprehensive report generation, scheduling, and management service
 """
 
-import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple, BinaryIO
-from uuid import UUID
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc, func
 import json
-from dataclasses import dataclass, asdict
-from enum import Enum
+import logging
 import os
 import tempfile
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
 from pathlib import Path
+from typing import Any, BinaryIO, Dict, List, Optional, Tuple
+from uuid import UUID
 
-from app.db.models.reports import (
-    ReportTemplate, GeneratedReport, ReportSchedule, ScheduleExecution,
-    ReportView, ReportCache, ReportSubscription,
-    ReportType, ReportStatus, ExportFormat, ScheduleFrequency
-)
-from app.core.path_utils import sanitize_path, safe_filename
-from app.db.models.user import User
-from app.db.models.organization import Organization
-from app.db.models.team import Team
-from app.services.email_service import EmailService
+from sqlalchemy import and_, desc, func, or_
+from sqlalchemy.orm import Session
+
 from app.core.config import settings
+from app.core.path_utils import safe_filename, sanitize_path
+from app.db.models.organization import Organization
+from app.db.models.reports import (
+    ExportFormat,
+    GeneratedReport,
+    ReportCache,
+    ReportSchedule,
+    ReportStatus,
+    ReportSubscription,
+    ReportTemplate,
+    ReportType,
+    ReportView,
+    ScheduleExecution,
+    ScheduleFrequency,
+)
+from app.db.models.team import Team
+from app.db.models.user import User
+from app.services.email_service import EmailService
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +43,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ReportGenerationRequest:
     """Data structure for report generation requests"""
+
     template_id: Optional[UUID] = None
     report_type: ReportType = ReportType.CUSTOM
     title: str = ""
@@ -50,6 +60,7 @@ class ReportGenerationRequest:
 @dataclass
 class ReportTemplateConfig:
     """Configuration for report templates"""
+
     sections: List[Dict[str, Any]] = None
     charts: List[Dict[str, Any]] = None
     tables: List[Dict[str, Any]] = None
@@ -76,7 +87,7 @@ class ReportGenerationService:
             ExportFormat.EXCEL: self._generate_excel,
             ExportFormat.CSV: self._generate_csv,
             ExportFormat.JSON: self._generate_json,
-            ExportFormat.POWERPOINT: self._generate_powerpoint
+            ExportFormat.POWERPOINT: self._generate_powerpoint,
         }
 
     # Report Generation
@@ -98,7 +109,7 @@ class ReportGenerationService:
                 requested_by_id=request.requested_by_id,
                 organization_id=request.organization_id,
                 team_id=request.team_id,
-                generation_started=datetime.utcnow()
+                generation_started=datetime.utcnow(),
             )
 
             self.db.add(report)
@@ -123,9 +134,16 @@ class ReportGenerationService:
                     report.generation_completed = datetime.utcnow()
 
                     # Set expiration (if not specified, use default)
-                    if not request.parameters or "retention_days" not in request.parameters:
-                        retention_days = request.parameters.get("retention_days", self.default_retention_days)
-                        report.expires_at = datetime.utcnow() + timedelta(days=retention_days)
+                    if (
+                        not request.parameters
+                        or "retention_days" not in request.parameters
+                    ):
+                        retention_days = request.parameters.get(
+                            "retention_days", self.default_retention_days
+                        )
+                        report.expires_at = datetime.utcnow() + timedelta(
+                            days=retention_days
+                        )
 
                     logger.info(f"Report generated successfully: {report.id}")
 
@@ -133,7 +151,7 @@ class ReportGenerationService:
                         "success": True,
                         "report_id": str(report.id),
                         "file_url": file_result.get("download_url"),
-                        "message": "Report generated successfully"
+                        "message": "Report generated successfully",
                     }
                 else:
                     # Handle generation failure
@@ -143,7 +161,7 @@ class ReportGenerationService:
 
                     result = {
                         "success": False,
-                        "error": file_result.get("error", "Report generation failed")
+                        "error": file_result.get("error", "Report generation failed"),
                     }
 
                 self.db.commit()
@@ -157,7 +175,7 @@ class ReportGenerationService:
                 logger.error(f"Report generation failed: {str(generation_error)}")
                 result = {
                     "success": False,
-                    "error": f"Report generation failed: {str(generation_error)}"
+                    "error": f"Report generation failed: {str(generation_error)}",
                 }
 
             return result
@@ -165,16 +183,17 @@ class ReportGenerationService:
         except Exception as e:
             logger.error(f"Error generating report: {str(e)}")
             self.db.rollback()
-            return {
-                "success": False,
-                "error": f"Failed to generate report: {str(e)}"
-            }
+            return {"success": False, "error": f"Failed to generate report: {str(e)}"}
 
-    async def get_report(self, report_id: UUID, user_id: UUID) -> Optional[Dict[str, Any]]:
+    async def get_report(
+        self, report_id: UUID, user_id: UUID
+    ) -> Optional[Dict[str, Any]]:
         """Get report details with access control"""
-        report = self.db.query(GeneratedReport).filter(
-            GeneratedReport.id == report_id
-        ).first()
+        report = (
+            self.db.query(GeneratedReport)
+            .filter(GeneratedReport.id == report_id)
+            .first()
+        )
 
         if not report:
             return None
@@ -190,13 +209,17 @@ class ReportGenerationService:
 
         return self._serialize_report(report)
 
-    async def list_reports(self, organization_id: UUID, user_id: UUID,
-                          report_type: Optional[ReportType] = None,
-                          team_id: Optional[UUID] = None,
-                          status: Optional[ReportStatus] = None,
-                          limit: int = 50,
-                          offset: int = 0,
-                          date_range: Optional[Tuple[datetime, datetime]] = None) -> Dict[str, Any]:
+    async def list_reports(
+        self,
+        organization_id: UUID,
+        user_id: UUID,
+        report_type: Optional[ReportType] = None,
+        team_id: Optional[UUID] = None,
+        status: Optional[ReportStatus] = None,
+        limit: int = 50,
+        offset: int = 0,
+        date_range: Optional[Tuple[datetime, datetime]] = None,
+    ) -> Dict[str, Any]:
         """List reports with filtering options"""
         try:
             query = self.db.query(GeneratedReport).filter(
@@ -214,7 +237,7 @@ class ReportGenerationService:
                 start_date, end_date = date_range
                 query = query.filter(
                     GeneratedReport.created_at >= start_date,
-                    GeneratedReport.created_at <= end_date
+                    GeneratedReport.created_at <= end_date,
                 )
 
             # Apply access control
@@ -222,7 +245,7 @@ class ReportGenerationService:
                 or_(
                     GeneratedReport.requested_by_id == user_id,
                     GeneratedReport.is_public == True,
-                    GeneratedReport.shared_with.contains([user_id])
+                    GeneratedReport.shared_with.contains([user_id]),
                 )
             )
 
@@ -230,13 +253,18 @@ class ReportGenerationService:
             total_count = query.count()
 
             # Apply pagination
-            reports = query.order_by(desc(GeneratedReport.created_at)).offset(offset).limit(limit).all()
+            reports = (
+                query.order_by(desc(GeneratedReport.created_at))
+                .offset(offset)
+                .limit(limit)
+                .all()
+            )
 
             return {
                 "reports": [self._serialize_report(r) for r in reports],
                 "total_count": total_count,
                 "limit": limit,
-                "offset": offset
+                "offset": offset,
             }
 
         except Exception as e:
@@ -245,11 +273,19 @@ class ReportGenerationService:
 
     # Template Management
 
-    async def create_template(self, name: str, description: str, report_type: ReportType,
-                             template_config: Dict[str, Any], layout_config: Dict[str, Any],
-                             data_config: Dict[str, Any], created_by_id: UUID,
-                             organization_id: UUID, category: Optional[str] = None,
-                             tags: Optional[List[str]] = None) -> Dict[str, Any]:
+    async def create_template(
+        self,
+        name: str,
+        description: str,
+        report_type: ReportType,
+        template_config: Dict[str, Any],
+        layout_config: Dict[str, Any],
+        data_config: Dict[str, Any],
+        created_by_id: UUID,
+        organization_id: UUID,
+        category: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
         """Create a new report template"""
         try:
             template = ReportTemplate(
@@ -263,7 +299,7 @@ class ReportGenerationService:
                 organization_id=organization_id,
                 category=category,
                 tags=tags or [],
-                version="1.0"
+                version="1.0",
             )
 
             self.db.add(template)
@@ -275,24 +311,26 @@ class ReportGenerationService:
             return {
                 "success": True,
                 "template_id": str(template.id),
-                "message": "Report template created successfully"
+                "message": "Report template created successfully",
             }
 
         except Exception as e:
             logger.error(f"Error creating report template: {str(e)}")
             self.db.rollback()
-            return {
-                "success": False,
-                "error": f"Failed to create template: {str(e)}"
-            }
+            return {"success": False, "error": f"Failed to create template: {str(e)}"}
 
-    async def get_templates(self, organization_id: UUID, report_type: Optional[ReportType] = None,
-                          category: Optional[str] = None, is_public: Optional[bool] = None) -> List[Dict[str, Any]]:
+    async def get_templates(
+        self,
+        organization_id: UUID,
+        report_type: Optional[ReportType] = None,
+        category: Optional[str] = None,
+        is_public: Optional[bool] = None,
+    ) -> List[Dict[str, Any]]:
         """Get available report templates"""
         try:
             query = self.db.query(ReportTemplate).filter(
                 ReportTemplate.organization_id == organization_id,
-                ReportTemplate.is_active == True
+                ReportTemplate.is_active == True,
             )
 
             if report_type:
@@ -312,12 +350,20 @@ class ReportGenerationService:
 
     # Scheduling System
 
-    async def create_schedule(self, name: str, description: str, template_id: UUID,
-                            frequency: ScheduleFrequency, schedule_config: Dict[str, Any],
-                            delivery_method: str, delivery_config: Dict[str, Any],
-                            created_by_id: UUID, organization_id: UUID,
-                            custom_cron: Optional[str] = None,
-                            end_date: Optional[datetime] = None) -> Dict[str, Any]:
+    async def create_schedule(
+        self,
+        name: str,
+        description: str,
+        template_id: UUID,
+        frequency: ScheduleFrequency,
+        schedule_config: Dict[str, Any],
+        delivery_method: str,
+        delivery_config: Dict[str, Any],
+        created_by_id: UUID,
+        organization_id: UUID,
+        custom_cron: Optional[str] = None,
+        end_date: Optional[datetime] = None,
+    ) -> Dict[str, Any]:
         """Create a new report schedule"""
         try:
             # Calculate next run time
@@ -336,7 +382,7 @@ class ReportGenerationService:
                 delivery_method=delivery_method,
                 delivery_config=delivery_config,
                 created_by_id=created_by_id,
-                organization_id=organization_id
+                organization_id=organization_id,
             )
 
             self.db.add(schedule)
@@ -349,18 +395,17 @@ class ReportGenerationService:
                 "success": True,
                 "schedule_id": str(schedule.id),
                 "next_run": schedule.next_run.isoformat(),
-                "message": "Report schedule created successfully"
+                "message": "Report schedule created successfully",
             }
 
         except Exception as e:
             logger.error(f"Error creating report schedule: {str(e)}")
             self.db.rollback()
-            return {
-                "success": False,
-                "error": f"Failed to create schedule: {str(e)}"
-            }
+            return {"success": False, "error": f"Failed to create schedule: {str(e)}"}
 
-    async def get_schedules(self, organization_id: UUID, is_active: Optional[bool] = None) -> List[Dict[str, Any]]:
+    async def get_schedules(
+        self, organization_id: UUID, is_active: Optional[bool] = None
+    ) -> List[Dict[str, Any]]:
         """Get report schedules"""
         try:
             query = self.db.query(ReportSchedule).filter(
@@ -383,10 +428,14 @@ class ReportGenerationService:
     async def get_cached_report_data(self, cache_key: str) -> Optional[Dict[str, Any]]:
         """Get cached report data"""
         try:
-            cached_item = self.db.query(ReportCache).filter(
-                ReportCache.cache_key == cache_key,
-                ReportCache.expires_at > datetime.utcnow()
-            ).first()
+            cached_item = (
+                self.db.query(ReportCache)
+                .filter(
+                    ReportCache.cache_key == cache_key,
+                    ReportCache.expires_at > datetime.utcnow(),
+                )
+                .first()
+            )
 
             if cached_item:
                 # Update access statistics
@@ -397,7 +446,7 @@ class ReportGenerationService:
                 return {
                     "data": cached_item.cached_data,
                     "cached_at": cached_item.created_at.isoformat(),
-                    "expires_at": cached_item.expires_at.isoformat()
+                    "expires_at": cached_item.expires_at.isoformat(),
                 }
 
             return None
@@ -406,8 +455,9 @@ class ReportGenerationService:
             logger.error(f"Error getting cached data: {str(e)}")
             return None
 
-    async def cache_report_data(self, cache_key: str, data: Dict[str, Any],
-                                ttl_hours: int = None) -> bool:
+    async def cache_report_data(
+        self, cache_key: str, data: Dict[str, Any], ttl_hours: int = None
+    ) -> bool:
         """Cache report data"""
         try:
             ttl_hours = ttl_hours or self.cache_ttl_hours
@@ -415,9 +465,11 @@ class ReportGenerationService:
             data_hash = hash(json.dumps(data, sort_keys=True))
 
             # Check if cache entry exists
-            existing = self.db.query(ReportCache).filter(
-                ReportCache.cache_key == cache_key
-            ).first()
+            existing = (
+                self.db.query(ReportCache)
+                .filter(ReportCache.cache_key == cache_key)
+                .first()
+            )
 
             if existing:
                 # Update existing cache
@@ -433,7 +485,7 @@ class ReportGenerationService:
                     cached_data=data,
                     data_hash=data_hash,
                     expires_at=expires_at,
-                    data_size=len(json.dumps(data).encode('utf-8'))
+                    data_size=len(json.dumps(data).encode("utf-8")),
                 )
                 self.db.add(cache_entry)
 
@@ -447,8 +499,11 @@ class ReportGenerationService:
 
     # Analytics
 
-    async def get_report_analytics(self, organization_id: UUID,
-                                   date_range: Optional[Tuple[datetime, datetime]] = None) -> Dict[str, Any]:
+    async def get_report_analytics(
+        self,
+        organization_id: UUID,
+        date_range: Optional[Tuple[datetime, datetime]] = None,
+    ) -> Dict[str, Any]:
         """Get comprehensive report analytics"""
         try:
             if not date_range:
@@ -457,63 +512,84 @@ class ReportGenerationService:
                 date_range = (start_date, end_date)
 
             # Report generation statistics
-            total_reports = self.db.query(GeneratedReport).filter(
-                GeneratedReport.organization_id == organization_id,
-                GeneratedReport.created_at >= date_range[0],
-                GeneratedReport.created_at <= date_range[1]
-            ).count()
+            total_reports = (
+                self.db.query(GeneratedReport)
+                .filter(
+                    GeneratedReport.organization_id == organization_id,
+                    GeneratedReport.created_at >= date_range[0],
+                    GeneratedReport.created_at <= date_range[1],
+                )
+                .count()
+            )
 
-            completed_reports = self.db.query(GeneratedReport).filter(
-                GeneratedReport.organization_id == organization_id,
-                GeneratedReport.created_at >= date_range[0],
-                GeneratedReport.created_at <= date_range[1],
-                GeneratedReport.status == ReportStatus.COMPLETED
-            ).count()
+            completed_reports = (
+                self.db.query(GeneratedReport)
+                .filter(
+                    GeneratedReport.organization_id == organization_id,
+                    GeneratedReport.created_at >= date_range[0],
+                    GeneratedReport.created_at <= date_range[1],
+                    GeneratedReport.status == ReportStatus.COMPLETED,
+                )
+                .count()
+            )
 
             failed_reports = total_reports - completed_reports
 
             # Format distribution
-            format_query = self.db.query(
-                GeneratedReport.file_format,
-                func.count(GeneratedReport.id).label('count')
-            ).filter(
-                GeneratedReport.organization_id == organization_id,
-                GeneratedReport.created_at >= date_range[0],
-                GeneratedReport.created_at <= date_range[1]
-            ).group_by(GeneratedReport.file_format)
+            format_query = (
+                self.db.query(
+                    GeneratedReport.file_format,
+                    func.count(GeneratedReport.id).label("count"),
+                )
+                .filter(
+                    GeneratedReport.organization_id == organization_id,
+                    GeneratedReport.created_at >= date_range[0],
+                    GeneratedReport.created_at <= date_range[1],
+                )
+                .group_by(GeneratedReport.file_format)
+            )
 
-            format_distribution = {format.value: count for format, count in format_query.all()}
+            format_distribution = {
+                format.value: count for format, count in format_query.all()
+            }
 
             # Type distribution
-            type_query = self.db.query(
-                GeneratedReport.report_type,
-                func.count(GeneratedReport.id).label('count')
-            ).filter(
-                GeneratedReport.organization_id == organization_id,
-                GeneratedReport.created_at >= date_range[0],
-                GeneratedReport.created_at <= date_range[1]
-            ).group_by(GeneratedReport.report_type)
+            type_query = (
+                self.db.query(
+                    GeneratedReport.report_type,
+                    func.count(GeneratedReport.id).label("count"),
+                )
+                .filter(
+                    GeneratedReport.organization_id == organization_id,
+                    GeneratedReport.created_at >= date_range[0],
+                    GeneratedReport.created_at <= date_range[1],
+                )
+                .group_by(GeneratedReport.report_type)
+            )
 
-            type_distribution = {report_type.value: count for report_type, count in type_query.all()}
+            type_distribution = {
+                report_type.value: count for report_type, count in type_query.all()
+            }
 
             # Most popular templates
-            template_usage = self.db.query(
-                ReportTemplate.name,
-                ReportTemplate.usage_count
-            ).filter(
-                ReportTemplate.organization_id == organization_id
-            ).order_by(desc(ReportTemplate.usage_count)).limit(10).all()
+            template_usage = (
+                self.db.query(ReportTemplate.name, ReportTemplate.usage_count)
+                .filter(ReportTemplate.organization_id == organization_id)
+                .order_by(desc(ReportTemplate.usage_count))
+                .limit(10)
+                .all()
+            )
 
             # Generation performance metrics
             performance_query = self.db.query(
                 func.avg(
-                    func.extract('epoch', GeneratedReport.generation_completed) -
-                    func.extract('epoch', GeneratedReport.generation_started)
-                ).label('avg_generation_time')
+                    func.extract("epoch", GeneratedReport.generation_completed)
+                    - func.extract("epoch", GeneratedReport.generation_started)
+                ).label("avg_generation_time")
             ).filter(
                 GeneratedReport.organization_id == organization_id,
                 GeneratedReport.generation_started.isnot(None),
-                GeneratedReport.generation_completed.isnot(None)
+                GeneratedReport.generation_completed.isnot(None),
             )
 
             avg_generation_time = performance_query.scalar() or 0
@@ -521,23 +597,21 @@ class ReportGenerationService:
             return {
                 "period": {
                     "start_date": date_range[0].isoformat(),
-                    "end_date": date_range[1].isoformat()
+                    "end_date": date_range[1].isoformat(),
                 },
                 "generation_stats": {
                     "total_reports": total_reports,
                     "completed_reports": completed_reports,
                     "failed_reports": failed_reports,
-                    "success_rate": (completed_reports / max(total_reports, 1)) * 100
+                    "success_rate": (completed_reports / max(total_reports, 1)) * 100,
                 },
                 "format_distribution": format_distribution,
                 "type_distribution": type_distribution,
-                "performance": {
-                    "avg_generation_time_seconds": avg_generation_time
-                },
+                "performance": {"avg_generation_time_seconds": avg_generation_time},
                 "popular_templates": [
                     {"name": template.name, "usage_count": template.usage_count}
                     for template in template_usage
-                ]
+                ],
             }
 
         except Exception as e:
@@ -589,19 +663,35 @@ class ReportGenerationService:
             "download_count": report.download_count,
             "parameters": report.parameters,
             "data_range": {
-                "start": report.data_range_start.isoformat() if report.data_range_start else None,
-                "end": report.data_range_end.isoformat() if report.data_range_end else None
+                "start": (
+                    report.data_range_start.isoformat()
+                    if report.data_range_start
+                    else None
+                ),
+                "end": (
+                    report.data_range_end.isoformat() if report.data_range_end else None
+                ),
             },
             "template_id": str(report.template_id) if report.template_id else None,
             "requested_by_id": str(report.requested_by_id),
             "organization_id": str(report.organization_id),
             "team_id": str(report.team_id) if report.team_id else None,
             "is_public": report.is_public,
-            "shared_with": [str(uid) for uid in report.shared_with] if report.shared_with else [],
+            "shared_with": (
+                [str(uid) for uid in report.shared_with] if report.shared_with else []
+            ),
             "expires_at": report.expires_at.isoformat() if report.expires_at else None,
             "created_at": report.created_at.isoformat(),
-            "generation_started": report.generation_started.isoformat() if report.generation_started else None,
-            "generation_completed": report.generation_completed.isoformat() if report.generation_completed else None
+            "generation_started": (
+                report.generation_started.isoformat()
+                if report.generation_started
+                else None
+            ),
+            "generation_completed": (
+                report.generation_completed.isoformat()
+                if report.generation_completed
+                else None
+            ),
         }
 
     def _serialize_template(self, template: ReportTemplate) -> Dict[str, Any]:
@@ -624,7 +714,7 @@ class ReportGenerationService:
             "organization_id": str(template.organization_id),
             "created_at": template.created_at.isoformat(),
             "updated_at": template.updated_at.isoformat(),
-            "last_used": template.last_used.isoformat() if template.last_used else None
+            "last_used": template.last_used.isoformat() if template.last_used else None,
         }
 
     def _serialize_schedule(self, schedule: ReportSchedule) -> Dict[str, Any]:
@@ -647,22 +737,28 @@ class ReportGenerationService:
             "is_active": schedule.is_active,
             "success_count": schedule.success_count,
             "failure_count": schedule.failure_count,
-            "last_success": schedule.last_success.isoformat() if schedule.last_success else None,
+            "last_success": (
+                schedule.last_success.isoformat() if schedule.last_success else None
+            ),
             "created_by_id": str(schedule.created_by_id),
             "organization_id": str(schedule.organization_id),
-            "created_at": schedule.created_at.isoformat()
+            "created_at": schedule.created_at.isoformat(),
         }
 
     # Report Generation Implementation
 
-    async def _generate_report_file(self, report: GeneratedReport, request: ReportGenerationRequest) -> Dict[str, Any]:
+    async def _generate_report_file(
+        self, report: GeneratedReport, request: ReportGenerationRequest
+    ) -> Dict[str, Any]:
         """Generate the actual report file"""
         try:
             # Get template or use default configuration
             if report.template_id:
-                template = self.db.query(ReportTemplate).filter(
-                    ReportTemplate.id == report.template_id
-                ).first()
+                template = (
+                    self.db.query(ReportTemplate)
+                    .filter(ReportTemplate.id == report.template_id)
+                    .first()
+                )
 
                 if not template:
                     return {"success": False, "error": "Template not found"}
@@ -675,12 +771,18 @@ class ReportGenerationService:
             data = await self._get_report_data(request, config)
 
             if not data:
-                return {"success": False, "error": "No data available for report generation"}
+                return {
+                    "success": False,
+                    "error": "No data available for report generation",
+                }
 
             # Generate file based on format
             handler = self.export_handlers.get(report.file_format)
             if not handler:
-                return {"success": False, "error": f"Export format {report.file_format} not supported"}
+                return {
+                    "success": False,
+                    "error": f"Export format {report.file_format} not supported",
+                }
 
             return await handler(data, report, request)
 
@@ -688,7 +790,9 @@ class ReportGenerationService:
             logger.error(f"Error generating report file: {str(e)}")
             return {"success": False, "error": f"File generation failed: {str(e)}"}
 
-    async def _get_report_data(self, request: ReportGenerationRequest, template_config: Dict[str, Any]) -> Dict[str, Any]:
+    async def _get_report_data(
+        self, request: ReportGenerationRequest, template_config: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Get data for the report"""
         try:
             # This would be implemented based on the specific report type and configuration
@@ -698,16 +802,24 @@ class ReportGenerationService:
                     "title": request.title,
                     "report_type": request.report_type.value,
                     "generated_at": datetime.utcnow().isoformat(),
-                    "parameters": request.parameters or {}
+                    "parameters": request.parameters or {},
                 },
                 "summary": {
                     "total_records": 100,
                     "date_range": {
-                        "start": request.data_range_start.isoformat() if request.data_range_start else None,
-                        "end": request.data_range_end.isoformat() if request.data_range_end else None
-                    }
+                        "start": (
+                            request.data_range_start.isoformat()
+                            if request.data_range_start
+                            else None
+                        ),
+                        "end": (
+                            request.data_range_end.isoformat()
+                            if request.data_range_end
+                            else None
+                        ),
+                    },
                 },
-                "data": []
+                "data": [],
                 # Implementation would query the appropriate data sources based on report type
             }
 
@@ -717,7 +829,12 @@ class ReportGenerationService:
 
     # Export Format Handlers
 
-    async def _generate_pdf(self, data: Dict[str, Any], report: GeneratedReport, request: ReportGenerationRequest) -> Dict[str, Any]:
+    async def _generate_pdf(
+        self,
+        data: Dict[str, Any],
+        report: GeneratedReport,
+        request: ReportGenerationRequest,
+    ) -> Dict[str, Any]:
         """Generate PDF report with advanced formatting"""
         try:
             # Implementation would use a PDF generation library like ReportLab or WeasyPrint
@@ -733,7 +850,7 @@ class ReportGenerationService:
 
             # For demonstration, we'll create a formatted text file that represents PDF structure
             # In production, this would be processed by a PDF library
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(pdf_content)
 
             file_size = os.path.getsize(file_path)
@@ -745,14 +862,16 @@ class ReportGenerationService:
                 "file_size": file_size,
                 "download_url": f"/api/v1/reports/{report.id}/download",
                 "record_count": data.get("summary", {}).get("total_records", 0),
-                "format": "PDF"
+                "format": "PDF",
             }
 
         except Exception as e:
             logger.error(f"Error generating PDF: {str(e)}")
             return {"success": False, "error": f"PDF generation failed: {str(e)}"}
 
-    def _create_pdf_content_structure(self, data: Dict[str, Any], request: ReportGenerationRequest) -> str:
+    def _create_pdf_content_structure(
+        self, data: Dict[str, Any], request: ReportGenerationRequest
+    ) -> str:
         """Create structured content for PDF generation"""
         metadata = data.get("metadata", {})
         summary = data.get("summary", {})
@@ -801,7 +920,12 @@ Page 1 of 1
 
         return content
 
-    async def _generate_excel(self, data: Dict[str, Any], report: GeneratedReport, request: ReportGenerationRequest) -> Dict[str, Any]:
+    async def _generate_excel(
+        self,
+        data: Dict[str, Any],
+        report: GeneratedReport,
+        request: ReportGenerationRequest,
+    ) -> Dict[str, Any]:
         """Generate Excel report with multiple sheets"""
         try:
             # Implementation would use a library like openpyxl or pandas
@@ -815,7 +939,7 @@ Page 1 of 1
             # Generate Excel-ready CSV content with multiple sheet structure
             excel_content = self._create_excel_content_structure(data, request)
 
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(excel_content)
 
             file_size = os.path.getsize(file_path)
@@ -828,14 +952,16 @@ Page 1 of 1
                 "download_url": f"/api/v1/reports/{report.id}/download",
                 "record_count": data.get("summary", {}).get("total_records", 0),
                 "format": "Excel",
-                "sheets": ["Summary", "Detailed Data", "Analytics"]
+                "sheets": ["Summary", "Detailed Data", "Analytics"],
             }
 
         except Exception as e:
             logger.error(f"Error generating Excel: {str(e)}")
             return {"success": False, "error": f"Excel generation failed: {str(e)}"}
 
-    def _create_excel_content_structure(self, data: Dict[str, Any], request: ReportGenerationRequest) -> str:
+    def _create_excel_content_structure(
+        self, data: Dict[str, Any], request: ReportGenerationRequest
+    ) -> str:
         """Create structured content for Excel generation"""
         metadata = data.get("metadata", {})
         summary = data.get("summary", {})
@@ -863,16 +989,26 @@ Page 1 of 1
                 # Add data rows
                 for item in report_data[:100]:  # Limit to 100 rows
                     if isinstance(item, dict):
-                        row_data = [str(item.get(header, '')) for header in headers]
+                        row_data = [str(item.get(header, "")) for header in headers]
                         content += ",".join(row_data) + "\n"
 
         return content
 
-    async def _generate_csv(self, data: Dict[str, Any], report: GeneratedReport, request: ReportGenerationRequest) -> Dict[str, Any]:
+    async def _generate_csv(
+        self,
+        data: Dict[str, Any],
+        report: GeneratedReport,
+        request: ReportGenerationRequest,
+    ) -> Dict[str, Any]:
         """Generate CSV report"""
         return await self._generate_excel(data, report, request)
 
-    async def _generate_json(self, data: Dict[str, Any], report: GeneratedReport, request: ReportGenerationRequest) -> Dict[str, Any]:
+    async def _generate_json(
+        self,
+        data: Dict[str, Any],
+        report: GeneratedReport,
+        request: ReportGenerationRequest,
+    ) -> Dict[str, Any]:
         """Generate JSON report"""
         try:
             file_name = f"report_{report.id}.json"
@@ -882,7 +1018,7 @@ Page 1 of 1
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
             # Write JSON data
-            with open(file_path, 'w') as f:
+            with open(file_path, "w") as f:
                 json.dump(data, f, indent=2, default=str)
 
             file_size = os.path.getsize(file_path)
@@ -893,14 +1029,19 @@ Page 1 of 1
                 "file_name": file_name,
                 "file_size": file_size,
                 "download_url": f"/api/v1/reports/{report.id}/download",
-                "record_count": data.get("summary", {}).get("total_records", 0)
+                "record_count": data.get("summary", {}).get("total_records", 0),
             }
 
         except Exception as e:
             logger.error(f"Error generating JSON: {str(e)}")
             return {"success": False, "error": f"JSON generation failed: {str(e)}"}
 
-    async def _generate_powerpoint(self, data: Dict[str, Any], report: GeneratedReport, request: ReportGenerationRequest) -> Dict[str, Any]:
+    async def _generate_powerpoint(
+        self,
+        data: Dict[str, Any],
+        report: GeneratedReport,
+        request: ReportGenerationRequest,
+    ) -> Dict[str, Any]:
         """Generate PowerPoint report"""
         try:
             # Implementation would use a library like python-pptx
@@ -912,7 +1053,7 @@ Page 1 of 1
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
 
             # Create placeholder PowerPoint content
-            with open(file_path, 'w') as f:
+            with open(file_path, "w") as f:
                 f.write(f"Report: {request.title}\n")
                 f.write(f"Type: {request.report_type.value}\n")
                 f.write("Generated: {datetime.utcnow().isoformat()}\n")
@@ -926,16 +1067,21 @@ Page 1 of 1
                 "file_name": file_name,
                 "file_size": file_size,
                 "download_url": f"/api/v1/reports/{report.id}/download",
-                "record_count": data.get("summary", {}).get("total_records", 0)
+                "record_count": data.get("summary", {}).get("total_records", 0),
             }
 
         except Exception as e:
             logger.error(f"Error generating PowerPoint: {str(e)}")
-            return {"success": False, "error": f"PowerPoint generation failed: {str(e)}"}
+            return {
+                "success": False,
+                "error": f"PowerPoint generation failed: {str(e)}",
+            }
 
     # Scheduling Helper Methods
 
-    def _calculate_next_run(self, frequency: ScheduleFrequency, custom_cron: Optional[str] = None) -> datetime:
+    def _calculate_next_run(
+        self, frequency: ScheduleFrequency, custom_cron: Optional[str] = None
+    ) -> datetime:
         """Calculate next run time for scheduled reports"""
         if custom_cron:
             # Parse custom cron expression (implementation needed)
@@ -964,14 +1110,18 @@ Page 1 of 1
         """Execute all pending scheduled reports"""
         try:
             # Get all schedules that need to run
-            due_schedules = self.db.query(ReportSchedule).filter(
-                ReportSchedule.is_active == True,
-                ReportSchedule.next_run <= datetime.utcnow(),
-                or_(
-                    ReportSchedule.end_date.is_(None),
-                    ReportSchedule.end_date >= datetime.utcnow()
+            due_schedules = (
+                self.db.query(ReportSchedule)
+                .filter(
+                    ReportSchedule.is_active == True,
+                    ReportSchedule.next_run <= datetime.utcnow(),
+                    or_(
+                        ReportSchedule.end_date.is_(None),
+                        ReportSchedule.end_date >= datetime.utcnow(),
+                    ),
                 )
-            ).all()
+                .all()
+            )
 
             executed_count = 0
             success_count = 0
@@ -984,7 +1134,7 @@ Page 1 of 1
                         schedule_id=schedule.id,
                         scheduled_at=schedule.next_run,
                         started_at=datetime.utcnow(),
-                        status="running"
+                        status="running",
                     )
                     self.db.add(execution)
                     self.db.commit()
@@ -1002,7 +1152,11 @@ Page 1 of 1
                     ).total_seconds()
 
                     if result["success"]:
-                        execution.report_id = UUID(result["report_id"]) if result.get("report_id") else None
+                        execution.report_id = (
+                            UUID(result["report_id"])
+                            if result.get("report_id")
+                            else None
+                        )
                         success_count += 1
                         schedule.success_count += 1
                         schedule.last_success = datetime.utcnow()
@@ -1013,16 +1167,20 @@ Page 1 of 1
                     executed_count += 1
 
                     # Calculate next run time
-                    schedule.next_run = self._calculate_next_run(schedule.frequency, schedule.custom_cron)
+                    schedule.next_run = self._calculate_next_run(
+                        schedule.frequency, schedule.custom_cron
+                    )
                     schedule.last_run = datetime.utcnow()
 
                 except Exception as e:
-                    logger.error(f"Error executing scheduled report {schedule.id}: {str(e)}")
+                    logger.error(
+                        f"Error executing scheduled report {schedule.id}: {str(e)}"
+                    )
                     failed_count += 1
                     schedule.failure_count += 1
 
                     # Update execution record if it exists
-                    if 'execution' in locals():
+                    if "execution" in locals():
                         execution.status = "failed"
                         execution.result_message = str(e)
                         execution.completed_at = datetime.utcnow()
@@ -1033,27 +1191,37 @@ Page 1 of 1
                 "executed_count": executed_count,
                 "success_count": success_count,
                 "failed_count": failed_count,
-                "message": f"Executed {executed_count} scheduled reports: {success_count} success, {failed_count} failed"
+                "message": f"Executed {executed_count} scheduled reports: {success_count} success, {failed_count} failed",
             }
 
         except Exception as e:
             logger.error(f"Error executing scheduled reports: {str(e)}")
             return {"error": f"Failed to execute scheduled reports: {str(e)}"}
 
-    async def _execute_scheduled_report(self, schedule: ReportSchedule, execution: ScheduleExecution) -> Dict[str, Any]:
+    async def _execute_scheduled_report(
+        self, schedule: ReportSchedule, execution: ScheduleExecution
+    ) -> Dict[str, Any]:
         """Execute a single scheduled report"""
         try:
             # Create report generation request from schedule
             request = ReportGenerationRequest(
                 template_id=schedule.template_id,
-                report_type=schedule.template.report_type if schedule.template else ReportType.CUSTOM,
+                report_type=(
+                    schedule.template.report_type
+                    if schedule.template
+                    else ReportType.CUSTOM
+                ),
                 title=f"Scheduled: {schedule.name}",
                 description=f"Automatically generated report from schedule: {schedule.description}",
                 parameters=schedule.schedule_config or {},
                 export_format=schedule.default_format,
                 organization_id=schedule.organization_id,
-                team_id=schedule.delivery_config.get("team_id") if schedule.delivery_config else None,
-                requested_by_id=schedule.created_by_id
+                team_id=(
+                    schedule.delivery_config.get("team_id")
+                    if schedule.delivery_config
+                    else None
+                ),
+                requested_by_id=schedule.created_by_id,
             )
 
             # Generate the report
@@ -1066,17 +1234,20 @@ Page 1 of 1
                 return {
                     "success": True,
                     "report_id": result["report_id"],
-                    "message": "Scheduled report generated and delivered successfully"
+                    "message": "Scheduled report generated and delivered successfully",
                 }
             else:
                 return {
                     "success": False,
-                    "error": result.get("error", "Scheduled report generation failed")
+                    "error": result.get("error", "Scheduled report generation failed"),
                 }
 
         except Exception as e:
             logger.error(f"Error executing scheduled report: {str(e)}")
-            return {"success": False, "error": f"Scheduled report execution failed: {str(e)}"}
+            return {
+                "success": False,
+                "error": f"Scheduled report execution failed: {str(e)}",
+            }
 
     async def _deliver_report(self, schedule: ReportSchedule, report_id: str) -> bool:
         """Deliver generated report via configured method"""
@@ -1085,9 +1256,13 @@ Page 1 of 1
             delivery_config = schedule.delivery_config or {}
 
             if delivery_method == "email":
-                return await self._deliver_report_email(schedule, report_id, delivery_config)
+                return await self._deliver_report_email(
+                    schedule, report_id, delivery_config
+                )
             elif delivery_method == "webhook":
-                return await self._deliver_report_webhook(schedule, report_id, delivery_config)
+                return await self._deliver_report_webhook(
+                    schedule, report_id, delivery_config
+                )
             elif delivery_method == "download":
                 # For download method, no delivery needed - just make available
                 return True
@@ -1099,7 +1274,9 @@ Page 1 of 1
             logger.error(f"Error delivering report: {str(e)}")
             return False
 
-    async def _deliver_report_email(self, schedule: ReportSchedule, report_id: str, config: Dict[str, Any]) -> bool:
+    async def _deliver_report_email(
+        self, schedule: ReportSchedule, report_id: str, config: Dict[str, Any]
+    ) -> bool:
         """Deliver report via email"""
         try:
             recipients = config.get("recipients", [])
@@ -1107,7 +1284,11 @@ Page 1 of 1
                 return False
 
             # Get report details
-            report = self.db.query(GeneratedReport).filter(GeneratedReport.id == report_id).first()
+            report = (
+                self.db.query(GeneratedReport)
+                .filter(GeneratedReport.id == report_id)
+                .first()
+            )
             if not report:
                 return False
 
@@ -1139,7 +1320,9 @@ Page 1 of 1
             logger.error(f"Error delivering report via email: {str(e)}")
             return False
 
-    async def _deliver_report_webhook(self, schedule: ReportSchedule, report_id: str, config: Dict[str, Any]) -> bool:
+    async def _deliver_report_webhook(
+        self, schedule: ReportSchedule, report_id: str, config: Dict[str, Any]
+    ) -> bool:
         """Deliver report via webhook"""
         try:
             webhook_url = config.get("url")
@@ -1147,7 +1330,11 @@ Page 1 of 1
                 return False
 
             # Get report details
-            report = self.db.query(GeneratedReport).filter(GeneratedReport.id == report_id).first()
+            report = (
+                self.db.query(GeneratedReport)
+                .filter(GeneratedReport.id == report_id)
+                .first()
+            )
             if not report:
                 return False
 
@@ -1159,8 +1346,12 @@ Page 1 of 1
                 "report_id": str(report.id),
                 "report_title": report.title,
                 "report_type": report.report_type.value,
-                "generated_at": report.generation_completed.isoformat() if report.generation_completed else None,
-                "download_url": f"/api/v1/reports/{report.id}/download"
+                "generated_at": (
+                    report.generation_completed.isoformat()
+                    if report.generation_completed
+                    else None
+                ),
+                "download_url": f"/api/v1/reports/{report.id}/download",
             }
 
             # Send webhook (implementation would use http client)
@@ -1179,9 +1370,11 @@ Page 1 of 1
     async def cleanup_expired_reports(self) -> int:
         """Clean up expired reports"""
         try:
-            expired_reports = self.db.query(GeneratedReport).filter(
-                GeneratedReport.expires_at < datetime.utcnow()
-            ).all()
+            expired_reports = (
+                self.db.query(GeneratedReport)
+                .filter(GeneratedReport.expires_at < datetime.utcnow())
+                .all()
+            )
 
             count = len(expired_reports)
 
@@ -1191,7 +1384,9 @@ Page 1 of 1
                     try:
                         os.remove(report.file_path)
                     except OSError:
-                        logger.warning(f"Could not delete report file: {report.file_path}")
+                        logger.warning(
+                            f"Could not delete report file: {report.file_path}"
+                        )
 
             # Delete database records
             for report in expired_reports:
@@ -1209,9 +1404,11 @@ Page 1 of 1
     async def cleanup_expired_cache(self) -> int:
         """Clean up expired cache entries"""
         try:
-            expired_cache = self.db.query(ReportCache).filter(
-                ReportCache.expires_at < datetime.utcnow()
-            ).all()
+            expired_cache = (
+                self.db.query(ReportCache)
+                .filter(ReportCache.expires_at < datetime.utcnow())
+                .all()
+            )
 
             count = len(expired_cache)
 

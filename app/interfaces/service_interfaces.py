@@ -35,11 +35,10 @@ Version: 1.0 (SOLID ISP Fix)
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Generic, TypeVar, List, Optional
+from typing import Any, Generic, List, Optional, TypeVar
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
-
 
 # =============================================================================
 # Type Variables for Generic Types

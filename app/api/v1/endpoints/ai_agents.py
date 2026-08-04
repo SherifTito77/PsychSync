@@ -8,53 +8,53 @@ Access: Administrators and developers
 """
 
 import logging
-from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies.permissions import require_super_admin
 from app.api.v1.deps import get_current_user
 from app.core.database import get_async_db
-from app.api.dependencies.permissions import require_super_admin
 from app.db.models.user import User
+from app.services.ai_agents.development_agents import (
+    coding_style_agent,
+    localization_agent,
+    performance_regression_agent,
+    permission_gap_agent,
+    release_notes_agent,
+    slow_endpoint_agent,
+    stability_score_agent,
+    uptime_monitor_agent,
+)
+from app.services.ai_agents.encryption_strategy_agent import (
+    EncryptionStrategy,
+    FieldRecommendation,
+    encryption_strategy_agent,
+)
+from app.services.ai_agents.operations_agents import (
+    architecture_drift_agent,
+    bug_environment_agent,
+    dependency_updater_agent,
+    environment_config_agent,
+    incident_mitigation_agent,
+    pr_jira_mapper_agent,
+    refactoring_target_agent,
+    test_coverage_agent,
+    ux_telemetry_agent,
+)
 
 # Import all AI agents
 from app.services.ai_agents.security_headers_agent import (
-    security_headers_agent,
     SecurityValidationSummary,
-)
-from app.services.ai_agents.encryption_strategy_agent import (
-    encryption_strategy_agent,
-    EncryptionStrategy,
-    FieldRecommendation,
+    security_headers_agent,
 )
 from app.services.ai_agents.unsafe_script_agent import (
-    unsafe_script_agent,
     ScriptVulnerability,
     SecurityScanSummary,
-)
-from app.services.ai_agents.development_agents import (
-    coding_style_agent,
-    performance_regression_agent,
-    localization_agent,
-    slow_endpoint_agent,
-    release_notes_agent,
-    permission_gap_agent,
-    uptime_monitor_agent,
-    stability_score_agent,
-)
-from app.services.ai_agents.operations_agents import (
-    ux_telemetry_agent,
-    environment_config_agent,
-    incident_mitigation_agent,
-    dependency_updater_agent,
-    pr_jira_mapper_agent,
-    test_coverage_agent,
-    architecture_drift_agent,
-    bug_environment_agent,
-    refactoring_target_agent,
+    unsafe_script_agent,
 )
 
 logger = logging.getLogger(__name__)
@@ -67,13 +67,16 @@ router = APIRouter(prefix="/ai-agents", tags=["ai-automation"])
 # Pydantic Schemas
 # =============================================================================
 
+
 class SecurityValidationRequest(BaseModel):
     """Request schema for security validation"""
+
     force_refresh: bool = Field(False, description="Bypass cache and re-validate")
 
 
 class SecurityRecommendationResponse(BaseModel):
     """Response schema for security recommendations"""
+
     recommendations: List[str]
     total_recommendations: int
     generated_at: datetime
@@ -82,6 +85,7 @@ class SecurityRecommendationResponse(BaseModel):
 # =============================================================================
 # Agent #1: Security Headers Validator
 # =============================================================================
+
 
 @router.post("/security-headers/validate")
 async def validate_security_headers(
@@ -121,10 +125,11 @@ async def validate_security_headers(
     """
 
     try:
-        from app.main import app
-
         # Create test client
         from httpx import AsyncClient
+
+        from app.main import app
+
         test_client = AsyncClient(app=app, base_url="http://test")
 
         # Get all routes
@@ -179,7 +184,9 @@ async def validate_security_headers(
         raise HTTPException(status_code=500, detail=f"Validation failed: {str(e)}")
 
 
-@router.get("/security-headers/recommendations", response_model=SecurityRecommendationResponse)
+@router.get(
+    "/security-headers/recommendations", response_model=SecurityRecommendationResponse
+)
 async def get_security_recommendations(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
@@ -205,10 +212,11 @@ async def get_security_recommendations(
     """
 
     try:
-        from app.main import app
-
         # Create test client
         from httpx import AsyncClient
+
+        from app.main import app
+
         test_client = AsyncClient(app=app, base_url="http://test")
 
         # Get all routes
@@ -223,7 +231,9 @@ async def get_security_recommendations(
         await test_client.aclose()
 
         # Generate recommendations
-        recommendations = await security_headers_agent.generate_security_recommendations(summary)
+        recommendations = (
+            await security_headers_agent.generate_security_recommendations(summary)
+        )
 
         return SecurityRecommendationResponse(
             recommendations=recommendations,
@@ -233,7 +243,9 @@ async def get_security_recommendations(
 
     except Exception as e:
         logger.error(f"Failed to generate recommendations: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate recommendations: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to generate recommendations: {str(e)}"
+        )
 
 
 @router.get("/security-headers/summary")
@@ -278,6 +290,7 @@ async def get_security_summary(
 # =============================================================================
 # Agent #2: Encryption Strategy Advisor
 # =============================================================================
+
 
 @router.post("/encryption-strategy/analyze")
 async def analyze_encryption_strategy(
@@ -331,7 +344,11 @@ async def analyze_encryption_strategy(
                             "current_type": rec.current_type,
                             "sensitivity": rec.sensitivity.value,
                             "should_encrypt": rec.should_encrypt,
-                            "encryption_strength": rec.encryption_strength.value if rec.encryption_strength else None,
+                            "encryption_strength": (
+                                rec.encryption_strength.value
+                                if rec.encryption_strength
+                                else None
+                            ),
                             "recommended_algorithm": rec.recommended_algorithm,
                             "key_rotation_period": rec.key_rotation_period,
                             "rationale": rec.rationale,
@@ -389,10 +406,7 @@ async def get_migration_script(
                 break
 
         if not target_strategy:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Table {table_name} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Table {table_name} not found")
 
         # Generate migration script
         migration_script = await encryption_strategy_agent.generate_migration_script(
@@ -400,10 +414,9 @@ async def get_migration_script(
         )
 
         # Count fields to encrypt
-        fields_to_encrypt = len([
-            r for r in target_strategy.field_recommendations
-            if r.should_encrypt
-        ])
+        fields_to_encrypt = len(
+            [r for r in target_strategy.field_recommendations if r.should_encrypt]
+        )
 
         return {
             "table_name": table_name,
@@ -417,7 +430,9 @@ async def get_migration_script(
         raise
     except Exception as e:
         logger.error(f"Failed to generate migration script: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate script: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to generate script: {str(e)}"
+        )
 
 
 @router.get("/encryption-strategy/summary")
@@ -453,7 +468,11 @@ async def get_encryption_summary(
         total_tables = len(strategies)
         total_sensitive = sum(s.sensitive_fields for s in strategies)
         total_recommended = sum(s.recommended_encrypted_fields for s in strategies)
-        overall_compliance = sum(s.compliance_score for s in strategies) / total_tables if total_tables else 0
+        overall_compliance = (
+            sum(s.compliance_score for s in strategies) / total_tables
+            if total_tables
+            else 0
+        )
         critical_tables = len([s for s in strategies if s.priority == "critical"])
         high_tables = len([s for s in strategies if s.priority == "high"])
 
@@ -464,7 +483,9 @@ async def get_encryption_summary(
             "overall_compliance_score": round(overall_compliance, 2),
             "critical_priority_tables": critical_tables,
             "high_priority_tables": high_tables,
-            "medium_priority_tables": len([s for s in strategies if s.priority == "medium"]),
+            "medium_priority_tables": len(
+                [s for s in strategies if s.priority == "medium"]
+            ),
             "low_priority_tables": len([s for s in strategies if s.priority == "low"]),
         }
 
@@ -476,6 +497,7 @@ async def get_encryption_summary(
 # =============================================================================
 # Agent #3: Unsafe Script Detector
 # =============================================================================
+
 
 @router.post("/unsafe-scripts/scan")
 async def scan_unsafe_scripts(
@@ -569,7 +591,9 @@ async def get_script_security_recommendations(
 
     try:
         vulnerabilities, _ = await unsafe_script_agent.scan_frontend_scripts()
-        recommendations = await unsafe_script_agent.generate_security_recommendations(vulnerabilities)
+        recommendations = await unsafe_script_agent.generate_security_recommendations(
+            vulnerabilities
+        )
 
         return {
             "recommendations": recommendations,
@@ -585,6 +609,7 @@ async def get_script_security_recommendations(
 # =============================================================================
 # Agent #4: Coding Style Enforcer
 # =============================================================================
+
 
 @router.post("/coding-style/check")
 async def check_coding_style(
@@ -610,6 +635,7 @@ async def get_style_report(
 # Agent #5: Performance Regression Detector
 # =============================================================================
 
+
 @router.post("/performance/regression")
 async def detect_performance_regression(
     metrics: List[Dict],
@@ -634,6 +660,7 @@ async def update_performance_baseline(
 # Agent #6: Localization Key Detector
 # =============================================================================
 
+
 @router.get("/localization/check")
 async def check_localization_keys(
     current_user: User = Depends(get_current_user),
@@ -646,6 +673,7 @@ async def check_localization_keys(
 # =============================================================================
 # Agent #7: Slow Endpoint Tracker
 # =============================================================================
+
 
 @router.post("/performance/slow-endpoints")
 async def track_slow_endpoints(
@@ -675,6 +703,7 @@ async def track_slow_endpoints(
 # Agent #8: Release Notes Generator
 # =============================================================================
 
+
 @router.post("/release-notes/generate")
 async def generate_release_notes(
     commits: List[Dict],
@@ -689,6 +718,7 @@ async def generate_release_notes(
 # =============================================================================
 # Agent #9: UX Telemetry Tracker
 # =============================================================================
+
 
 @router.post("/ux/track-event")
 async def track_ux_event(
@@ -725,6 +755,7 @@ async def get_friction_points(
 # Agent #10: Environment Config Detector
 # =============================================================================
 
+
 @router.post("/environment/validate")
 async def validate_environment(
     env_vars: Dict[str, Optional[str]],
@@ -738,6 +769,7 @@ async def validate_environment(
 # =============================================================================
 # Agent #11: Incident Mitigation Planner
 # =============================================================================
+
 
 @router.post("/incidents/mitigation-plan")
 async def create_mitigation_plan(
@@ -763,19 +795,25 @@ async def create_mitigation_plan(
 # Agent #12: Dependency Updater
 # =============================================================================
 
+
 @router.get("/dependencies/check-outdated")
 async def check_outdated_dependencies(
     current_user: User = Depends(get_current_user),
 ):
     """Check for outdated dependencies"""
-    frontend_path = Path(__file__).parent.parent.parent.parent.parent / "frontend" / "package.json"
-    result = await dependency_updater_agent.check_outdated_dependencies(str(frontend_path))
+    frontend_path = (
+        Path(__file__).parent.parent.parent.parent.parent / "frontend" / "package.json"
+    )
+    result = await dependency_updater_agent.check_outdated_dependencies(
+        str(frontend_path)
+    )
     return result
 
 
 # =============================================================================
 # Agent #13: PR-Jira Mapper
 # =============================================================================
+
 
 @router.post("/integrations/map-pr-to-jira")
 async def map_pr_to_jira(
@@ -792,6 +830,7 @@ async def map_pr_to_jira(
 # Agent #14: Test Coverage Reporter
 # =============================================================================
 
+
 @router.post("/testing/coverage-report")
 async def generate_coverage_report(
     coverage_data: Dict,
@@ -806,6 +845,7 @@ async def generate_coverage_report(
 # Agent #15: Permission Gap Detector
 # =============================================================================
 
+
 @router.post("/security/permission-gaps")
 async def detect_permission_gaps(
     endpoints: List[Dict],
@@ -819,6 +859,7 @@ async def detect_permission_gaps(
 # =============================================================================
 # Agent #16: Uptime Monitor
 # =============================================================================
+
 
 @router.post("/monitoring/check-uptime")
 async def check_uptime(
@@ -843,6 +884,7 @@ async def get_daily_uptime_summary(
 # Agent #17: Stability Score Calculator
 # =============================================================================
 
+
 @router.post("/monitoring/stability-score")
 async def calculate_stability_score(
     metrics: Dict,
@@ -856,6 +898,7 @@ async def calculate_stability_score(
 # =============================================================================
 # Agent #18: Architecture Drift Detector
 # =============================================================================
+
 
 @router.post("/architecture/check-drift")
 async def check_architecture_drift(
@@ -871,6 +914,7 @@ async def check_architecture_drift(
 # Agent #19: Bug Environment Creator
 # =============================================================================
 
+
 @router.post("/debugging/create-bug-environment")
 async def create_bug_environment(
     bug_report: Dict,
@@ -885,19 +929,23 @@ async def create_bug_environment(
 # Agent #20: Refactoring Target Proposer
 # =============================================================================
 
+
 @router.post("/refactoring/propose-targets")
 async def propose_refactoring_targets(
     current_user: User = Depends(get_current_user),
 ):
     """Propose refactoring targets"""
     codebase_path = Path(__file__).parent.parent.parent.parent
-    targets = await refactoring_target_agent.propose_refactoring_targets(str(codebase_path))
+    targets = await refactoring_target_agent.propose_refactoring_targets(
+        str(codebase_path)
+    )
     return targets
 
 
 # =============================================================================
 # Agent Status Endpoint
 # =============================================================================
+
 
 @router.get("/status")
 async def get_agents_status(

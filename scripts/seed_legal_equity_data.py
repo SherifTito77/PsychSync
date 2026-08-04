@@ -5,8 +5,8 @@ Populates the database with sample labor laws, legal aid resources,
 and other reference data for testing and demonstration.
 """
 
-import sys
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -14,11 +14,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import AsyncSessionLocal
-from app.db.models.legal_rights import LaborLaw, LegalAidResource
 from app.db.models.discrimination_analysis import DemographicProfile
-from app.db.models.user import User
+from app.db.models.legal_rights import LaborLaw, LegalAidResource
 from app.db.models.organization import Organization
+from app.db.models.user import User
 
 
 async def seed_labor_laws(db: AsyncSession) -> int:
@@ -48,7 +49,7 @@ async def seed_labor_laws(db: AsyncSession) -> int:
             "termination_protection_level": 5,
             "is_active": True,
             "verified": True,
-            "source_url": "https://www.dol.gov/agencies/whd/flsa"
+            "source_url": "https://www.dol.gov/agencies/whd/flsa",
         },
         {
             "country_code": "US",
@@ -65,7 +66,7 @@ async def seed_labor_laws(db: AsyncSession) -> int:
             "termination_protection_level": 7,
             "is_active": True,
             "verified": True,
-            "source_url": "https://www.eeoc.gov/laws/guidance/title-vii-civil-rights-act-1964"
+            "source_url": "https://www.eeoc.gov/laws/guidance/title-vii-civil-rights-act-1964",
         },
         # United Kingdom
         {
@@ -89,7 +90,7 @@ async def seed_labor_laws(db: AsyncSession) -> int:
             "termination_protection_level": 7,
             "is_active": True,
             "verified": True,
-            "source_url": "https://www.legislation.gov.uk/ukpga/1998/8/contents"
+            "source_url": "https://www.legislation.gov.uk/ukpga/1998/8/contents",
         },
         {
             "country_code": "UK",
@@ -106,7 +107,7 @@ async def seed_labor_laws(db: AsyncSession) -> int:
             "termination_protection_level": 8,
             "is_active": True,
             "verified": True,
-            "source_url": "https://www.legislation.gov.uk/ukpga/2010/15/contents"
+            "source_url": "https://www.legislation.gov.uk/ukpga/2010/15/contents",
         },
         # Canada
         {
@@ -130,7 +131,7 @@ async def seed_labor_laws(db: AsyncSession) -> int:
             "termination_protection_level": 6,
             "is_active": True,
             "verified": True,
-            "source_url": "https://laws-lois.justice.gc.ca/eng/acts/L-2/"
+            "source_url": "https://laws-lois.justice.gc.ca/eng/acts/L-2/",
         },
         # Australia
         {
@@ -154,7 +155,7 @@ async def seed_labor_laws(db: AsyncSession) -> int:
             "termination_protection_level": 7,
             "is_active": True,
             "verified": True,
-            "source_url": "https://legislation.gov.au/Details/C2019C00162"
+            "source_url": "https://legislation.gov.au/Details/C2019C00162",
         },
         # Germany
         {
@@ -172,7 +173,7 @@ async def seed_labor_laws(db: AsyncSession) -> int:
             "termination_protection_level": 8,
             "is_active": True,
             "verified": True,
-            "source_url": "https://www.gesetze-im-internet.de/english_bgb/agg__2018-08-08.html"
+            "source_url": "https://www.gesetze-im-internet.de/english_bgb/agg__2018-08-08.html",
         },
         # France
         {
@@ -196,17 +197,18 @@ async def seed_labor_laws(db: AsyncSession) -> int:
             "termination_protection_level": 8,
             "is_active": True,
             "verified": True,
-            "source_url": "https://www.legifrance.gouv.fr/"
-        }
+            "source_url": "https://www.legifrance.gouv.fr/",
+        },
     ]
 
     created_count = 0
     for law_data in labor_laws_data:
         from sqlalchemy import select
+
         result = await db.execute(
             select(LaborLaw).where(
                 LaborLaw.country_code == law_data["country_code"],
-                LaborLaw.law_code == law_data["law_code"]
+                LaborLaw.law_code == law_data["law_code"],
             )
         )
         existing = result.scalar_one_or_none()
@@ -237,14 +239,19 @@ async def seed_legal_aid_resources(db: AsyncSession) -> int:
             "email": "info@lasf.org",
             "website": "https://www.lasf.org",
             "address": "575 Market Street, Suite 400, San Francisco, CA 94105",
-            "specializations": ["employment", "discrimination", "wrongful_termination", "wages"],
+            "specializations": [
+                "employment",
+                "discrimination",
+                "wrongful_termination",
+                "wages",
+            ],
             "languages_spoken": ["en", "es", "zh", "tl"],
             "free_consultation": True,
             "sliding_scale": True,
             "emergency_services": False,
             "verified": True,
             "rating": 4.5,
-            "response_time_hours": 48
+            "response_time_hours": 48,
         },
         {
             "country_code": "US",
@@ -264,7 +271,7 @@ async def seed_legal_aid_resources(db: AsyncSession) -> int:
             "emergency_services": False,
             "verified": True,
             "rating": 4.7,
-            "response_time_hours": 24
+            "response_time_hours": 24,
         },
         {
             "country_code": "US",
@@ -281,7 +288,7 @@ async def seed_legal_aid_resources(db: AsyncSession) -> int:
             "emergency_services": False,
             "verified": True,
             "rating": 4.8,
-            "response_time_hours": 1
+            "response_time_hours": 1,
         },
         {
             "country_code": "US",
@@ -294,7 +301,12 @@ async def seed_legal_aid_resources(db: AsyncSession) -> int:
             "email": "info@employeerightslawgroup.com",
             "website": "https://www.employeerightslawgroup.com",
             "address": "10866 Wilshire Blvd, Suite 800, Los Angeles, CA 90024",
-            "specializations": ["employment", "discrimination", "wrongful_termination", "overtime"],
+            "specializations": [
+                "employment",
+                "discrimination",
+                "wrongful_termination",
+                "overtime",
+            ],
             "languages_spoken": ["en", "es", "ko"],
             "free_consultation": True,
             "sliding_scale": False,
@@ -302,7 +314,7 @@ async def seed_legal_aid_resources(db: AsyncSession) -> int:
             "verified": True,
             "rating": 4.6,
             "consultation_fee": 0.0,
-            "hourly_rate": 350.0
+            "hourly_rate": 350.0,
         },
         {
             "country_code": "UK",
@@ -321,17 +333,18 @@ async def seed_legal_aid_resources(db: AsyncSession) -> int:
             "emergency_services": False,
             "verified": True,
             "rating": 4.4,
-            "response_time_hours": 72
-        }
+            "response_time_hours": 72,
+        },
     ]
 
     created_count = 0
     for aid_data in legal_aid_data:
         from sqlalchemy import select
+
         result = await db.execute(
             select(LegalAidResource).where(
                 LegalAidResource.name == aid_data["name"],
-                LegalAidResource.city == aid_data["city"]
+                LegalAidResource.city == aid_data["city"],
             )
         )
         existing = result.scalar_one_or_none()
@@ -352,6 +365,7 @@ async def seed_sample_demographics(db: AsyncSession) -> int:
 
     # Get first organization and its users
     from sqlalchemy import select
+
     org_result = await db.execute(select(Organization).limit(1))
     org = org_result.scalar_one_or_none()
 
@@ -360,10 +374,9 @@ async def seed_sample_demographics(db: AsyncSession) -> int:
         return 0
 
     users_result = await db.execute(
-        select(User).where(
-            User.organization_id == org.id,
-            User.is_active == True
-        ).limit(20)
+        select(User)
+        .where(User.organization_id == org.id, User.is_active == True)
+        .limit(20)
     )
     users = users_result.scalars().all()
 
@@ -373,16 +386,66 @@ async def seed_sample_demographics(db: AsyncSession) -> int:
 
     # Sample demographic data
     demographic_samples = [
-        {"gender": "female", "race": "white", "age_range": "30-39", "veteran_status": "non-veteran"},
-        {"gender": "male", "race": "white", "age_range": "30-39", "veteran_status": "veteran"},
-        {"gender": "male", "race": "asian", "age_range": "20-29", "veteran_status": "non-veteran"},
-        {"gender": "female", "race": "black", "age_range": "40-49", "veteran_status": "non-veteran"},
-        {"gender": "non-binary", "race": "white", "age_range": "25-34", "veteran_status": "non-veteran"},
-        {"gender": "male", "race": "hispanic", "age_range": "35-44", "veteran_status": "non-veteran"},
-        {"gender": "female", "race": "asian", "age_range": "28-37", "veteran_status": "non-veteran"},
-        {"gender": "male", "race": "black", "age_range": "45-54", "veteran_status": "veteran"},
-        {"gender": "female", "race": "white", "age_range": "50-59", "veteran_status": "non-veteran"},
-        {"gender": "male", "race": "white", "age_range": "25-34", "veteran_status": "non-veteran"},
+        {
+            "gender": "female",
+            "race": "white",
+            "age_range": "30-39",
+            "veteran_status": "non-veteran",
+        },
+        {
+            "gender": "male",
+            "race": "white",
+            "age_range": "30-39",
+            "veteran_status": "veteran",
+        },
+        {
+            "gender": "male",
+            "race": "asian",
+            "age_range": "20-29",
+            "veteran_status": "non-veteran",
+        },
+        {
+            "gender": "female",
+            "race": "black",
+            "age_range": "40-49",
+            "veteran_status": "non-veteran",
+        },
+        {
+            "gender": "non-binary",
+            "race": "white",
+            "age_range": "25-34",
+            "veteran_status": "non-veteran",
+        },
+        {
+            "gender": "male",
+            "race": "hispanic",
+            "age_range": "35-44",
+            "veteran_status": "non-veteran",
+        },
+        {
+            "gender": "female",
+            "race": "asian",
+            "age_range": "28-37",
+            "veteran_status": "non-veteran",
+        },
+        {
+            "gender": "male",
+            "race": "black",
+            "age_range": "45-54",
+            "veteran_status": "veteran",
+        },
+        {
+            "gender": "female",
+            "race": "white",
+            "age_range": "50-59",
+            "veteran_status": "non-veteran",
+        },
+        {
+            "gender": "male",
+            "race": "white",
+            "age_range": "25-34",
+            "veteran_status": "non-veteran",
+        },
     ]
 
     created_count = 0
@@ -399,7 +462,7 @@ async def seed_sample_demographics(db: AsyncSession) -> int:
                 organization_id=org.id,
                 **demographic_samples[i],
                 consent_given=True,
-                verified=False
+                verified=False,
             )
             db.add(profile)
             created_count += 1
@@ -437,4 +500,5 @@ async def main():
 
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(main())

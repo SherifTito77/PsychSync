@@ -1,7 +1,16 @@
 # app/db/models/user.py
 from enum import Enum as PyEnum
 
-from sqlalchemy import ARRAY, Boolean, Column, DateTime, Index, String, Text, TypeDecorator
+from sqlalchemy import (
+    ARRAY,
+    Boolean,
+    Column,
+    DateTime,
+    Index,
+    String,
+    Text,
+    TypeDecorator,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -40,7 +49,9 @@ class User(Base):
     __tablename__ = "users"
 
     # Primary columns
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid())
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
     email = Column(CitextString, nullable=False, unique=True, index=True)
     username = Column(String(100), nullable=True)  # Exists in database
     password_hash = Column(Text, nullable=False)
@@ -72,11 +83,17 @@ class User(Base):
     # Two-Factor Authentication (2FA)
     two_factor_enabled = Column(Boolean, nullable=False, server_default="false")
     two_factor_secret = Column(String(255), nullable=True)  # TOTP secret
-    two_factor_recovery_codes = Column(ARRAY(String), nullable=True)  # Backup recovery codes
+    two_factor_recovery_codes = Column(
+        ARRAY(String), nullable=True
+    )  # Backup recovery codes
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     # deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     # TEMPORARILY DISABLED: Add is_active if needed
@@ -104,7 +121,9 @@ class User(Base):
     # organization = relationship("Organization", back_populates="users", lazy="joined")  # TEMPORARILY DISABLED
 
     # Biometric authentication relationship
-    biometric_keys = relationship("BiometricKey", back_populates="user", cascade="all, delete-orphan")
+    biometric_keys = relationship(
+        "BiometricKey", back_populates="user", cascade="all, delete-orphan"
+    )
 
     # Define table indexes for performance
     __table_args__ = (
@@ -115,44 +134,44 @@ class User(Base):
     )
 
     # Other relationships (add as needed)
-# assessments_created = relationship("Assessment", back_populates="created_by")  # TEMPORARILY DISABLED
-# teams_created = relationship("Team", back_populates="created_by")  # TEMPORARILY DISABLED
-# team_memberships = relationship("TeamMember", back_populates="user")  # TEMPORARILY DISABLED
-# responses = relationship("Response", back_populates="user")  # TEMPORARILY DISABLED
+    # assessments_created = relationship("Assessment", back_populates="created_by")  # TEMPORARILY DISABLED
+    # teams_created = relationship("Team", back_populates="created_by")  # TEMPORARILY DISABLED
+    # team_memberships = relationship("TeamMember", back_populates="user")  # TEMPORARILY DISABLED
+    # responses = relationship("Response", back_populates="user")  # TEMPORARILY DISABLED
 
     # Intervention relationships
-# created_interventions = relationship("Intervention", back_populates="created_by_user")  # TEMPORARILY DISABLED
-# intervention_participations = relationship("InterventionParticipant", back_populates="user")  # TEMPORARILY DISABLED
-# pre_intervention_measurements = relationship(  # TEMPORARILY DISABLED
-#        "PreInterventionMeasurement", back_populates="user"
-#    )
-# post_intervention_measurements = relationship(  # TEMPORARILY DISABLED
-#        "PostInterventionMeasurement", back_populates="user"
-#    )
+    # created_interventions = relationship("Intervention", back_populates="created_by_user")  # TEMPORARILY DISABLED
+    # intervention_participations = relationship("InterventionParticipant", back_populates="user")  # TEMPORARILY DISABLED
+    # pre_intervention_measurements = relationship(  # TEMPORARILY DISABLED
+    #        "PreInterventionMeasurement", back_populates="user"
+    #    )
+    # post_intervention_measurements = relationship(  # TEMPORARILY DISABLED
+    #        "PostInterventionMeasurement", back_populates="user"
+    #    )
 
     # Growth trajectory relationships
-# growth_trajectories = relationship("GrowthTrajectory", back_populates="user")  # TEMPORARILY DISABLED
-# growth_potential_analyses = relationship("GrowthPotentialAnalysis", back_populates="user")  # TEMPORARILY DISABLED
+    # growth_trajectories = relationship("GrowthTrajectory", back_populates="user")  # TEMPORARILY DISABLED
+    # growth_potential_analyses = relationship("GrowthPotentialAnalysis", back_populates="user")  # TEMPORARILY DISABLED
 
     # Employee Safety relationships
-# reported_incidents = relationship(  # TEMPORARILY DISABLED
-#        "SafetyIncident", foreign_keys="SafetyIncident.reporter_id", back_populates="reporter"
-#    )
-# involved_incidents = relationship(  # TEMPORARILY DISABLED
-#        "SafetyIncident",
-#        foreign_keys="SafetyIncident.affected_user_id",
-#        back_populates="affected_user",
-#    )
-# investigated_incidents = relationship(  # TEMPORARILY DISABLED
-#        "SafetyIncident",
-#        foreign_keys="SafetyIncident.investigator_id",
-#        back_populates="investigator",
-#    )
-# wellness_assessments = relationship("WellnessAssessment", back_populates="user")  # TEMPORARILY DISABLED
-# wellness_alerts = relationship(  # TEMPORARILY DISABLED
-#        "WellnessAlert", foreign_keys="WellnessAlert.user_id", back_populates="user"
-#    )
-# safety_training_completions = relationship("SafetyTrainingCompletion", back_populates="user")  # TEMPORARILY DISABLED
+    # reported_incidents = relationship(  # TEMPORARILY DISABLED
+    #        "SafetyIncident", foreign_keys="SafetyIncident.reporter_id", back_populates="reporter"
+    #    )
+    # involved_incidents = relationship(  # TEMPORARILY DISABLED
+    #        "SafetyIncident",
+    #        foreign_keys="SafetyIncident.affected_user_id",
+    #        back_populates="affected_user",
+    #    )
+    # investigated_incidents = relationship(  # TEMPORARILY DISABLED
+    #        "SafetyIncident",
+    #        foreign_keys="SafetyIncident.investigator_id",
+    #        back_populates="investigator",
+    #    )
+    # wellness_assessments = relationship("WellnessAssessment", back_populates="user")  # TEMPORARILY DISABLED
+    # wellness_alerts = relationship(  # TEMPORARILY DISABLED
+    #        "WellnessAlert", foreign_keys="WellnessAlert.user_id", back_populates="user"
+    #    )
+    # safety_training_completions = relationship("SafetyTrainingCompletion", back_populates="user")  # TEMPORARILY DISABLED
 
     # Email Analysis Relationships - Temporarily disabled due to missing tables
     # email_connections = relationship("EmailConnection", back_populates="user", cascade="all, delete-orphan")  # TEMPORARILY DISABLED
@@ -168,13 +187,14 @@ class User(Base):
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}')>"
 
+
 # Add to User model (after existing relationships)
-#clinician_assessments = relationship("ClinicalAssessmentExtended", foreign_keys=[ClinicalAssessmentExtended.reviewed_by_id], back_populates="reviewed_by")
-#assessments_extended = relationship("ClinicalAssessmentExtended", foreign_keys=[ClinicalAssessmentExtended.user_id], back_populates="user")
-#assessment_trends = relationship("AssessmentTrend", back_populates="user")
-#crisis_alerts = relationship("CrisisAlert", foreign_keys=[CrisisAlert.acknowledged_by_id], back_populates="acknowledged_by")
-#crisis_alerts_resolved = relationship("CrisisAlert", foreign_keys=[CrisisAlert.resolved_by_id])
-#telehealth_sessions_as_user = relationship("TelehealthSession", foreign_keys=[TelehealthSession.user_id], back_populates="user")
-#telehealth_sessions_as_clinician = relationship("TelehealthSession", foreign_keys=[TelehealthSession.clinician_id], back_populates="clinician")
-#chatbot_conversations = relationship("ChatbotConversation", back_populates="user")
-#mobile_devices = relationship("MobileDevice", back_populates="user")
+# clinician_assessments = relationship("ClinicalAssessmentExtended", foreign_keys=[ClinicalAssessmentExtended.reviewed_by_id], back_populates="reviewed_by")
+# assessments_extended = relationship("ClinicalAssessmentExtended", foreign_keys=[ClinicalAssessmentExtended.user_id], back_populates="user")
+# assessment_trends = relationship("AssessmentTrend", back_populates="user")
+# crisis_alerts = relationship("CrisisAlert", foreign_keys=[CrisisAlert.acknowledged_by_id], back_populates="acknowledged_by")
+# crisis_alerts_resolved = relationship("CrisisAlert", foreign_keys=[CrisisAlert.resolved_by_id])
+# telehealth_sessions_as_user = relationship("TelehealthSession", foreign_keys=[TelehealthSession.user_id], back_populates="user")
+# telehealth_sessions_as_clinician = relationship("TelehealthSession", foreign_keys=[TelehealthSession.clinician_id], back_populates="clinician")
+# chatbot_conversations = relationship("ChatbotConversation", back_populates="user")
+# mobile_devices = relationship("MobileDevice", back_populates="user")

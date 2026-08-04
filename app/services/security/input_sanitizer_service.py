@@ -24,7 +24,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-
 # =============================================================================
 # Data Classes
 # =============================================================================
@@ -33,6 +32,7 @@ from typing import Any, Dict, List, Optional
 @dataclass
 class SanitizationResult:
     """Result of input sanitization"""
+
     original: str
     sanitized: str
     was_modified: bool
@@ -43,6 +43,7 @@ class SanitizationResult:
 @dataclass
 class ValidationResult:
     """Result of input validation"""
+
     is_valid: bool
     errors: List[str]
     warnings: List[str]
@@ -51,6 +52,7 @@ class ValidationResult:
 @dataclass
 class CSRFToken:
     """CSRF token with metadata"""
+
     token: str
     created_at: datetime
     max_age: int
@@ -143,7 +145,9 @@ class InputSanitizerService:
     # Input Sanitization
     # =========================================================================
 
-    def sanitize_input(self, input_str: str, aggressive: bool = False) -> SanitizationResult:
+    def sanitize_input(
+        self, input_str: str, aggressive: bool = False
+    ) -> SanitizationResult:
         """
         Sanitize user input to prevent injection attacks.
 
@@ -432,7 +436,9 @@ class InputSanitizerService:
         username_pattern = r"^[a-zA-Z0-9_-]+$"
 
         if not re.match(username_pattern, username):
-            errors.append("Username can only contain letters, numbers, underscores, and hyphens")
+            errors.append(
+                "Username can only contain letters, numbers, underscores, and hyphens"
+            )
 
         # Cannot start/end with special characters
         if username.startswith(("_", "-")):
@@ -544,6 +550,7 @@ def get_input_sanitizer_service() -> InputSanitizerService:
 # Convenience Functions (Backward Compatibility)
 # =============================================================================
 
+
 def sanitize_input(input_str: str) -> str:
     """Sanitize input using default service."""
     result = get_input_sanitizer_service().sanitize_input(input_str)
@@ -569,4 +576,6 @@ def generate_csrf_token(length: int = 32) -> str:
 
 def validate_csrf_token(token: str, expected_token: str, max_age: int = 3600) -> bool:
     """Validate CSRF token using default service."""
-    return get_input_sanitizer_service().validate_csrf_token(token, expected_token, max_age)
+    return get_input_sanitizer_service().validate_csrf_token(
+        token, expected_token, max_age
+    )

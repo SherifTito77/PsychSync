@@ -16,11 +16,11 @@ Key Features:
 - Validity dashboard and reporting
 """
 
+import logging
+import warnings
 from dataclasses import dataclass, field
 from enum import Enum
-import logging
 from typing import Any
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -245,7 +245,9 @@ class ReliabilityValidityService:
             if n_items == 0:
                 alpha = 0.0
             else:
-                alpha = (n_items / (n_items - 1)) * (1 - (item_variances.sum() / total_variance))
+                alpha = (n_items / (n_items - 1)) * (
+                    1 - (item_variances.sum() / total_variance)
+                )
                 alpha = max(0.0, min(1.0, alpha))  # Ensure alpha is between 0 and 1
 
             # Calculate confidence interval using Feldt's method
@@ -286,7 +288,9 @@ class ReliabilityValidityService:
                 }
 
             # Interpretation
-            interpretation = self._interpret_reliability_coefficient(alpha, "cronbach_alpha")
+            interpretation = self._interpret_reliability_coefficient(
+                alpha, "cronbach_alpha"
+            )
 
             # Recommendations
             recommendations = self._generate_reliability_recommendations(
@@ -360,11 +364,15 @@ class ReliabilityValidityService:
             squared_loadings = loading_matrix**2
             error_variances = 1 - squared_loadings.flatten()
 
-            omega = (squared_loadings.sum()) / (squared_loadings.sum() + error_variances.sum())
+            omega = (squared_loadings.sum()) / (
+                squared_loadings.sum() + error_variances.sum()
+            )
             omega = max(0.0, min(1.0, omega))
 
             # Interpretation
-            interpretation = self._interpret_reliability_coefficient(omega, "mcdonald_omega")
+            interpretation = self._interpret_reliability_coefficient(
+                omega, "mcdonald_omega"
+            )
 
             return ReliabilityResult(
                 reliability_type=ReliabilityType.INTERNAL_CONSISTENCY,
@@ -406,7 +414,10 @@ class ReliabilityValidityService:
         try:
             # Merge the two time point datasets
             merged_data = pd.merge(
-                time1_responses, time2_responses, on=time_point_matching, suffixes=("_t1", "_t2")
+                time1_responses,
+                time2_responses,
+                on=time_point_matching,
+                suffixes=("_t1", "_t2"),
             )
 
             if len(merged_data) < 30:  # Minimum sample size recommendation
@@ -439,7 +450,9 @@ class ReliabilityValidityService:
                 valid_pairs = merged_data[[t1_col, t2_col]].dropna()
 
                 if len(valid_pairs) >= 10:  # Minimum for correlation
-                    correlation, p_value = stats.pearsonr(valid_pairs[t1_col], valid_pairs[t2_col])
+                    correlation, p_value = stats.pearsonr(
+                        valid_pairs[t1_col], valid_pairs[t2_col]
+                    )
                     item_correlations[t1_col.replace("_t1", "")] = {
                         "correlation": correlation,
                         "p_value": p_value,
@@ -453,7 +466,9 @@ class ReliabilityValidityService:
 
             # Calculate overall test-retest reliability
             if len(total_scores_t1) >= 30:
-                overall_correlation, overall_p = stats.pearsonr(total_scores_t1, total_scores_t2)
+                overall_correlation, overall_p = stats.pearsonr(
+                    total_scores_t1, total_scores_t2
+                )
 
                 # Calculate confidence interval
                 se = np.sqrt((1 - overall_correlation**2) / (len(total_scores_t1) - 2))
@@ -532,7 +547,9 @@ class ReliabilityValidityService:
 
             # Check suitability for factor analysis
             kmo_result = self._calculate_kmo(correlation_matrix)
-            bartlett_result = self._calculate_bartlett_test(correlation_matrix, len(item_data))
+            bartlett_result = self._calculate_bartlett_test(
+                correlation_matrix, len(item_data)
+            )
 
             # Eigenvalue decomposition
             eigenvalues, eigenvectors = np.linalg.eig(correlation_matrix)
@@ -594,7 +611,9 @@ class ReliabilityValidityService:
             }
 
             # Interpret factors
-            factor_interpretation = self._interpret_factors(loadings_df, item_data.columns)
+            factor_interpretation = self._interpret_factors(
+                loadings_df, item_data.columns
+            )
 
             return FactorAnalysisResult(
                 extraction_method=extraction_method,
@@ -649,7 +668,9 @@ class ReliabilityValidityService:
                 )
 
             # Calculate Pearson correlation
-            correlation, p_value = stats.pearsonr(valid_data["assessment"], valid_data["criterion"])
+            correlation, p_value = stats.pearsonr(
+                valid_data["assessment"], valid_data["criterion"]
+            )
 
             # Calculate confidence interval
             n = len(valid_data)
@@ -660,7 +681,9 @@ class ReliabilityValidityService:
             confidence_interval = (ci_lower, ci_upper)
 
             # Interpretation
-            interpretation = self._interpret_validity_coefficient(abs(correlation), "convergent")
+            interpretation = self._interpret_validity_coefficient(
+                abs(correlation), "convergent"
+            )
 
             # Recommendations
             recommendations = self._generate_convergent_validity_recommendations(
@@ -721,7 +744,9 @@ class ReliabilityValidityService:
                 )
 
             # Calculate correlation
-            correlation, p_value = stats.pearsonr(valid_data["assessment"], valid_data["unrelated"])
+            correlation, p_value = stats.pearsonr(
+                valid_data["assessment"], valid_data["unrelated"]
+            )
 
             # For discriminant validity, we're interested in absolute correlation
             abs_correlation = abs(correlation)
@@ -735,7 +760,9 @@ class ReliabilityValidityService:
             confidence_interval = (ci_lower, ci_upper)
 
             # Interpretation (lower is better for discriminant validity)
-            interpretation = self._interpret_validity_coefficient(abs_correlation, "discriminant")
+            interpretation = self._interpret_validity_coefficient(
+                abs_correlation, "discriminant"
+            )
 
             # Recommendations
             recommendations = self._generate_discriminant_validity_recommendations(
@@ -793,7 +820,9 @@ class ReliabilityValidityService:
                 difficulty = item_responses.mean()
 
                 # Item discrimination (point-biserial correlation)
-                item_total_corr = stats.pointbiserialr(item_responses, total_scores).correlation
+                item_total_corr = stats.pointbiserialr(
+                    item_responses, total_scores
+                ).correlation
 
                 # Item validity (correlation with external criterion if available)
                 # This would require external criterion data
@@ -882,7 +911,9 @@ class ReliabilityValidityService:
         except Exception:
             return (0.0, 1.0)
 
-    def _interpret_reliability_coefficient(self, coefficient: float, reliability_type: str) -> str:
+    def _interpret_reliability_coefficient(
+        self, coefficient: float, reliability_type: str
+    ) -> str:
         """Interpret reliability coefficient based on established thresholds."""
         thresholds = self.reliability_thresholds.get(reliability_type, {})
 
@@ -894,11 +925,11 @@ class ReliabilityValidityService:
             return f"Acceptable reliability ({coefficient:.3f}). The assessment meets minimum standards for reliability."
         if coefficient >= thresholds.get("questionable", 0.60):
             return f"Questionable reliability ({coefficient:.3f}). Consider item analysis and revision."
-        return (
-            f"Poor reliability ({coefficient:.3f}). The assessment requires substantial revision."
-        )
+        return f"Poor reliability ({coefficient:.3f}). The assessment requires substantial revision."
 
-    def _interpret_test_retest_reliability(self, coefficient: float, interval_days: int) -> str:
+    def _interpret_test_retest_reliability(
+        self, coefficient: float, interval_days: int
+    ) -> str:
         """Interpret test-retest reliability considering the time interval."""
         thresholds = self.reliability_thresholds["test_retest"]
 
@@ -911,14 +942,14 @@ class ReliabilityValidityService:
             expected_min = 0.60
 
         if coefficient >= thresholds.get("excellent", 0.80):
-            return (
-                f"Excellent test-retest reliability ({coefficient:.3f}) over {interval_days} days."
-            )
+            return f"Excellent test-retest reliability ({coefficient:.3f}) over {interval_days} days."
         if coefficient >= expected_min:
             return f"Good test-retest reliability ({coefficient:.3f}) over {interval_days} days."
         return f"Low test-retest reliability ({coefficient:.3f}) over {interval_days} days. Consider construct instability or measurement error."
 
-    def _interpret_validity_coefficient(self, coefficient: float, validity_type: str) -> str:
+    def _interpret_validity_coefficient(
+        self, coefficient: float, validity_type: str
+    ) -> str:
         """Interpret validity coefficient."""
         thresholds = self.validity_thresholds.get(validity_type, {})
 
@@ -954,7 +985,9 @@ class ReliabilityValidityService:
                 random_eigenvalues.extend(np.real(eigenvalues))
 
             # Calculate 95th percentile for each eigenvalue position
-            random_eigenvalues = np.array(random_eigenvalues).reshape(n_samples, n_items)
+            random_eigenvalues = np.array(random_eigenvalues).reshape(
+                n_samples, n_items
+            )
             percentile_95 = np.percentile(random_eigenvalues, 95, axis=0)
 
             # Calculate actual eigenvalues
@@ -992,7 +1025,9 @@ class ReliabilityValidityService:
             partial_corr_sq = partial_corr**2
 
             kmo_overall = np.sum(correlation_sq) - np.sum(np.diag(correlation_sq))
-            kmo_overall /= kmo_overall + 2 * np.sum(partial_corr_sq - np.diag(partial_corr_sq))
+            kmo_overall /= kmo_overall + 2 * np.sum(
+                partial_corr_sq - np.diag(partial_corr_sq)
+            )
 
             kmo_individual = []
             for i in range(n_items):
@@ -1040,7 +1075,9 @@ class ReliabilityValidityService:
             for factor_col in loadings_df.columns:
                 # Get items with high loadings (> 0.4 or <-0.4)
                 high_loadings = loadings_df[abs(loadings_df[factor_col]) > 0.4]
-                high_loadings = high_loadings.sort_values(by=factor_col, key=abs, ascending=False)
+                high_loadings = high_loadings.sort_values(
+                    by=factor_col, key=abs, ascending=False
+                )
 
                 factor_items = high_loadings.index.tolist()
                 factor_interpretation[factor_col] = factor_items
@@ -1061,7 +1098,9 @@ class ReliabilityValidityService:
             recommendations.append(
                 "Consider increasing the number of items to improve reliability."
             )
-            recommendations.append("Review items with low item-total correlations (< 0.30).")
+            recommendations.append(
+                "Review items with low item-total correlations (< 0.30)."
+            )
 
         # Check items that would improve reliability if deleted
         items_to_review = []
@@ -1075,7 +1114,9 @@ class ReliabilityValidityService:
             )
 
         if n_items < 10:
-            recommendations.append("Consider adding more items to improve measurement precision.")
+            recommendations.append(
+                "Consider adding more items to improve measurement precision."
+            )
 
         return recommendations
 
@@ -1092,10 +1133,14 @@ class ReliabilityValidityService:
                 )
             else:
                 recommendations.append("Review item clarity and scoring consistency.")
-                recommendations.append("Consider providing clearer instructions to respondents.")
+                recommendations.append(
+                    "Consider providing clearer instructions to respondents."
+                )
 
         if sample_size < 50:
-            recommendations.append("Increase sample size for more reliable test-retest estimates.")
+            recommendations.append(
+                "Increase sample size for more reliable test-retest estimates."
+            )
 
         return recommendations
 
@@ -1135,7 +1180,11 @@ class ReliabilityValidityService:
                 recommendations.append(
                     f"High correlation with {construct_description} suggests construct overlap."
                 )
-            recommendations.append("Consider whether these constructs are truly distinct.")
-            recommendations.append("Review item content to ensure construct differentiation.")
+            recommendations.append(
+                "Consider whether these constructs are truly distinct."
+            )
+            recommendations.append(
+                "Review item content to ensure construct differentiation."
+            )
 
         return recommendations

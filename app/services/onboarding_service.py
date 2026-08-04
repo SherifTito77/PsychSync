@@ -1,8 +1,8 @@
 # app/services/onboarding_service.py
 # Core business logic for value-first onboarding experience
 import asyncio
-from typing import Any
 import uuid
+from typing import Any
 
 from app.schemas.onboarding import (
     ActionItem,
@@ -45,7 +45,11 @@ class OnboardingService:
                         "Misaligned expectations",
                         "Delayed feedback",
                     ],
-                    "strengths": ["Natural leadership", "Goal-oriented", "Decision-making"],
+                    "strengths": [
+                        "Natural leadership",
+                        "Goal-oriented",
+                        "Decision-making",
+                    ],
                     "opportunities": [
                         "Improved meeting efficiency",
                         "Better documentation",
@@ -56,7 +60,11 @@ class OnboardingService:
                 },
                 "productivity": {
                     "primary_benefit": "Increase team output by 25% through better role alignment and motivation",
-                    "risk_areas": ["Role misalignment", "Low engagement", "Inefficient processes"],
+                    "risk_areas": [
+                        "Role misalignment",
+                        "Low engagement",
+                        "Inefficient processes",
+                    ],
                     "strengths": [
                         "Process optimization",
                         "Resource management",
@@ -72,8 +80,16 @@ class OnboardingService:
                 },
                 "turnover": {
                     "primary_benefit": "Reduce voluntary turnover by 40% and save $200K+ in replacement costs",
-                    "risk_areas": ["Burnout risk", "Career stagnation", "Compensation gaps"],
-                    "strengths": ["Team development", "Talent retention", "Career coaching"],
+                    "risk_areas": [
+                        "Burnout risk",
+                        "Career stagnation",
+                        "Compensation gaps",
+                    ],
+                    "strengths": [
+                        "Team development",
+                        "Talent retention",
+                        "Career coaching",
+                    ],
                     "opportunities": [
                         "Career pathing",
                         "Recognition programs",
@@ -84,13 +100,21 @@ class OnboardingService:
                 },
                 "collaboration": {
                     "primary_benefit": "Improve project completion speed by 30% through better team dynamics",
-                    "risk_areas": ["Poor coordination", "Duplicate work", "Knowledge gaps"],
+                    "risk_areas": [
+                        "Poor coordination",
+                        "Duplicate work",
+                        "Knowledge gaps",
+                    ],
                     "strengths": [
                         "Team building",
                         "Cross-functional collaboration",
                         "Knowledge sharing",
                     ],
-                    "opportunities": ["Collaboration tools", "Team restructuring", "Skill sharing"],
+                    "opportunities": [
+                        "Collaboration tools",
+                        "Team restructuring",
+                        "Skill sharing",
+                    ],
                     "conversion_probability": 0.80,
                     "estimated_time_to_value": "2 weeks",
                 },
@@ -101,7 +125,11 @@ class OnboardingService:
                         "Communication style differences",
                         "Decision paralysis",
                     ],
-                    "strengths": ["Conflict resolution", "Mediation", "Consensus building"],
+                    "strengths": [
+                        "Conflict resolution",
+                        "Mediation",
+                        "Consensus building",
+                    ],
                     "opportunities": [
                         "Communication training",
                         "Decision frameworks",
@@ -134,7 +162,11 @@ class OnboardingService:
                 },
                 "productivity": {
                     "primary_benefit": "Standardize high productivity across teams and increase organizational output by 15%",
-                    "risk_areas": ["Inconsistent processes", "Skill gaps", "Low motivation"],
+                    "risk_areas": [
+                        "Inconsistent processes",
+                        "Skill gaps",
+                        "Low motivation",
+                    ],
                     "strengths": [
                         "Performance management",
                         "Training programs",
@@ -150,7 +182,11 @@ class OnboardingService:
                 },
                 "turnover": {
                     "primary_benefit": "Identify turnover risk 6 months early and reduce replacement costs by $500K+",
-                    "risk_areas": ["High performers at risk", "Toxic teams", "Poor culture fit"],
+                    "risk_areas": [
+                        "High performers at risk",
+                        "Toxic teams",
+                        "Poor culture fit",
+                    ],
                     "strengths": [
                         "Retention strategies",
                         "Culture assessment",
@@ -173,7 +209,11 @@ class OnboardingService:
                         "Unclear expectations",
                         "Inadequate feedback",
                     ],
-                    "strengths": ["Direct communication", "Clear expectations", "Regular feedback"],
+                    "strengths": [
+                        "Direct communication",
+                        "Clear expectations",
+                        "Regular feedback",
+                    ],
                     "opportunities": [
                         "Meeting optimization",
                         "Communication tools",
@@ -184,9 +224,21 @@ class OnboardingService:
                 },
                 "productivity": {
                     "primary_benefit": "Improve sprint completion rate by 20% through better task allocation",
-                    "risk_areas": ["Skill mismatches", "Poor estimation", "Blocking issues"],
-                    "strengths": ["Task planning", "Skill assessment", "Problem solving"],
-                    "opportunities": ["Skill mapping", "Process improvement", "Automation"],
+                    "risk_areas": [
+                        "Skill mismatches",
+                        "Poor estimation",
+                        "Blocking issues",
+                    ],
+                    "strengths": [
+                        "Task planning",
+                        "Skill assessment",
+                        "Problem solving",
+                    ],
+                    "opportunities": [
+                        "Skill mapping",
+                        "Process improvement",
+                        "Automation",
+                    ],
                     "conversion_probability": 0.80,
                     "estimated_time_to_value": "1 sprint",
                 },
@@ -199,7 +251,11 @@ class OnboardingService:
                         "Poor articulation",
                         "Listening gaps",
                     ],
-                    "strengths": ["Adaptability", "Learning ability", "Team collaboration"],
+                    "strengths": [
+                        "Adaptability",
+                        "Learning ability",
+                        "Team collaboration",
+                    ],
                     "opportunities": [
                         "Communication training",
                         "Personal development",
@@ -210,9 +266,17 @@ class OnboardingService:
                 },
                 "productivity": {
                     "primary_benefit": "Increase personal productivity by 30% through work style optimization",
-                    "risk_areas": ["Distractions", "Poor time management", "Skill gaps"],
+                    "risk_areas": [
+                        "Distractions",
+                        "Poor time management",
+                        "Skill gaps",
+                    ],
                     "strengths": ["Focus", "Self-motivation", "Continuous learning"],
-                    "opportunities": ["Productivity tools", "Time management", "Skill development"],
+                    "opportunities": [
+                        "Productivity tools",
+                        "Time management",
+                        "Skill development",
+                    ],
                     "conversion_probability": 0.78,
                     "estimated_time_to_value": "Immediate",
                 },
@@ -280,11 +344,14 @@ class OnboardingService:
 
         # Fallback to manager data if role not found
         base_template = self.insight_templates.get(role_str, {}).get(
-            challenge_str, self.insight_templates.get("manager", {}).get("communication", {})
+            challenge_str,
+            self.insight_templates.get("manager", {}).get("communication", {}),
         )
 
         # Generate personalized recommendations
-        recommendations = await self._generate_recommendations(role, challenge, team_size, industry)
+        recommendations = await self._generate_recommendations(
+            role, challenge, team_size, industry
+        )
 
         # Create insights object
         insights = QuickInsights(
@@ -294,7 +361,9 @@ class OnboardingService:
             opportunities=base_template.get("opportunities", []),
             recommendations=recommendations,
             conversion_probability=base_template.get("conversion_probability", 0.75),
-            estimated_time_to_value=base_template.get("estimated_time_to_value", "2 weeks"),
+            estimated_time_to_value=base_template.get(
+                "estimated_time_to_value", "2 weeks"
+            ),
         )
 
         # Store for potential follow-up (async, non-blocking)
@@ -304,7 +373,11 @@ class OnboardingService:
         return insights
 
     async def _generate_recommendations(
-        self, role: UserRole, challenge: TeamChallenge, team_size: str | None, industry: str | None
+        self,
+        role: UserRole,
+        challenge: TeamChallenge,
+        team_size: str | None,
+        industry: str | None,
     ) -> list[Recommendation]:
         """Generate personalized recommendations based on role and challenge."""
 
@@ -432,7 +505,10 @@ class OnboardingService:
                 responsible="Team Lead",
                 timeline="2 weeks",
                 resources=["Communication assessment tool", "Training materials"],
-                success_metrics=["Improved meeting satisfaction", "Reduced misunderstandings"],
+                success_metrics=[
+                    "Improved meeting satisfaction",
+                    "Reduced misunderstandings",
+                ],
                 priority_score=0.85,
             )
         ]
@@ -532,7 +608,9 @@ class OnboardingService:
             monthly_value_created=12500.0,
         )
 
-    async def _store_insights_for_user(self, user_id: str, insights: QuickInsights) -> None:
+    async def _store_insights_for_user(
+        self, user_id: str, insights: QuickInsights
+    ) -> None:
         """Store generated insights for user (async, non-blocking)."""
         try:
             # Store insights for follow-up and personalization

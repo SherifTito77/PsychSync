@@ -12,11 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.services.security import get_password_hash
 from app.db.models.assessment import Assessment, UserAssessment
 from app.db.models.response import Response, ResponseScore
 from app.db.models.team import Team, TeamMember
 from app.db.models.user import User
+from app.services.security import get_password_hash
 
 
 @pytest.mark.integration
@@ -81,7 +81,9 @@ class TestUserCRUD:
         assert user.full_name == created_user.full_name
 
         # Read by email
-        result = await test_db.execute(select(User).where(User.email == created_user.email))
+        result = await test_db.execute(
+            select(User).where(User.email == created_user.email)
+        )
         user_by_email = result.scalar_one()
 
         assert user_by_email.id == created_user.id
@@ -151,7 +153,9 @@ class TestUserCRUD:
         assert user.password_hash.startswith("$2b$")  # bcrypt prefix
 
     @pytest.mark.asyncio
-    async def test_user_unique_email_constraint(self, test_db: AsyncSession, created_user: User):
+    async def test_user_unique_email_constraint(
+        self, test_db: AsyncSession, created_user: User
+    ):
         """Test email uniqueness constraint"""
         duplicate_user_data = {
             "email": created_user.email,  # Same email
@@ -204,7 +208,9 @@ class TestAssessmentCRUD:
         return assessment
 
     @pytest.mark.asyncio
-    async def test_create_assessment(self, test_db: AsyncSession, sample_assessment_data):
+    async def test_create_assessment(
+        self, test_db: AsyncSession, sample_assessment_data
+    ):
         """Test assessment creation"""
         assessment = Assessment(**sample_assessment_data)
         test_db.add(assessment)
@@ -217,7 +223,9 @@ class TestAssessmentCRUD:
         assert assessment.is_active == sample_assessment_data["is_active"]
 
     @pytest.mark.asyncio
-    async def test_read_assessment(self, test_db: AsyncSession, created_assessment: Assessment):
+    async def test_read_assessment(
+        self, test_db: AsyncSession, created_assessment: Assessment
+    ):
         """Test reading assessment data"""
         result = await test_db.execute(
             select(Assessment)
@@ -231,7 +239,9 @@ class TestAssessmentCRUD:
         assert assessment.title == created_assessment.title
 
     @pytest.mark.asyncio
-    async def test_update_assessment(self, test_db: AsyncSession, created_assessment: Assessment):
+    async def test_update_assessment(
+        self, test_db: AsyncSession, created_assessment: Assessment
+    ):
         """Test updating assessment data"""
         update_data = {
             "title": "Updated Assessment Title",
@@ -240,7 +250,9 @@ class TestAssessmentCRUD:
         }
 
         stmt = (
-            update(Assessment).where(Assessment.id == created_assessment.id).values(**update_data)
+            update(Assessment)
+            .where(Assessment.id == created_assessment.id)
+            .values(**update_data)
         )
         await test_db.execute(stmt)
         await test_db.commit()
@@ -252,7 +264,9 @@ class TestAssessmentCRUD:
         assert created_assessment.is_active is False
 
     @pytest.mark.asyncio
-    async def test_delete_assessment(self, test_db: AsyncSession, created_assessment: Assessment):
+    async def test_delete_assessment(
+        self, test_db: AsyncSession, created_assessment: Assessment
+    ):
         """Test assessment deletion"""
         assessment_id = created_assessment.id
 
@@ -261,7 +275,9 @@ class TestAssessmentCRUD:
         await test_db.commit()
 
         # Verify deletion
-        result = await test_db.execute(select(Assessment).where(Assessment.id == assessment_id))
+        result = await test_db.execute(
+            select(Assessment).where(Assessment.id == assessment_id)
+        )
         assessment = result.scalar_one_or_none()
         assert assessment is None
 
@@ -366,7 +382,9 @@ class TestTeamCRUD:
 
         # Test relationship loading
         result = await test_db.execute(
-            select(Team).options(selectinload(Team.members)).where(Team.id == created_team.id)
+            select(Team)
+            .options(selectinload(Team.members))
+            .where(Team.id == created_team.id)
         )
         team = result.scalar_one()
 
@@ -460,7 +478,10 @@ class TestUserAssessmentCRUD:
             "assessment_id": test_assessment.id,
             "status": "in_progress",
             "started_at": datetime.utcnow(),
-            "session_token": "session_" + str(test_user.id) + "_" + str(test_assessment.id),
+            "session_token": "session_"
+            + str(test_user.id)
+            + "_"
+            + str(test_assessment.id),
         }
 
         user_assessment = UserAssessment(**user_assessment_data)
@@ -524,7 +545,9 @@ class TestUserAssessmentCRUD:
                 assessment_id=test_assessment.id,
                 status="completed",
                 started_at=datetime.utcnow() - timedelta(days=i),
-                completed_at=datetime.utcnow() - timedelta(days=i) + timedelta(minutes=15),
+                completed_at=datetime.utcnow()
+                - timedelta(days=i)
+                + timedelta(minutes=15),
                 total_time_seconds=900,
             )
             assessments.append(user_assessment)
@@ -667,7 +690,9 @@ class TestResponseCRUD:
 
         # Verify all responses were created
         result = await test_db.execute(
-            select(Response).where(Response.user_assessment_id == test_user_assessment.id)
+            select(Response).where(
+                Response.user_assessment_id == test_user_assessment.id
+            )
         )
         saved_responses = result.scalars().all()
 

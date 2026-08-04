@@ -16,10 +16,9 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
-
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -592,11 +591,14 @@ async def batch_train_models(
         logger.error(f"Error in batch training: {str(e)}")
         return {"success": False, "error_message": str(e)}
 
+
 @router.get("/clinical-screenings")
 async def get_clinical_screenings(
     db: AsyncSession = Depends(get_db),
     limit: int = Query(100, description="Maximum number of screenings to return"),
-    screening_types: Optional[List[str]] = Query(None, description="Filter by screening type"),
+    screening_types: Optional[List[str]] = Query(
+        None, description="Filter by screening type"
+    ),
 ):
     """
     Get clinical screening data directly (GAD7, PHQ9, etc.)
@@ -607,14 +609,13 @@ async def get_clinical_screenings(
     try:
         # Collect clinical screening data
         clinical_result = await data_service.collect_clinical_screening_data(
-            db=db,
-            screening_types=screening_types
+            db=db, screening_types=screening_types
         )
 
         if not clinical_result["success"]:
             return {
                 "success": False,
-                "error_message": clinical_result.get("error", "Data collection failed")
+                "error_message": clinical_result.get("error", "Data collection failed"),
             }
 
         df = pd.DataFrame(clinical_result["data"])
@@ -630,7 +631,7 @@ async def get_clinical_screenings(
                     avg_score=("total_score", "mean"),
                     max_score=("total_score", "max"),
                     min_score=("total_score", "min"),
-                    crisis_count=("crisis_alert", "sum")
+                    crisis_count=("crisis_alert", "sum"),
                 )
                 .reset_index()
                 .to_dict("records")
@@ -644,25 +645,23 @@ async def get_clinical_screenings(
                     "avg_score": row["avg_score"],
                     "max_score": row["max_score"],
                     "min_score": row["min_score"],
-                    "crisis_count": row["crisis_count"]
+                    "crisis_count": row["crisis_count"],
                 }
 
             return {
                 "success": True,
                 "screenings": df.to_dict("records"),
-                "summary": {
-                    "total": len(df),
-                    "by_type": type_stats_dict
-                },
-                "screening_types": df["screening_type"].unique().tolist() if "screening_type" in df.columns else []
+                "summary": {"total": len(df), "by_type": type_stats_dict},
+                "screening_types": (
+                    df["screening_type"].unique().tolist()
+                    if "screening_type" in df.columns
+                    else []
+                ),
             }
 
     except Exception as e:
         logger.error(f"Error getting clinical screenings: {str(e)}")
-        return {
-            "success": False,
-            "error_message": str(e)
-        }
+        return {"success": False, "error_message": str(e)}
 
 
 @router.get("/data/quality")
@@ -727,7 +726,9 @@ async def assess_data_quality(
         recommendations = _generate_data_quality_recommendations(
             quality_score, rows, completeness
         )
-        logger.info(f"Generated {len(recommendations)} recommendations: {recommendations}")
+        logger.info(
+            f"Generated {len(recommendations)} recommendations: {recommendations}"
+        )
 
         return {
             "success": True,
@@ -796,7 +797,9 @@ def _generate_data_quality_recommendations(
     """Generate data quality recommendations."""
     recommendations = []
 
-    logger.info(f"Generating recommendations: quality_score={quality_score:.3f}, rows={rows}, completeness={completeness:.3f}")
+    logger.info(
+        f"Generating recommendations: quality_score={quality_score:.3f}, rows={rows}, completeness={completeness:.3f}"
+    )
 
     if quality_score < 0.3:
         recommendations.append(

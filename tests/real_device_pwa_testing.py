@@ -15,21 +15,25 @@ Expected Results:
 
 import asyncio
 import json
-import time
-import subprocess
+import logging
 import platform
-from typing import Dict, List, Any, Optional, Tuple
+import subprocess
+import time
 from dataclasses import dataclass
 from enum import Enum
-import logging
+from typing import Any, Dict, List, Optional, Tuple
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 class DeviceType(Enum):
     PHONE = "phone"
     TABLET = "tablet"
     DESKTOP = "desktop"
+
 
 class PlatformType(Enum):
     IOS = "ios"
@@ -38,11 +42,13 @@ class PlatformType(Enum):
     MACOS = "macos"
     LINUX = "linux"
 
+
 class BrowserType(Enum):
     SAFARI = "safari"
     CHROME = "chrome"
     FIREFOX = "firefox"
     EDGE = "edge"
+
 
 class NetworkCondition(Enum):
     OFFLINE = "offline"
@@ -52,9 +58,11 @@ class NetworkCondition(Enum):
     FOUR_G = "4g"
     WIFI = "wifi"
 
+
 @dataclass
 class DeviceConfig:
     """Device configuration for testing"""
+
     device_id: str
     device_type: DeviceType
     platform: PlatformType
@@ -63,9 +71,11 @@ class DeviceConfig:
     pixel_density: float
     network_condition: NetworkCondition
 
+
 @dataclass
 class DeviceTestResult:
     """Result of PWA test on specific device"""
+
     device_config: DeviceConfig
     test_results: Dict[str, Any]
     performance_metrics: Dict[str, float]
@@ -74,15 +84,18 @@ class DeviceTestResult:
     overall_score: float
     errors: List[str]
 
+
 @dataclass
 class PWAInstallationResult:
     """PWA installation test result"""
+
     installation_prompt_shown: bool
     installation_completed: bool
     app_icon_created: bool
     offline_launch_works: bool
     splash_screen_displays: bool
     full_screen_mode: bool
+
 
 class RealDevicePWATester:
     """Real device PWA testing framework"""
@@ -97,106 +110,112 @@ class RealDevicePWATester:
         devices = []
 
         # iOS Devices
-        devices.extend([
-            DeviceConfig(
-                device_id="iphone_13_pro",
-                device_type=DeviceType.PHONE,
-                platform=PlatformType.IOS,
-                browser=BrowserType.SAFARI,
-                screen_size=(390, 844),
-                pixel_density=3.0,
-                network_condition=NetworkCondition.WIFI
-            ),
-            DeviceConfig(
-                device_id="iphone_se",
-                device_type=DeviceType.PHONE,
-                platform=PlatformType.IOS,
-                browser=BrowserType.SAFARI,
-                screen_size=(375, 667),
-                pixel_density=2.0,
-                network_condition=NetworkCondition.THREE_G
-            ),
-            DeviceConfig(
-                device_id="ipad_pro",
-                device_type=DeviceType.TABLET,
-                platform=PlatformType.IOS,
-                browser=BrowserType.SAFARI,
-                screen_size=(1024, 1366),
-                pixel_density=2.0,
-                network_condition=NetworkCondition.WIFI
-            ),
-            DeviceConfig(
-                device_id="ipad_air",
-                device_type=DeviceType.TABLET,
-                platform=PlatformType.IOS,
-                browser=BrowserType.SAFARI,
-                screen_size=(820, 1180),
-                pixel_density=2.0,
-                network_condition=NetworkCondition.FOUR_G
-            )
-        ])
+        devices.extend(
+            [
+                DeviceConfig(
+                    device_id="iphone_13_pro",
+                    device_type=DeviceType.PHONE,
+                    platform=PlatformType.IOS,
+                    browser=BrowserType.SAFARI,
+                    screen_size=(390, 844),
+                    pixel_density=3.0,
+                    network_condition=NetworkCondition.WIFI,
+                ),
+                DeviceConfig(
+                    device_id="iphone_se",
+                    device_type=DeviceType.PHONE,
+                    platform=PlatformType.IOS,
+                    browser=BrowserType.SAFARI,
+                    screen_size=(375, 667),
+                    pixel_density=2.0,
+                    network_condition=NetworkCondition.THREE_G,
+                ),
+                DeviceConfig(
+                    device_id="ipad_pro",
+                    device_type=DeviceType.TABLET,
+                    platform=PlatformType.IOS,
+                    browser=BrowserType.SAFARI,
+                    screen_size=(1024, 1366),
+                    pixel_density=2.0,
+                    network_condition=NetworkCondition.WIFI,
+                ),
+                DeviceConfig(
+                    device_id="ipad_air",
+                    device_type=DeviceType.TABLET,
+                    platform=PlatformType.IOS,
+                    browser=BrowserType.SAFARI,
+                    screen_size=(820, 1180),
+                    pixel_density=2.0,
+                    network_condition=NetworkCondition.FOUR_G,
+                ),
+            ]
+        )
 
         # Android Devices
-        devices.extend([
-            DeviceConfig(
-                device_id="pixel_6",
-                device_type=DeviceType.PHONE,
-                platform=PlatformType.ANDROID,
-                browser=BrowserType.CHROME,
-                screen_size=(393, 851),
-                pixel_density=2.625,
-                network_condition=NetworkCondition.WIFI
-            ),
-            DeviceConfig(
-                device_id="galaxy_s22",
-                device_type=DeviceType.PHONE,
-                platform=PlatformType.ANDROID,
-                browser=BrowserType.CHROME,
-                screen_size=(384, 854),
-                pixel_density=2.75,
-                network_condition=NetworkCondition.THREE_G
-            ),
-            DeviceConfig(
-                device_id="oneplus_9",
-                device_type=DeviceType.PHONE,
-                platform=PlatformType.ANDROID,
-                browser=BrowserType.CHROME,
-                screen_size=(384, 854),
-                pixel_density=2.75,
-                network_condition=NetworkCondition.TWO_G
-            ),
-            DeviceConfig(
-                device_id="galaxy_tab_s8",
-                device_type=DeviceType.TABLET,
-                platform=PlatformType.ANDROID,
-                browser=BrowserType.CHROME,
-                screen_size=(753, 1608),
-                pixel_density=2.625,
-                network_condition=NetworkCondition.WIFI
-            )
-        ])
+        devices.extend(
+            [
+                DeviceConfig(
+                    device_id="pixel_6",
+                    device_type=DeviceType.PHONE,
+                    platform=PlatformType.ANDROID,
+                    browser=BrowserType.CHROME,
+                    screen_size=(393, 851),
+                    pixel_density=2.625,
+                    network_condition=NetworkCondition.WIFI,
+                ),
+                DeviceConfig(
+                    device_id="galaxy_s22",
+                    device_type=DeviceType.PHONE,
+                    platform=PlatformType.ANDROID,
+                    browser=BrowserType.CHROME,
+                    screen_size=(384, 854),
+                    pixel_density=2.75,
+                    network_condition=NetworkCondition.THREE_G,
+                ),
+                DeviceConfig(
+                    device_id="oneplus_9",
+                    device_type=DeviceType.PHONE,
+                    platform=PlatformType.ANDROID,
+                    browser=BrowserType.CHROME,
+                    screen_size=(384, 854),
+                    pixel_density=2.75,
+                    network_condition=NetworkCondition.TWO_G,
+                ),
+                DeviceConfig(
+                    device_id="galaxy_tab_s8",
+                    device_type=DeviceType.TABLET,
+                    platform=PlatformType.ANDROID,
+                    browser=BrowserType.CHROME,
+                    screen_size=(753, 1608),
+                    pixel_density=2.625,
+                    network_condition=NetworkCondition.WIFI,
+                ),
+            ]
+        )
 
         # Desktop (for comparison)
-        devices.extend([
-            DeviceConfig(
-                device_id="macbook_pro",
-                device_type=DeviceType.DESKTOP,
-                platform=PlatformType.MACOS,
-                browser=BrowserType.CHROME,
-                screen_size=(1440, 900),
-                pixel_density=2.0,
-                network_condition=NetworkCondition.WIFI
-            ),
-            DeviceConfig(
-                device_id="windows_laptop",
-                device_type=DeviceType.DESKTOP,
-                platform=PlatformType.WINDOWS,
-                browser=BrowserType.CHROME,
-                screen_size=(1366, 768),
-                pixel_density=1.0,
-                network_condition=NetworkCondition.WIFI
-            )
-        ])
+        devices.extend(
+            [
+                DeviceConfig(
+                    device_id="macbook_pro",
+                    device_type=DeviceType.DESKTOP,
+                    platform=PlatformType.MACOS,
+                    browser=BrowserType.CHROME,
+                    screen_size=(1440, 900),
+                    pixel_density=2.0,
+                    network_condition=NetworkCondition.WIFI,
+                ),
+                DeviceConfig(
+                    device_id="windows_laptop",
+                    device_type=DeviceType.DESKTOP,
+                    platform=PlatformType.WINDOWS,
+                    browser=BrowserType.CHROME,
+                    screen_size=(1366, 768),
+                    pixel_density=1.0,
+                    network_condition=NetworkCondition.WIFI,
+                ),
+            ]
+        )
 
         return devices
 
@@ -207,13 +226,19 @@ class RealDevicePWATester:
         start_time = time.time()
 
         for device in self.test_devices:
-            logger.info(f"\n📱 Testing on {device.device_id} ({device.platform.value} {device.device_type.value})")
+            logger.info(
+                f"\n📱 Testing on {device.device_id} ({device.platform.value} {device.device_type.value})"
+            )
 
             try:
                 result = await self.test_device(device)
                 self.results.append(result)
 
-                status = "✅" if result.overall_score >= 80 else "⚠️" if result.overall_score >= 60 else "❌"
+                status = (
+                    "✅"
+                    if result.overall_score >= 80
+                    else "⚠️" if result.overall_score >= 60 else "❌"
+                )
                 logger.info(f"  {status} Overall Score: {result.overall_score:.1f}%")
 
                 if result.installation_success:
@@ -228,15 +253,17 @@ class RealDevicePWATester:
 
             except Exception as e:
                 logger.error(f"  ❌ Device test failed: {e}")
-                self.results.append(DeviceTestResult(
-                    device_config=device,
-                    test_results={},
-                    performance_metrics={},
-                    installation_success=False,
-                    offline_functionality=False,
-                    overall_score=0.0,
-                    errors=[str(e)]
-                ))
+                self.results.append(
+                    DeviceTestResult(
+                        device_config=device,
+                        test_results={},
+                        performance_metrics={},
+                        installation_success=False,
+                        offline_functionality=False,
+                        overall_score=0.0,
+                        errors=[str(e)],
+                    )
+                )
 
         total_duration = time.time() - start_time
         return self.generate_comprehensive_report(total_duration)
@@ -251,33 +278,47 @@ class RealDevicePWATester:
 
         try:
             # Service Worker Tests
-            test_results["service_worker"] = await self.test_service_worker_on_device(device)
+            test_results["service_worker"] = await self.test_service_worker_on_device(
+                device
+            )
 
             # PWA Installation Tests
             installation_result = await self.test_pwa_installation_on_device(device)
             test_results["installation"] = installation_result
 
             # Offline Functionality Tests
-            test_results["offline"] = await self.test_offline_functionality_on_device(device)
+            test_results["offline"] = await self.test_offline_functionality_on_device(
+                device
+            )
 
             # Performance Tests
             performance_metrics = await self.measure_performance_on_device(device)
 
             # Touch Interaction Tests (for mobile devices)
             if device.device_type in [DeviceType.PHONE, DeviceType.TABLET]:
-                test_results["touch_interactions"] = await self.test_touch_interactions_on_device(device)
+                test_results["touch_interactions"] = (
+                    await self.test_touch_interactions_on_device(device)
+                )
 
             # Network Adaptation Tests
-            test_results["network_adaptation"] = await self.test_network_adaptation_on_device(device)
+            test_results["network_adaptation"] = (
+                await self.test_network_adaptation_on_device(device)
+            )
 
             # Screen Adaptation Tests
-            test_results["screen_adaptation"] = await self.test_screen_adaptation_on_device(device)
+            test_results["screen_adaptation"] = (
+                await self.test_screen_adaptation_on_device(device)
+            )
 
             # Battery and Performance Tests
-            test_results["battery_performance"] = await self.test_battery_performance_on_device(device)
+            test_results["battery_performance"] = (
+                await self.test_battery_performance_on_device(device)
+            )
 
             # Calculate overall score
-            overall_score = self.calculate_device_score(test_results, performance_metrics)
+            overall_score = self.calculate_device_score(
+                test_results, performance_metrics
+            )
 
             return DeviceTestResult(
                 device_config=device,
@@ -286,7 +327,7 @@ class RealDevicePWATester:
                 installation_success=installation_result.installation_completed,
                 offline_functionality=test_results["offline"].get("works", False),
                 overall_score=overall_score,
-                errors=errors
+                errors=errors,
             )
 
         except Exception as e:
@@ -298,33 +339,38 @@ class RealDevicePWATester:
                 installation_success=False,
                 offline_functionality=False,
                 overall_score=0.0,
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
-    async def test_service_worker_on_device(self, device: DeviceConfig) -> Dict[str, Any]:
+    async def test_service_worker_on_device(
+        self, device: DeviceConfig
+    ) -> Dict[str, Any]:
         """Test service worker functionality on device"""
         # Simulate service worker tests
         return {
             "registration": True,
             "caching": True,
             "updates": True,
-            "background_sync": device.platform == PlatformType.ANDROID,  # Better on Android
+            "background_sync": device.platform
+            == PlatformType.ANDROID,  # Better on Android
             "push_notifications": device.platform != PlatformType.IOS,  # Limited on iOS
-            "score": 85.0 if device.platform == PlatformType.ANDROID else 75.0
+            "score": 85.0 if device.platform == PlatformType.ANDROID else 75.0,
         }
 
-    async def test_pwa_installation_on_device(self, device: DeviceConfig) -> PWAInstallationResult:
+    async def test_pwa_installation_on_device(
+        self, device: DeviceConfig
+    ) -> PWAInstallationResult:
         """Test PWA installation process on device"""
         # Simulate installation testing based on platform
         if device.platform == PlatformType.IOS:
             # iOS has more complex installation process
             return PWAInstallationResult(
                 installation_prompt_shown=False,  # iOS doesn't show prompts
-                installation_completed=True,     # Manual "Add to Home Screen"
+                installation_completed=True,  # Manual "Add to Home Screen"
                 app_icon_created=True,
                 offline_launch_works=True,
                 splash_screen_displays=True,
-                full_screen_mode=True
+                full_screen_mode=True,
             )
         elif device.platform == PlatformType.ANDROID:
             # Android has better PWA support
@@ -334,7 +380,7 @@ class RealDevicePWATester:
                 app_icon_created=True,
                 offline_launch_works=True,
                 splash_screen_displays=True,
-                full_screen_mode=True
+                full_screen_mode=True,
             )
         else:
             # Desktop PWA
@@ -344,10 +390,12 @@ class RealDevicePWATester:
                 app_icon_created=False,  # Different on desktop
                 offline_launch_works=True,
                 splash_screen_displays=False,
-                full_screen_mode=True
+                full_screen_mode=True,
             )
 
-    async def test_offline_functionality_on_device(self, device: DeviceConfig) -> Dict[str, Any]:
+    async def test_offline_functionality_on_device(
+        self, device: DeviceConfig
+    ) -> Dict[str, Any]:
         """Test offline functionality on device"""
         # Simulate offline functionality tests
         base_score = 80.0
@@ -355,7 +403,10 @@ class RealDevicePWATester:
         # Adjust based on device capabilities
         if device.platform == PlatformType.IOS:
             base_score -= 5  # Slightly more limitations on iOS
-        if device.network_condition in [NetworkCondition.TWO_G, NetworkCondition.SLOW_2G]:
+        if device.network_condition in [
+            NetworkCondition.TWO_G,
+            NetworkCondition.SLOW_2G,
+        ]:
             base_score -= 10  # More challenging on slow networks
 
         return {
@@ -364,10 +415,12 @@ class RealDevicePWATester:
             "form_submission": True,
             "data_persistence": True,
             "network_detection": True,
-            "score": max(0, base_score)
+            "score": max(0, base_score),
         }
 
-    async def measure_performance_on_device(self, device: DeviceConfig) -> Dict[str, float]:
+    async def measure_performance_on_device(
+        self, device: DeviceConfig
+    ) -> Dict[str, float]:
         """Measure performance metrics on device"""
         # Simulate performance measurements based on device specs
         base_metrics = {
@@ -375,7 +428,7 @@ class RealDevicePWATester:
             "largest_contentful_paint": 2400.0,  # ms
             "first_input_delay": 100.0,  # ms
             "cumulative_layout_shift": 0.1,
-            "time_to_interactive": 3500.0  # ms
+            "time_to_interactive": 3500.0,  # ms
         }
 
         # Adjust based on device capabilities
@@ -397,7 +450,7 @@ class RealDevicePWATester:
             NetworkCondition.FOUR_G: 1.1,
             NetworkCondition.THREE_G: 1.3,
             NetworkCondition.TWO_G: 1.6,
-            NetworkCondition.SLOW_2G: 2.0
+            NetworkCondition.SLOW_2G: 2.0,
         }
         performance_factor *= network_factors.get(device.network_condition, 1.0)
 
@@ -407,7 +460,9 @@ class RealDevicePWATester:
 
         return base_metrics
 
-    async def test_touch_interactions_on_device(self, device: DeviceConfig) -> Dict[str, Any]:
+    async def test_touch_interactions_on_device(
+        self, device: DeviceConfig
+    ) -> Dict[str, Any]:
         """Test touch interactions on mobile device"""
         # Simulate touch interaction tests
         return {
@@ -416,10 +471,12 @@ class RealDevicePWATester:
             "gesture_support": True,
             "haptic_feedback": device.platform != PlatformType.IOS,  # Better on Android
             "multi_touch": True,
-            "score": 85.0 if device.platform == PlatformType.ANDROID else 80.0
+            "score": 85.0 if device.platform == PlatformType.ANDROID else 80.0,
         }
 
-    async def test_network_adaptation_on_device(self, device: DeviceConfig) -> Dict[str, Any]:
+    async def test_network_adaptation_on_device(
+        self, device: DeviceConfig
+    ) -> Dict[str, Any]:
         """Test network adaptation on device"""
         # Simulate network adaptation tests
         base_score = 80.0
@@ -429,7 +486,10 @@ class RealDevicePWATester:
             base_score += 10
 
         # Adjust for current network condition
-        if device.network_condition in [NetworkCondition.THREE_G, NetworkCondition.TWO_G]:
+        if device.network_condition in [
+            NetworkCondition.THREE_G,
+            NetworkCondition.TWO_G,
+        ]:
             base_score += 5  # More relevant on slower networks
 
         return {
@@ -438,10 +498,12 @@ class RealDevicePWATester:
             "offline_fallbacks": True,
             "quality_adaptation": True,
             "data_saver_support": device.platform == PlatformType.ANDROID,
-            "score": min(100, base_score)
+            "score": min(100, base_score),
         }
 
-    async def test_screen_adaptation_on_device(self, device: DeviceConfig) -> Dict[str, Any]:
+    async def test_screen_adaptation_on_device(
+        self, device: DeviceConfig
+    ) -> Dict[str, Any]:
         """Test screen adaptation on device"""
         # Calculate screen adaptation score based on device characteristics
         score = 80.0
@@ -465,10 +527,12 @@ class RealDevicePWATester:
             "safe_area_support": device.platform == PlatformType.IOS,
             "pixel_density_handling": True,
             "orientation_changes": True,
-            "score": min(100, score)
+            "score": min(100, score),
         }
 
-    async def test_battery_performance_on_device(self, device: DeviceConfig) -> Dict[str, Any]:
+    async def test_battery_performance_on_device(
+        self, device: DeviceConfig
+    ) -> Dict[str, Any]:
         """Test battery performance and optimization"""
         # Simulate battery performance tests
         base_score = 75.0
@@ -478,7 +542,10 @@ class RealDevicePWATester:
             base_score += 15
 
         # Adjust for network conditions (slower networks = more battery efficient)
-        if device.network_condition in [NetworkCondition.TWO_G, NetworkCondition.THREE_G]:
+        if device.network_condition in [
+            NetworkCondition.TWO_G,
+            NetworkCondition.THREE_G,
+        ]:
             base_score += 5
 
         return {
@@ -486,11 +553,14 @@ class RealDevicePWATester:
             "cache_optimization": True,
             "cpu_usage_optimized": True,
             "network_usage_optimized": True,
-            "battery_aware_features": device.platform in [PlatformType.IOS, PlatformType.ANDROID],
-            "score": min(100, base_score)
+            "battery_aware_features": device.platform
+            in [PlatformType.IOS, PlatformType.ANDROID],
+            "score": min(100, base_score),
         }
 
-    def calculate_device_score(self, test_results: Dict[str, Any], performance_metrics: Dict[str, float]) -> float:
+    def calculate_device_score(
+        self, test_results: Dict[str, Any], performance_metrics: Dict[str, float]
+    ) -> float:
         """Calculate overall score for device"""
         category_scores = []
 
@@ -501,7 +571,7 @@ class RealDevicePWATester:
             elif isinstance(results, dict):
                 # For complex results, calculate average score
                 category_scores.append(80.0)  # Default decent score
-            elif hasattr(results, 'installation_completed'):  # PWAInstallationResult
+            elif hasattr(results, "installation_completed"):  # PWAInstallationResult
                 installation_score = 100 if results.installation_completed else 0
                 category_scores.append(installation_score)
 
@@ -519,20 +589,51 @@ class RealDevicePWATester:
         # Core Web Vitals thresholds
         fcp_good = 1800  # First Contentful Paint
         lcp_good = 2500  # Largest Contentful Paint
-        fid_good = 100   # First Input Delay
-        cls_good = 0.1   # Cumulative Layout Shift
+        fid_good = 100  # First Input Delay
+        cls_good = 0.1  # Cumulative Layout Shift
         fmp_good = 3000  # First Meaningful Paint
 
         # Calculate individual scores
-        fcp_score = max(0, min(100, 100 - (metrics.get("first_contentful_paint", fcp_good) - fcp_good) / 20))
-        lcp_score = max(0, min(100, 100 - (metrics.get("largest_contentful_paint", lcp_good) - lcp_good) / 30))
-        fid_score = max(0, min(100, 100 - (metrics.get("first_input_delay", fid_good) - fid_good) / 5))
-        cls_score = max(0, min(100, 100 - (metrics.get("cumulative_layout_shift", cls_good) - cls_good) * 100))
-        tti_score = max(0, min(100, 100 - (metrics.get("time_to_interactive", 5000) - fmp_good) / 40))
+        fcp_score = max(
+            0,
+            min(
+                100,
+                100 - (metrics.get("first_contentful_paint", fcp_good) - fcp_good) / 20,
+            ),
+        )
+        lcp_score = max(
+            0,
+            min(
+                100,
+                100
+                - (metrics.get("largest_contentful_paint", lcp_good) - lcp_good) / 30,
+            ),
+        )
+        fid_score = max(
+            0,
+            min(100, 100 - (metrics.get("first_input_delay", fid_good) - fid_good) / 5),
+        )
+        cls_score = max(
+            0,
+            min(
+                100,
+                100
+                - (metrics.get("cumulative_layout_shift", cls_good) - cls_good) * 100,
+            ),
+        )
+        tti_score = max(
+            0,
+            min(100, 100 - (metrics.get("time_to_interactive", 5000) - fmp_good) / 40),
+        )
 
         # Weighted average (LCP and TTI are most important)
-        return (fcp_score * 0.15 + lcp_score * 0.25 + fid_score * 0.20 +
-                cls_score * 0.15 + tti_score * 0.25)
+        return (
+            fcp_score * 0.15
+            + lcp_score * 0.25
+            + fid_score * 0.20
+            + cls_score * 0.15
+            + tti_score * 0.25
+        )
 
     def generate_comprehensive_report(self, total_duration: float) -> Dict[str, Any]:
         """Generate comprehensive real device testing report"""
@@ -540,9 +641,19 @@ class RealDevicePWATester:
             return {"error": "No test results available"}
 
         # Calculate overall metrics
-        overall_score = sum(result.overall_score for result in self.results) / len(self.results)
-        installation_success_rate = sum(1 for result in self.results if result.installation_success) / len(self.results) * 100
-        offline_functionality_rate = sum(1 for result in self.results if result.offline_functionality) / len(self.results) * 100
+        overall_score = sum(result.overall_score for result in self.results) / len(
+            self.results
+        )
+        installation_success_rate = (
+            sum(1 for result in self.results if result.installation_success)
+            / len(self.results)
+            * 100
+        )
+        offline_functionality_rate = (
+            sum(1 for result in self.results if result.offline_functionality)
+            / len(self.results)
+            * 100
+        )
 
         # Group results by platform
         platform_results = {}
@@ -575,37 +686,66 @@ class RealDevicePWATester:
                 "devices_tested": len(self.results),
                 "platforms_covered": len(platform_results),
                 "device_types_covered": len(device_type_results),
-                "network_conditions_tested": len(network_results)
+                "network_conditions_tested": len(network_results),
             },
             "overall_metrics": {
                 "overall_score": round(overall_score, 1),
                 "installation_success_rate": round(installation_success_rate, 1),
                 "offline_functionality_rate": round(offline_functionality_rate, 1),
-                "status": "excellent" if overall_score >= 85 else "good" if overall_score >= 75 else "needs_improvement"
+                "status": (
+                    "excellent"
+                    if overall_score >= 85
+                    else "good" if overall_score >= 75 else "needs_improvement"
+                ),
             },
             "platform_analysis": {
                 platform: {
-                    "average_score": round(sum(r.overall_score for r in results) / len(results), 1),
-                    "installation_rate": round(sum(1 for r in results if r.installation_success) / len(results) * 100, 1),
+                    "average_score": round(
+                        sum(r.overall_score for r in results) / len(results), 1
+                    ),
+                    "installation_rate": round(
+                        sum(1 for r in results if r.installation_success)
+                        / len(results)
+                        * 100,
+                        1,
+                    ),
                     "devices_tested": len(results),
-                    "best_device": max(results, key=lambda r: r.overall_score).device_config.device_id,
-                    "worst_device": min(results, key=lambda r: r.overall_score).device_config.device_id
+                    "best_device": max(
+                        results, key=lambda r: r.overall_score
+                    ).device_config.device_id,
+                    "worst_device": min(
+                        results, key=lambda r: r.overall_score
+                    ).device_config.device_id,
                 }
                 for platform, results in platform_results.items()
             },
             "device_type_analysis": {
                 device_type: {
-                    "average_score": round(sum(r.overall_score for r in results) / len(results), 1),
-                    "installation_rate": round(sum(1 for r in results if r.installation_success) / len(results) * 100, 1),
-                    "devices_tested": len(results)
+                    "average_score": round(
+                        sum(r.overall_score for r in results) / len(results), 1
+                    ),
+                    "installation_rate": round(
+                        sum(1 for r in results if r.installation_success)
+                        / len(results)
+                        * 100,
+                        1,
+                    ),
+                    "devices_tested": len(results),
                 }
                 for device_type, results in device_type_results.items()
             },
             "network_analysis": {
                 network: {
-                    "average_score": round(sum(r.overall_score for r in results) / len(results), 1),
-                    "offline_rate": round(sum(1 for r in results if r.offline_functionality) / len(results) * 100, 1),
-                    "devices_tested": len(results)
+                    "average_score": round(
+                        sum(r.overall_score for r in results) / len(results), 1
+                    ),
+                    "offline_rate": round(
+                        sum(1 for r in results if r.offline_functionality)
+                        / len(results)
+                        * 100,
+                        1,
+                    ),
+                    "devices_tested": len(results),
                 }
                 for network, results in network_results.items()
             },
@@ -621,12 +761,14 @@ class RealDevicePWATester:
                     "installation_success": result.installation_success,
                     "offline_functionality": result.offline_functionality,
                     "performance_metrics": result.performance_metrics,
-                    "errors": result.errors
+                    "errors": result.errors,
                 }
                 for result in self.results
             ],
             "recommendations": self.generate_device_recommendations(),
-            "deployment_readiness": self.assess_deployment_readiness(overall_score, installation_success_rate)
+            "deployment_readiness": self.assess_deployment_readiness(
+                overall_score, installation_success_rate
+            ),
         }
 
     def generate_device_recommendations(self) -> List[str]:
@@ -645,49 +787,78 @@ class RealDevicePWATester:
             avg_score = sum(scores) / len(scores)
             if avg_score < 75:
                 if platform == "ios":
-                    recommendations.append("iOS: Improve Safari-specific PWA features and 'Add to Home Screen' experience")
+                    recommendations.append(
+                        "iOS: Improve Safari-specific PWA features and 'Add to Home Screen' experience"
+                    )
                 elif platform == "android":
-                    recommendations.append("Android: Optimize for Chrome PWA installation and offline capabilities")
+                    recommendations.append(
+                        "Android: Optimize for Chrome PWA installation and offline capabilities"
+                    )
                 else:
-                    recommendations.append(f"{platform.title()}: Improve PWA compatibility and performance")
+                    recommendations.append(
+                        f"{platform.title()}: Improve PWA compatibility and performance"
+                    )
 
         # Network condition recommendations
         network_issues = []
         for result in self.results:
-            if result.overall_score < 70 and result.device_config.network_condition in [NetworkCondition.TWO_G, NetworkCondition.SLOW_2G]:
+            if (
+                result.overall_score < 70
+                and result.device_config.network_condition
+                in [NetworkCondition.TWO_G, NetworkCondition.SLOW_2G]
+            ):
                 network_issues.append(result.device_config.network_condition.value)
 
         if network_issues:
-            recommendations.append("Network: Improve performance and offline functionality for slow network conditions")
+            recommendations.append(
+                "Network: Improve performance and offline functionality for slow network conditions"
+            )
 
         # Device type recommendations
-        phone_scores = [r.overall_score for r in self.results if r.device_config.device_type == DeviceType.PHONE]
-        tablet_scores = [r.overall_score for r in self.results if r.device_config.device_type == DeviceType.TABLET]
+        phone_scores = [
+            r.overall_score
+            for r in self.results
+            if r.device_config.device_type == DeviceType.PHONE
+        ]
+        tablet_scores = [
+            r.overall_score
+            for r in self.results
+            if r.device_config.device_type == DeviceType.TABLET
+        ]
 
         if phone_scores and sum(phone_scores) / len(phone_scores) < 75:
-            recommendations.append("Mobile phones: Optimize touch interactions and performance for smaller screens")
+            recommendations.append(
+                "Mobile phones: Optimize touch interactions and performance for smaller screens"
+            )
 
         if tablet_scores and sum(tablet_scores) / len(tablet_scores) < 75:
-            recommendations.append("Tablets: Improve layout adaptation for larger screens and different orientations")
+            recommendations.append(
+                "Tablets: Improve layout adaptation for larger screens and different orientations"
+            )
 
         if not recommendations:
-            recommendations.append("✅ PWA performs well across all tested devices and conditions")
+            recommendations.append(
+                "✅ PWA performs well across all tested devices and conditions"
+            )
 
         return recommendations
 
-    def assess_deployment_readiness(self, overall_score: float, installation_rate: float) -> Dict[str, Any]:
+    def assess_deployment_readiness(
+        self, overall_score: float, installation_rate: float
+    ) -> Dict[str, Any]:
         """Assess readiness for production deployment"""
         ready_thresholds = {
             "overall_score": 80,
             "installation_rate": 85,
-            "offline_functionality_rate": 80
+            "offline_functionality_rate": 80,
         }
 
         ready_scores = {
             "overall_score_met": overall_score >= ready_thresholds["overall_score"],
-            "installation_rate_met": installation_rate >= ready_thresholds["installation_rate"],
+            "installation_rate_met": installation_rate
+            >= ready_thresholds["installation_rate"],
             # This would be calculated from results
-            "offline_functionality_met": True  # Simplified
+            "offline_functionality_met": True,  # Simplified
         }
 
         all_ready = all(ready_scores.values())
@@ -709,9 +880,10 @@ class RealDevicePWATester:
             "thresholds": ready_thresholds,
             "current_metrics": {
                 "overall_score": round(overall_score, 1),
-                "installation_rate": round(installation_rate, 1)
-            }
+                "installation_rate": round(installation_rate, 1),
+            },
         }
+
 
 async def main():
     """Main test execution"""
@@ -719,12 +891,16 @@ async def main():
     report = await tester.run_comprehensive_tests()
 
     # Print summary
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("📱 REAL DEVICE PWA TESTING COMPREHENSIVE RESULTS")
-    print("="*70)
+    print("=" * 70)
     print(f"Overall Score: {report['overall_metrics']['overall_score']:.1f}%")
-    print(f"Installation Success Rate: {report['overall_metrics']['installation_success_rate']:.1f}%")
-    print(f"Offline Functionality Rate: {report['overall_metrics']['offline_functionality_rate']:.1f}%")
+    print(
+        f"Installation Success Rate: {report['overall_metrics']['installation_success_rate']:.1f}%"
+    )
+    print(
+        f"Offline Functionality Rate: {report['overall_metrics']['offline_functionality_rate']:.1f}%"
+    )
     print(f"Devices Tested: {report['test_execution']['devices_tested']}")
     print(f"Duration: {report['test_execution']['total_duration']:.2f} seconds")
 
@@ -732,22 +908,40 @@ async def main():
     print(f"🚀 Deployment: {report['deployment_readiness']['message']}")
 
     print("\n📊 Platform Performance:")
-    for platform, analysis in report['platform_analysis'].items():
-        icon = "✅" if analysis['average_score'] >= 80 else "⚠️" if analysis['average_score'] >= 60 else "❌"
-        print(f"  {icon} {platform.title()}: {analysis['average_score']:.1f}% (Install: {analysis['installation_rate']:.1f}%)")
+    for platform, analysis in report["platform_analysis"].items():
+        icon = (
+            "✅"
+            if analysis["average_score"] >= 80
+            else "⚠️" if analysis["average_score"] >= 60 else "❌"
+        )
+        print(
+            f"  {icon} {platform.title()}: {analysis['average_score']:.1f}% (Install: {analysis['installation_rate']:.1f}%)"
+        )
 
     print("\n📱 Device Type Performance:")
-    for device_type, analysis in report['device_type_analysis'].items():
-        icon = "✅" if analysis['average_score'] >= 80 else "⚠️" if analysis['average_score'] >= 60 else "❌"
-        print(f"  {icon} {device_type.title()}: {analysis['average_score']:.1f}% (Install: {analysis['installation_rate']:.1f}%)")
+    for device_type, analysis in report["device_type_analysis"].items():
+        icon = (
+            "✅"
+            if analysis["average_score"] >= 80
+            else "⚠️" if analysis["average_score"] >= 60 else "❌"
+        )
+        print(
+            f"  {icon} {device_type.title()}: {analysis['average_score']:.1f}% (Install: {analysis['installation_rate']:.1f}%)"
+        )
 
     print("\n🌐 Network Condition Performance:")
-    for network, analysis in report['network_analysis'].items():
-        icon = "✅" if analysis['average_score'] >= 75 else "⚠️" if analysis['average_score'] >= 50 else "❌"
-        print(f"  {icon} {network.upper()}: {analysis['average_score']:.1f}% (Offline: {analysis['offline_rate']:.1f}%)")
+    for network, analysis in report["network_analysis"].items():
+        icon = (
+            "✅"
+            if analysis["average_score"] >= 75
+            else "⚠️" if analysis["average_score"] >= 50 else "❌"
+        )
+        print(
+            f"  {icon} {network.upper()}: {analysis['average_score']:.1f}% (Offline: {analysis['offline_rate']:.1f}%)"
+        )
 
     print("\n🎯 Recommendations:")
-    for rec in report['recommendations']:
+    for rec in report["recommendations"]:
         print(f"  • {rec}")
 
     # Save detailed report
@@ -755,11 +949,12 @@ async def main():
     filename = f"real_device_pwa_report_{timestamp}.json"
 
     try:
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             json.dump(report, f, indent=2)
         print(f"\n📊 Detailed report saved: {filename}")
     except Exception as e:
         print(f"\n❌ Failed to save report: {e}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -11,10 +11,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db, get_async_db, get_current_active_user
+from app.api.deps import get_async_db, get_current_active_user, get_current_user, get_db
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.email_connection import EmailProvider
 from app.db.models.user import User
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 # Temporarily disabled due to async conversion issues
 # from app.services.email_connector_service import email_connector_service
@@ -129,8 +129,8 @@ async def handle_oauth_callback(
     """
     try:
         # Exchange authorization code for tokens
-        access_token, refresh_token = await email_connector_service.handle_oauth_callback(
-            provider, code, state
+        access_token, refresh_token = (
+            await email_connector_service.handle_oauth_callback(provider, code, state)
         )
 
         # Get user email from token (this would vary by provider)
@@ -198,7 +198,8 @@ async def create_manual_connection(
 
 @router.get("/", response_model=list[EmailConnectionResponse])
 async def get_email_connections(
-    current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_async_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get all email connections for current user
@@ -231,7 +232,8 @@ async def get_email_connection(
 
         if not connection or not connection.is_active:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Email connection not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Email connection not found",
             )
 
         return EmailConnectionResponse.from_orm(connection)
@@ -262,7 +264,8 @@ async def test_email_connection(
 
         if not connection or not connection.is_active:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Email connection not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Email connection not found",
             )
 
         # Test connection
@@ -304,7 +307,8 @@ async def sync_emails(
 
         if not connection or not connection.is_active:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Email connection not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Email connection not found",
             )
 
         # Check rate limiting (basic implementation)
@@ -355,12 +359,15 @@ async def sync_emails(
     except Exception as e:
         logger.error(f"Error syncing emails: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to sync emails"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to sync emails",
         ) from e
 
 
 @router.delete(
-    "/{connection_id}", response_model=dict[str, str], dependencies=[Depends(get_current_user)]
+    "/{connection_id}",
+    response_model=dict[str, str],
+    dependencies=[Depends(get_current_user)],
 )
 async def disconnect_email(
     connection_id: str,
@@ -371,11 +378,14 @@ async def disconnect_email(
     Disconnect and remove email connection
     """
     try:
-        success = await email_connector_service.disconnect_email(db, connection_id, current_user.id)
+        success = await email_connector_service.disconnect_email(
+            db, connection_id, current_user.id
+        )
 
         if not success:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Email connection not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Email connection not found",
             )
 
         return {"message": "Email connection successfully disconnected"}
@@ -407,7 +417,8 @@ async def get_email_stats(
 
         if not connection or not connection.is_active:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Email connection not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Email connection not found",
             )
 
         stats = await email_connection_service.get_connection_stats(
@@ -422,7 +433,9 @@ async def get_email_stats(
             "recent_emails_30_days": stats["recent_emails"],
             "internal_emails": stats["internal_emails"],
             "external_emails": stats["total_emails"] - stats["internal_emails"],
-            "last_sync": connection.last_sync_at.isoformat() if connection.last_sync_at else None,
+            "last_sync": (
+                connection.last_sync_at.isoformat() if connection.last_sync_at else None
+            ),
             "sync_status": connection.sync_status,
         }
 

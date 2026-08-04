@@ -4,17 +4,19 @@ Load testing script for async endpoints
 Tests performance under concurrent load to verify no blocking occurs
 """
 import asyncio
-import time
 import statistics
-from typing import List, Dict, Any
+import time
 from dataclasses import dataclass
-import httpx
+from typing import Any, Dict, List
 from uuid import uuid4
+
+import httpx
 
 
 @dataclass
 class LoadTestResult:
     """Results from a load test"""
+
     endpoint: str
     total_requests: int
     successful_requests: int
@@ -42,7 +44,7 @@ class AsyncLoadTester:
         concurrent_users: int = 50,
         total_requests: int = 100,
         json_data: Dict[str, Any] = None,
-        headers: Dict[str, str] = None
+        headers: Dict[str, str] = None,
     ) -> LoadTestResult:
         """
         Load test an endpoint with concurrent requests
@@ -108,7 +110,9 @@ class AsyncLoadTester:
             num_batches = (total_requests + batch_size - 1) // batch_size
 
             for batch_num in range(num_batches):
-                requests_in_batch = min(batch_size, total_requests - batch_num * batch_size)
+                requests_in_batch = min(
+                    batch_size, total_requests - batch_num * batch_size
+                )
 
                 # Execute concurrent requests
                 tasks = [
@@ -141,7 +145,7 @@ class AsyncLoadTester:
                 max_response_time=0.0,
                 median_response_time=0.0,
                 p95_response_time=0.0,
-                requests_per_second=0.0
+                requests_per_second=0.0,
             )
 
         sorted_times = sorted(valid_times)
@@ -156,7 +160,7 @@ class AsyncLoadTester:
             max_response_time=max(sorted_times),
             median_response_time=statistics.median(sorted_times),
             p95_response_time=sorted_times[int(len(sorted_times) * 0.95)],
-            requests_per_second=successful / total_time if total_time > 0 else 0
+            requests_per_second=successful / total_time if total_time > 0 else 0,
         )
 
         self.results.append(result)
@@ -173,9 +177,9 @@ class AsyncLoadTester:
 
     async def run_all_tests(self) -> None:
         """Run comprehensive load tests on all modified endpoints"""
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("ASYNC ENDPOINT LOAD TESTING")
-        print("="*70)
+        print("=" * 70)
 
         # Test 1: Feature Request Endpoints
         print("\n📋 Testing Feature Request Endpoints...")
@@ -184,7 +188,7 @@ class AsyncLoadTester:
             "/api/v1/feature-requests/",
             method="GET",
             concurrent_users=20,
-            total_requests=50
+            total_requests=50,
         )
 
         # Test 2: Activation Endpoints
@@ -195,7 +199,9 @@ class AsyncLoadTester:
             method="GET",
             concurrent_users=30,
             total_requests=60,
-            headers={"Authorization": "Bearer test-token"}  # Will fail auth but tests async
+            headers={
+                "Authorization": "Bearer test-token"
+            },  # Will fail auth but tests async
         )
 
         # Test 3: Response Endpoints (with invalid UUID, will fail but tests async)
@@ -205,17 +211,14 @@ class AsyncLoadTester:
             f"/api/v1/responses/{uuid4()}",
             method="GET",
             concurrent_users=25,
-            total_requests=50
+            total_requests=50,
         )
 
         # Test 4: Health Check (should always work)
         print("\n🏥 Testing Health Endpoints...")
 
         await self.test_endpoint(
-            "/api/v1/health",
-            method="GET",
-            concurrent_users=50,
-            total_requests=100
+            "/api/v1/health", method="GET", concurrent_users=50, total_requests=100
         )
 
         # Test 5: Monitoring Endpoints
@@ -225,16 +228,16 @@ class AsyncLoadTester:
             "/api/v1/monitoring/metrics",
             method="GET",
             concurrent_users=30,
-            total_requests=60
+            total_requests=60,
         )
 
         self.print_summary()
 
     def print_summary(self) -> None:
         """Print summary of all load tests"""
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("LOAD TEST SUMMARY")
-        print("="*70)
+        print("=" * 70)
 
         if not self.results:
             print("No results to display")
@@ -244,14 +247,20 @@ class AsyncLoadTester:
         print("-" * 74)
 
         for result in self.results:
-            success_rate = (result.successful_requests / result.total_requests * 100) if result.total_requests > 0 else 0
+            success_rate = (
+                (result.successful_requests / result.total_requests * 100)
+                if result.total_requests > 0
+                else 0
+            )
             endpoint_name = result.endpoint[:40]
-            print(f"{endpoint_name:<40} {result.requests_per_second:<10.1f} {result.p95_response_time*1000:<12.1f} {success_rate:<12.1f}%")
+            print(
+                f"{endpoint_name:<40} {result.requests_per_second:<10.1f} {result.p95_response_time*1000:<12.1f} {success_rate:<12.1f}%"
+            )
 
         # Performance checks
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
         print("PERFORMANCE ANALYSIS")
-        print("="*70)
+        print("=" * 70)
 
         all_passed = True
 
@@ -260,16 +269,24 @@ class AsyncLoadTester:
 
             # Check for blocking (if P95 is very high)
             if result.p95_response_time > 1.0:  # > 1 second
-                issues.append(f"⚠️  High P95: {result.p95_response_time*1000:.1f}ms (possible blocking)")
+                issues.append(
+                    f"⚠️  High P95: {result.p95_response_time*1000:.1f}ms (possible blocking)"
+                )
 
             # Check success rate
-            success_rate = result.successful_requests / result.total_requests * 100 if result.total_requests > 0 else 0
+            success_rate = (
+                result.successful_requests / result.total_requests * 100
+                if result.total_requests > 0
+                else 0
+            )
             if success_rate < 95:
                 issues.append(f"❌ Low success rate: {success_rate:.1f}%")
 
             # Check RPS
             if result.requests_per_second < 10 and result.successful_requests > 0:
-                issues.append(f"⚠️  Low throughput: {result.requests_per_second:.1f} RPS")
+                issues.append(
+                    f"⚠️  Low throughput: {result.requests_per_second:.1f} RPS"
+                )
 
             if issues:
                 all_passed = False
@@ -286,7 +303,7 @@ class AsyncLoadTester:
             print("\n⚠️  Some endpoints may have performance issues")
             print("   Review the issues above")
 
-        print("\n" + "="*70)
+        print("\n" + "=" * 70)
 
 
 async def main():

@@ -47,7 +47,9 @@ class RowLevelSecurityService:
 
     def __init__(self):
         """Initialize RLS service"""
-        self.isolation_level = "organization"  # Can be "organization", "team", or "user"
+        self.isolation_level = (
+            "organization"  # Can be "organization", "team", or "user"
+        )
 
     def get_accessible_org_ids(self, user: User) -> set[str]:
         """
@@ -95,7 +97,9 @@ class RowLevelSecurityService:
 
         return team_ids
 
-    def apply_organization_filter(self, query: Query, user: User, org_column: Any) -> Query:
+    def apply_organization_filter(
+        self, query: Query, user: User, org_column: Any
+    ) -> Query:
         """
         Apply organization-level filter to query
 
@@ -151,7 +155,9 @@ class RowLevelSecurityService:
 
         return query
 
-    def apply_ownership_filter(self, query: Query, user: User, owner_column: Any) -> Query:
+    def apply_ownership_filter(
+        self, query: Query, user: User, owner_column: Any
+    ) -> Query:
         """
         Apply ownership filter to query
 
@@ -167,7 +173,8 @@ class RowLevelSecurityService:
         query = query.filter(owner_column == user.id)
 
         logger.debug(
-            f"Applied ownership filter for user {user.id}", extra={"user_id": str(user.id)}
+            f"Applied ownership filter for user {user.id}",
+            extra={"user_id": str(user.id)},
         )
 
         return query
@@ -271,8 +278,12 @@ class RowLevelSecurityService:
             accessible_teams = self.get_accessible_team_ids(user)
             if str(resource_team_id) not in accessible_teams:
                 # Check if user's org has the team (org-level access)
-                if resource_org_id and str(resource_org_id) in self.get_accessible_org_ids(user):
-                    logger.info(f"User {user.id} has org-level access to team {resource_team_id}")
+                if resource_org_id and str(
+                    resource_org_id
+                ) in self.get_accessible_org_ids(user):
+                    logger.info(
+                        f"User {user.id} has org-level access to team {resource_team_id}"
+                    )
                     return True
 
                 logger.warning(
@@ -297,9 +308,14 @@ class RowLevelSecurityService:
 
                 logger.warning(
                     f"Cross-ownership access attempt by user {user.id}",
-                    extra={"user_id": str(user.id), "resource_owner": resource_owner_id},
+                    extra={
+                        "user_id": str(user.id),
+                        "resource_owner": resource_owner_id,
+                    },
                 )
-                raise CrossTenantAccessError("User does not have access to this resource")
+                raise CrossTenantAccessError(
+                    "User does not have access to this resource"
+                )
 
         return True
 
@@ -318,7 +334,9 @@ class RowLevelSecurityService:
         """
         return {
             "user_id": str(user.id),
-            "organization_id": str(user.organization_id) if user.organization_id else None,
+            "organization_id": (
+                str(user.organization_id) if user.organization_id else None
+            ),
             "team_ids": list(self.get_accessible_team_ids(user)),
             "is_superuser": user.is_superuser,
             "role": user.role.value if hasattr(user.role, "value") else user.role,
@@ -384,7 +402,9 @@ class TenantIsolatedMixin:
 
         # Apply organization filter if model has organization_id
         if hasattr(cls, "organization_id"):
-            query = rls_service.apply_organization_filter(query, user, cls.organization_id)
+            query = rls_service.apply_organization_filter(
+                query, user, cls.organization_id
+            )
 
         # Apply team filter if model has team_id
         elif hasattr(cls, "team_id"):

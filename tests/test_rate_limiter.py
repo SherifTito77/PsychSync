@@ -1,15 +1,29 @@
 """Auto-generated tests for rate_limiter"""
 
-import pytest
-from unittest.mock import Mock, patch
 import sys
 from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.rate_limiter import __init__ , __init__ , __init__ , get_tokens , time_until_refill , __init__ , _should_skip_rate_limiting , _get_client_ip , __init__ , add_limit , check_limit , RateLimitConfig , RateLimitExceeded , TokenBucket , RateLimitMiddleware , EndpointRateLimiter
+from app.rate_limiter import (
+    EndpointRateLimiter,
+    RateLimitConfig,
+    RateLimitExceeded,
+    RateLimitMiddleware,
+    TokenBucket,
+    __init__,
+    _get_client_ip,
+    _should_skip_rate_limiting,
+    add_limit,
+    check_limit,
+    get_tokens,
+    time_until_refill,
+)
 
 
 class TestRate_Limiter:

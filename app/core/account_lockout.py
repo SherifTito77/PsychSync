@@ -96,7 +96,8 @@ class AccountLockoutManager:
                 "user_attempts": user_attempts,
                 "ip_attempts": ip_attempts,
                 "show_warning": show_warning,
-                "attempts_remaining": self._get_lockout_threshold(user_attempts) - user_attempts,
+                "attempts_remaining": self._get_lockout_threshold(user_attempts)
+                - user_attempts,
             },
         )
 
@@ -151,7 +152,9 @@ class AccountLockoutManager:
             "lockout_duration_minutes": lockout_duration,
         }
 
-    async def record_successful_login(self, identifier: str, ip_address: str = "unknown"):
+    async def record_successful_login(
+        self, identifier: str, ip_address: str = "unknown"
+    ):
         """
         Record a successful login and clear attempt counters.
 
@@ -212,7 +215,9 @@ class AccountLockoutManager:
             await self.redis.delete(lock_key)
             return False, {}
 
-    async def _lock_account(self, identifier: str, duration_minutes: int, attempts: int):
+    async def _lock_account(
+        self, identifier: str, duration_minutes: int, attempts: int
+    ):
         """
         Lock an account for specified duration.
 
@@ -240,7 +245,9 @@ class AccountLockoutManager:
         self, identifier: str, ip_address: str, attempts: int, details: str | None
     ):
         """Log failed attempt for security monitoring."""
-        logger.warning(f"Failed login attempt #{attempts} for {identifier} from {ip_address}")
+        logger.warning(
+            f"Failed login attempt #{attempts} for {identifier} from {ip_address}"
+        )
 
         # Store in security event log (for review)
         event_key = f"security_events:failed_login:{int(time.time())}"

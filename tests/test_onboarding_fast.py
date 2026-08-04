@@ -1,17 +1,21 @@
 # Fast Onboarding Tests - Optimized for Development Speed
 # Uses mocked dependencies and focuses on critical functionality
 
-import pytest
 import asyncio
 from unittest.mock import AsyncMock, patch
+
+import pytest
 from fastapi import status
+
 
 # Schema validation tests (fast, no API calls)
 class TestAssessmentSchemaValidation:
     """Test assessment request schema validation"""
 
     @pytest.mark.unit
-    def test_valid_assessment_request(self, assessment_validator, sample_assessment_data):
+    def test_valid_assessment_request(
+        self, assessment_validator, sample_assessment_data
+    ):
         """Test valid assessment request passes validation"""
         request = assessment_validator(**sample_assessment_data)
         assert request.role == sample_assessment_data["role"]
@@ -25,25 +29,31 @@ class TestAssessmentSchemaValidation:
         assert request.role == all_roles
 
     @pytest.mark.unit
-    def test_assessment_request_all_challenges(self, assessment_validator, all_challenges):
+    def test_assessment_request_all_challenges(
+        self, assessment_validator, all_challenges
+    ):
         """Test assessment request with all valid challenges"""
         data = {"role": "manager", "challenge": all_challenges}
         request = assessment_validator(**data)
         assert request.challenge == all_challenges
 
     @pytest.mark.unit
-    @pytest.mark.parametrize("invalid_data", [
-        {"role": "", "challenge": "communication"},  # Empty role
-        {"role": "invalid_role", "challenge": "communication"},  # Invalid role
-        {"role": None, "challenge": "communication"},  # None role
-        {"role": "manager", "challenge": ""},  # Empty challenge
-        {"role": "manager", "challenge": None},  # None challenge
-        {"role": "manager", "challenge": "invalid_challenge"},  # Invalid challenge
-    ])
+    @pytest.mark.parametrize(
+        "invalid_data",
+        [
+            {"role": "", "challenge": "communication"},  # Empty role
+            {"role": "invalid_role", "challenge": "communication"},  # Invalid role
+            {"role": None, "challenge": "communication"},  # None role
+            {"role": "manager", "challenge": ""},  # Empty challenge
+            {"role": "manager", "challenge": None},  # None challenge
+            {"role": "manager", "challenge": "invalid_challenge"},  # Invalid challenge
+        ],
+    )
     def test_invalid_assessment_requests(self, assessment_validator, invalid_data):
         """Test invalid assessment requests fail validation"""
         with pytest.raises(Exception):  # Pydantic validation error
             assessment_validator(**invalid_data)
+
 
 # Fast API tests with mocked dependencies
 class TestOnboardingAPIFast:
@@ -66,10 +76,14 @@ class TestOnboardingAPIFast:
         assert "text/html" in response.headers["content-type"]
 
     @pytest.mark.integration
-    def test_quick_assessment_endpoint_exists(self, fast_client, sample_assessment_data):
+    def test_quick_assessment_endpoint_exists(
+        self, fast_client, sample_assessment_data
+    ):
         """Test quick assessment endpoint exists and handles requests"""
         # This should return an error (authentication/database), but endpoint should exist
-        response = fast_client.post("/api/v1/onboarding/quick-assessment", json=sample_assessment_data)
+        response = fast_client.post(
+            "/api/v1/onboarding/quick-assessment", json=sample_assessment_data
+        )
         # Accept any response except 500 (server error)
         assert response.status_code != 500
 
@@ -94,6 +108,7 @@ class TestOnboardingAPIFast:
         headers = response.headers
         assert "X-Request-ID" in headers
         assert "X-Response-Time-MS" in headers
+
 
 # Error handling tests
 class TestErrorHandlingFast:
@@ -124,19 +139,24 @@ class TestErrorHandlingFast:
         large_data = {
             "role": "manager",
             "challenge": "communication",
-            "extra_data": "x" * 10000  # 10KB of extra data
+            "extra_data": "x" * 10000,  # 10KB of extra data
         }
 
-        response = fast_client.post("/api/v1/onboarding/quick-assessment", json=large_data)
+        response = fast_client.post(
+            "/api/v1/onboarding/quick-assessment", json=large_data
+        )
         # Should handle gracefully (not crash)
         assert response.status_code != 500
+
 
 # Performance tests (fast versions)
 class TestPerformanceFast:
     """Fast performance tests"""
 
     @pytest.mark.unit
-    def test_schema_validation_performance(self, assessment_validator, performance_tracker, sample_assessment_data):
+    def test_schema_validation_performance(
+        self, assessment_validator, performance_tracker, sample_assessment_data
+    ):
         """Test schema validation performance"""
         for i in range(100):  # Validate 100 times
             assessment_validator(**sample_assessment_data)
@@ -157,6 +177,7 @@ class TestPerformanceFast:
     @pytest.mark.integration
     def test_concurrent_requests(self, fast_client):
         """Test handling of concurrent requests"""
+
         async def make_request():
             response = fast_client.get("/health")
             return response.status_code == 200
@@ -167,6 +188,7 @@ class TestPerformanceFast:
         # Most should succeed
         success_rate = sum(results) / len(results)
         assert success_rate >= 0.8
+
 
 # Mock service tests
 class TestMockServices:
@@ -186,15 +208,20 @@ class TestMockServices:
         assert "insights" in result
 
     @pytest.mark.integration
-    @patch('app.services.analytics_service.AnalyticsService')
-    def test_api_with_mocked_analytics(self, mock_analytics_class, fast_client, sample_assessment_data):
+    @patch("app.services.analytics_service.AnalyticsService")
+    def test_api_with_mocked_analytics(
+        self, mock_analytics_class, fast_client, sample_assessment_data
+    ):
         """Test API with mocked analytics service"""
         mock_analytics_class.return_value = AsyncMock()
         mock_analytics_class.return_value.track_event.return_value = {"success": True}
 
-        response = fast_client.post("/api/v1/onboarding/quick-assessment", json=sample_assessment_data)
+        response = fast_client.post(
+            "/api/v1/onboarding/quick-assessment", json=sample_assessment_data
+        )
         # Should not crash (even if not fully successful)
         assert response.status_code != 500
+
 
 # Configuration tests
 class TestConfiguration:
@@ -210,14 +237,15 @@ class TestConfiguration:
     def test_fast_app_creation(self, fast_app):
         """Test that fast app is created successfully"""
         assert fast_app is not None
-        assert hasattr(fast_app, 'routes')
+        assert hasattr(fast_app, "routes")
 
     @pytest.mark.unit
     def test_fast_client_creation(self, fast_client):
         """Test that fast client is created successfully"""
         assert fast_client is not None
-        assert hasattr(fast_client, 'get')
-        assert hasattr(fast_client, 'post')
+        assert hasattr(fast_client, "get")
+        assert hasattr(fast_client, "post")
+
 
 # Development convenience tests
 class TestDevelopmentWorkflow:

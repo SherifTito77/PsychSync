@@ -1,8 +1,9 @@
 # app/db/models/team.py
 import enum
 
-from sqlalchemy import Column, ForeignKey, Index, Text, UniqueConstraint
+from sqlalchemy import Column
 from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import ForeignKey, Index, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import text
@@ -20,13 +21,21 @@ class Team(Base):
     __tablename__ = "teams"
 
     # Match database after removing org_id
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
     name = Column(Text, nullable=False)
-    created_at = Column(TIMESTAMP(timezone=True), server_default=text("NOW()"), nullable=False)
+    created_at = Column(
+        TIMESTAMP(timezone=True), server_default=text("NOW()"), nullable=False
+    )
     description = Column(Text, nullable=True)
     created_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
-    updated_at = Column(TIMESTAMP(timezone=True), server_default=text("NOW()"), nullable=True)
-    organization_id = Column(UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False)
+    updated_at = Column(
+        TIMESTAMP(timezone=True), server_default=text("NOW()"), nullable=True
+    )
+    organization_id = Column(
+        UUID(as_uuid=True), ForeignKey("organizations.id"), nullable=False
+    )
 
     # Relationships
     # created_by = relationship(  # TEMPORARILY DISABLED
@@ -80,7 +89,9 @@ class TeamMember(Base):
     __tablename__ = "team_members"
 
     # Only include columns that exist in your actual database
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
     team_id = Column(UUID(as_uuid=True), ForeignKey("teams.id"), nullable=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     role = Column(SQLEnum(TeamRole), default=TeamRole.MEMBER, nullable=False)

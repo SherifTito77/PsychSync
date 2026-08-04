@@ -5,16 +5,16 @@ Reads crash logs and automatically locates code responsible
 Uses stack trace analysis and code mapping
 """
 
-import os
-import sys
-import re
+import ast
+import hashlib
 import json
 import logging
+import os
+import re
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-import ast
-import hashlib
 
 # GitHub API
 from github import Github

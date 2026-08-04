@@ -2,10 +2,10 @@
 Wellness Plan Generator Service - AI-powered personalized wellness improvement planning
 """
 
-from datetime import datetime, timedelta
 import logging
-from typing import Any
 import uuid
+from datetime import datetime, timedelta
+from typing import Any
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -67,7 +67,9 @@ class WellnessPlanGeneratorService:
             )
 
             # Create action steps for each goal
-            action_steps = await self._generate_action_steps(goals, focus_level, preferences)
+            action_steps = await self._generate_action_steps(
+                goals, focus_level, preferences
+            )
 
             # Generate AI-powered recommendations
             ai_recommendations = await self._generate_ai_recommendations(
@@ -75,7 +77,9 @@ class WellnessPlanGeneratorService:
             )
 
             # Identify potential barriers and success factors
-            barriers = await self._identify_potential_barriers(user_id, goals, baseline_data)
+            barriers = await self._identify_potential_barriers(
+                user_id, goals, baseline_data
+            )
             success_factors = await self._identify_success_factors(
                 user_id, focus_areas, baseline_data
             )
@@ -96,7 +100,9 @@ class WellnessPlanGeneratorService:
                 "created_at": datetime.utcnow().isoformat(),
                 "focus_areas": focus_areas,
                 "timeline": self._format_timeline(timeframe),
-                "estimated_completion": self._calculate_completion_date(timeframe).isoformat(),
+                "estimated_completion": self._calculate_completion_date(
+                    timeframe
+                ).isoformat(),
                 "goals": goals,
                 "success_metrics": success_metrics,
                 "potential_barriers": barriers,
@@ -147,7 +153,9 @@ class WellnessPlanGeneratorService:
                 if domain_scores:
                     baseline[domain] = {
                         "current_score": domain_scores[-1],  # Most recent score
-                        "target_score": min(0.9, domain_scores[-1] + 0.3),  # Realistic target
+                        "target_score": min(
+                            0.9, domain_scores[-1] + 0.3
+                        ),  # Realistic target
                         "trend": self._calculate_simple_trend(domain_scores),
                         "data_points": len(domain_scores),
                         "average": sum(domain_scores) / len(domain_scores),
@@ -221,7 +229,9 @@ class WellnessPlanGeneratorService:
             logger.error(f"Error generating wellness goals: {e}")
             # Return fallback goal
             goals = [
-                await self._create_fallback_goal(focus_areas[0] if focus_areas else "physical")
+                await self._create_fallback_goal(
+                    focus_areas[0] if focus_areas else "physical"
+                )
             ]
 
         return goals
@@ -239,10 +249,14 @@ class WellnessPlanGeneratorService:
         domain_info = self._get_domain_info(domain)
 
         # Determine priority based on current score and trend
-        priority = self._calculate_goal_priority(current_score, trend_data.get(domain, {}))
+        priority = self._calculate_goal_priority(
+            current_score, trend_data.get(domain, {})
+        )
 
         # Generate goal title and description
-        title, description = self._generate_goal_content(domain, current_score, target_score)
+        title, description = self._generate_goal_content(
+            domain, current_score, target_score
+        )
 
         return {
             "id": str(uuid.uuid4()),
@@ -257,7 +271,10 @@ class WellnessPlanGeneratorService:
         }
 
     async def _generate_action_steps(
-        self, goals: list[dict[str, Any]], focus_level: str, preferences: dict[str, Any] | None
+        self,
+        goals: list[dict[str, Any]],
+        focus_level: str,
+        preferences: dict[str, Any] | None,
     ) -> list[dict[str, Any]]:
         """Generate action steps for each goal"""
         all_action_steps = []
@@ -299,7 +316,9 @@ class WellnessPlanGeneratorService:
 
         try:
             # Get domain-specific action templates
-            action_templates = self._get_action_templates(domain, current_score, target_score)
+            action_templates = self._get_action_templates(
+                domain, current_score, target_score
+            )
 
             # Determine number of steps based on focus level
             num_steps = self._calculate_action_steps_count(focus_level)
@@ -364,7 +383,9 @@ class WellnessPlanGeneratorService:
             )
 
             # Generate personalized recommendations based on AI insights
-            recommendations = self._extract_ai_recommendations(ai_analysis, focus_areas, goals)
+            recommendations = self._extract_ai_recommendations(
+                ai_analysis, focus_areas, goals
+            )
 
             # Add domain-specific intelligent recommendations
             for domain in focus_areas:
@@ -375,8 +396,10 @@ class WellnessPlanGeneratorService:
                 recommendations.extend(domain_recs)
 
             # Add personalized goal recommendations
-            goal_recommendations = await self._generate_intelligent_goal_recommendations(
-                goals, ai_analysis
+            goal_recommendations = (
+                await self._generate_intelligent_goal_recommendations(
+                    goals, ai_analysis
+                )
             )
             recommendations.extend(goal_recommendations)
 
@@ -388,7 +411,9 @@ class WellnessPlanGeneratorService:
             logger.info(f"Generated {len(recommendations)} AI-powered recommendations")
 
         except Exception as e:
-            logger.error(f"Error generating AI recommendations with wellness processor: {e}")
+            logger.error(
+                f"Error generating AI recommendations with wellness processor: {e}"
+            )
             # Fallback to basic recommendations
             recommendations = [
                 "Start with small, achievable goals to build momentum",
@@ -401,7 +426,10 @@ class WellnessPlanGeneratorService:
         return recommendations
 
     def _prepare_ai_assessment_data(
-        self, baseline_data: dict[str, Any], trend_data: dict[str, Any], focus_areas: list[str]
+        self,
+        baseline_data: dict[str, Any],
+        trend_data: dict[str, Any],
+        focus_areas: list[str],
     ) -> dict[str, Any]:
         """Prepare assessment data for AI wellness processor"""
         ai_data = {
@@ -422,11 +450,11 @@ class WellnessPlanGeneratorService:
                 "current_score": current_score,
                 "target_score": target_score,
                 "improvement_needed": target_score - current_score,
-                "priority": "high"
-                if current_score < 0.4
-                else "medium"
-                if current_score < 0.7
-                else "low",
+                "priority": (
+                    "high"
+                    if current_score < 0.4
+                    else "medium" if current_score < 0.7 else "low"
+                ),
             }
 
         # Add trend analysis insights
@@ -447,16 +475,20 @@ class WellnessPlanGeneratorService:
             # Simulate AI processing (in real implementation, this would call the actual AI processor)
             ai_analysis = {
                 "pattern_recognition": {
-                    "consistency_score": assessment_data.get("response_patterns", {}).get(
-                        "consistency", 0.5
+                    "consistency_score": assessment_data.get(
+                        "response_patterns", {}
+                    ).get("consistency", 0.5),
+                    "improvement_trajectory": (
+                        "positive"
+                        if assessment_data.get("response_patterns", {}).get(
+                            "improvement_trend"
+                        )
+                        == "improving"
+                        else "stable"
                     ),
-                    "improvement_trajectory": "positive"
-                    if assessment_data.get("response_patterns", {}).get("improvement_trend")
-                    == "improving"
-                    else "stable",
-                    "engagement_level": assessment_data.get("response_patterns", {}).get(
-                        "engagement_level", 0.5
-                    ),
+                    "engagement_level": assessment_data.get(
+                        "response_patterns", {}
+                    ).get("engagement_level", 0.5),
                 },
                 "predictive_insights": {
                     "burnout_risk": "low",
@@ -468,21 +500,32 @@ class WellnessPlanGeneratorService:
                     "learning_style": "visual",
                     "motivation_type": "intrinsic",
                     "support_needs": ["accountability", "resources"],
-                    "potential_barriers": ["time_constraints", "motivation_fluctuations"],
+                    "potential_barriers": [
+                        "time_constraints",
+                        "motivation_fluctuations",
+                    ],
                 },
                 "domain_insights": {},
             }
 
             # Generate domain-specific insights
             for domain in assessment_data.get("focus_areas", []):
-                domain_data = assessment_data.get("wellness_domains", {}).get(domain, {})
+                domain_data = assessment_data.get("wellness_domains", {}).get(
+                    domain, {}
+                )
                 current_score = domain_data.get("current_score", 0.5)
 
                 ai_analysis["domain_insights"][domain] = {
                     "current_assessment": f"Score at {int(current_score * 100)}%",
-                    "improvement_potential": "high" if current_score < 0.6 else "moderate",
-                    "recommended_approach": "gradual" if current_score < 0.4 else "balanced",
-                    "key_focus_areas": self._get_domain_focus_areas(domain, current_score),
+                    "improvement_potential": (
+                        "high" if current_score < 0.6 else "moderate"
+                    ),
+                    "recommended_approach": (
+                        "gradual" if current_score < 0.4 else "balanced"
+                    ),
+                    "key_focus_areas": self._get_domain_focus_areas(
+                        domain, current_score
+                    ),
                 }
 
             return ai_analysis
@@ -497,30 +540,61 @@ class WellnessPlanGeneratorService:
             "physical": {
                 "low": ["basic_exercise", "sleep_hygiene", "nutrition_basics"],
                 "medium": ["consistent_routine", "strength_building", "endurance"],
-                "high": ["performance_optimization", "advanced_training", "recovery_strategies"],
+                "high": [
+                    "performance_optimization",
+                    "advanced_training",
+                    "recovery_strategies",
+                ],
             },
             "mental": {
                 "low": ["stress_management", "mindfulness_basics", "focus_improvement"],
-                "medium": ["cognitive_training", "mental_clarity", "emotional_regulation"],
-                "high": ["advanced_meditation", "cognitive_optimization", "mental_mastery"],
+                "medium": [
+                    "cognitive_training",
+                    "mental_clarity",
+                    "emotional_regulation",
+                ],
+                "high": [
+                    "advanced_meditation",
+                    "cognitive_optimization",
+                    "mental_mastery",
+                ],
             },
             "emotional": {
                 "low": ["emotional_awareness", "basic_regulation", "stress_coping"],
-                "medium": ["emotional_intelligence", "relationship_building", "resilience"],
-                "high": ["emotional_mastery", "advanced_empathy", "leadership_emotional"],
+                "medium": [
+                    "emotional_intelligence",
+                    "relationship_building",
+                    "resilience",
+                ],
+                "high": [
+                    "emotional_mastery",
+                    "advanced_empathy",
+                    "leadership_emotional",
+                ],
             },
             "social": {
                 "low": ["basic_communication", "community_building", "support_network"],
-                "medium": ["relationship_depth", "social_confidence", "community_leadership"],
+                "medium": [
+                    "relationship_depth",
+                    "social_confidence",
+                    "community_leadership",
+                ],
                 "high": ["social_mastery", "network_building", "social_impact"],
             },
         }
 
-        level = "low" if current_score < 0.4 else "medium" if current_score < 0.7 else "high"
+        level = (
+            "low"
+            if current_score < 0.4
+            else "medium" if current_score < 0.7 else "high"
+        )
         return focus_areas_map.get(domain, {}).get(level, ["general_improvement"])
 
     def _extract_ai_recommendations(
-        self, ai_analysis: dict[str, Any], focus_areas: list[str], goals: list[dict[str, Any]]
+        self,
+        ai_analysis: dict[str, Any],
+        focus_areas: list[str],
+        goals: list[dict[str, Any]],
     ) -> list[str]:
         """Extract actionable recommendations from AI analysis"""
         recommendations = []
@@ -533,12 +607,16 @@ class WellnessPlanGeneratorService:
         # Predictive insights based recommendations
         predictive = ai_analysis.get("predictive_insights", {})
         if predictive.get("success_probability", 0) < 0.8:
-            recommendations.append("Start with smaller goals to build momentum and confidence")
+            recommendations.append(
+                "Start with smaller goals to build momentum and confidence"
+            )
 
         # Personalized factor recommendations
         personal_factors = ai_analysis.get("personalized_factors", {})
         if "accountability" in personal_factors.get("support_needs", []):
-            recommendations.append("Set up regular check-ins with a wellness partner or coach")
+            recommendations.append(
+                "Set up regular check-ins with a wellness partner or coach"
+            )
 
         # Domain-specific recommendations
         domain_insights = ai_analysis.get("domain_insights", {})
@@ -546,9 +624,13 @@ class WellnessPlanGeneratorService:
             insights = domain_insights.get(domain, {})
             approach = insights.get("recommended_approach", "balanced")
             if approach == "gradual":
-                recommendations.append(f"Take a gradual approach to {domain} wellness improvements")
+                recommendations.append(
+                    f"Take a gradual approach to {domain} wellness improvements"
+                )
             elif approach == "balanced":
-                recommendations.append(f"Maintain balanced progress in {domain} wellness")
+                recommendations.append(
+                    f"Maintain balanced progress in {domain} wellness"
+                )
 
         return recommendations
 
@@ -597,9 +679,13 @@ class WellnessPlanGeneratorService:
             priority = goal.get("priority", "medium")
 
             if priority == "high":
-                recommendations.append(f"Prioritize {domain} wellness goal with daily focus")
+                recommendations.append(
+                    f"Prioritize {domain} wellness goal with daily focus"
+                )
             elif priority == "medium":
-                recommendations.append(f"Maintain consistent progress on {domain} wellness goal")
+                recommendations.append(
+                    f"Maintain consistent progress on {domain} wellness goal"
+                )
 
             # Add personalized approach based on AI analysis
             approach = ai_analysis.get("predictive_insights", {}).get(
@@ -613,7 +699,10 @@ class WellnessPlanGeneratorService:
         return recommendations
 
     def _prioritize_recommendations(
-        self, recommendations: list[str], baseline_data: dict[str, Any], goals: list[dict[str, Any]]
+        self,
+        recommendations: list[str],
+        baseline_data: dict[str, Any],
+        goals: list[dict[str, Any]],
     ) -> list[str]:
         """Prioritize recommendations based on user data and goals"""
         prioritized = []
@@ -622,13 +711,18 @@ class WellnessPlanGeneratorService:
         foundation_recs = [
             r
             for r in recommendations
-            if any(keyword in r.lower() for keyword in ["consist", "basic", "foundat", "momentum"])
+            if any(
+                keyword in r.lower()
+                for keyword in ["consist", "basic", "foundat", "momentum"]
+            )
         ]
         prioritized.extend(foundation_recs[:2])
 
         # Priority 2: High-priority domain recommendations
         high_priority_domains = [
-            domain for domain, data in baseline_data.items() if data.get("current_score", 0.5) < 0.5
+            domain
+            for domain, data in baseline_data.items()
+            if data.get("current_score", 0.5) < 0.5
         ]
 
         domain_recs = [
@@ -642,7 +736,9 @@ class WellnessPlanGeneratorService:
         personalized_recs = [
             r
             for r in recommendations
-            if any(keyword in r.lower() for keyword in ["personal", "individual", "your"])
+            if any(
+                keyword in r.lower() for keyword in ["personal", "individual", "your"]
+            )
         ]
         prioritized.extend(personalized_recs[:1])
 
@@ -661,9 +757,21 @@ class WellnessPlanGeneratorService:
         try:
             # Common barriers based on domain
             domain_barriers = {
-                "physical": ["Time constraints", "Lack of motivation", "Physical limitations"],
-                "emotional": ["Stress from work/life", "Past trauma", "Negative self-talk"],
-                "social": ["Social anxiety", "Lack of social opportunities", "Time management"],
+                "physical": [
+                    "Time constraints",
+                    "Lack of motivation",
+                    "Physical limitations",
+                ],
+                "emotional": [
+                    "Stress from work/life",
+                    "Past trauma",
+                    "Negative self-talk",
+                ],
+                "social": [
+                    "Social anxiety",
+                    "Lack of social opportunities",
+                    "Time management",
+                ],
                 "intellectual": [
                     "Limited access to learning resources",
                     "Time constraints",
@@ -718,7 +826,11 @@ class WellnessPlanGeneratorService:
 
             # Domain-specific success factors
             domain_factors = {
-                "physical": ["Regular physical activity", "Balanced nutrition", "Adequate sleep"],
+                "physical": [
+                    "Regular physical activity",
+                    "Balanced nutrition",
+                    "Adequate sleep",
+                ],
                 "emotional": [
                     "Stress management techniques",
                     "Emotional awareness",
@@ -729,13 +841,21 @@ class WellnessPlanGeneratorService:
                     "Community involvement",
                     "Communication skills",
                 ],
-                "intellectual": ["Continuous learning", "Mental challenges", "Creative expression"],
+                "intellectual": [
+                    "Continuous learning",
+                    "Mental challenges",
+                    "Creative expression",
+                ],
                 "spiritual": [
                     "Values clarification",
                     "Meditation/mindfulness",
                     "Purpose-driven activities",
                 ],
-                "occupational": ["Work satisfaction", "Skill development", "Healthy boundaries"],
+                "occupational": [
+                    "Work satisfaction",
+                    "Skill development",
+                    "Healthy boundaries",
+                ],
                 "environmental": [
                     "Organized living space",
                     "Connection with nature",
@@ -777,7 +897,9 @@ class WellnessPlanGeneratorService:
             milestone_percentages = [0.25, 0.5, 0.75, 1.0]
 
             for i, percentage in enumerate(milestone_percentages):
-                milestone_date = start_date + timedelta(days=int(total_days * percentage))
+                milestone_date = start_date + timedelta(
+                    days=int(total_days * percentage)
+                )
 
                 milestone = {
                     "id": str(uuid.uuid4()),
@@ -787,7 +909,9 @@ class WellnessPlanGeneratorService:
                     ),
                     "target_date": milestone_date.isoformat(),
                     "achieved": False,
-                    "celebration": self._get_celebration_idea(i, len(milestone_percentages)),
+                    "celebration": self._get_celebration_idea(
+                        i, len(milestone_percentages)
+                    ),
                 }
                 milestones.append(milestone)
 
@@ -799,7 +923,9 @@ class WellnessPlanGeneratorService:
                     "id": str(uuid.uuid4()),
                     "title": "Wellness Goal Achievement",
                     "description": "Celebrate reaching your wellness improvement goals",
-                    "target_date": self._calculate_completion_date(timeframe).isoformat(),
+                    "target_date": self._calculate_completion_date(
+                        timeframe
+                    ).isoformat(),
                     "achieved": False,
                     "celebration": "Treat yourself to something special!",
                 }
@@ -827,9 +953,17 @@ class WellnessPlanGeneratorService:
             domain_support = {
                 "physical": ["Personal Trainer", "Nutritionist", "Physical Therapist"],
                 "emotional": ["Therapist", "Counselor", "Psychiatrist"],
-                "social": ["Social Clubs", "Community Organizations", "Networking Groups"],
+                "social": [
+                    "Social Clubs",
+                    "Community Organizations",
+                    "Networking Groups",
+                ],
                 "intellectual": ["Mentor", "Educational Institutions", "Book Clubs"],
-                "spiritual": ["Spiritual Advisor", "Meditation Groups", "Faith Communities"],
+                "spiritual": [
+                    "Spiritual Advisor",
+                    "Meditation Groups",
+                    "Faith Communities",
+                ],
                 "occupational": ["Career Coach", "Mentor", "Professional Associations"],
                 "environmental": [
                     "Organization Consultant",
@@ -850,7 +984,11 @@ class WellnessPlanGeneratorService:
 
         except Exception as e:
             logger.error(f"Error recommending support systems: {e}")
-            support_systems = ["Healthcare Provider", "Friends and Family", "Wellness Professional"]
+            support_systems = [
+                "Healthcare Provider",
+                "Friends and Family",
+                "Wellness Professional",
+            ]
 
         return support_systems
 
@@ -903,7 +1041,9 @@ class WellnessPlanGeneratorService:
         return metrics
 
     # Helper methods
-    async def _get_recent_assessments(self, user_id: str, limit: int = 5) -> list[Response]:
+    async def _get_recent_assessments(
+        self, user_id: str, limit: int = 5
+    ) -> list[Response]:
         """Get recent assessment responses for user"""
         try:
             query = (
@@ -926,7 +1066,12 @@ class WellnessPlanGeneratorService:
             response_data = response.response_data or {}
 
             # Try different possible field names
-            field_names = [f"{domain}_score", f"{domain}_wellness", f"wellness_{domain}", domain]
+            field_names = [
+                f"{domain}_score",
+                f"{domain}_wellness",
+                f"wellness_{domain}",
+                domain,
+            ]
 
             for field_name in field_names:
                 if field_name in response_data:
@@ -996,7 +1141,9 @@ class WellnessPlanGeneratorService:
             domain, {"name": domain, "icon": "📊", "focus": "Wellness improvement"}
         )
 
-    def _calculate_goal_priority(self, current_score: float, trend_data: dict[str, Any]) -> str:
+    def _calculate_goal_priority(
+        self, current_score: float, trend_data: dict[str, Any]
+    ) -> str:
         """Calculate goal priority based on current score and trend"""
         if current_score < 0.4:
             return "urgent"
@@ -1035,7 +1182,8 @@ class WellnessPlanGeneratorService:
         return (
             titles.get(domain, f"Improve {domain} Wellness"),
             descriptions.get(
-                domain, f"Focus on improving {domain} wellness through targeted practices"
+                domain,
+                f"Focus on improving {domain} wellness through targeted practices",
             ),
         )
 
@@ -1044,7 +1192,9 @@ class WellnessPlanGeneratorService:
         base_goals = {"balanced": 3, "focused": 4, "intensive": 5}
         timeframe_multiplier = {"1m": 0.6, "3m": 1.0, "6m": 1.2, "1y": 1.5}
 
-        return int(base_goals.get(focus_level, 3) * timeframe_multiplier.get(timeframe, 1.0))
+        return int(
+            base_goals.get(focus_level, 3) * timeframe_multiplier.get(timeframe, 1.0)
+        )
 
     def _format_timeline(self, timeframe: str) -> str:
         """Format timeline for display"""

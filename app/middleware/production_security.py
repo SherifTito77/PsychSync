@@ -4,12 +4,12 @@ Production-Ready Security Middleware for PsychSync
 Addresses vibe coding security gaps
 """
 
-from collections.abc import Callable
-from datetime import datetime
 import logging
 import re
 import secrets
 import time
+from collections.abc import Callable
+from datetime import datetime
 
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -49,13 +49,17 @@ class InputValidationMiddleware(BaseHTTPMiddleware):
         content_length = request.headers.get("content-length")
         if content_length and int(content_length) > 10_000_000:  # 10MB
             logger.warning(f"Request too large: {content_length} bytes")
-            return JSONResponse(status_code=413, content={"detail": "Request too large"})
+            return JSONResponse(
+                status_code=413, content={"detail": "Request too large"}
+            )
 
         # Validate content type for POST/PUT
         if request.method in ["POST", "PUT", "PATCH"]:
             content_type = request.headers.get("content-type", "")
             if not content_type.startswith(("application/json", "multipart/form-data")):
-                return JSONResponse(status_code=415, content={"detail": "Unsupported media type"})
+                return JSONResponse(
+                    status_code=415, content={"detail": "Unsupported media type"}
+                )
 
         # Check for malicious patterns in URL
         if self._contains_malicious_pattern(str(request.url)):
@@ -231,7 +235,14 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
     Required for: GDPR compliance, incident response
     """
 
-    SENSITIVE_ENDPOINTS = ["/auth/", "/users/", "/teams/", "/assessments/", "/export/", "/admin/"]
+    SENSITIVE_ENDPOINTS = [
+        "/auth/",
+        "/users/",
+        "/teams/",
+        "/assessments/",
+        "/export/",
+        "/admin/",
+    ]
 
     async def dispatch(self, request: Request, call_next: Callable):
         start_time = time.time()
@@ -252,7 +263,9 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
 
             # Log response
             if should_log:
-                self._log_response(request, response, request_id, time.time() - start_time)
+                self._log_response(
+                    request, response, request_id, time.time() - start_time
+                )
 
             # Add request ID to response headers
             response.headers["X-Request-ID"] = request_id
@@ -281,10 +294,13 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
         }
 
         logger.info(
-            f"API Request [{request_id}] {request.method} {request.url.path}", extra=log_data
+            f"API Request [{request_id}] {request.method} {request.url.path}",
+            extra=log_data,
         )
 
-    def _log_response(self, request: Request, response: Response, request_id: str, duration: float):
+    def _log_response(
+        self, request: Request, response: Response, request_id: str, duration: float
+    ):
         """Log response"""
         user_id = getattr(request.state, "user_id", "anonymous")
 
@@ -299,9 +315,13 @@ class AuditLoggingMiddleware(BaseHTTPMiddleware):
 
         # Log failed requests at higher severity
         if response.status_code >= 400:
-            logger.warning(f"API Error [{request_id}] {response.status_code}", extra=log_data)
+            logger.warning(
+                f"API Error [{request_id}] {response.status_code}", extra=log_data
+            )
         else:
-            logger.info(f"API Response [{request_id}] {response.status_code}", extra=log_data)
+            logger.info(
+                f"API Response [{request_id}] {response.status_code}", extra=log_data
+            )
 
     def _log_error(self, request: Request, request_id: str, error: str):
         """Log errors"""

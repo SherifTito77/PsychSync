@@ -3,15 +3,15 @@ API Performance Optimization Module
 Provides comprehensive performance monitoring and optimization for API endpoints
 """
 
+import functools
+import json
+import logging
+import time
 from collections import defaultdict
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-import functools
-import json
-import logging
-import time
 from typing import Any
 
 from fastapi import Request, Response
@@ -168,8 +168,14 @@ class PerformanceMonitor:
             return {"message": "No metrics available for the specified time range"}
 
         total_requests = len(recent_metrics)
-        avg_response_time = sum(m.execution_time_ms for m in recent_metrics) / total_requests
-        error_rate = sum(1 for m in recent_metrics if m.status_code >= 400) / total_requests * 100
+        avg_response_time = (
+            sum(m.execution_time_ms for m in recent_metrics) / total_requests
+        )
+        error_rate = (
+            sum(1 for m in recent_metrics if m.status_code >= 400)
+            / total_requests
+            * 100
+        )
 
         # Calculate slowest endpoints
         endpoint_performance = {}
@@ -215,10 +221,16 @@ class PerformanceMonitor:
 
         return [
             {
-                "query": q.query_text[:200] + "..." if len(q.query_text) > 200 else q.query_text,
+                "query": (
+                    q.query_text[:200] + "..."
+                    if len(q.query_text) > 200
+                    else q.query_text
+                ),
                 "execution_time_ms": q.execution_time_ms,
                 "complexity": q.complexity.value,
-                "optimization_suggestions": [s.value for s in q.optimization_suggestions],
+                "optimization_suggestions": [
+                    s.value for s in q.optimization_suggestions
+                ],
             }
             for q in slow_queries
         ]
@@ -331,13 +343,17 @@ def performance_monitor(monitor: PerformanceMonitor):
                 result = await func(*args, **kwargs)
                 execution_time = (time.time() - start_time) * 1000
 
-                logger.debug(f"Function {function_name} executed in {execution_time:.2f}ms")
+                logger.debug(
+                    f"Function {function_name} executed in {execution_time:.2f}ms"
+                )
 
                 return result
 
             except Exception as e:
                 execution_time = (time.time() - start_time) * 1000
-                logger.error(f"Function {function_name} failed after {execution_time:.2f}ms: {e}")
+                logger.error(
+                    f"Function {function_name} failed after {execution_time:.2f}ms: {e}"
+                )
                 raise
 
         return wrapper
@@ -372,9 +388,11 @@ class DatabaseConnectionPool:
             "total_connections": pool.size() + pool.overflow(),
             "active_connections": pool.checkedout(),
             "idle_connections": pool.checkedin(),
-            "utilization_percent": (pool.checkedout() / (pool.size() + pool.overflow()) * 100)
-            if (pool.size() + pool.overflow()) > 0
-            else 0,
+            "utilization_percent": (
+                (pool.checkedout() / (pool.size() + pool.overflow()) * 100)
+                if (pool.size() + pool.overflow()) > 0
+                else 0
+            ),
         }
 
     @asynccontextmanager
@@ -420,7 +438,9 @@ def optimize_api_response(response_data: Any, endpoint: str) -> Any:
     elif isinstance(response_data, list):
         # Optimize list responses by limiting size for large datasets
         if len(response_data) > 1000:
-            logger.warning(f"Large response detected for {endpoint}: {len(response_data)} items")
+            logger.warning(
+                f"Large response detected for {endpoint}: {len(response_data)} items"
+            )
 
     return response_data
 
@@ -449,7 +469,11 @@ class ResponseCacheManager:
         }
 
     def _generate_cache_key(
-        self, endpoint: str, method: str, params: dict[str, Any], user_id: str | None = None
+        self,
+        endpoint: str,
+        method: str,
+        params: dict[str, Any],
+        user_id: str | None = None,
     ) -> str:
         """Generate cache key based on request parameters"""
         import hashlib
@@ -478,7 +502,9 @@ class ResponseCacheManager:
             return self.ttl_config["lookup_data"]
         if any(pattern in endpoint_lower for pattern in ["profile", "me"]):
             return self.ttl_config["user_profile"]
-        if any(pattern in endpoint_lower for pattern in ["analytics", "stats", "metrics"]):
+        if any(
+            pattern in endpoint_lower for pattern in ["analytics", "stats", "metrics"]
+        ):
             return self.ttl_config["analytics"]
         if any(pattern in endpoint_lower for pattern in ["assessment", "survey"]):
             return self.ttl_config["assessment_list"]
@@ -489,7 +515,11 @@ class ResponseCacheManager:
         return self.ttl_config["public_data"]
 
     async def get_cached_response(
-        self, endpoint: str, method: str, params: dict[str, Any], user_id: str | None = None
+        self,
+        endpoint: str,
+        method: str,
+        params: dict[str, Any],
+        user_id: str | None = None,
     ) -> dict[str, Any] | None:
         """Get cached response if available"""
         cache_key = self._generate_cache_key(endpoint, method, params, user_id)
@@ -536,12 +566,16 @@ class ResponseCacheManager:
         cache_key = self._generate_cache_key(endpoint, method, params, user_id)
 
         # Store in memory
-        self._store_in_memory(cache_key, response_data, min(ttl, 300))  # Max 5 minutes in memory
+        self._store_in_memory(
+            cache_key, response_data, min(ttl, 300)
+        )  # Max 5 minutes in memory
 
         # Store in Redis
         if self.redis:
             try:
-                await self.redis.setex(cache_key, ttl, json.dumps(response_data, default=str))
+                await self.redis.setex(
+                    cache_key, ttl, json.dumps(response_data, default=str)
+                )
                 self.cache_stats["sets"] += 1
             except Exception as e:
                 logger.warning(f"Redis cache write error: {e}")
@@ -564,7 +598,8 @@ class ResponseCacheManager:
             return
 
         oldest_key = min(
-            self.in_memory_cache.keys(), key=lambda k: self.in_memory_cache[k]["cached_at"]
+            self.in_memory_cache.keys(),
+            key=lambda k: self.in_memory_cache[k]["cached_at"],
         )
         del self.in_memory_cache[oldest_key]
 
@@ -596,7 +631,9 @@ class ResponseCacheManager:
                 logger.warning(f"Redis cache invalidation error: {e}")
 
         self.cache_stats["invalidations"] += invalidated_count
-        logger.info(f"Invalidated {invalidated_count} cache entries for patterns: {patterns}")
+        logger.info(
+            f"Invalidated {invalidated_count} cache entries for patterns: {patterns}"
+        )
 
     async def invalidate_user_cache(self, user_id: str):
         """Invalidate all cache entries for a specific user"""
@@ -626,12 +663,18 @@ class ResponseCacheManager:
                     user_id=data.get("user_id"),
                 )
             except Exception as e:
-                logger.warning(f"Cache warming failed for {data.get('endpoint', 'unknown')}: {e}")
+                logger.warning(
+                    f"Cache warming failed for {data.get('endpoint', 'unknown')}: {e}"
+                )
 
     def get_cache_stats(self) -> dict[str, Any]:
         """Get cache performance statistics"""
         total_requests = self.cache_stats["hits"] + self.cache_stats["misses"]
-        hit_rate = (self.cache_stats["hits"] / total_requests * 100) if total_requests > 0 else 0
+        hit_rate = (
+            (self.cache_stats["hits"] / total_requests * 100)
+            if total_requests > 0
+            else 0
+        )
 
         return {
             "memory_cache_size": len(self.in_memory_cache),

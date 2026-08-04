@@ -10,16 +10,15 @@ Usage:
     python test_suite.py --quick
 """
 
-import sys
 import argparse
-from datetime import date, timedelta, datetime
-from typing import Dict, List
 import logging
+import sys
+from datetime import date, datetime, timedelta
+from typing import Dict, List
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -30,11 +29,11 @@ class HRISTestSuite:
     def __init__(self):
         """Initialize test suite."""
         self.results = {
-            'total_tests': 0,
-            'passed': 0,
-            'failed': 0,
-            'skipped': 0,
-            'tests': []
+            "total_tests": 0,
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "tests": [],
         }
 
     def run_test(self, test_name: str, test_func, *args, **kwargs):
@@ -46,41 +45,35 @@ class HRISTestSuite:
             test_func: Function to execute
             *args, **kwargs: Arguments for test function
         """
-        self.results['total_tests'] += 1
+        self.results["total_tests"] += 1
 
         try:
             test_func(*args, **kwargs)
-            self.results['passed'] += 1
-            status = '✓ PASS'
+            self.results["passed"] += 1
+            status = "✓ PASS"
             logger.info(f"{status}: {test_name}")
 
-            self.results['tests'].append({
-                'name': test_name,
-                'status': 'PASS',
-                'error': None
-            })
+            self.results["tests"].append(
+                {"name": test_name, "status": "PASS", "error": None}
+            )
 
         except AssertionError as e:
-            self.results['failed'] += 1
-            status = '✗ FAIL'
+            self.results["failed"] += 1
+            status = "✗ FAIL"
             logger.error(f"{status}: {test_name} - {str(e)}")
 
-            self.results['tests'].append({
-                'name': test_name,
-                'status': 'FAIL',
-                'error': str(e)
-            })
+            self.results["tests"].append(
+                {"name": test_name, "status": "FAIL", "error": str(e)}
+            )
 
         except Exception as e:
-            self.results['failed'] += 1
-            status = '✗ ERROR'
+            self.results["failed"] += 1
+            status = "✗ ERROR"
             logger.error(f"{status}: {test_name} - {str(e)}")
 
-            self.results['tests'].append({
-                'name': test_name,
-                'status': 'ERROR',
-                'error': str(e)
-            })
+            self.results["tests"].append(
+                {"name": test_name, "status": "ERROR", "error": str(e)}
+            )
 
     def print_summary(self):
         """Print test summary."""
@@ -92,80 +85,84 @@ class HRISTestSuite:
         print(f"✗ Failed: {self.results['failed']}")
         print(f"⊘ Skipped: {self.results['skipped']}")
 
-        if self.results['failed'] > 0:
+        if self.results["failed"] > 0:
             print("\nFailed Tests:")
-            for test in self.results['tests']:
-                if test['status'] in ['FAIL', 'ERROR']:
+            for test in self.results["tests"]:
+                if test["status"] in ["FAIL", "ERROR"]:
                     print(f"  - {test['name']}: {test['error']}")
 
-        success_rate = (self.results['passed'] / self.results['total_tests'] * 100) if self.results['total_tests'] > 0 else 0
+        success_rate = (
+            (self.results["passed"] / self.results["total_tests"] * 100)
+            if self.results["total_tests"] > 0
+            else 0
+        )
         print(f"\nSuccess Rate: {success_rate:.1f}%")
         print("=" * 70 + "\n")
 
 
 def test_base_connector():
     """Test base connector functionality."""
-    from .base_connector import Employee, AttendanceRecord, LeaveRecord
+    from .base_connector import AttendanceRecord, Employee, LeaveRecord
 
     suite = HRISTestSuite()
 
     # Test Employee dataclass
     def test_employee_creation():
         emp = Employee(
-            employee_id='EMP001',
-            first_name='John',
-            last_name='Doe',
-            email='john.doe@company.com',
-            department='Engineering'
+            employee_id="EMP001",
+            first_name="John",
+            last_name="Doe",
+            email="john.doe@company.com",
+            department="Engineering",
         )
-        assert emp.employee_id == 'EMP001'
-        assert emp.first_name == 'John'
-        assert emp.email == 'john.doe@company.com'
+        assert emp.employee_id == "EMP001"
+        assert emp.first_name == "John"
+        assert emp.email == "john.doe@company.com"
 
     suite.run_test("Employee Creation", test_employee_creation)
 
     # Test Employee to_dict
     def test_employee_to_dict():
         emp = Employee(
-            employee_id='EMP001',
-            first_name='John',
-            last_name='Doe',
-            email='john@company.com',
-            hire_date=date(2023, 1, 15)
+            employee_id="EMP001",
+            first_name="John",
+            last_name="Doe",
+            email="john@company.com",
+            hire_date=date(2023, 1, 15),
         )
         data = emp.to_dict()
-        assert data['employee_id'] == 'EMP001'
-        assert data['hire_date'] == '2023-01-15'
+        assert data["employee_id"] == "EMP001"
+        assert data["hire_date"] == "2023-01-15"
 
     suite.run_test("Employee to_dict", test_employee_to_dict)
 
     # Test AttendanceRecord
     def test_attendance_record():
         record = AttendanceRecord(
-            record_id='ATT001',
-            employee_id='EMP001',
+            record_id="ATT001",
+            employee_id="EMP001",
             date=date.today(),
             hours_worked=8.0,
-            status='present'
+            status="present",
         )
         assert record.hours_worked == 8.0
-        assert record.status == 'present'
+        assert record.status == "present"
 
     suite.run_test("AttendanceRecord Creation", test_attendance_record)
 
     # Test LeaveRecord
     def test_leave_record():
         record = LeaveRecord(
-            leave_id='LV001',
-            employee_id='EMP001',
-            leave_type='vacation',
+            leave_id="LV001",
+            employee_id="EMP001",
+            leave_type="vacation",
             start_date=date(2025, 1, 1),
             end_date=date(2025, 1, 5),
             days_taken=5.0,
-            status='approved'
+            status="approved",
         )
         assert record.days_taken == 5.0
-        assert record.status == 'approved'
+        assert record.status == "approved"
 
     suite.run_test("LeaveRecord Creation", test_leave_record)
 
@@ -175,9 +172,11 @@ def test_base_connector():
 
 def test_csv_connector():
     """Test CSV connector with sample data."""
-    import tempfile
     import os
+    import tempfile
+
     import pandas as pd
+
     from .base_connector import CSVConnector
 
     suite = HRISTestSuite()
@@ -187,53 +186,61 @@ def test_csv_connector():
 
     # Sample employee data
     employees_data = {
-        'employee_id': ['EMP001', 'EMP002', 'EMP003'],
-        'first_name': ['John', 'Jane', 'Bob'],
-        'last_name': ['Doe', 'Smith', 'Johnson'],
-        'email': ['john@company.com', 'jane@company.com', 'bob@company.com'],
-        'department': ['Engineering', 'Sales', 'Engineering'],
-        'position': ['Developer', 'Manager', 'Developer'],
-        'hire_date': ['2023-01-15', '2022-06-01', '2023-03-20'],
-        'employment_status': ['active', 'active', 'active']
+        "employee_id": ["EMP001", "EMP002", "EMP003"],
+        "first_name": ["John", "Jane", "Bob"],
+        "last_name": ["Doe", "Smith", "Johnson"],
+        "email": ["john@company.com", "jane@company.com", "bob@company.com"],
+        "department": ["Engineering", "Sales", "Engineering"],
+        "position": ["Developer", "Manager", "Developer"],
+        "hire_date": ["2023-01-15", "2022-06-01", "2023-03-20"],
+        "employment_status": ["active", "active", "active"],
     }
 
-    employees_csv = os.path.join(temp_dir, 'employees.csv')
+    employees_csv = os.path.join(temp_dir, "employees.csv")
     pd.DataFrame(employees_data).to_csv(employees_csv, index=False)
 
     # Sample attendance data
     attendance_data = {
-        'record_id': ['ATT001', 'ATT002', 'ATT003'],
-        'employee_id': ['EMP001', 'EMP001', 'EMP002'],
-        'date': ['2025-01-01', '2025-01-02', '2025-01-01'],
-        'clock_in': ['2025-01-01 09:00:00', '2025-01-02 09:00:00', '2025-01-01 08:30:00'],
-        'clock_out': ['2025-01-01 17:00:00', '2025-01-02 17:00:00', '2025-01-01 16:30:00'],
-        'hours_worked': [8.0, 8.0, 8.0],
-        'status': ['present', 'present', 'present']
+        "record_id": ["ATT001", "ATT002", "ATT003"],
+        "employee_id": ["EMP001", "EMP001", "EMP002"],
+        "date": ["2025-01-01", "2025-01-02", "2025-01-01"],
+        "clock_in": [
+            "2025-01-01 09:00:00",
+            "2025-01-02 09:00:00",
+            "2025-01-01 08:30:00",
+        ],
+        "clock_out": [
+            "2025-01-01 17:00:00",
+            "2025-01-02 17:00:00",
+            "2025-01-01 16:30:00",
+        ],
+        "hours_worked": [8.0, 8.0, 8.0],
+        "status": ["present", "present", "present"],
     }
 
-    attendance_csv = os.path.join(temp_dir, 'attendance.csv')
+    attendance_csv = os.path.join(temp_dir, "attendance.csv")
     pd.DataFrame(attendance_data).to_csv(attendance_csv, index=False)
 
     # Sample leave data
     leave_data = {
-        'leave_id': ['LV001', 'LV002'],
-        'employee_id': ['EMP001', 'EMP002'],
-        'leave_type': ['vacation', 'sick'],
-        'start_date': ['2025-02-01', '2025-01-15'],
-        'end_date': ['2025-02-05', '2025-01-16'],
-        'days_taken': [5.0, 2.0],
-        'status': ['approved', 'approved'],
-        'reason': ['Family vacation', 'Flu']
+        "leave_id": ["LV001", "LV002"],
+        "employee_id": ["EMP001", "EMP002"],
+        "leave_type": ["vacation", "sick"],
+        "start_date": ["2025-02-01", "2025-01-15"],
+        "end_date": ["2025-02-05", "2025-01-16"],
+        "days_taken": [5.0, 2.0],
+        "status": ["approved", "approved"],
+        "reason": ["Family vacation", "Flu"],
     }
 
-    leave_csv = os.path.join(temp_dir, 'leave.csv')
+    leave_csv = os.path.join(temp_dir, "leave.csv")
     pd.DataFrame(leave_data).to_csv(leave_csv, index=False)
 
     # Create connector
     config = {
-        'employees_csv': employees_csv,
-        'attendance_csv': attendance_csv,
-        'leave_csv': leave_csv
+        "employees_csv": employees_csv,
+        "attendance_csv": attendance_csv,
+        "leave_csv": leave_csv,
     }
 
     connector = CSVConnector(config)
@@ -248,22 +255,22 @@ def test_csv_connector():
     def test_get_employees():
         employees = connector.get_employees()
         assert len(employees) == 3
-        assert employees[0].first_name == 'John'
+        assert employees[0].first_name == "John"
 
     suite.run_test("CSV Get Employees", test_get_employees)
 
     # Test department filter
     def test_department_filter():
-        employees = connector.get_employees(department='Engineering')
+        employees = connector.get_employees(department="Engineering")
         assert len(employees) == 2
 
     suite.run_test("CSV Department Filter", test_department_filter)
 
     # Test get employee by ID
     def test_get_employee_by_id():
-        employee = connector.get_employee_by_id('EMP001')
+        employee = connector.get_employee_by_id("EMP001")
         assert employee is not None
-        assert employee.first_name == 'John'
+        assert employee.first_name == "John"
 
     suite.run_test("CSV Get Employee by ID", test_get_employee_by_id)
 
@@ -289,13 +296,14 @@ def test_csv_connector():
     def test_export_to_csv():
         employees = connector.get_employees()
         output_dir = tempfile.mkdtemp()
-        filepath = connector.export_to_csv(employees, 'test_export.csv', output_dir)
+        filepath = connector.export_to_csv(employees, "test_export.csv", output_dir)
         assert os.path.exists(filepath)
 
     suite.run_test("CSV Export", test_export_to_csv)
 
     # Cleanup
     import shutil
+
     shutil.rmtree(temp_dir)
 
     suite.print_summary()
@@ -314,8 +322,8 @@ def test_integration_manager():
     def test_list_connectors():
         connectors = manager.list_available_connectors()
         assert len(connectors) > 0
-        assert 'orangehrm' in connectors
-        assert 'csv' in connectors
+        assert "orangehrm" in connectors
+        assert "csv" in connectors
 
     suite.run_test("List Available Connectors", test_list_connectors)
 
@@ -323,15 +331,15 @@ def test_integration_manager():
     def test_config_validation():
         # Valid config
         valid_config = {
-            'employees_csv': 'test.csv',
-            'attendance_csv': 'test2.csv',
-            'leave_csv': 'test3.csv'
+            "employees_csv": "test.csv",
+            "attendance_csv": "test2.csv",
+            "leave_csv": "test3.csv",
         }
-        assert manager._validate_config('csv', valid_config) == True
+        assert manager._validate_config("csv", valid_config) == True
 
         # Invalid config (missing required fields)
-        invalid_config = {'optional_field': 'value'}
-        assert manager._validate_config('csv', invalid_config) == False
+        invalid_config = {"optional_field": "value"}
+        assert manager._validate_config("csv", invalid_config) == False
 
     suite.run_test("Config Validation", test_config_validation)
 
@@ -341,39 +349,44 @@ def test_integration_manager():
 
 def test_data_models():
     """Test all data model conversions."""
-    from .base_connector import Employee, AttendanceRecord, LeaveRecord, PerformanceReview
+    from .base_connector import (
+        AttendanceRecord,
+        Employee,
+        LeaveRecord,
+        PerformanceReview,
+    )
 
     suite = HRISTestSuite()
 
     # Test date conversions
     def test_date_conversions():
         emp = Employee(
-            employee_id='EMP001',
-            first_name='Test',
-            last_name='User',
-            email='test@test.com',
-            hire_date=date(2023, 1, 15)
+            employee_id="EMP001",
+            first_name="Test",
+            last_name="User",
+            email="test@test.com",
+            hire_date=date(2023, 1, 15),
         )
 
         data = emp.to_dict()
-        assert data['hire_date'] == '2023-01-15'
+        assert data["hire_date"] == "2023-01-15"
 
     suite.run_test("Date Conversions", test_date_conversions)
 
     # Test datetime conversions
     def test_datetime_conversions():
         record = AttendanceRecord(
-            record_id='ATT001',
-            employee_id='EMP001',
+            record_id="ATT001",
+            employee_id="EMP001",
             date=date.today(),
             clock_in=datetime(2025, 1, 1, 9, 0, 0),
             clock_out=datetime(2025, 1, 1, 17, 0, 0),
-            hours_worked=8.0
+            hours_worked=8.0,
         )
 
         data = record.to_dict()
-        assert 'clock_in' in data
-        assert isinstance(data['clock_in'], str)
+        assert "clock_in" in data
+        assert isinstance(data["clock_in"], str)
 
     suite.run_test("DateTime Conversions", test_datetime_conversions)
 
@@ -406,9 +419,9 @@ def run_all_tests(quick=False):
     all_results.append(test_data_models())
 
     # Overall summary
-    total_tests = sum(r['total_tests'] for r in all_results)
-    total_passed = sum(r['passed'] for r in all_results)
-    total_failed = sum(r['failed'] for r in all_results)
+    total_tests = sum(r["total_tests"] for r in all_results)
+    total_passed = sum(r["passed"] for r in all_results)
+    total_failed = sum(r["failed"] for r in all_results)
 
     print("\n" + "=" * 70)
     print("OVERALL TEST RESULTS")
@@ -442,7 +455,7 @@ def test_specific_hris(hris_type: str, config: Dict):
 
     print(f"\n{'=' * 70}")
     print(f"Testing {hris_type.upper()} Connector")
-    print('=' * 70)
+    print("=" * 70)
 
     manager = HRISIntegrationManager()
     suite = HRISTestSuite()
@@ -458,6 +471,7 @@ def test_specific_hris(hris_type: str, config: Dict):
     # If connection works, test data retrieval
     connector = manager.create_connector(hris_type, config)
     if connector:
+
         def test_get_employees():
             employees = connector.get_employees()
             assert employees is not None
@@ -478,9 +492,11 @@ def test_specific_hris(hris_type: str, config: Dict):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Test HRIS Connectors')
-    parser.add_argument('--hris', type=str, help='Test specific HRIS (orangehrm, csv, etc.)')
-    parser.add_argument('--quick', action='store_true', help='Run quick tests only')
+    parser = argparse.ArgumentParser(description="Test HRIS Connectors")
+    parser.add_argument(
+        "--hris", type=str, help="Test specific HRIS (orangehrm, csv, etc.)"
+    )
+    parser.add_argument("--quick", action="store_true", help="Run quick tests only")
 
     args = parser.parse_args()
 

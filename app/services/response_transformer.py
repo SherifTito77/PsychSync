@@ -5,13 +5,13 @@ Performance improvement: 1000% faster response processing and client compatibili
 """
 
 import asyncio
+import json
+import logging
+import re
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from enum import Enum
-import json
-import logging
-import re
 from typing import Any, TypeVar
 
 from fastapi import Request, Response
@@ -21,8 +21,10 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
+
 class ResponseFormat(str, Enum):
     """Supported response formats"""
+
     JSON = "json"
     XML = "xml"
     CSV = "csv"
@@ -30,8 +32,10 @@ class ResponseFormat(str, Enum):
     PROTOBUF = "protobuf"
     MSGPACK = "msgpack"
 
+
 class TransformationRule(str, Enum):
     """Data transformation rules"""
+
     SNAKE_CASE = "snake_case"
     CAMEL_CASE = "camel_case"
     KEBAB_CASE = "kebab_case"
@@ -43,17 +47,21 @@ class TransformationRule(str, Enum):
     SORT = "sort"
     PAGINATE = "paginate"
 
+
 class ClientType(str, Enum):
     """Client type classifications"""
+
     WEB = "web"
     MOBILE = "mobile"
     API = "api"
     DESKTOP = "desktop"
     IOT = "iot"
 
+
 @dataclass
 class TransformationConfig:
     """Configuration for response transformation"""
+
     format: ResponseFormat = ResponseFormat.JSON
     client_type: ClientType = ClientType.WEB
     case_style: TransformationRule = TransformationRule.CAMEL_CASE
@@ -67,9 +75,11 @@ class TransformationConfig:
     null_handling: str = "include"  # include, exclude, default
     custom_transformers: dict[str, Callable] = field(default_factory=dict)
 
+
 @dataclass
 class ResponseMetadata:
     """Metadata for API responses"""
+
     request_id: str
     timestamp: datetime
     processing_time_ms: float
@@ -79,6 +89,7 @@ class ResponseMetadata:
     pagination: dict[str, Any] | None = None
     warnings: list[str] = field(default_factory=list)
     debug_info: dict[str, Any] = field(default_factory=dict)
+
 
 class ResponseTransformer:
     """
@@ -113,15 +124,16 @@ class ResponseTransformer:
         # Client detection patterns
         self.client_patterns = {
             ClientType.MOBILE: [
-                r"mobile", r"android", r"iphone", r"ipad", r"tablet",
-                r"mobi", r"touch"
+                r"mobile",
+                r"android",
+                r"iphone",
+                r"ipad",
+                r"tablet",
+                r"mobi",
+                r"touch",
             ],
-            ClientType.DESKTOP: [
-                r"windows", r"macintosh", r"linux", r"x11"
-            ],
-            ClientType.IOT: [
-                r"iot", r"arduino", r"raspberry", r"esp"
-            ]
+            ClientType.DESKTOP: [r"windows", r"macintosh", r"linux", r"x11"],
+            ClientType.IOT: [r"iot", r"arduino", r"raspberry", r"esp"],
         }
 
         # Transformation statistics
@@ -129,7 +141,7 @@ class ResponseTransformer:
             "total_transformations": 0,
             "format_usage": {fmt.value: 0 for fmt in ResponseFormat},
             "client_type_usage": {ct.value: 0 for ct in ClientType},
-            "avg_transformation_time": 0.0
+            "avg_transformation_time": 0.0,
         }
 
     def detect_client_type(self, request: Request) -> ClientType:
@@ -168,9 +180,7 @@ class ResponseTransformer:
         return ClientType.WEB
 
     def determine_response_format(
-        self,
-        request: Request,
-        client_type: ClientType = None
+        self, request: Request, client_type: ClientType = None
     ) -> ResponseFormat:
         """
         Determine appropriate response format based on request
@@ -220,9 +230,7 @@ class ResponseTransformer:
         return ResponseFormat.JSON
 
     def create_transformation_config(
-        self,
-        request: Request,
-        config: TransformationConfig = None
+        self, request: Request, config: TransformationConfig = None
     ) -> TransformationConfig:
         """
         Create transformation configuration from request
@@ -245,7 +253,10 @@ class ResponseTransformer:
 
         # Apply query parameters
         if "pretty" in request.query_params:
-            config.pretty_print = request.query_params["pretty"].lower() in ["true", "1"]
+            config.pretty_print = request.query_params["pretty"].lower() in [
+                "true",
+                "1",
+            ]
 
         if "fields" in request.query_params:
             config.filter_fields = request.query_params["fields"].split(",")
@@ -265,7 +276,9 @@ class ResponseTransformer:
 
         # Client-specific adjustments
         if config.client_type == ClientType.MOBILE:
-            config.pretty_print = True  # Mobile clients often benefit from pretty printing
+            config.pretty_print = (
+                True  # Mobile clients often benefit from pretty printing
+            )
             config.include_metadata = True  # Mobile apps need metadata
         elif config.client_type == ClientType.API:
             config.pretty_print = False  # API clients prefer compact responses
@@ -277,10 +290,7 @@ class ResponseTransformer:
         return config
 
     async def transform_response(
-        self,
-        data: Any,
-        config: TransformationConfig,
-        metadata: ResponseMetadata = None
+        self, data: Any, config: TransformationConfig, metadata: ResponseMetadata = None
     ) -> Response:
         """
         Transform response data according to configuration
@@ -303,27 +313,23 @@ class ResponseTransformer:
             if config.include_metadata and metadata:
                 response_data = {
                     "data": transformed_data,
-                    "meta": asdict(metadata) if metadata else {}
+                    "meta": asdict(metadata) if metadata else {},
                 }
             else:
                 response_data = transformed_data
 
             # Convert to target format
             formatted_response = await self._convert_format(
-                response_data,
-                config.format,
-                config.pretty_print
+                response_data, config.format, config.pretty_print
             )
 
             # Create response with appropriate headers
-            response = await self._create_response(
-                formatted_response,
-                config,
-                metadata
-            )
+            response = await self._create_response(formatted_response, config, metadata)
 
             # Update statistics
-            transformation_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+            transformation_time = (
+                datetime.utcnow() - start_time
+            ).total_seconds() * 1000
             self._update_stats(config, transformation_time)
 
             logger.debug(
@@ -339,13 +345,11 @@ class ResponseTransformer:
             return JSONResponse(
                 content=data,
                 status_code=500,
-                headers={"X-Transformation-Error": str(e)}
+                headers={"X-Transformation-Error": str(e)},
             )
 
     async def _apply_transformations(
-        self,
-        data: Any,
-        config: TransformationConfig
+        self, data: Any, config: TransformationConfig
     ) -> Any:
         """
         Apply all configured data transformations
@@ -361,7 +365,9 @@ class ResponseTransformer:
 
         # Apply custom transformers first
         for field_name, transformer in config.custom_transformers.items():
-            result = await self._apply_custom_transformer(result, field_name, transformer)
+            result = await self._apply_custom_transformer(
+                result, field_name, transformer
+            )
 
         # Apply field filtering
         if config.filter_fields:
@@ -401,7 +407,9 @@ class ResponseTransformer:
         if isinstance(data, list):
             return [await self._filter_fields(item, fields) for item in data]
         if hasattr(data, "__dict__"):
-            obj_dict = asdict(data) if hasattr(data, "__dataclass_fields__") else data.__dict__
+            obj_dict = (
+                asdict(data) if hasattr(data, "__dataclass_fields__") else data.__dict__
+            )
             filtered_dict = {k: v for k, v in obj_dict.items() if k in fields}
             # Reconstruct object if possible
             if hasattr(data, "__dataclass_fields__"):
@@ -425,7 +433,9 @@ class ResponseTransformer:
         if isinstance(data, list):
             return [await self._exclude_fields(item, fields) for item in data]
         if hasattr(data, "__dict__"):
-            obj_dict = asdict(data) if hasattr(data, "__dataclass_fields__") else data.__dict__
+            obj_dict = (
+                asdict(data) if hasattr(data, "__dataclass_fields__") else data.__dict__
+            )
             filtered_dict = {k: v for k, v in obj_dict.items() if k not in fields}
             if hasattr(data, "__dataclass_fields__"):
                 return data.__class__(**filtered_dict)
@@ -446,7 +456,10 @@ class ResponseTransformer:
         converter = self.case_converters[case_style]
 
         if isinstance(data, dict):
-            return {converter(k): await self._convert_case(v, case_style) for k, v in data.items()}
+            return {
+                converter(k): await self._convert_case(v, case_style)
+                for k, v in data.items()
+            }
         if isinstance(data, list):
             return [await self._convert_case(item, case_style) for item in data]
         return data
@@ -485,7 +498,9 @@ class ResponseTransformer:
     async def _remove_nulls(self, data: Any) -> Any:
         """Remove null values from data"""
         if isinstance(data, dict):
-            return {k: await self._remove_nulls(v) for k, v in data.items() if v is not None}
+            return {
+                k: await self._remove_nulls(v) for k, v in data.items() if v is not None
+            }
         if isinstance(data, list):
             return [await self._remove_nulls(item) for item in data if item is not None]
         return data
@@ -494,7 +509,11 @@ class ResponseTransformer:
         """Replace null values with appropriate defaults"""
         if isinstance(data, dict):
             return {
-                k: await self._replace_nulls_with_defaults(v) if v is not None else self._get_default_for_key(k)
+                k: (
+                    await self._replace_nulls_with_defaults(v)
+                    if v is not None
+                    else self._get_default_for_key(k)
+                )
                 for k, v in data.items()
             }
         if isinstance(data, list):
@@ -517,7 +536,9 @@ class ResponseTransformer:
     async def _format_dates(self, data: Any, date_format: str) -> Any:
         """Format date values according to specified format"""
         if isinstance(data, dict):
-            return {k: await self._format_dates(v, date_format) for k, v in data.items()}
+            return {
+                k: await self._format_dates(v, date_format) for k, v in data.items()
+            }
         if isinstance(data, list):
             return [await self._format_dates(item, date_format) for item in data]
         if isinstance(data, (datetime, date)):
@@ -531,10 +552,7 @@ class ResponseTransformer:
         return data
 
     async def _apply_custom_transformer(
-        self,
-        data: Any,
-        field_name: str,
-        transformer: Callable
+        self, data: Any, field_name: str, transformer: Callable
     ) -> Any:
         """
         Apply custom transformer to specific field
@@ -553,7 +571,10 @@ class ResponseTransformer:
             else:
                 data[field_name] = transformer(data[field_name])
         elif isinstance(data, list):
-            return [await self._apply_custom_transformer(item, field_name, transformer) for item in data]
+            return [
+                await self._apply_custom_transformer(item, field_name, transformer)
+                for item in data
+            ]
         elif hasattr(data, field_name):
             if asyncio.iscoroutinefunction(transformer):
                 setattr(data, field_name, await transformer(getattr(data, field_name)))
@@ -563,10 +584,7 @@ class ResponseTransformer:
         return data
 
     async def _convert_format(
-        self,
-        data: Any,
-        format_type: ResponseFormat,
-        pretty_print: bool = False
+        self, data: Any, format_type: ResponseFormat, pretty_print: bool = False
     ) -> str | bytes:
         """
         Convert data to specified format
@@ -591,11 +609,12 @@ class ResponseTransformer:
             data,
             default=str,
             indent=2 if pretty_print else None,
-            separators=(",", ": ") if pretty_print else (",", ":")
+            separators=(",", ": ") if pretty_print else (",", ":"),
         )
 
     async def _to_xml(self, data: Any, pretty_print: bool = False) -> str:
         """Convert data to XML format"""
+
         def dict_to_xml(d, root_name="root"):
             if isinstance(d, dict):
                 xml_parts = []
@@ -617,7 +636,11 @@ class ResponseTransformer:
                 return "\n".join(xml_parts) if pretty_print else "".join(xml_parts)
             return str(d)
 
-        xml_header = '<?xml version="1.0" encoding="UTF-8"?>\n' if pretty_print else '<?xml version="1.0" encoding="UTF-8"?>'
+        xml_header = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            if pretty_print
+            else '<?xml version="1.0" encoding="UTF-8"?>'
+        )
         return xml_header + dict_to_xml(data)
 
     async def _to_csv(self, data: Any, pretty_print: bool = False) -> str:
@@ -651,6 +674,7 @@ class ResponseTransformer:
         """Convert data to YAML format"""
         try:
             import yaml
+
             return yaml.dump(data, default_flow_style=not pretty_print)
         except ImportError:
             # Fallback to JSON if yaml not available
@@ -660,7 +684,7 @@ class ResponseTransformer:
         self,
         formatted_data: str | bytes,
         config: TransformationConfig,
-        metadata: ResponseMetadata = None
+        metadata: ResponseMetadata = None,
     ) -> Response:
         """
         Create FastAPI response with appropriate headers
@@ -697,20 +721,18 @@ class ResponseTransformer:
         # Create response
         if isinstance(formatted_data, bytes):
             response = Response(
-                content=formatted_data,
-                headers=headers,
-                media_type=content_type
+                content=formatted_data, headers=headers, media_type=content_type
             )
         else:
             response = Response(
-                content=formatted_data,
-                headers=headers,
-                media_type=content_type
+                content=formatted_data, headers=headers, media_type=content_type
             )
 
         return response
 
-    def _update_stats(self, config: TransformationConfig, transformation_time: float) -> None:
+    def _update_stats(
+        self, config: TransformationConfig, transformation_time: float
+    ) -> None:
         """Update transformation statistics"""
         self.stats["total_transformations"] += 1
         self.stats["format_usage"][config.format.value] += 1
@@ -719,14 +741,18 @@ class ResponseTransformer:
         # Update average transformation time
         total = self.stats["total_transformations"]
         current_avg = self.stats["avg_transformation_time"]
-        self.stats["avg_transformation_time"] = ((current_avg * (total - 1)) + transformation_time) / total
+        self.stats["avg_transformation_time"] = (
+            (current_avg * (total - 1)) + transformation_time
+        ) / total
 
     def get_stats(self) -> dict[str, Any]:
         """Get transformation statistics"""
         return self.stats.copy()
 
+
 # Singleton instance
 response_transformer = ResponseTransformer()
+
 
 # Decorators for easy use
 def transform_response(config: TransformationConfig = None):
@@ -736,10 +762,13 @@ def transform_response(config: TransformationConfig = None):
     Args:
         config: Transformation configuration
     """
+
     def decorator(func):
         async def wrapper(request: Request, *args, **kwargs):
             # Create transformation config
-            trans_config = response_transformer.create_transformation_config(request, config)
+            trans_config = response_transformer.create_transformation_config(
+                request, config
+            )
 
             # Create metadata
             request_id = getattr(request.state, "request_id", "unknown")
@@ -750,17 +779,22 @@ def transform_response(config: TransformationConfig = None):
                 timestamp=datetime.utcnow(),
                 processing_time_ms=0.0,  # Will be updated after function execution
                 format=trans_config.format,
-                client_type=trans_config.client_type
+                client_type=trans_config.client_type,
             )
 
             # Execute function
             result = await func(request, *args, **kwargs)
 
             # Update processing time
-            metadata.processing_time_ms = (datetime.utcnow() - start_time).total_seconds() * 1000
+            metadata.processing_time_ms = (
+                datetime.utcnow() - start_time
+            ).total_seconds() * 1000
 
             # Transform response
-            return await response_transformer.transform_response(result, trans_config, metadata)
+            return await response_transformer.transform_response(
+                result, trans_config, metadata
+            )
 
         return wrapper
+
     return decorator

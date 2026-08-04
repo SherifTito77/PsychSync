@@ -68,7 +68,8 @@ async def setup_email_connection(
 
         # Test email connection
         connection_test = await email_connection.test_email_connection(
-            provider=request.provider, connection_parameters=request.connection_parameters
+            provider=request.provider,
+            connection_parameters=request.connection_parameters,
         )
 
         if not connection_test["success"]:
@@ -111,12 +112,16 @@ async def setup_email_connection(
             setup_completed=True,
             setup_completed_at=datetime.utcnow(),
             next_sync=connection_config.get("next_sync"),
-            capabilities=await email_connection.get_provider_capabilities(request.provider),
+            capabilities=await email_connection.get_provider_capabilities(
+                request.provider
+            ),
         )
 
     except Exception as e:
         logger.error(f"Email connection setup failed: {e!s}")
-        raise HTTPException(status_code=500, detail="Email connection setup failed") from e
+        raise HTTPException(
+            status_code=500, detail="Email connection setup failed"
+        ) from e
 
 
 @router.post("/analytics/communication", response_model=EmailAnalyticsResponse)
@@ -146,7 +151,9 @@ async def analyze_email_communication(
                 communication_analysis["communication_style"] = analysis
 
             elif category == "responsiveness":
-                analysis = await email_analytics.analyze_responsiveness_patterns(email_data)
+                analysis = await email_analytics.analyze_responsiveness_patterns(
+                    email_data
+                )
                 communication_analysis["responsiveness"] = analysis
 
             elif category == "engagement":
@@ -154,7 +161,9 @@ async def analyze_email_communication(
                 communication_analysis["engagement"] = analysis
 
             elif category == "network_analysis":
-                analysis = await email_analytics.analyze_communication_network(email_data)
+                analysis = await email_analytics.analyze_communication_network(
+                    email_data
+                )
                 communication_analysis["network_analysis"] = analysis
 
             elif category == "sentiment_analysis":
@@ -170,7 +179,9 @@ async def analyze_email_communication(
                 communication_analysis["time_patterns"] = analysis
 
             elif category == "collaboration":
-                analysis = await email_analytics.analyze_collaboration_patterns(email_data)
+                analysis = await email_analytics.analyze_collaboration_patterns(
+                    email_data
+                )
                 communication_analysis["collaboration"] = analysis
 
         # Generate communication insights
@@ -205,7 +216,9 @@ async def analyze_email_communication(
 
     except Exception as e:
         logger.error(f"Email analytics analysis failed: {e!s}")
-        raise HTTPException(status_code=500, detail="Email analytics analysis failed") from e
+        raise HTTPException(
+            status_code=500, detail="Email analytics analysis failed"
+        ) from e
 
 
 @router.post("/assessment/behavioral", response_model=EmailAssessmentResponse)
@@ -231,7 +244,9 @@ async def conduct_email_behavioral_assessment(
         assessment_results = {}
 
         if request.assessment_type == "communication_effectiveness":
-            results = await email_connector.assess_communication_effectiveness(email_data)
+            results = await email_connector.assess_communication_effectiveness(
+                email_data
+            )
             assessment_results["communication_effectiveness"] = results
 
         elif request.assessment_type == "leadership_communication":
@@ -243,21 +258,29 @@ async def conduct_email_behavioral_assessment(
             assessment_results["team_collaboration"] = results
 
         elif request.assessment_type == "customer_service":
-            results = await email_connector.assess_customer_service_communication(email_data)
+            results = await email_connector.assess_customer_service_communication(
+                email_data
+            )
             assessment_results["customer_service"] = results
 
         elif request.assessment_type == "conflict_resolution":
-            results = await email_connector.assess_conflict_resolution_patterns(email_data)
+            results = await email_connector.assess_conflict_resolution_patterns(
+                email_data
+            )
             assessment_results["conflict_resolution"] = results
 
         # Integrate with behavioral analysis
-        behavioral_integration = await email_connector.integrate_with_behavioral_analysis(
-            email_data, assessment_results
+        behavioral_integration = (
+            await email_connector.integrate_with_behavioral_analysis(
+                email_data, assessment_results
+            )
         )
 
         # Generate assessment recommendations
-        assessment_recommendations = await email_connector.generate_assessment_recommendations(
-            assessment_results, behavioral_integration
+        assessment_recommendations = (
+            await email_connector.generate_assessment_recommendations(
+                assessment_results, behavioral_integration
+            )
         )
 
         # Calculate assessment scores
@@ -276,7 +299,9 @@ async def conduct_email_behavioral_assessment(
             behavioral_integration=behavioral_integration,
             assessment_scores=assessment_scores,
             assessment_recommendations=assessment_recommendations,
-            development_areas=await email_connector.identify_development_areas(assessment_results),
+            development_areas=await email_connector.identify_development_areas(
+                assessment_results
+            ),
             strengths_identified=await email_connector.identify_communication_strengths(
                 assessment_results
             ),
@@ -286,7 +311,9 @@ async def conduct_email_behavioral_assessment(
 
     except Exception as e:
         logger.error(f"Email behavioral assessment failed: {e!s}")
-        raise HTTPException(status_code=500, detail="Email behavioral assessment failed") from e
+        raise HTTPException(
+            status_code=500, detail="Email behavioral assessment failed"
+        ) from e
 
 
 @router.post("/sync/manual", response_model=EmailSyncResponse)
@@ -307,7 +334,9 @@ async def trigger_manual_email_sync(
         )
 
         if not connection_status["connected"]:
-            raise HTTPException(status_code=400, detail="Email connection not established")
+            raise HTTPException(
+                status_code=400, detail="Email connection not established"
+            )
 
         # Start email sync process
         sync_task = await email_fetching.start_manual_sync(
@@ -331,7 +360,9 @@ async def trigger_manual_email_sync(
             sync_task_id=sync_task["task_id"],
             sync_status="started",
             sync_options=request.sync_options,
-            estimated_duration=await email_fetching.estimate_sync_duration(request.sync_options),
+            estimated_duration=await email_fetching.estimate_sync_duration(
+                request.sync_options
+            ),
             sync_started_at=datetime.utcnow(),
             last_sync=connection_status.get("last_sync"),
             emails_to_sync=sync_task.get("emails_pending", 0),
@@ -366,7 +397,9 @@ async def get_email_sync_status(
 
     except Exception as e:
         logger.error(f"Failed to get email sync status: {e!s}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve email sync status") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve email sync status"
+        ) from e
 
 
 @router.post("/configuration/update", response_model=EmailConfigurationResponse)
@@ -408,11 +441,15 @@ async def update_email_configuration(
 
     except Exception as e:
         logger.error(f"Email configuration update failed: {e!s}")
-        raise HTTPException(status_code=500, detail="Email configuration update failed") from e
+        raise HTTPException(
+            status_code=500, detail="Email configuration update failed"
+        ) from e
 
 
 @router.get("/connections")
-async def get_email_connections(current_user: dict[str, Any] = Depends(get_current_user)):
+async def get_email_connections(
+    current_user: dict[str, Any] = Depends(get_current_user)
+):
     """
     Get all email connections for the user
     List configured email accounts and their status
@@ -438,12 +475,16 @@ async def get_email_connections(current_user: dict[str, Any] = Depends(get_curre
 
     except Exception as e:
         logger.error(f"Failed to get email connections: {e!s}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve email connections") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve email connections"
+        ) from e
 
 
 @router.delete("/connection/{connection_id}")
 async def disconnect_email_account(
-    connection_id: str, current_user: dict[str, Any] = Depends(get_current_user), db=Depends(get_db)
+    connection_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    db=Depends(get_db),
 ):
     """
     Disconnect email account and remove data
@@ -459,7 +500,9 @@ async def disconnect_email_account(
         data_removal = await email_fetching.remove_email_data(
             user_id=current_user["id"],
             connection_id=connection_id,
-            remove_data=request.remove_data if hasattr(request, "remove_data") else False,
+            remove_data=(
+                request.remove_data if hasattr(request, "remove_data") else False
+            ),
         )
 
         # Delete connection configuration
@@ -483,7 +526,9 @@ async def disconnect_email_account(
 
 @router.get("/analytics/dashboard")
 async def get_email_analytics_dashboard(
-    time_period: str = Query(default="30d", description="Time period for dashboard data"),
+    time_period: str = Query(
+        default="30d", description="Time period for dashboard data"
+    ),
     current_user: dict[str, Any] = Depends(get_current_user),
 ):
     """
@@ -506,7 +551,9 @@ async def get_email_analytics_dashboard(
 
     except Exception as e:
         logger.error(f"Failed to get email analytics dashboard: {e!s}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve email analytics dashboard") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve email analytics dashboard"
+        ) from e
 
 
 @router.get("/providers/available", dependencies=[Depends(get_current_user)])
@@ -528,7 +575,13 @@ async def get_available_email_providers():
                 "name": "Microsoft Outlook",
                 "auth_type": "OAuth2",
                 "api_support": True,
-                "features": ["read", "send", "folders", "search", "calendar_integration"],
+                "features": [
+                    "read",
+                    "send",
+                    "folders",
+                    "search",
+                    "calendar_integration",
+                ],
                 "limitations": ["API_rate_limits", "enterprise_policies"],
                 "setup_difficulty": "Easy",
             },
@@ -536,7 +589,14 @@ async def get_available_email_providers():
                 "name": "Microsoft Exchange",
                 "auth_type": "Basic/OAuth2",
                 "api_support": True,
-                "features": ["read", "send", "folders", "search", "calendar", "contacts"],
+                "features": [
+                    "read",
+                    "send",
+                    "folders",
+                    "search",
+                    "calendar",
+                    "contacts",
+                ],
                 "limitations": ["server_configuration", "firewall_restrictions"],
                 "setup_difficulty": "Advanced",
             },
@@ -572,4 +632,6 @@ async def get_available_email_providers():
 
     except Exception as e:
         logger.error(f"Failed to get available email providers: {e!s}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve available email providers") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve available email providers"
+        ) from e

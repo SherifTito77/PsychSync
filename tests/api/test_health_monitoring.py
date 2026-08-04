@@ -7,27 +7,26 @@ Tests for:
 - API endpoints - health monitoring endpoints
 """
 
-import pytest
-from datetime import datetime, timedelta, date
+from datetime import date, datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
-from unittest.mock import Mock, patch, AsyncMock
 
+import pytest
 from sqlalchemy.orm import Session
 
-from app.services.health.stress_monitoring_service import (
-    StressMonitoringService,
-    HealthRiskIndicators,
-    BiometricData,
-    StressLevel,
-    BurnoutStage
-)
 from app.services.health.intervention_system import (
     HealthInterventionSystem,
     InterventionAction,
     InterventionType,
-    InterventionUrgency
+    InterventionUrgency,
 )
-
+from app.services.health.stress_monitoring_service import (
+    BiometricData,
+    BurnoutStage,
+    HealthRiskIndicators,
+    StressLevel,
+    StressMonitoringService,
+)
 
 # ============================================================================
 # StressMonitoringService Tests
@@ -60,15 +59,12 @@ class TestStressMonitoringService:
             sleep_hours=5.5,
             sleep_quality=0.4,
             steps_per_day=4000,
-            activity_minutes=20
+            activity_minutes=20,
         )
 
     @pytest.mark.asyncio
     async def test_analyze_health_risks_with_high_biometric_risk(
-        self,
-        monitoring_service,
-        db_session,
-        sample_biometric_data
+        self, monitoring_service, db_session, sample_biometric_data
     ):
         """Test health risk analysis with high biometric risk factors"""
         user_id = str(uuid4())
@@ -109,25 +105,29 @@ class TestStressMonitoringService:
         mock_wellness.sleep_disruption = 0.7
         mock_wellness.social_withdrawal = 0.6
 
-        with patch.object(monitoring_service, '_analyze_work_patterns') as mock_work:
-            with patch.object(monitoring_service, '_analyze_communication_stress') as mock_comm:
-                with patch.object(monitoring_service, '_get_wellness_metrics') as mock_wellness_query:
+        with patch.object(monitoring_service, "_analyze_work_patterns") as mock_work:
+            with patch.object(
+                monitoring_service, "_analyze_communication_stress"
+            ) as mock_comm:
+                with patch.object(
+                    monitoring_service, "_get_wellness_metrics"
+                ) as mock_wellness_query:
 
                     mock_work.return_value = {
-                        'weekly_hours': 65,
-                        'after_hours_count': 60,
-                        'weekend_work_percentage': 0.7,
-                        'continuous_days': 18,
-                        'avg_emails_per_day': 100 / 30,
-                        'data_available': True
+                        "weekly_hours": 65,
+                        "after_hours_count": 60,
+                        "weekend_work_percentage": 0.7,
+                        "continuous_days": 18,
+                        "avg_emails_per_day": 100 / 30,
+                        "data_available": True,
                     }
 
                     mock_comm.return_value = {
-                        'urgency_emails': 25,
-                        'conflict_indicators': 8,
-                        'negative_sentiment_avg': -0.5,
-                        'sentiment_volatility': 0.7,
-                        'data_available': True
+                        "urgency_emails": 25,
+                        "conflict_indicators": 8,
+                        "negative_sentiment_avg": -0.5,
+                        "sentiment_volatility": 0.7,
+                        "data_available": True,
                     }
 
                     mock_wellness_query.return_value = mock_wellness
@@ -137,17 +137,30 @@ class TestStressMonitoringService:
                         user_id=user_id,
                         organization_id=organization_id,
                         time_window_days=30,
-                        biometric_data=sample_biometric_data
+                        biometric_data=sample_biometric_data,
                     )
 
                     # Assertions
-                    assert health_risks.stress_level in [StressLevel.HIGH, StressLevel.CRITICAL]
-                    assert health_risks.cardiovascular_risk_score > 0.7  # High due to biometric data
+                    assert health_risks.stress_level in [
+                        StressLevel.HIGH,
+                        StressLevel.CRITICAL,
+                    ]
+                    assert (
+                        health_risks.cardiovascular_risk_score > 0.7
+                    )  # High due to biometric data
                     assert health_risks.urgent_intervention_needed == True
-                    assert health_risks.recommend_medical_evaluation == True  # Due to high BP
+                    assert (
+                        health_risks.recommend_medical_evaluation == True
+                    )  # Due to high BP
                     assert len(health_risks.primary_risk_factors) > 0
-                    assert any('blood pressure' in factor.lower() for factor in health_risks.primary_risk_factors)
-                    assert any('heart rate' in factor.lower() for factor in health_risks.primary_risk_factors)
+                    assert any(
+                        "blood pressure" in factor.lower()
+                        for factor in health_risks.primary_risk_factors
+                    )
+                    assert any(
+                        "heart rate" in factor.lower()
+                        for factor in health_risks.primary_risk_factors
+                    )
 
     @pytest.mark.asyncio
     async def test_analyze_health_risks_normal(self, monitoring_service):
@@ -164,28 +177,32 @@ class TestStressMonitoringService:
             sleep_hours=8,
             sleep_quality=0.9,
             steps_per_day=10000,
-            activity_minutes=60
+            activity_minutes=60,
         )
 
-        with patch.object(monitoring_service, '_analyze_work_patterns') as mock_work:
-            with patch.object(monitoring_service, '_analyze_communication_stress') as mock_comm:
-                with patch.object(monitoring_service, '_get_wellness_metrics') as mock_wellness_query:
+        with patch.object(monitoring_service, "_analyze_work_patterns") as mock_work:
+            with patch.object(
+                monitoring_service, "_analyze_communication_stress"
+            ) as mock_comm:
+                with patch.object(
+                    monitoring_service, "_get_wellness_metrics"
+                ) as mock_wellness_query:
 
                     mock_work.return_value = {
-                        'weekly_hours': 40,
-                        'after_hours_count': 5,
-                        'weekend_work_percentage': 0.1,
-                        'continuous_days': 5,
-                        'avg_emails_per_day': 20 / 30,
-                        'data_available': True
+                        "weekly_hours": 40,
+                        "after_hours_count": 5,
+                        "weekend_work_percentage": 0.1,
+                        "continuous_days": 5,
+                        "avg_emails_per_day": 20 / 30,
+                        "data_available": True,
                     }
 
                     mock_comm.return_value = {
-                        'urgency_emails': 2,
-                        'conflict_indicators': 0,
-                        'negative_sentiment_avg': 0.1,
-                        'sentiment_volatility': 0.2,
-                        'data_available': True
+                        "urgency_emails": 2,
+                        "conflict_indicators": 0,
+                        "negative_sentiment_avg": 0.1,
+                        "sentiment_volatility": 0.2,
+                        "data_available": True,
                     }
 
                     mock_wellness_query.return_value = None
@@ -194,11 +211,14 @@ class TestStressMonitoringService:
                         user_id=user_id,
                         organization_id=organization_id,
                         time_window_days=30,
-                        biometric_data=normal_biometric
+                        biometric_data=normal_biometric,
                     )
 
                     # Should be normal or elevated
-                    assert health_risks.stress_level in [StressLevel.NORMAL, StressLevel.ELEVATED]
+                    assert health_risks.stress_level in [
+                        StressLevel.NORMAL,
+                        StressLevel.ELEVATED,
+                    ]
                     assert health_risks.cardiovascular_risk_score < 0.3  # Low risk
                     assert health_risks.urgent_intervention_needed == False
                     assert health_risks.recommend_medical_evaluation == False
@@ -206,14 +226,11 @@ class TestStressMonitoringService:
     @pytest.mark.asyncio
     async def test_determine_burnout_stage_habitual(self, monitoring_service):
         """Test burnout stage determination - habitual burnout"""
-        work_patterns = {
-            'weekly_hours': 70,
-            'continuous_days': 25
-        }
+        work_patterns = {"weekly_hours": 70, "continuous_days": 25}
 
         communication_stress = {
-            'negative_sentiment_avg': -0.8,
-            'conflict_indicators': 15
+            "negative_sentiment_avg": -0.8,
+            "conflict_indicators": 15,
         }
 
         mock_wellness = Mock()
@@ -223,49 +240,51 @@ class TestStressMonitoringService:
         mock_wellness.professional_efficacy = 3
 
         stage = monitoring_service._determine_burnout_stage(
-            work_patterns,
-            communication_stress,
-            mock_wellness
+            work_patterns, communication_stress, mock_wellness
         )
 
         assert stage in [BurnoutStage.BURNOUT, BurnoutStage.HABITUAL_BURNOUT]
 
     @pytest.mark.asyncio
-    async def test_calculate_cardiovascular_risk_with_biometrics(self, monitoring_service):
+    async def test_calculate_cardiovascular_risk_with_biometrics(
+        self, monitoring_service
+    ):
         """Test cardiovascular risk calculation with biometric data"""
-        work_patterns = {'weekly_hours': 60, 'continuous_days': 15}
+        work_patterns = {"weekly_hours": 60, "continuous_days": 15}
 
         high_risk_biometric = BiometricData(
             resting_heart_rate=90,
             heart_rate_variability=35,
             blood_pressure_systolic=150,
             blood_pressure_diastolic=100,
-            sleep_hours=4
+            sleep_hours=4,
         )
 
         risk = monitoring_service._calculate_cardiovascular_risk(
             work_patterns=work_patterns,
             stress_level=StressLevel.HIGH,
             biometric_data=high_risk_biometric,
-            wellness_metrics=None
+            wellness_metrics=None,
         )
 
         # Should be very high risk
         assert risk > 0.8
 
-    def test_identify_risk_factors_comprehensive(self, monitoring_service, sample_biometric_data):
+    def test_identify_risk_factors_comprehensive(
+        self, monitoring_service, sample_biometric_data
+    ):
         """Test risk factor identification"""
         work_patterns = {
-            'weekly_hours': 65,
-            'continuous_days': 18,
-            'after_hours_count': 70,
-            'late_night_work_days': 15
+            "weekly_hours": 65,
+            "continuous_days": 18,
+            "after_hours_count": 70,
+            "late_night_work_days": 15,
         }
 
         communication_stress = {
-            'conflict_indicators': 12,
-            'urgency_emails': 35,
-            'negative_sentiment_avg': -0.7
+            "conflict_indicators": 12,
+            "urgency_emails": 35,
+            "negative_sentiment_avg": -0.7,
         }
 
         mock_wellness = Mock()
@@ -276,16 +295,16 @@ class TestStressMonitoringService:
             work_patterns=work_patterns,
             communication_stress=communication_stress,
             wellness_metrics=mock_wellness,
-            biometric_data=sample_biometric_data
+            biometric_data=sample_biometric_data,
         )
 
         # Should identify multiple risk factors
         assert len(risk_factors) > 5
 
         # Check for expected factors
-        factor_text = ' '.join(risk_factors).lower()
-        assert 'work hours' in factor_text or 'cardiovascular' in factor_text
-        assert 'blood pressure' in factor_text
+        factor_text = " ".join(risk_factors).lower()
+        assert "work hours" in factor_text or "cardiovascular" in factor_text
+        assert "blood pressure" in factor_text
 
 
 # ============================================================================
@@ -327,15 +346,12 @@ class TestHealthInterventionSystem:
             primary_risk_factors=[
                 "Excessive work hours (>60/week)",
                 "High blood pressure",
-                "Severe sleep deprivation"
+                "Severe sleep deprivation",
             ],
-            warning_signs=[
-                "Working most weekends",
-                "Emotional instability"
-            ],
+            warning_signs=["Working most weekends", "Emotional instability"],
             protective_factors=[],
-            data_sources=['email_metadata', 'communication_analysis', 'biometric_data'],
-            confidence_level=0.85
+            data_sources=["email_metadata", "communication_analysis", "biometric_data"],
+            confidence_level=0.85,
         )
 
     @pytest.mark.asyncio
@@ -360,13 +376,11 @@ class TestHealthInterventionSystem:
             warning_signs=[],
             protective_factors=[],
             data_sources=[],
-            confidence_level=0.8
+            confidence_level=0.8,
         )
 
         intervention = intervention_system._create_medical_alert_intervention(
-            user_id=user_id,
-            organization_id=organization_id,
-            health_risks=health_risks
+            user_id=user_id, organization_id=organization_id, health_risks=health_risks
         )
 
         assert intervention.intervention_type == InterventionType.MEDICAL_ALERT
@@ -374,7 +388,10 @@ class TestHealthInterventionSystem:
         assert intervention.notify_user == True
         assert intervention.notify_manager == True
         assert intervention.notify_hr == True
-        assert "medical" in intervention.title.lower() or "urgent" in intervention.title.lower()
+        assert (
+            "medical" in intervention.title.lower()
+            or "urgent" in intervention.title.lower()
+        )
         assert len(intervention.actions_required) > 0
         assert len(intervention.resources) > 0
 
@@ -400,20 +417,20 @@ class TestHealthInterventionSystem:
             warning_signs=[],
             protective_factors=[],
             data_sources=[],
-            confidence_level=0.7
+            confidence_level=0.7,
         )
 
         intervention = intervention_system._create_immediate_break_intervention(
-            user_id=user_id,
-            organization_id=organization_id,
-            health_risks=health_risks
+            user_id=user_id, organization_id=organization_id, health_risks=health_risks
         )
 
         assert intervention.intervention_type == InterventionType.IMMEDIATE_BREAK
         assert intervention.urgency == InterventionUrgency.CRITICAL
         assert "break" in intervention.title.lower()
         assert len(intervention.automated_actions) > 0
-        assert any('calendar' in action.lower() for action in intervention.automated_actions)
+        assert any(
+            "calendar" in action.lower() for action in intervention.automated_actions
+        )
 
     @pytest.mark.asyncio
     async def test_create_workload_reduction_intervention(self, intervention_system):
@@ -422,16 +439,13 @@ class TestHealthInterventionSystem:
         organization_id = str(uuid4())
         team_id = str(uuid4())
 
-        work_patterns = {
-            'weekly_hours': 70,
-            'continuous_days': 21
-        }
+        work_patterns = {"weekly_hours": 70, "continuous_days": 21}
 
         intervention = intervention_system._create_workload_reduction_intervention(
             user_id=user_id,
             organization_id=organization_id,
             team_id=team_id,
-            work_patterns=work_patterns
+            work_patterns=work_patterns,
         )
 
         assert intervention.intervention_type == InterventionType.WORKLOAD_REDUCTION
@@ -439,33 +453,29 @@ class TestHealthInterventionSystem:
         assert intervention.notify_manager == True
         assert intervention.notify_hr == True
         assert len(intervention.actions_required) > 0
-        assert any('workload' in action.lower() for action in intervention.actions_required)
+        assert any(
+            "workload" in action.lower() for action in intervention.actions_required
+        )
 
     @pytest.mark.asyncio
     async def test_create_intervention_plan_comprehensive(
-        self,
-        intervention_system,
-        db_session,
-        sample_health_risks
+        self, intervention_system, db_session, sample_health_risks
     ):
         """Test creation of comprehensive intervention plan"""
         user_id = str(uuid4())
         organization_id = str(uuid4())
         team_id = str(uuid4())
 
-        work_patterns = {
-            'weekly_hours': 65,
-            'continuous_days': 18
-        }
+        work_patterns = {"weekly_hours": 65, "continuous_days": 18}
 
-        with patch.object(intervention_system, '_persist_interventions'):
-            with patch.object(intervention_system, '_execute_interventions'):
+        with patch.object(intervention_system, "_persist_interventions"):
+            with patch.object(intervention_system, "_execute_interventions"):
                 interventions = await intervention_system.create_intervention_plan(
                     user_id=user_id,
                     organization_id=organization_id,
                     team_id=team_id,
                     health_risks=sample_health_risks,
-                    work_patterns=work_patterns
+                    work_patterns=work_patterns,
                 )
 
                 # Should create multiple interventions
@@ -521,6 +531,7 @@ class TestHealthMonitoringAPI:
     def client(self):
         """Create test client"""
         from fastapi.testclient import TestClient
+
         from app.main import app
 
         return TestClient(app)

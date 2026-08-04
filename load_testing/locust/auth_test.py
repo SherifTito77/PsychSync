@@ -3,12 +3,12 @@ Authentication Load Test for PsychSync
 Tests login, token refresh, and logout under concurrent load
 """
 
-from locust import HttpUser, task, between, events
-from locust.runners import MasterRunner
 import logging
 import random
 from datetime import datetime
 
+from locust import HttpUser, between, events, task
+from locust.runners import MasterRunner
 from locust_config import LoadTestConfig, get_headers, log_response, test_data_manager
 
 logger = logging.getLogger(__name__)
@@ -56,7 +56,9 @@ class AuthUser(HttpUser):
                 logger.info(f"User {credentials['email']} logged in successfully")
             else:
                 response.failure(f"Login failed: {response.status_code}")
-                logger.error(f"Login failed for {credentials['email']}: {response.text[:200]}")
+                logger.error(
+                    f"Login failed for {credentials['email']}: {response.text[:200]}"
+                )
 
     @task(7)
     def login_with_refresh(self):
@@ -187,7 +189,9 @@ def on_test_stop(environment, **kwargs):
 
     logger.info(f"Total requests: {environment.stats.total.num_requests}")
     logger.info(f"Failures: {environment.stats.total.num_failures}")
-    logger.info(f"Median response time: {environment.stats.total.median_response_time}ms")
+    logger.info(
+        f"Median response time: {environment.stats.total.median_response_time}ms"
+    )
     logger.info(f"Average response time: {environment.stats.total.avg_response_time}ms")
 
 

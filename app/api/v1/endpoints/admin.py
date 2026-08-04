@@ -10,10 +10,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_active_superuser, get_db, get_async_db
+from app.api.deps import get_async_db, get_current_active_superuser, get_db
 from app.api.v1.deps import get_current_user
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User as UserModel
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from app.schemas.user import UserOut as UserSchema
 
 # Temporarily disabled due to syntax issues after async conversion
@@ -21,7 +21,9 @@ from app.schemas.user import UserOut as UserSchema
 
 
 # Placeholder functions for admin functionality
-async def get_users_by_organization(db, organization_id, skip=0, limit=100, is_active=None):
+async def get_users_by_organization(
+    db, organization_id, skip=0, limit=100, is_active=None
+):
     """Placeholder function"""
     return []
 
@@ -75,7 +77,9 @@ def soft_delete_user(
     """
     success = delete_user(db, user_id=user_id, hard_delete=False)
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
     return {"message": "User deactivated successfully"}
 
 
@@ -94,7 +98,9 @@ def restore_user_endpoint(
     """
     success = restore_user(db, user_id=user_id)
     if not success:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
     return {"message": "User restored successfully"}
 
 

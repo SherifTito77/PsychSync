@@ -4,18 +4,19 @@ Create database schema directly from SQLAlchemy models.
 This script creates all tables based on the current model definitions.
 """
 import asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from app.db.base import Base  # Import Base with all models
+
 from app.core.config import settings
+from app.db.base import Base  # Import Base with all models
 
 
 async def create_schema():
     """Create all tables from SQLAlchemy models."""
     # Create async engine
     engine = create_async_engine(
-        settings.DATABASE_URL,
-        echo=True  # Print SQL statements for verification
+        settings.DATABASE_URL, echo=True  # Print SQL statements for verification
     )
 
     print("Creating database schema from models...")

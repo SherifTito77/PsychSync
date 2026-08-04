@@ -7,14 +7,15 @@ query building logic.
 
 import pytest
 from sqlalchemy import select
+
 from app.api.v1.endpoints.assessments.query_builder import (
-    AssessmentQueryBuilder,
     AssessmentFilters,
-    SearchFilter,
+    AssessmentQueryBuilder,
     CategoryFilter,
-    StatusFilter,
     CreatedByFilter,
     DateRangeFilter,
+    SearchFilter,
+    StatusFilter,
 )
 
 
@@ -57,10 +58,12 @@ class TestFilterSpecifications:
 
         assert filter.is_applicable(created_after="2024-01-01") is True
         assert filter.is_applicable(created_before="2024-12-31") is True
-        assert filter.is_applicable(
-            created_after="2024-01-01",
-            created_before="2024-12-31"
-        ) is True
+        assert (
+            filter.is_applicable(
+                created_after="2024-01-01", created_before="2024-12-31"
+            )
+            is True
+        )
         assert filter.is_applicable() is False
 
 
@@ -116,6 +119,7 @@ class TestAssessmentQueryBuilder:
     @pytest.fixture
     def mock_user(self):
         """Create a mock user"""
+
         class MockUser:
             id = 123
 
@@ -129,7 +133,7 @@ class TestAssessmentQueryBuilder:
 
         assert query is not None
         # Query should be a Select object
-        assert hasattr(query, 'where')
+        assert hasattr(query, "where")
 
     def test_builder_applies_search_filter(self, mock_user):
         """Test that builder applies search filter"""

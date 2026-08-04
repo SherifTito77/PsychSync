@@ -18,18 +18,18 @@ Version: 2.0 Enterprise Security
 """
 
 import base64
-from dataclasses import dataclass
-from datetime import datetime, timedelta
-from enum import Enum
 import hashlib
 import logging
 import secrets
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from enum import Enum
 from typing import Any
 
+import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
-import jwt
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -150,7 +150,11 @@ async def verify_password(
     if not plain_password or not hashed_password:
         security_logger.warning(
             "Password verification with empty values",
-            extra={"ip_address": ip_address, "user_id": user_id, "event_type": "security_warning"},
+            extra={
+                "ip_address": ip_address,
+                "user_id": user_id,
+                "event_type": "security_warning",
+            },
         )
         return False
 
@@ -220,7 +224,10 @@ async def verify_password(
             user_id=user_id,
             ip_address=ip_address,
             user_agent="password_verification",
-            details={"error_type": type(e).__name__, "verification_time": verification_time},
+            details={
+                "error_type": type(e).__name__,
+                "verification_time": verification_time,
+            },
             risk_score=0.6,
         )
 
@@ -277,9 +284,13 @@ def validate_password(password: str) -> dict[str, Any]:
 
     # Check minimum length
     if len(password) < settings.MIN_PASSWORD_LENGTH:
-        errors.append(f"Password must be at least {settings.MIN_PASSWORD_LENGTH} characters long")
+        errors.append(
+            f"Password must be at least {settings.MIN_PASSWORD_LENGTH} characters long"
+        )
     elif len(password) < 16:
-        warnings.append("Consider using a password of at least 16 characters for better security")
+        warnings.append(
+            "Consider using a password of at least 16 characters for better security"
+        )
 
     # Check for uppercase letter
     if getattr(settings, "PASSWORD_REQUIRE_UPPERCASE", True) and not any(
@@ -303,7 +314,9 @@ def validate_password(password: str) -> dict[str, Any]:
     if getattr(settings, "PASSWORD_REQUIRE_SPECIAL_CHARS", True):
         special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?`~"
         if not any(c in special_chars for c in password):
-            errors.append(f"Password must contain at least one special character: {special_chars}")
+            errors.append(
+                f"Password must contain at least one special character: {special_chars}"
+            )
 
     # Prevent common weak patterns
     weak_patterns = [
@@ -328,15 +341,17 @@ def validate_password(password: str) -> dict[str, Any]:
     # Check for sequential characters
     sequential_count = 0
     for i in range(len(password) - 2):
-        if (ord(password[i]) + 1 == ord(password[i + 1]) == ord(password[i + 2]) - 1) or (
-            ord(password[i]) - 1 == ord(password[i + 1]) == ord(password[i + 2]) + 1
-        ):
+        if (
+            ord(password[i]) + 1 == ord(password[i + 1]) == ord(password[i + 2]) - 1
+        ) or (ord(password[i]) - 1 == ord(password[i + 1]) == ord(password[i + 2]) + 1):
             sequential_count += 1
 
     if sequential_count > len(password) * 0.1:  # More than 10% sequential characters
         errors.append("Password contains too many sequential characters")
     elif sequential_count > 0:
-        warnings.append("Password contains sequential characters, consider changing them")
+        warnings.append(
+            "Password contains sequential characters, consider changing them"
+        )
 
     # Check for repeated characters
     repeated_count = 0
@@ -368,7 +383,9 @@ def validate_password(password: str) -> dict[str, Any]:
     ]
     for pattern in keyboard_patterns:
         if pattern in password_lower:
-            warnings.append(f"Password contains keyboard pattern '{pattern}', consider changing it")
+            warnings.append(
+                f"Password contains keyboard pattern '{pattern}', consider changing it"
+            )
 
     # Calculate password strength score
     strength_score = _calculate_password_strength(password)
@@ -508,7 +525,9 @@ def generate_password_requirements() -> dict[str, Any]:
         "require_uppercase": getattr(settings, "PASSWORD_REQUIRE_UPPERCASE", True),
         "require_lowercase": getattr(settings, "PASSWORD_REQUIRE_LOWERCASE", True),
         "require_digits": getattr(settings, "PASSWORD_REQUIRE_DIGITS", True),
-        "require_special_chars": getattr(settings, "PASSWORD_REQUIRE_SPECIAL_CHARS", True),
+        "require_special_chars": getattr(
+            settings, "PASSWORD_REQUIRE_SPECIAL_CHARS", True
+        ),
         "special_characters": special_chars,
         "recommended_length": 16,
         "forbidden_patterns": [
@@ -562,7 +581,9 @@ async def create_access_token(
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.utcnow() + timedelta(
+            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        )
 
     # Generate secure JWT ID for token tracking
     jti = secrets.token_urlsafe(32)
@@ -607,9 +628,13 @@ async def create_access_token(
             issued_at=datetime.utcnow(),
             expires_at=expire,
             ip_address=request.client.host if request and request.client else "unknown",
-            user_agent=request.headers.get("User-Agent", "unknown") if request else "unknown",
+            user_agent=(
+                request.headers.get("User-Agent", "unknown") if request else "unknown"
+            ),
             device_fingerprint=device_fingerprint if request else "unknown",
-            session_id=additional_claims.get("session_id") if additional_claims else None,
+            session_id=(
+                additional_claims.get("session_id") if additional_claims else None
+            ),
         )
 
         # Cache token metadata
@@ -620,7 +645,9 @@ async def create_access_token(
             SecurityEventType.TOKEN_CREATED,
             user_id=user_id or str(subject),
             ip_address=request.client.host if request and request.client else "unknown",
-            user_agent=request.headers.get("User-Agent", "unknown") if request else "unknown",
+            user_agent=(
+                request.headers.get("User-Agent", "unknown") if request else "unknown"
+            ),
             details={
                 "token_type": TokenType.ACCESS.value,
                 "jti": jti,
@@ -654,7 +681,9 @@ async def create_access_token(
         raise RuntimeError("Token creation failed due to security error") from e
 
 
-def create_refresh_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
+def create_refresh_token(
+    subject: str | Any, expires_delta: timedelta | None = None
+) -> str:
     """
     Create a JWT refresh token.
 
@@ -700,14 +729,18 @@ def create_token_pair(
         access_expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
     access_token = create_access_token(
-        subject=subject, expires_delta=access_expires_delta, additional_claims=additional_claims
+        subject=subject,
+        expires_delta=access_expires_delta,
+        additional_claims=additional_claims,
     )
 
     # Create refresh token with long expiration (7 days)
     if not refresh_expires_delta:
         refresh_expires_delta = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
 
-    refresh_token = create_refresh_token(subject=subject, expires_delta=refresh_expires_delta)
+    refresh_token = create_refresh_token(
+        subject=subject, expires_delta=refresh_expires_delta
+    )
 
     return {
         "access_token": access_token,
@@ -882,7 +915,9 @@ async def get_current_active_user(current_user=Depends(get_current_user)):
         HTTPException: If user is inactive
     """
     if not current_user.is_active:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
+        )
     return current_user
 
 
@@ -903,7 +938,9 @@ def create_password_reset_token(email: str) -> str:
     """
     expires_delta = timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES)
     return create_access_token(
-        subject=email, expires_delta=expires_delta, additional_claims={"type": "password_reset"}
+        subject=email,
+        expires_delta=expires_delta,
+        additional_claims={"type": "password_reset"},
     )
 
 
@@ -947,7 +984,9 @@ def create_email_verification_token(email: str) -> str:
     """
     expires_delta = timedelta(hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS)
     return create_access_token(
-        subject=email, expires_delta=expires_delta, additional_claims={"type": "email_verification"}
+        subject=email,
+        expires_delta=expires_delta,
+        additional_claims={"type": "email_verification"},
     )
 
 
@@ -995,7 +1034,9 @@ async def invalidate_refresh_token(refresh_token: str) -> None:
     key = f"blacklist:refresh:{token_hash}"
 
     # Store in cache with expiration (longer than refresh token validity)
-    await cache_set(key, "invalid", expire_seconds=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600)
+    await cache_set(
+        key, "invalid", expire_seconds=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 3600
+    )
 
 
 async def is_token_blacklisted(token_hash: str) -> bool:
@@ -1035,7 +1076,9 @@ def get_refresh_token_hash(refresh_token: str) -> str:
 # =============================================================================
 
 
-async def verify_refresh_token_secure(refresh_token: str, db: AsyncSession) -> str | None:
+async def verify_refresh_token_secure(
+    refresh_token: str, db: AsyncSession
+) -> str | None:
     """
     Verify refresh token with blacklist check and user validation
 
@@ -1068,7 +1111,9 @@ async def verify_refresh_token_secure(refresh_token: str, db: AsyncSession) -> s
 
         from app.db.models.user import User
 
-        result = await db.execute(select(User).where(User.id == user_id, User.is_active == True))
+        result = await db.execute(
+            select(User).where(User.id == user_id, User.is_active == True)
+        )
         user = result.scalar_one_or_none()
 
         if not user:
@@ -1119,9 +1164,13 @@ async def cache_token_metadata(jti: str, metadata: TokenMetadata) -> None:
         }
 
         # Cache for token duration plus buffer
-        cache_duration = int((metadata.expires_at - metadata.issued_at).total_seconds()) + 3600
+        cache_duration = (
+            int((metadata.expires_at - metadata.issued_at).total_seconds()) + 3600
+        )
         await cache_set(
-            f"{TOKEN_METADATA_CACHE_PREFIX}:{jti}", metadata_dict, expire_seconds=cache_duration
+            f"{TOKEN_METADATA_CACHE_PREFIX}:{jti}",
+            metadata_dict,
+            expire_seconds=cache_duration,
         )
 
     except Exception as e:
@@ -1166,9 +1215,13 @@ async def record_security_event(
 
         # Cache for 30 days - Fixed async call
         try:
-            result = await cache_set(event_key, event_dict, expire_seconds=30 * 24 * 3600)
+            result = await cache_set(
+                event_key, event_dict, expire_seconds=30 * 24 * 3600
+            )
             if not isinstance(result, bool):
-                security_logger.warning(f"cache_set returned unexpected type: {type(result)}")
+                security_logger.warning(
+                    f"cache_set returned unexpected type: {type(result)}"
+                )
         except Exception as cache_error:
             security_logger.error(f"Failed to record security event: {cache_error}")
 
@@ -1204,7 +1257,9 @@ async def blacklist_token(jti: str, reason: str = "user_logout") -> None:
 
         # Store in blacklist for extended period (30 days beyond token expiry)
         await cache_set(
-            f"{TOKEN_BLACKLIST_CACHE_PREFIX}:{jti}", blacklist_data, expire_seconds=30 * 24 * 3600
+            f"{TOKEN_BLACKLIST_CACHE_PREFIX}:{jti}",
+            blacklist_data,
+            expire_seconds=30 * 24 * 3600,
         )
 
         # Record security event
@@ -1240,7 +1295,9 @@ async def is_token_blacklisted(jti: str) -> bool:
         return True
 
 
-async def emergency_revoke_all_tokens(user_id: str, reason: str = "emergency_revocation") -> None:
+async def emergency_revoke_all_tokens(
+    user_id: str, reason: str = "emergency_revocation"
+) -> None:
     """
     Emergency revocation of all user tokens
     """
@@ -1272,11 +1329,17 @@ async def emergency_revoke_all_tokens(user_id: str, reason: str = "emergency_rev
 
         security_logger.critical(
             f"EMERGENCY TOKEN REVOCATION for user {user_id}: {reason}",
-            extra={"user_id": user_id, "reason": reason, "event_type": "emergency_revocation"},
+            extra={
+                "user_id": user_id,
+                "reason": reason,
+                "event_type": "emergency_revocation",
+            },
         )
 
     except Exception as e:
-        security_logger.error(f"Failed emergency token revocation for user {user_id}: {e}")
+        security_logger.error(
+            f"Failed emergency token revocation for user {user_id}: {e}"
+        )
 
 
 async def is_emergency_revoked(user_id: str) -> bool:
@@ -1291,7 +1354,9 @@ async def is_emergency_revoked(user_id: str) -> bool:
         return result is not None
 
     except Exception as e:
-        security_logger.error(f"Failed to check emergency revocation for user {user_id}: {e}")
+        security_logger.error(
+            f"Failed to check emergency revocation for user {user_id}: {e}"
+        )
         # Fail securely - assume revoked if check fails
         return True
 
@@ -1637,12 +1702,19 @@ def log_login_attempt(
     """
     security_logger.info(
         f"Login attempt: {'SUCCESS' if success else 'FAILED'}",
-        extra={"user_id": user_id, "ip_address": ip_address, "reason": reason, "success": success},
+        extra={
+            "user_id": user_id,
+            "ip_address": ip_address,
+            "reason": reason,
+            "success": success,
+        },
     )
     return True
 
 
-def detect_brute_force(ip_address: str, threshold: int = 5, window_minutes: int = 15) -> bool:
+def detect_brute_force(
+    ip_address: str, threshold: int = 5, window_minutes: int = 15
+) -> bool:
     """
     Detect brute force attack attempts
 

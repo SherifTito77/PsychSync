@@ -4,12 +4,12 @@ Common API utilities and decorators for consistent endpoint implementation
 Includes pagination, filtering, caching, and error handling utilities
 """
 
+import time
+import uuid
 from collections.abc import Callable
 from datetime import datetime
 from functools import wraps
-import time
 from typing import Any, TypeVar
-import uuid
 
 from fastapi import HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
@@ -41,13 +41,17 @@ class SortParams(BaseModel):
     """Standard sorting parameters"""
 
     sort_by: str | None = Query(None, description="Field to sort by")
-    sort_order: str | None = Query("asc", pattern="^(asc|desc)$", description="Sort order")
+    sort_order: str | None = Query(
+        "asc", pattern="^(asc|desc)$", description="Sort order"
+    )
 
 
 class FilterParams(BaseModel):
     """Base filter parameters"""
 
-    created_after: datetime | None = Query(None, description="Filter items created after this date")
+    created_after: datetime | None = Query(
+        None, description="Filter items created after this date"
+    )
     created_before: datetime | None = Query(
         None, description="Filter items created before this date"
     )
@@ -62,13 +66,17 @@ def get_pagination_params(
     return PaginationParams(page=page, size=size)
 
 
-def get_sort_params(sort_by: str | None = None, sort_order: str | None = "asc") -> SortParams:
+def get_sort_params(
+    sort_by: str | None = None, sort_order: str | None = "asc"
+) -> SortParams:
     """Get sorting parameters with validation"""
     return SortParams(sort_by=sort_by, sort_order=sort_order)
 
 
 def create_filter_meta(
-    applied_filters: dict[str, Any], available_filters: dict[str, Any], sort_params: SortParams
+    applied_filters: dict[str, Any],
+    available_filters: dict[str, Any],
+    sort_params: SortParams,
 ) -> FilterMeta:
     """Create filter metadata"""
     return FilterMeta(
@@ -155,12 +163,17 @@ def handle_api_errors(func: Callable) -> Callable:
         except HTTPException:
             raise
         except ValueError as e:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+            ) from e
         except PermissionError:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied") from e
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied"
+            ) from e
         except Exception:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Internal server error",
             ) from e
 
     return wrapper
@@ -190,12 +203,14 @@ def apply_filters(query: Any, filter_params: dict[str, Any]) -> Any:
     # Date range filters
     if filter_params.get("created_after"):
         query = query.filter(
-            query.column_descriptions[0]["type"].created_at >= filter_params["created_after"]
+            query.column_descriptions[0]["type"].created_at
+            >= filter_params["created_after"]
         )
 
     if filter_params.get("created_before"):
         query = query.filter(
-            query.column_descriptions[0]["type"].created_at <= filter_params["created_before"]
+            query.column_descriptions[0]["type"].created_at
+            <= filter_params["created_before"]
         )
 
     # Status filter
@@ -209,14 +224,18 @@ def apply_filters(query: Any, filter_params: dict[str, Any]) -> Any:
     if filter_params.get("search"):
         search_term = f"%{filter_params['search']}%"
         if hasattr(query.column_descriptions[0]["type"], "name"):
-            query = query.filter(query.column_descriptions[0]["type"].name.ilike(search_term))
+            query = query.filter(
+                query.column_descriptions[0]["type"].name.ilike(search_term)
+            )
 
     return query
 
 
 def apply_sorting(query: Any, sort_params: SortParams) -> Any:
     """Apply sorting to a SQLAlchemy query"""
-    if sort_params.sort_by and hasattr(query.column_descriptions[0]["type"], sort_params.sort_by):
+    if sort_params.sort_by and hasattr(
+        query.column_descriptions[0]["type"], sort_params.sort_by
+    ):
         sort_field = getattr(query.column_descriptions[0]["type"], sort_params.sort_by)
 
         if sort_params.sort_order == "desc":
@@ -273,7 +292,8 @@ def validate_permissions(required_permissions: list[str]):
             current_user = kwargs.get("current_user")
             if not current_user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required",
                 )
 
             # Check permissions (simplified - implement based on your auth system)

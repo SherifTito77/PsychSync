@@ -4,10 +4,10 @@ Request Tracking Middleware for PsychSync
 Provides request ID tracking, performance monitoring, and security logging
 """
 
-from collections.abc import Callable
 import time
-from typing import Any
 import uuid
+from collections.abc import Callable
+from typing import Any
 
 from fastapi import HTTPException, Request, Response, status
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -23,7 +23,9 @@ class RequestTrackingMiddleware(BaseHTTPMiddleware):
     Middleware to track requests with unique IDs and monitor performance
     """
 
-    def __init__(self, app, exclude_paths: list | None = None, include_health_check: bool = False):
+    def __init__(
+        self, app, exclude_paths: list | None = None, include_health_check: bool = False
+    ):
         super().__init__(app)
         self.exclude_paths = exclude_paths or [
             "/health",
@@ -44,7 +46,9 @@ class RequestTrackingMiddleware(BaseHTTPMiddleware):
         request.state.request_id = request_id
 
         # Skip tracking for excluded paths
-        if not self.include_health_check and self._should_exclude_path(request.url.path):
+        if not self.include_health_check and self._should_exclude_path(
+            request.url.path
+        ):
             response = await call_next(request)
             response.headers["X-Request-ID"] = request_id
             return response
@@ -205,7 +209,10 @@ class SecurityMonitoringMiddleware(BaseHTTPMiddleware):
     def __init__(self, app):
         super().__init__(app)
         self.rate_limits = {
-            "auth_endpoints": {"window": 300, "max_requests": 10},  # 5 minutes, 10 requests
+            "auth_endpoints": {
+                "window": 300,
+                "max_requests": 10,
+            },  # 5 minutes, 10 requests
             "general": {"window": 60, "max_requests": 100},  # 1 minute, 100 requests
         }
         self.request_history: dict[str, list] = {}
@@ -293,7 +300,18 @@ class SecurityMonitoringMiddleware(BaseHTTPMiddleware):
         suspicious_indicators = []
 
         # Check for SQL injection patterns
-        sql_patterns = ["'", "--", "/*", "*/", "xp_", "sp_", "drop", "delete", "insert", "update"]
+        sql_patterns = [
+            "'",
+            "--",
+            "/*",
+            "*/",
+            "xp_",
+            "sp_",
+            "drop",
+            "delete",
+            "insert",
+            "update",
+        ]
         query_string = str(request.url.query).lower()
         for pattern in sql_patterns:
             if pattern in query_string:
@@ -361,8 +379,14 @@ class APIRateLimitMiddleware(BaseHTTPMiddleware):
 
         self.endpoint_limits = {
             "/api/v1/auth/login": {"requests_per_minute": 10, "requests_per_hour": 100},
-            "/api/v1/auth/register": {"requests_per_minute": 5, "requests_per_hour": 50},
-            "/api/v1/assessments": {"requests_per_minute": 100, "requests_per_hour": 5000},
+            "/api/v1/auth/register": {
+                "requests_per_minute": 5,
+                "requests_per_hour": 50,
+            },
+            "/api/v1/assessments": {
+                "requests_per_minute": 100,
+                "requests_per_hour": 5000,
+            },
         }
 
         self.usage_tracker: dict[str, dict[str, Any]] = {}
@@ -370,7 +394,9 @@ class APIRateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Get user information from request (if available)
         user_tier = getattr(request.state, "user_tier", "free")
-        user_id = getattr(request.state, "user_id", None) or self._get_client_ip(request)
+        user_id = getattr(request.state, "user_id", None) or self._get_client_ip(
+            request
+        )
         path = request.url.path
 
         # Check if user is rate limited
@@ -409,7 +435,9 @@ class APIRateLimitMiddleware(BaseHTTPMiddleware):
             self.usage_tracker[user_id] = {"requests": [], "tier": user_tier}
 
         user_data = self.usage_tracker[user_id]
-        user_tier_limits = self.user_rate_limits.get(user_tier, self.user_rate_limits["free"])
+        user_tier_limits = self.user_rate_limits.get(
+            user_tier, self.user_rate_limits["free"]
+        )
 
         # Clean old requests outside the windows
         user_data["requests"] = [
@@ -423,7 +451,9 @@ class APIRateLimitMiddleware(BaseHTTPMiddleware):
 
         # Check minute-based limit
         minute_requests = [
-            req_time for req_time in user_data["requests"] if current_time - req_time < 60
+            req_time
+            for req_time in user_data["requests"]
+            if current_time - req_time < 60
         ]
 
         # Check endpoint-specific limits
@@ -468,11 +498,15 @@ class APIRateLimitMiddleware(BaseHTTPMiddleware):
         user_data = self.usage_tracker[user_id]
 
         minute_requests = [
-            req_time for req_time in user_data["requests"] if current_time - req_time < 60
+            req_time
+            for req_time in user_data["requests"]
+            if current_time - req_time < 60
         ]
 
         hour_requests = [
-            req_time for req_time in user_data["requests"] if current_time - req_time < 3600
+            req_time
+            for req_time in user_data["requests"]
+            if current_time - req_time < 3600
         ]
 
         return {
@@ -509,11 +543,14 @@ def setup_request_tracking(
         )
 
         logger.info(
-            EventType.SYSTEM_EVENT, "Request tracking middleware setup completed successfully"
+            EventType.SYSTEM_EVENT,
+            "Request tracking middleware setup completed successfully",
         )
         return request_tracking_middleware
 
     except Exception as e:
-        logger.error(EventType.ERROR_EVENT, f"Failed to setup request tracking middleware: {e}")
+        logger.error(
+            EventType.ERROR_EVENT, f"Failed to setup request tracking middleware: {e}"
+        )
         # Fail open - continue without request tracking if setup fails
         return None

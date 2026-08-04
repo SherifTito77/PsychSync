@@ -20,7 +20,9 @@ class TokenDecodeMiddleware(BaseHTTPMiddleware):
         if auth and auth.lower().startswith("bearer "):
             token = auth.split(" ", 1)[1]
             try:
-                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+                payload = jwt.decode(
+                    token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+                )
                 request.state.token_payload = payload
             except JWTError:
                 request.state.token_payload = None

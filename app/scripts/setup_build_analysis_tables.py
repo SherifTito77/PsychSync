@@ -11,22 +11,22 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def create_tables():
     """Create a new resource.
 
-Args:
-    db: Database session
-    **kwargs: Resource attributes
+    Args:
+        db: Database session
+        **kwargs: Resource attributes
 
-Returns:
-    Created resource object
+    Returns:
+        Created resource object
 
-Raises:
-    ValidationError: If input data is invalid
+    Raises:
+        ValidationError: If input data is invalid
     """
     """Create a new resource.
 
@@ -47,7 +47,9 @@ Raises:
 
     async with async_session_maker() as session:
         # Create build_failures table
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS build_failures (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 build_id VARCHAR(255) NOT NULL,
@@ -73,35 +75,67 @@ Raises:
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 resolved_at TIMESTAMP WITH TIME ZONE
             );
-        """))
+        """
+            )
+        )
 
         # Create indexes for build_failures
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_build_failures_build_id ON build_failures(build_id);
-        """))
-        await session.execute(text("""
+        """
+            )
+        )
+        await session.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_build_failures_branch ON build_failures(branch_name);
-        """))
-        await session.execute(text("""
+        """
+            )
+        )
+        await session.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_build_failures_type ON build_failures(failure_type);
-        """))
-        await session.execute(text("""
+        """
+            )
+        )
+        await session.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_build_failures_priority ON build_failures(priority);
-        """))
-        await session.execute(text("""
+        """
+            )
+        )
+        await session.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_build_failures_resolved ON build_failures(is_resolved);
-        """))
-        await session.execute(text("""
+        """
+            )
+        )
+        await session.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_build_failures_developer ON build_failures(developer_name);
-        """))
-        await session.execute(text("""
+        """
+            )
+        )
+        await session.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_build_failures_created_at ON build_failures(created_at DESC);
-        """))
+        """
+            )
+        )
 
         print("  ✅ build_failures table created")
 
         # Create root_cause_analyses table
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS root_cause_analyses (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 failure_id UUID NOT NULL REFERENCES build_failures(id) ON DELETE CASCADE,
@@ -113,19 +147,31 @@ Raises:
                 analysis_result TEXT NOT NULL,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
-        """))
+        """
+            )
+        )
 
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_root_cause_failure_id ON root_cause_analyses(failure_id);
-        """))
-        await session.execute(text("""
+        """
+            )
+        )
+        await session.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_root_cause_created_at ON root_cause_analyses(created_at DESC);
-        """))
+        """
+            )
+        )
 
         print("  ✅ root_cause_analyses table created")
 
         # Create build_patterns table
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS build_patterns (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 pattern_type VARCHAR(100) NOT NULL,
@@ -138,22 +184,38 @@ Raises:
                 last_seen TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 is_resolved FLOAT NOT NULL DEFAULT 0.0
             );
-        """))
+        """
+            )
+        )
 
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_build_patterns_type ON build_patterns(pattern_type);
-        """))
-        await session.execute(text("""
+        """
+            )
+        )
+        await session.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_build_patterns_resolved ON build_patterns(is_resolved);
-        """))
-        await session.execute(text("""
+        """
+            )
+        )
+        await session.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_build_patterns_occurrence ON build_patterns(occurrence_count DESC);
-        """))
+        """
+            )
+        )
 
         print("  ✅ build_patterns table created")
 
         # Create build_analysis_reports table
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS build_analysis_reports (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 report_date TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -173,11 +235,17 @@ Raises:
                 ai_insights JSONB,
                 recommendations TEXT[]
             );
-        """))
+        """
+            )
+        )
 
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_build_reports_date ON build_analysis_reports(report_date DESC);
-        """))
+        """
+            )
+        )
 
         print("  ✅ build_analysis_reports table created")
 

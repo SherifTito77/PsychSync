@@ -12,9 +12,9 @@ Usage:
     app.add_middleware(SecurityLoggingMiddleware)
 """
 
-from collections.abc import Callable
 import json
 import time
+from collections.abc import Callable
 from typing import Any
 
 from fastapi import Request, Response
@@ -45,7 +45,7 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
         log_bodies: bool = False,  # Set to True for debugging (careful with PII!)
         log_headers: bool = False,  # Set to True for debugging (careful with tokens!)
         skipped_paths: list | None = None,
-        log_responses: bool = True
+        log_responses: bool = True,
     ):
         super().__init__(app)
         self.log_all_requests = log_all_requests
@@ -54,14 +54,17 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
         self.log_responses = log_responses
 
         # Default paths to skip (health checks, metrics, etc.)
-        self.skipped_paths = set(skipped_paths or [
-            "/health",
-            "/metrics",
-            "/api/v1/monitoring/metrics",
-            "/docs",
-            "/redoc",
-            "/openapi.json",
-        ])
+        self.skipped_paths = set(
+            skipped_paths
+            or [
+                "/health",
+                "/metrics",
+                "/api/v1/monitoring/metrics",
+                "/docs",
+                "/redoc",
+                "/openapi.json",
+            ]
+        )
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Process request and log security events"""
@@ -95,11 +98,7 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
             # Log error
             duration_ms = int((time.time() - start_time) * 1000)
 
-            await self._log_error(
-                request_context,
-                str(e),
-                duration_ms
-            )
+            await self._log_error(request_context, str(e), duration_ms)
 
             raise
 
@@ -158,11 +157,12 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
 
                 # Need to recreate response since we consumed the body
                 from starlette.responses import Response
+
                 return Response(
                     content=response_body,
                     status_code=response.status_code,
                     headers=dict(response.headers),
-                    media_type=response.media_type
+                    media_type=response.media_type,
                 )
             except Exception:
                 pass
@@ -206,7 +206,7 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
         self,
         request_context: dict[str, Any],
         response_context: dict[str, Any],
-        duration_ms: int
+        duration_ms: int,
     ):
         """Log successful request"""
 
@@ -266,15 +266,16 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
                 "description": description,
                 "status": "success" if status_code < 400 else "error",
                 "metadata": metadata,
-                "tags": ["http_request", method, path.split("/")[1] if "/" in path else "root"]
+                "tags": [
+                    "http_request",
+                    method,
+                    path.split("/")[1] if "/" in path else "root",
+                ],
             }
         )
 
     async def _log_error(
-        self,
-        request_context: dict[str, Any],
-        error_message: str,
-        duration_ms: int
+        self, request_context: dict[str, Any], error_message: str, duration_ms: int
     ):
         """Log request error"""
 
@@ -299,7 +300,7 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
                     "error": error_message,
                     "duration_ms": duration_ms,
                 },
-                "tags": ["error", method]
+                "tags": ["error", method],
             }
         )
 
@@ -345,9 +346,7 @@ class SecurityAuthLoggingMiddleware(BaseHTTPMiddleware):
 
             # Log auth event based on endpoint
             await self._log_auth_event(
-                request_context,
-                response.status_code,
-                duration_ms
+                request_context, response.status_code, duration_ms
             )
 
             return response
@@ -378,7 +377,9 @@ class SecurityAuthLoggingMiddleware(BaseHTTPMiddleware):
                 body = await request.body()
                 if body:
                     body_data = json.loads(body.decode())
-                    context["username"] = body_data.get("email") or body_data.get("username")
+                    context["username"] = body_data.get("email") or body_data.get(
+                        "username"
+                    )
             except Exception:
                 pass
 
@@ -400,10 +401,7 @@ class SecurityAuthLoggingMiddleware(BaseHTTPMiddleware):
         return None
 
     async def _log_auth_event(
-        self,
-        request_context: dict[str, Any],
-        status_code: int,
-        duration_ms: int
+        self, request_context: dict[str, Any], status_code: int, duration_ms: int
     ):
         """Log authentication event"""
 
@@ -413,12 +411,27 @@ class SecurityAuthLoggingMiddleware(BaseHTTPMiddleware):
         # Map paths to event types
         event_mapping = {
             "/auth/login": (EventType.AUTH_LOGIN_SUCCESS, EventType.AUTH_LOGIN_FAILURE),
-            "/auth/register": (EventType.AUTH_LOGIN_SUCCESS, EventType.AUTH_LOGIN_FAILURE),
+            "/auth/register": (
+                EventType.AUTH_LOGIN_SUCCESS,
+                EventType.AUTH_LOGIN_FAILURE,
+            ),
             "/auth/logout": (EventType.AUTH_LOGOUT, EventType.AUTH_LOGOUT),
-            "/auth/refresh": (EventType.AUTH_TOKEN_REFRESH, EventType.AUTH_TOKEN_REFRESH),
-            "/auth/password/change": (EventType.AUTH_PASSWORD_CHANGE, EventType.AUTH_PASSWORD_CHANGE),
-            "/auth/mfa/enable": (EventType.AUTH_MFA_ENABLED, EventType.AUTH_MFA_ENABLED),
-            "/auth/mfa/disable": (EventType.AUTH_MFA_DISABLED, EventType.AUTH_MFA_DISABLED),
+            "/auth/refresh": (
+                EventType.AUTH_TOKEN_REFRESH,
+                EventType.AUTH_TOKEN_REFRESH,
+            ),
+            "/auth/password/change": (
+                EventType.AUTH_PASSWORD_CHANGE,
+                EventType.AUTH_PASSWORD_CHANGE,
+            ),
+            "/auth/mfa/enable": (
+                EventType.AUTH_MFA_ENABLED,
+                EventType.AUTH_MFA_ENABLED,
+            ),
+            "/auth/mfa/disable": (
+                EventType.AUTH_MFA_DISABLED,
+                EventType.AUTH_MFA_DISABLED,
+            ),
         }
 
         event_types = event_mapping.get(path)
@@ -444,10 +457,12 @@ class SecurityAuthLoggingMiddleware(BaseHTTPMiddleware):
                 "browser": request_context.get("ua_browser"),
                 "os": request_context.get("ua_os"),
                 "device": request_context.get("ua_device"),
-            }
+            },
         )
 
-    async def _log_auth_failure(self, request_context: dict[str, Any], error_message: str):
+    async def _log_auth_failure(
+        self, request_context: dict[str, Any], error_message: str
+    ):
         """Log authentication failure due to exception"""
 
         await security_logger.log_auth_event(
@@ -463,5 +478,5 @@ class SecurityAuthLoggingMiddleware(BaseHTTPMiddleware):
                 "error": error_message,
                 "browser": request_context.get("ua_browser"),
                 "os": request_context.get("ua_os"),
-            }
+            },
         )

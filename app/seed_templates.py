@@ -203,7 +203,11 @@ def seed_templates():
                         "config": {
                             "min": 1,
                             "max": 10,
-                            "labels": {"1": "Very Poor", "5": "Neutral", "10": "Excellent"},
+                            "labels": {
+                                "1": "Very Poor",
+                                "5": "Neutral",
+                                "10": "Excellent",
+                            },
                         },
                     },
                     {

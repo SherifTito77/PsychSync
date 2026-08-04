@@ -23,16 +23,17 @@ Compliance:
 - SOC 2 compatible data protection
 """
 
-import os
 import base64
-import json
 import hashlib
+import json
+import logging
+import os
 from typing import Any, Dict, Optional, Union
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
-import logging
 
 from app.core.config import settings
 
@@ -42,6 +43,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # Encryption Configuration
 # =============================================================================
+
 
 class EncryptionConfig:
     """Configuration for encryption operations"""
@@ -56,12 +58,13 @@ class EncryptionConfig:
     TAG_SIZE = 16  # 128 bits (built into GCM)
 
     # Encoding
-    ENCODING = 'utf-8'
+    ENCODING = "utf-8"
 
 
 # =============================================================================
 # Encryption Service
 # =============================================================================
+
 
 class EncryptionService:
     """
@@ -115,7 +118,7 @@ class EncryptionService:
             32-byte encryption key
         """
         # Try to get key from environment
-        env_key = os.environ.get('DB_ENCRYPTION_KEY')
+        env_key = os.environ.get("DB_ENCRYPTION_KEY")
 
         if not env_key:
             # Generate and warn (not for production!)
@@ -127,17 +130,17 @@ class EncryptionService:
 
         # Derive key from environment variable
         # Use PBKDF2 with a fixed salt for consistency
-        salt = b'PsychSync_DB_Encryption_Salt_v1'  # In production, use KMS
+        salt = b"PsychSync_DB_Encryption_Salt_v1"  # In production, use KMS
         kdf = PBKDF2(
             algorithm=hashes.SHA256(),
             length=EncryptionConfig.KEY_SIZE,
             salt=salt,
             iterations=EncryptionConfig.ITERATIONS,
-            backend=default_backend()
+            backend=default_backend(),
         )
 
         # Decode base64 key if needed
-        if env_key.startswith('base64:'):
+        if env_key.startswith("base64:"):
             key_bytes = base64.b64decode(env_key[7:])
         else:
             key_bytes = env_key.encode(EncryptionConfig.ENCODING)
@@ -184,7 +187,9 @@ class EncryptionService:
             if isinstance(plaintext, str):
                 plaintext_bytes = plaintext.encode(EncryptionConfig.ENCODING)
             elif isinstance(plaintext, (dict, list)):
-                plaintext_bytes = json.dumps(plaintext).encode(EncryptionConfig.ENCODING)
+                plaintext_bytes = json.dumps(plaintext).encode(
+                    EncryptionConfig.ENCODING
+                )
             elif isinstance(plaintext, bytes):
                 plaintext_bytes = plaintext
             else:
@@ -199,9 +204,9 @@ class EncryptionService:
 
             # Format as JSON
             encrypted_data = {
-                "nonce": base64.b64encode(nonce).decode('ascii'),
-                "ciphertext": base64.b64encode(ciphertext_with_tag).decode('ascii'),
-                "version": 1
+                "nonce": base64.b64encode(nonce).decode("ascii"),
+                "ciphertext": base64.b64encode(ciphertext_with_tag).decode("ascii"),
+                "version": 1,
             }
 
             return json.dumps(encrypted_data)
@@ -226,7 +231,9 @@ class EncryptionService:
 
             # Validate version
             if encrypted_data.get("version") != 1:
-                raise ValueError(f"Unsupported encryption version: {encrypted_data.get('version')}")
+                raise ValueError(
+                    f"Unsupported encryption version: {encrypted_data.get('version')}"
+                )
 
             # Decode nonce and ciphertext
             nonce = base64.b64decode(encrypted_data["nonce"])
@@ -292,7 +299,9 @@ class EncryptionService:
     # -------------------------------------------------------------------------
 
     @staticmethod
-    def hash_value(value: Union[str, bytes], salt: Optional[bytes] = None) -> tuple[str, bytes]:
+    def hash_value(
+        value: Union[str, bytes], salt: Optional[bytes] = None
+    ) -> tuple[str, bytes]:
         """
         Hash a value for verification (not encryption).
 
@@ -362,20 +371,17 @@ class EncryptionService:
         # Sensitive fields that require encryption
         sensitive_patterns = [
             # Personal Identifiable Information (PII)
-            ('users', ['email', 'full_name', 'phone']),
-            ('users', ['ssn', 'social_security_number', 'tax_id']),
-
+            ("users", ["email", "full_name", "phone"]),
+            ("users", ["ssn", "social_security_number", "tax_id"]),
             # Protected Health Information (PHI)
-            ('clinical_screening', ['responses', 'notes', 'diagnosis']),
-            ('wellness_assessments', ['responses', 'notes']),
-            ('intervention_participants', ['notes', 'treatment_plan']),
-
+            ("clinical_screening", ["responses", "notes", "diagnosis"]),
+            ("wellness_assessments", ["responses", "notes"]),
+            ("intervention_participants", ["notes", "treatment_plan"]),
             # Authentication data (if stored separately from password_hash)
-            ('users', ['mfa_secret', 'recovery_codes']),
-
+            ("users", ["mfa_secret", "recovery_codes"]),
             # Communication
-            ('messages', ['content', 'subject']),
-            ('email_metadata', ['subject', 'body']),
+            ("messages", ["content", "subject"]),
+            ("email_metadata", ["subject", "body"]),
         ]
 
         # Check if table/column combination is sensitive
@@ -386,9 +392,17 @@ class EncryptionService:
 
         # Check for generic sensitive patterns
         sensitive_keywords = [
-            'ssn', 'social_security', 'credit_card', 'password',
-            'secret', 'token', 'api_key', 'private_key',
-            'medical_record', 'phi', 'protected_health',
+            "ssn",
+            "social_security",
+            "credit_card",
+            "password",
+            "secret",
+            "token",
+            "api_key",
+            "private_key",
+            "medical_record",
+            "phi",
+            "protected_health",
         ]
 
         column_lower = column_name.lower()
@@ -427,7 +441,7 @@ class EncryptionService:
             length=EncryptionConfig.KEY_SIZE,
             salt=salt,
             iterations=EncryptionConfig.ITERATIONS,
-            backend=default_backend()
+            backend=default_backend(),
         )
         enc_key = kdf.derive(password.encode(EncryptionConfig.ENCODING))
 
@@ -439,7 +453,7 @@ class EncryptionService:
         # Pack salt + nonce + encrypted_key
         packed = salt + nonce + encrypted_key
 
-        return base64.b64encode(packed).decode('ascii')
+        return base64.b64encode(packed).decode("ascii")
 
     def import_key_encrypted(self, encrypted_key_b64: str, password: str) -> bytes:
         """
@@ -455,9 +469,14 @@ class EncryptionService:
         packed = base64.b64decode(encrypted_key_b64)
 
         # Unpack salt + nonce + encrypted_key
-        salt = packed[:EncryptionConfig.SALT_SIZE]
-        nonce = packed[EncryptionConfig.SALT_SIZE:EncryptionConfig.SALT_SIZE + EncryptionConfig.NONCE_SIZE]
-        encrypted_key = packed[EncryptionConfig.SALT_SIZE + EncryptionConfig.NONCE_SIZE:]
+        salt = packed[: EncryptionConfig.SALT_SIZE]
+        nonce = packed[
+            EncryptionConfig.SALT_SIZE : EncryptionConfig.SALT_SIZE
+            + EncryptionConfig.NONCE_SIZE
+        ]
+        encrypted_key = packed[
+            EncryptionConfig.SALT_SIZE + EncryptionConfig.NONCE_SIZE :
+        ]
 
         # Derive decryption key from password
         kdf = PBKDF2(
@@ -465,7 +484,7 @@ class EncryptionService:
             length=EncryptionConfig.KEY_SIZE,
             salt=salt,
             iterations=EncryptionConfig.ITERATIONS,
-            backend=default_backend()
+            backend=default_backend(),
         )
         enc_key = kdf.derive(password.encode(EncryptionConfig.ENCODING))
 
@@ -487,6 +506,7 @@ encryption_service = EncryptionService()
 # =============================================================================
 # Helper Functions for Common Operations
 # =============================================================================
+
 
 def encrypt_sensitive_data(data: Any) -> Optional[str]:
     """Convenience function to encrypt sensitive data"""
@@ -516,7 +536,7 @@ def hash_for_lookup(value: str) -> str:
     hash_hex, salt = EncryptionService.hash_value(value)
 
     # Embed salt with hash for later verification
-    salt_b64 = base64.b64encode(salt).decode('ascii')
+    salt_b64 = base64.b64encode(salt).decode("ascii")
     return f"{hash_hex}:{salt_b64}"
 
 
@@ -532,7 +552,7 @@ def verify_lookup_hash(value: str, lookup_hash: str) -> bool:
         True if matches
     """
     try:
-        hash_hex, salt_b64 = lookup_hash.split(':')
+        hash_hex, salt_b64 = lookup_hash.split(":")
         salt = base64.b64decode(salt_b64)
         return EncryptionService.verify_hash(value, hash_hex, salt)
     except (ValueError, IndexError):

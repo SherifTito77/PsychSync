@@ -16,6 +16,7 @@ from typing import Dict, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,7 +30,6 @@ from app.services.clinical.automated_alert_service import (
     AlertType,
     AutomatedAlertService,
 )
-from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -47,21 +47,31 @@ class AlertTriggerRequest(BaseModel):
 
     user_id: UUID = Field(..., description="User ID who triggered the alert")
     alert_type: str = Field(..., description="Type of alert")
-    severity: str = Field(..., description="Severity level (critical, high, moderate, low)")
-    message: str = Field(..., min_length=10, max_length=2000, description="Alert message")
-    metadata: Optional[Dict] = Field(default_factory=dict, description="Additional alert data")
+    severity: str = Field(
+        ..., description="Severity level (critical, high, moderate, low)"
+    )
+    message: str = Field(
+        ..., min_length=10, max_length=2000, description="Alert message"
+    )
+    metadata: Optional[Dict] = Field(
+        default_factory=dict, description="Additional alert data"
+    )
 
 
 class AcknowledgeAlertRequest(BaseModel):
     """Request schema for acknowledging an alert"""
 
-    notes: Optional[str] = Field(None, max_length=1000, description="Acknowledgment notes")
+    notes: Optional[str] = Field(
+        None, max_length=1000, description="Acknowledgment notes"
+    )
 
 
 class ResolveAlertRequest(BaseModel):
     """Request schema for resolving an alert"""
 
-    resolution_notes: str = Field(..., min_length=10, max_length=2000, description="Resolution details")
+    resolution_notes: str = Field(
+        ..., min_length=10, max_length=2000, description="Resolution details"
+    )
     resolution_status: str = Field(
         default="resolved", description="Final status (resolved, escalated, etc.)"
     )
@@ -117,7 +127,9 @@ class AlertCheckResponse(BaseModel):
 
     success: bool
     alerts_triggered: int
-    breakdown: Dict[str, int] = Field(default_factory=dict, description="Alerts by type")
+    breakdown: Dict[str, int] = Field(
+        default_factory=dict, description="Alerts by type"
+    )
     message: str
 
 
@@ -131,7 +143,8 @@ async def verify_clinician_or_admin(current_user: User) -> None:
 
     if current_user.role not in ["clinician", "admin"]:
         raise HTTPException(
-            status_code=403, detail="Automated alert management requires clinician or admin role"
+            status_code=403,
+            detail="Automated alert management requires clinician or admin role",
         )
 
 
@@ -151,7 +164,9 @@ async def get_unresolved_alerts(
     severity: Optional[str] = Query(
         None, description="Filter by severity (critical, high, moderate, low)"
     ),
-    limit: int = Query(50, ge=1, le=200, description="Maximum number of alerts to return"),
+    limit: int = Query(
+        50, ge=1, le=200, description="Maximum number of alerts to return"
+    ),
     offset: int = Query(0, ge=0, description="Number of alerts to skip"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
@@ -185,7 +200,9 @@ async def get_unresolved_alerts(
         high_count = sum(1 for a in alert_responses if a.severity == "high")
         moderate_count = sum(1 for a in alert_responses if a.severity == "moderate")
 
-        logger.info(f"Retrieved {len(alert_responses)} unresolved alerts for {current_user.email}")
+        logger.info(
+            f"Retrieved {len(alert_responses)} unresolved alerts for {current_user.email}"
+        )
 
         return UnresolvedAlertsResponse(
             alerts=alert_responses,
@@ -197,7 +214,9 @@ async def get_unresolved_alerts(
 
     except Exception as e:
         logger.error(f"Error retrieving unresolved alerts: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve alerts: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve alerts: {str(e)}"
+        )
 
 
 @router.get("/history", response_model=AlertHistoryResponse)
@@ -247,11 +266,14 @@ async def get_alert_history(
         alert_responses = [AlertResponse.model_validate(alert) for alert in alerts]
 
         # Count statistics
-        resolved_count = sum(1 for a in alert_responses if a.resolution_status == "resolved")
+        resolved_count = sum(
+            1 for a in alert_responses if a.resolution_status == "resolved"
+        )
         escalated_count = sum(1 for a in alert_responses if a.escalated)
 
         logger.info(
-            f"Retrieved {len(alert_responses)} historical alerts for {current_user.email} " f"({days_back} days)"
+            f"Retrieved {len(alert_responses)} historical alerts for {current_user.email} "
+            f"({days_back} days)"
         )
 
         return AlertHistoryResponse(
@@ -264,12 +286,16 @@ async def get_alert_history(
 
     except Exception as e:
         logger.error(f"Error retrieving alert history: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve alert history: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve alert history: {str(e)}"
+        )
 
 
 @router.get("/{alert_id}", response_model=AlertResponse)
 async def get_alert_details(
-    alert_id: UUID, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_async_db)
+    alert_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get detailed information about a specific alert
@@ -302,7 +328,9 @@ async def get_alert_details(
         raise
     except Exception as e:
         logger.error(f"Error retrieving alert details: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve alert details: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve alert details: {str(e)}"
+        )
 
 
 @router.post("/{alert_id}/acknowledge", response_model=AlertResponse)
@@ -328,11 +356,15 @@ async def acknowledge_alert(
     try:
         # Acknowledge alert
         success = await alert_service.acknowledge_alert(
-            alert_id=str(alert_id), clinician_id=str(current_user.id), notes=request.notes
+            alert_id=str(alert_id),
+            clinician_id=str(current_user.id),
+            notes=request.notes,
         )
 
         if not success:
-            raise HTTPException(status_code=404, detail="Alert not found or already acknowledged")
+            raise HTTPException(
+                status_code=404, detail="Alert not found or already acknowledged"
+            )
 
         # Get updated alert
         query = select(ClinicalAlert).where(ClinicalAlert.id == alert_id)
@@ -340,7 +372,8 @@ async def acknowledge_alert(
         alert = result.scalar_one()
 
         logger.info(
-            f"Alert {alert_id} acknowledged by {current_user.email}" + (f" with notes: {request.notes}" if request.notes else "")
+            f"Alert {alert_id} acknowledged by {current_user.email}"
+            + (f" with notes: {request.notes}" if request.notes else "")
         )
 
         return AlertResponse.model_validate(alert)
@@ -349,7 +382,9 @@ async def acknowledge_alert(
         raise
     except Exception as e:
         logger.error(f"Error acknowledging alert: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to acknowledge alert: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to acknowledge alert: {str(e)}"
+        )
 
 
 @router.post("/{alert_id}/resolve", response_model=AlertResponse)
@@ -381,14 +416,18 @@ async def resolve_alert(
         )
 
         if not success:
-            raise HTTPException(status_code=404, detail="Alert not found or already resolved")
+            raise HTTPException(
+                status_code=404, detail="Alert not found or already resolved"
+            )
 
         # Get updated alert
         query = select(ClinicalAlert).where(ClinicalAlert.id == alert_id)
         result = await db.execute(query)
         alert = result.scalar_one()
 
-        logger.info(f"Alert {alert_id} resolved by {current_user.email}: {request.resolution_notes[:100]}...")
+        logger.info(
+            f"Alert {alert_id} resolved by {current_user.email}: {request.resolution_notes[:100]}..."
+        )
 
         return AlertResponse.model_validate(alert)
 
@@ -396,12 +435,16 @@ async def resolve_alert(
         raise
     except Exception as e:
         logger.error(f"Error resolving alert: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to resolve alert: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to resolve alert: {str(e)}"
+        )
 
 
 @router.post("/check-predictions", response_model=AlertCheckResponse)
 async def trigger_prediction_checks(
-    prediction_types: Optional[List[str]] = Query(None, description="Specific prediction types to check"),
+    prediction_types: Optional[List[str]] = Query(
+        None, description="Specific prediction types to check"
+    ),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -430,16 +473,22 @@ async def trigger_prediction_checks(
             breakdown[trigger.trigger_type] = breakdown.get(trigger.trigger_type, 0) + 1
 
         logger.info(
-            f"ML prediction check triggered by {current_user.email}: " f"{len(triggers)} alerts generated"
+            f"ML prediction check triggered by {current_user.email}: "
+            f"{len(triggers)} alerts generated"
         )
 
         return AlertCheckResponse(
-            success=True, alerts_triggered=len(triggers), breakdown=breakdown, message=f"Checked {len(triggers)} users for ML-based risks"
+            success=True,
+            alerts_triggered=len(triggers),
+            breakdown=breakdown,
+            message=f"Checked {len(triggers)} users for ML-based risks",
         )
 
     except Exception as e:
         logger.error(f"Error running prediction checks: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to run prediction checks: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to run prediction checks: {str(e)}"
+        )
 
 
 @router.post("/check-trends", response_model=AlertCheckResponse)
@@ -470,16 +519,22 @@ async def trigger_trend_checks(
         for trigger in triggers:
             breakdown[trigger.trigger_type] = breakdown.get(trigger.trigger_type, 0) + 1
 
-        logger.info(f"Trend check triggered by {current_user.email}: {len(triggers)} alerts generated")
+        logger.info(
+            f"Trend check triggered by {current_user.email}: {len(triggers)} alerts generated"
+        )
 
         return AlertCheckResponse(
-            success=True, alerts_triggered=len(triggers),            breakdown=breakdown,
-            message=f"Analyzed user trends and generated {len(triggers)} alerts"
+            success=True,
+            alerts_triggered=len(triggers),
+            breakdown=breakdown,
+            message=f"Analyzed user trends and generated {len(triggers)} alerts",
         )
 
     except Exception as e:
         logger.error(f"Error running trend checks: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to run trend checks: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to run trend checks: {str(e)}"
+        )
 
 
 @router.post("/trigger", response_model=AlertCheckResponse)
@@ -517,16 +572,22 @@ async def trigger_manual_alert(
         await alert_service._process_alerts([trigger])
 
         logger.info(
-            f"Manual alert triggered by {current_user.email} for user {request.user_id}: " f"{request.alert_type}"
+            f"Manual alert triggered by {current_user.email} for user {request.user_id}: "
+            f"{request.alert_type}"
         )
 
         return AlertCheckResponse(
-            success=True, alerts_triggered=1, breakdown={request.alert_type: 1}, message="Manual alert created successfully"
+            success=True,
+            alerts_triggered=1,
+            breakdown={request.alert_type: 1},
+            message="Manual alert created successfully",
         )
 
     except Exception as e:
         logger.error(f"Error triggering manual alert: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to trigger alert: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to trigger alert: {str(e)}"
+        )
 
 
 @router.get("/stats/overview")
@@ -564,7 +625,9 @@ async def get_alert_statistics(
         total_count = len(result.scalars().all())
 
         # Unresolved alerts
-        unresolved_query = base_query.where(ClinicalAlert.resolution_status == "pending")
+        unresolved_query = base_query.where(
+            ClinicalAlert.resolution_status == "pending"
+        )
         result = await db.execute(unresolved_query)
         unresolved_count = len(result.scalars().all())
 
@@ -578,7 +641,11 @@ async def get_alert_statistics(
         high_count = len(result.scalars().all())
 
         # By type
-        crisis_query = base_query.where(ClinicalAlert.alert_type.in_(["crisis_suicide", "crisis_self_harm", "crisis_severe"]))
+        crisis_query = base_query.where(
+            ClinicalAlert.alert_type.in_(
+                ["crisis_suicide", "crisis_self_harm", "crisis_severe"]
+            )
+        )
         result = await db.execute(crisis_query)
         crisis_count = len(result.scalars().all())
 
@@ -587,7 +654,9 @@ async def get_alert_statistics(
         result = await db.execute(acknowledged_query)
         acknowledged_count = len(result.scalars().all())
 
-        acknowledgment_rate = (acknowledged_count / total_count * 100) if total_count > 0 else 0
+        acknowledgment_rate = (
+            (acknowledged_count / total_count * 100) if total_count > 0 else 0
+        )
 
         # Resolution rate
         resolved_query = base_query.where(ClinicalAlert.resolution_status == "resolved")
@@ -598,24 +667,33 @@ async def get_alert_statistics(
 
         # Average resolution time (for resolved alerts)
         resolved_with_time_query = base_query.where(
-            ClinicalAlert.resolution_status == "resolved", ClinicalAlert.resolved_at.isnot(None)
+            ClinicalAlert.resolution_status == "resolved",
+            ClinicalAlert.resolved_at.isnot(None),
         )
         result = await db.execute(resolved_with_time_query)
         resolved_alerts = result.scalars().all()
 
         if resolved_alerts:
-            resolution_times = [(a.resolved_at - a.created_at).total_seconds() for a in resolved_alerts]
+            resolution_times = [
+                (a.resolved_at - a.created_at).total_seconds() for a in resolved_alerts
+            ]
             avg_resolution_hours = sum(resolution_times) / len(resolution_times) / 3600
         else:
             avg_resolution_hours = 0
 
-        logger.info(f"Alert statistics retrieved for {current_user.email}: {days_back} days")
+        logger.info(
+            f"Alert statistics retrieved for {current_user.email}: {days_back} days"
+        )
 
         return {
             "period_days": days_back,
             "total_alerts": total_count,
             "unresolved_count": unresolved_count,
-            "by_severity": {"critical": critical_count, "high": high_count, "moderate": total_count - critical_count - high_count},
+            "by_severity": {
+                "critical": critical_count,
+                "high": high_count,
+                "moderate": total_count - critical_count - high_count,
+            },
             "crisis_alerts": crisis_count,
             "acknowledgment_rate": round(acknowledgment_rate, 1),
             "resolution_rate": round(resolution_rate, 1),
@@ -624,4 +702,6 @@ async def get_alert_statistics(
 
     except Exception as e:
         logger.error(f"Error retrieving alert statistics: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve alert statistics: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve alert statistics: {str(e)}"
+        )

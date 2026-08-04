@@ -19,10 +19,10 @@ Author: Security Team
 Version: 1.0 Enterprise
 """
 
-from dataclasses import dataclass
-from datetime import datetime, time
 import enum
 import logging
+from dataclasses import dataclass
+from datetime import datetime, time
 
 from fastapi import HTTPException, Request, status
 
@@ -168,7 +168,9 @@ class ABACService:
                     r.requires_clearance is None
                     or (
                         u.clearance_level is not None
-                        and self._compare_clearance(u.clearance_level, r.requires_clearance)
+                        and self._compare_clearance(
+                            u.clearance_level, r.requires_clearance
+                        )
                     )
                 ),
                 denial_reason="Insufficient clearance level",
@@ -229,7 +231,8 @@ class ABACService:
                 name="business_hours_check",
                 description="Restrict sensitive operations to business hours",
                 condition=lambda u, r, e: (
-                    r.classification in [DataClassification.PUBLIC, DataClassification.INTERNAL]
+                    r.classification
+                    in [DataClassification.PUBLIC, DataClassification.INTERNAL]
                     or not env_ctx.is_business_hours
                     or u.is_superuser
                 ),
@@ -243,7 +246,8 @@ class ABACService:
                 name="device_trust_check",
                 description="Require trusted device for sensitive data",
                 condition=lambda u, r, e: (
-                    r.classification in [DataClassification.PUBLIC, DataClassification.INTERNAL]
+                    r.classification
+                    in [DataClassification.PUBLIC, DataClassification.INTERNAL]
                     or env_ctx.device_trust == DeviceTrust.TRUSTED
                     or u.is_superuser
                 ),
@@ -257,7 +261,9 @@ class ABACService:
                 name="manager_check",
                 description="Managers can access team member resources",
                 condition=lambda u, r, e: (
-                    u.is_superuser or u.manager_id == r.owner_id or r.owner_id not in u.team_ids
+                    u.is_superuser
+                    or u.manager_id == r.owner_id
+                    or r.owner_id not in u.team_ids
                 ),
                 denial_reason="Manager access required",
             )
@@ -285,7 +291,9 @@ class ABACService:
         )
 
     def _check_classification(
-        self, user_clearance: ClearanceLevel | None, data_classification: DataClassification
+        self,
+        user_clearance: ClearanceLevel | None,
+        data_classification: DataClassification,
     ) -> bool:
         """
         Check if user can access data by classification
@@ -336,7 +344,8 @@ class ABACService:
             "TEAM_LEAD": ClearanceLevel.CONFIDENTIAL,
         }
         clearance = clearance_map.get(
-            user.role.value if hasattr(user.role, "value") else user.role, ClearanceLevel.INTERNAL
+            user.role.value if hasattr(user.role, "value") else user.role,
+            ClearanceLevel.INTERNAL,
         )
 
         return UserAttributes(
@@ -365,10 +374,9 @@ class ABACService:
         now = datetime.now()
 
         # Determine if business hours (9 AM - 5 PM, Mon-Fri)
-        is_business_hours = (
-            now.weekday() < 5  # Mon-Fri
-            and time(9, 0) <= now.time() <= time(17, 0)
-        )
+        is_business_hours = now.weekday() < 5 and time(  # Mon-Fri
+            9, 0
+        ) <= now.time() <= time(17, 0)
 
         # Get IP address
         ip_address = request.client.host if request.client else "unknown"
@@ -458,12 +466,17 @@ class ABACService:
         Raises:
             HTTPException: If access denied
         """
-        access_granted, denial_reasons = self.evaluate_access(user, resource_attrs, request)
+        access_granted, denial_reasons = self.evaluate_access(
+            user, resource_attrs, request
+        )
 
         if not access_granted:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail={"message": "Access denied by ABAC policies", "reasons": denial_reasons},
+                detail={
+                    "message": "Access denied by ABAC policies",
+                    "reasons": denial_reasons,
+                },
             )
 
         return True
@@ -497,7 +510,8 @@ def require_abac(
 
             if not current_user or not request:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required",
                 )
 
             # In a real implementation, you would fetch the resource

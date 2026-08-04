@@ -12,43 +12,43 @@ Version: 1.0
 Date: 2025-12-26
 """
 
-import sys
 import asyncio
+import sys
 import time
 from pathlib import Path
-from unittest.mock import Mock, patch, AsyncMock
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.monitoring.threat_metrics import (
-    ThreatDetectionMetrics,
-    record_jailbreak,
-    record_behavioral_anomaly,
-    record_threat_assessment,
-    record_response
-)
-
 from app.monitoring.alert_notification_system import (
-    AlertNotificationSystem,
     AlertNotification,
+    AlertNotificationSystem,
     AlertSeverity,
+    EmailNotificationSender,
     NotificationChannel,
     NotificationConfig,
-    SlackNotificationSender,
     PagerDutyNotificationSender,
-    EmailNotificationSender,
+    SlackNotificationSender,
     SMSNotificationSender,
     WebhookNotificationSender,
     create_notification_hook,
+    initialize_notification_system,
     send_security_alert,
-    initialize_notification_system
+)
+from app.monitoring.threat_metrics import (
+    ThreatDetectionMetrics,
+    record_behavioral_anomaly,
+    record_jailbreak,
+    record_response,
+    record_threat_assessment,
 )
 
-
 # ==================== Prometheus Threat Metrics Tests ====================
+
 
 class TestThreatDetectionMetrics:
     """Test Prometheus threat metrics aggregation"""
@@ -70,10 +70,10 @@ class TestThreatDetectionMetrics:
     def test_record_jailbreak_attempt(self, metrics):
         """Test recording jailbreak attempt"""
         metrics.record_jailbreak_attempt(
-            jailbreak_type='direct_injection',
-            severity='high',
-            patterns_matched=['ignore.*instructions'],
-            confidence=0.85
+            jailbreak_type="direct_injection",
+            severity="high",
+            patterns_matched=["ignore.*instructions"],
+            confidence=0.85,
         )
 
         # Metrics should be recorded without error
@@ -82,10 +82,10 @@ class TestThreatDetectionMetrics:
     def test_record_jailbreak_multiple_patterns(self, metrics):
         """Test recording jailbreak with multiple patterns"""
         metrics.record_jailbreak_attempt(
-            jailbreak_type='role_playing',
-            severity='critical',
-            patterns_matched=['DAN', 'Developer Mode', 'unrestricted'],
-            confidence=0.92
+            jailbreak_type="role_playing",
+            severity="critical",
+            patterns_matched=["DAN", "Developer Mode", "unrestricted"],
+            confidence=0.92,
         )
 
         # Should record all patterns
@@ -94,30 +94,27 @@ class TestThreatDetectionMetrics:
     def test_record_behavioral_anomaly(self, metrics):
         """Test recording behavioral anomaly"""
         metrics.record_behavioral_anomaly(
-            user_id='user_123',
-            category='bot_automation',
-            threat_type='bot_automation',
-            risk_score=0.75
+            user_id="user_123",
+            category="bot_automation",
+            threat_type="bot_automation",
+            risk_score=0.75,
         )
 
         # Metrics should be recorded without error
 
     def test_update_baseline_stats(self, metrics):
         """Test updating baseline statistics"""
-        metrics.update_baseline_stats(
-            users_with_baselines=150,
-            total_users=200
-        )
+        metrics.update_baseline_stats(users_with_baselines=150, total_users=200)
 
         # Metrics should be updated
 
     def test_record_threat_signal(self, metrics):
         """Test recording threat signal"""
         metrics.record_threat_signal(
-            source='jailbreak',
-            severity='high',
-            threat_type='direct_injection',
-            session_id='sess_456'
+            source="jailbreak",
+            severity="high",
+            threat_type="direct_injection",
+            session_id="sess_456",
         )
 
         # Metrics should be recorded
@@ -125,9 +122,7 @@ class TestThreatDetectionMetrics:
     def test_record_threat_assessment(self, metrics):
         """Test recording threat assessment"""
         metrics.record_threat_assessment(
-            session_id='sess_789',
-            threat_level='high',
-            risk_score=0.75
+            session_id="sess_789", threat_level="high", risk_score=0.75
         )
 
         # Should update threat level gauge
@@ -147,10 +142,10 @@ class TestThreatDetectionMetrics:
     def test_record_response_action(self, metrics):
         """Test recording response action"""
         metrics.record_response_action(
-            action='Block Session',
-            status='executed',
+            action="Block Session",
+            status="executed",
             duration_seconds=0.5,
-            success=True
+            success=True,
         )
 
         # Should record response action metrics
@@ -158,10 +153,7 @@ class TestThreatDetectionMetrics:
     def test_record_response_action_failed(self, metrics):
         """Test recording failed response action"""
         metrics.record_response_action(
-            action='Block IP',
-            status='failed',
-            duration_seconds=1.2,
-            success=False
+            action="Block IP", status="failed", duration_seconds=1.2, success=False
         )
 
         # Should increment failed counter
@@ -185,10 +177,10 @@ class TestConvenienceFunctions:
     def test_record_jailbreak_convenience(self):
         """Test record_jailbreak convenience function"""
         record_jailbreak(
-            jailbreak_type='direct_injection',
-            severity='high',
-            patterns_matched=['test.*pattern'],
-            confidence=0.8
+            jailbreak_type="direct_injection",
+            severity="high",
+            patterns_matched=["test.*pattern"],
+            confidence=0.8,
         )
 
         # Should record without error
@@ -196,10 +188,10 @@ class TestConvenienceFunctions:
     def test_record_behavioral_anomaly_convenience(self):
         """Test record_behavioral_anomaly convenience function"""
         record_behavioral_anomaly(
-            user_id='test_user',
-            category='brute_force',
-            threat_type='brute_force',
-            risk_score=0.65
+            user_id="test_user",
+            category="brute_force",
+            threat_type="brute_force",
+            risk_score=0.65,
         )
 
         # Should record without error
@@ -207,13 +199,21 @@ class TestConvenienceFunctions:
     def test_record_threat_assessment_convenience(self):
         """Test record_threat_assessment convenience function"""
         record_threat_assessment(
-            session_id='test_session',
-            threat_level='medium',
+            session_id="test_session",
+            threat_level="medium",
             risk_score=0.5,
             signals=[
-                {'source': 'jailbreak', 'severity': 'high', 'threat_type': 'direct_injection'},
-                {'source': 'behavioral', 'severity': 'medium', 'threat_type': 'anomaly'}
-            ]
+                {
+                    "source": "jailbreak",
+                    "severity": "high",
+                    "threat_type": "direct_injection",
+                },
+                {
+                    "source": "behavioral",
+                    "severity": "medium",
+                    "threat_type": "anomaly",
+                },
+            ],
         )
 
         # Should record without error
@@ -221,16 +221,14 @@ class TestConvenienceFunctions:
     def test_record_response_convenience(self):
         """Test record_response convenience function"""
         record_response(
-            action='Log Warning',
-            status='executed',
-            duration_seconds=0.1,
-            success=True
+            action="Log Warning", status="executed", duration_seconds=0.1, success=True
         )
 
         # Should record without error
 
 
 # ==================== Alert Notification System Tests ====================
+
 
 class TestNotificationConfig:
     """Test notification configuration"""
@@ -241,7 +239,7 @@ class TestNotificationConfig:
             channel=NotificationChannel.SLACK,
             enabled=True,
             min_severity=AlertSeverity.HIGH,
-            config={'webhook_url': 'https://hooks.slack.com/test'}
+            config={"webhook_url": "https://hooks.slack.com/test"},
         )
 
         assert config.channel == NotificationChannel.SLACK
@@ -253,7 +251,7 @@ class TestNotificationConfig:
         config = NotificationConfig(
             channel=NotificationChannel.SLACK,
             enabled=True,
-            min_severity=AlertSeverity.HIGH
+            min_severity=AlertSeverity.HIGH,
         )
 
         assert config.should_send(AlertSeverity.CRITICAL) is True
@@ -266,7 +264,7 @@ class TestNotificationConfig:
         config = NotificationConfig(
             channel=NotificationChannel.SLACK,
             enabled=False,
-            min_severity=AlertSeverity.LOW
+            min_severity=AlertSeverity.LOW,
         )
 
         assert config.should_send(AlertSeverity.CRITICAL) is False
@@ -279,36 +277,36 @@ class TestAlertNotification:
         """Test creating alert notification"""
         notification = AlertNotification(
             severity=AlertSeverity.CRITICAL,
-            title='Critical Threat Detected',
-            description='Jailbreak attempt detected',
-            threat_type='jailbreak',
-            user_id='user_123',
-            session_id='sess_456'
+            title="Critical Threat Detected",
+            description="Jailbreak attempt detected",
+            threat_type="jailbreak",
+            user_id="user_123",
+            session_id="sess_456",
         )
 
         assert notification.severity == AlertSeverity.CRITICAL
-        assert notification.title == 'Critical Threat Detected'
-        assert notification.threat_type == 'jailbreak'
+        assert notification.title == "Critical Threat Detected"
+        assert notification.threat_type == "jailbreak"
         assert notification.timestamp is not None
 
     def test_alert_notification_to_dict(self):
         """Test converting notification to dict"""
         notification = AlertNotification(
             severity=AlertSeverity.HIGH,
-            title='Test Alert',
-            description='Test description',
-            threat_type='test',
-            user_id='user_123'
+            title="Test Alert",
+            description="Test description",
+            threat_type="test",
+            user_id="user_123",
         )
 
         data = notification.to_dict()
 
-        assert data['severity'] == 'high'
-        assert data['title'] == 'Test Alert'
-        assert data['description'] == 'Test description'
-        assert data['threat_type'] == 'test'
-        assert data['user_id'] == 'user_123'
-        assert 'timestamp' in data
+        assert data["severity"] == "high"
+        assert data["title"] == "Test Alert"
+        assert data["description"] == "Test description"
+        assert data["threat_type"] == "test"
+        assert data["user_id"] == "user_123"
+        assert "timestamp" in data
 
 
 class TestSlackNotificationSender:
@@ -320,7 +318,9 @@ class TestSlackNotificationSender:
         return NotificationConfig(
             channel=NotificationChannel.SLACK,
             enabled=True,
-            config={'webhook_url': 'https://hooks.slack.com/test/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX'}
+            config={
+                "webhook_url": "https://hooks.slack.com/test/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXX"
+            },
         )
 
     @pytest.fixture
@@ -333,12 +333,12 @@ class TestSlackNotificationSender:
         """Test successful Slack notification"""
         notification = AlertNotification(
             severity=AlertSeverity.CRITICAL,
-            title='Test Alert',
-            description='Test description',
-            threat_type='jailbreak'
+            title="Test Alert",
+            description="Test description",
+            threat_type="jailbreak",
         )
 
-        with patch('aiohttp.ClientSession.post') as mock_post:
+        with patch("aiohttp.ClientSession.post") as mock_post:
             mock_response = Mock()
             mock_response.status = 200
             mock_post.return_value.__aenter__.return_value = mock_response
@@ -352,14 +352,14 @@ class TestSlackNotificationSender:
         """Test failed Slack notification"""
         notification = AlertNotification(
             severity=AlertSeverity.HIGH,
-            title='Test Alert',
-            description='Test description'
+            title="Test Alert",
+            description="Test description",
         )
 
-        with patch('aiohttp.ClientSession.post') as mock_post:
+        with patch("aiohttp.ClientSession.post") as mock_post:
             mock_response = Mock()
             mock_response.status = 500
-            mock_response.text = AsyncMock(return_value='Internal Server Error')
+            mock_response.text = AsyncMock(return_value="Internal Server Error")
             mock_post.return_value.__aenter__.return_value = mock_response
 
             result = await slack_sender.send(notification)
@@ -371,8 +371,8 @@ class TestSlackNotificationSender:
         """Test Slack notification with retry"""
         notification = AlertNotification(
             severity=AlertSeverity.CRITICAL,
-            title='Test Alert',
-            description='Test description'
+            title="Test Alert",
+            description="Test description",
         )
 
         call_count = 0
@@ -384,10 +384,12 @@ class TestSlackNotificationSender:
             nonlocal call_count
             call_count += 1
             if call_count < 3:
-                raise Exception('Connection error')
+                raise Exception("Connection error")
             return True
 
-        with patch.object(slack_sender, 'send', side_effect=mock_send_with_failure_then_success):
+        with patch.object(
+            slack_sender, "send", side_effect=mock_send_with_failure_then_success
+        ):
             result = await slack_sender.send_with_retry(notification, max_retries=3)
 
             assert result is True
@@ -403,7 +405,7 @@ class TestPagerDutyNotificationSender:
         return NotificationConfig(
             channel=NotificationChannel.PAGERDUTY,
             enabled=True,
-            config={'routing_key': 'test_routing_key_123'}
+            config={"routing_key": "test_routing_key_123"},
         )
 
     @pytest.fixture
@@ -416,13 +418,13 @@ class TestPagerDutyNotificationSender:
         """Test PagerDuty notification"""
         notification = AlertNotification(
             severity=AlertSeverity.CRITICAL,
-            title='Critical Alert',
-            description='Critical security threat',
-            threat_type='account_takeover',
-            user_id='user_123'
+            title="Critical Alert",
+            description="Critical security threat",
+            threat_type="account_takeover",
+            user_id="user_123",
         )
 
-        with patch('aiohttp.ClientSession.post') as mock_post:
+        with patch("aiohttp.ClientSession.post") as mock_post:
             mock_response = Mock()
             mock_response.status = 202
             mock_post.return_value.__aenter__.return_value = mock_response
@@ -442,12 +444,12 @@ class TestEmailNotificationSender:
             channel=NotificationChannel.EMAIL,
             enabled=True,
             config={
-                'smtp_host': 'smtp.example.com',
-                'smtp_port': 587,
-                'smtp_user': 'alerts@example.com',
-                'smtp_password': 'password',
-                'recipients': ['security@example.com']
-            }
+                "smtp_host": "smtp.example.com",
+                "smtp_port": 587,
+                "smtp_user": "alerts@example.com",
+                "smtp_password": "password",
+                "recipients": ["security@example.com"],
+            },
         )
 
     @pytest.fixture
@@ -460,12 +462,12 @@ class TestEmailNotificationSender:
         """Test email notification"""
         notification = AlertNotification(
             severity=AlertSeverity.HIGH,
-            title='Security Alert',
-            description='High severity threat detected',
-            threat_type='jailbreak'
+            title="Security Alert",
+            description="High severity threat detected",
+            threat_type="jailbreak",
         )
 
-        with patch('smtplib.SMTP') as mock_smtp:
+        with patch("smtplib.SMTP") as mock_smtp:
             mock_server = Mock()
             mock_smtp.return_value.__enter__.return_value = mock_server
 
@@ -487,11 +489,11 @@ class TestSMSNotificationSender:
             channel=NotificationChannel.SMS,
             enabled=True,
             config={
-                'account_sid': 'AC1234567890abcdef',
-                'auth_token': 'authtoken123',
-                'from_number': '+1234567890',
-                'to_numbers': ['+0987654321']
-            }
+                "account_sid": "AC1234567890abcdef",
+                "auth_token": "authtoken123",
+                "from_number": "+1234567890",
+                "to_numbers": ["+0987654321"],
+            },
         )
 
     @pytest.fixture
@@ -504,12 +506,12 @@ class TestSMSNotificationSender:
         """Test SMS notification"""
         notification = AlertNotification(
             severity=AlertSeverity.CRITICAL,
-            title='Critical Alert',
-            description='Critical security incident',
-            response_action='Block IP'
+            title="Critical Alert",
+            description="Critical security incident",
+            response_action="Block IP",
         )
 
-        with patch('aiohttp.ClientSession.post') as mock_post:
+        with patch("aiohttp.ClientSession.post") as mock_post:
             mock_response = Mock()
             mock_response.status = 201
             mock_post.return_value.__aenter__.return_value = mock_response
@@ -529,9 +531,9 @@ class TestWebhookNotificationSender:
             channel=NotificationChannel.WEBHOOK,
             enabled=True,
             config={
-                'webhook_url': 'https://api.example.com/webhooks/security',
-                'headers': {'Authorization': 'Bearer token123'}
-            }
+                "webhook_url": "https://api.example.com/webhooks/security",
+                "headers": {"Authorization": "Bearer token123"},
+            },
         )
 
     @pytest.fixture
@@ -544,11 +546,11 @@ class TestWebhookNotificationSender:
         """Test webhook notification"""
         notification = AlertNotification(
             severity=AlertSeverity.HIGH,
-            title='Webhook Test',
-            description='Testing webhook notification'
+            title="Webhook Test",
+            description="Testing webhook notification",
         )
 
-        with patch('aiohttp.ClientSession.post') as mock_post:
+        with patch("aiohttp.ClientSession.post") as mock_post:
             mock_response = Mock()
             mock_response.status = 200
             mock_post.return_value.__aenter__.return_value = mock_response
@@ -569,14 +571,14 @@ class TestAlertNotificationSystem:
                 channel=NotificationChannel.SLACK,
                 enabled=True,
                 min_severity=AlertSeverity.MEDIUM,
-                config={'webhook_url': 'https://hooks.slack.com/test'}
+                config={"webhook_url": "https://hooks.slack.com/test"},
             ),
             NotificationConfig(
                 channel=NotificationChannel.PAGERDUTY,
                 enabled=True,
                 min_severity=AlertSeverity.CRITICAL,
-                config={'routing_key': 'test_key'}
-            )
+                config={"routing_key": "test_key"},
+            ),
         ]
 
     @pytest.fixture
@@ -595,30 +597,30 @@ class TestAlertNotificationSystem:
         """Test sending alert to all channels"""
         notification = AlertNotification(
             severity=AlertSeverity.CRITICAL,
-            title='Critical Alert',
-            description='Critical threat detected'
+            title="Critical Alert",
+            description="Critical threat detected",
         )
 
-        with patch('aiohttp.ClientSession.post') as mock_post:
+        with patch("aiohttp.ClientSession.post") as mock_post:
             mock_response = Mock()
             mock_response.status = 200
             mock_post.return_value.__aenter__.return_value = mock_response
 
             results = await notification_system.send_alert(notification)
 
-            assert 'slack' in results
-            assert 'pagerduty' in results
+            assert "slack" in results
+            assert "pagerduty" in results
 
     @pytest.mark.asyncio
     async def test_send_alert_respects_severity_threshold(self, notification_system):
         """Test that severity threshold is respected"""
         notification = AlertNotification(
             severity=AlertSeverity.LOW,  # Below PagerDuty threshold
-            title='Low Alert',
-            description='Low severity alert'
+            title="Low Alert",
+            description="Low severity alert",
         )
 
-        with patch('aiohttp.ClientSession.post') as mock_post:
+        with patch("aiohttp.ClientSession.post") as mock_post:
             mock_response = Mock()
             mock_response.status = 200
             mock_post.return_value.__aenter__.return_value = mock_response
@@ -627,18 +629,18 @@ class TestAlertNotificationSystem:
 
             # Slack should receive (min severity: MEDIUM > LOW)
             # PagerDuty should not receive (min severity: CRITICAL > LOW)
-            assert 'slack' in results
-            assert 'pagerduty' in results
+            assert "slack" in results
+            assert "pagerduty" in results
 
     def test_get_stats(self, notification_system):
         """Test getting system statistics"""
         stats = notification_system.get_stats()
 
-        assert 'total_channels' in stats
-        assert stats['total_channels'] == 2
-        assert 'enabled_channels' in stats
-        assert 'channels' in stats
-        assert len(stats['channels']) == 2
+        assert "total_channels" in stats
+        assert stats["total_channels"] == 2
+        assert "enabled_channels" in stats
+        assert "channels" in stats
+        assert len(stats["channels"]) == 2
 
 
 class TestNotificationHook:
@@ -651,7 +653,7 @@ class TestNotificationHook:
             NotificationConfig(
                 channel=NotificationChannel.SLACK,
                 enabled=True,
-                config={'webhook_url': 'https://hooks.slack.com/test'}
+                config={"webhook_url": "https://hooks.slack.com/test"},
             )
         ]
         return AlertNotificationSystem(configs)
@@ -668,23 +670,19 @@ class TestNotificationHook:
         hook = create_notification_hook(notification_system)
 
         threat_report = {
-            'overall_threat_level': 'high',
-            'dominant_threat_type': 'jailbreak',
-            'user_id': 'user_123',
-            'session_id': 'sess_456',
-            'summary': 'High severity threat detected',
-            'risk_score': 0.75,
-            'recommended_action': 'block',
-            'threat_signals': []
+            "overall_threat_level": "high",
+            "dominant_threat_type": "jailbreak",
+            "user_id": "user_123",
+            "session_id": "sess_456",
+            "summary": "High severity threat detected",
+            "risk_score": 0.75,
+            "recommended_action": "block",
+            "threat_signals": [],
         }
 
-        response_report = {
-            'context': {
-                'ip_address': '192.168.1.1'
-            }
-        }
+        response_report = {"context": {"ip_address": "192.168.1.1"}}
 
-        with patch('aiohttp.ClientSession.post') as mock_post:
+        with patch("aiohttp.ClientSession.post") as mock_post:
             mock_response = Mock()
             mock_response.status = 200
             mock_post.return_value.__aenter__.return_value = mock_response
@@ -704,29 +702,30 @@ class TestConvenienceAlertFunctions:
             NotificationConfig(
                 channel=NotificationChannel.SLACK,
                 enabled=True,
-                config={'webhook_url': 'https://hooks.slack.com/test'}
+                config={"webhook_url": "https://hooks.slack.com/test"},
             )
         ]
 
         system = initialize_notification_system(configs)
 
-        with patch('aiohttp.ClientSession.post') as mock_post:
+        with patch("aiohttp.ClientSession.post") as mock_post:
             mock_response = Mock()
             mock_response.status = 200
             mock_post.return_value.__aenter__.return_value = mock_response
 
             results = await send_security_alert(
-                severity='critical',
-                title='Test Alert',
-                description='Test alert from convenience function',
-                user_id='user_123',
-                ip_address='192.168.1.1'
+                severity="critical",
+                title="Test Alert",
+                description="Test alert from convenience function",
+                user_id="user_123",
+                ip_address="192.168.1.1",
             )
 
-            assert 'slack' in results
+            assert "slack" in results
 
 
 # ==================== Integration Tests ====================
+
 
 class TestMetricsWithThreatDetection:
     """Test metrics integration with threat detection"""
@@ -739,14 +738,14 @@ class TestMetricsWithThreatDetection:
     def test_jailbreak_detection_metrics(self, metrics):
         """Test recording jailbreak detection metrics"""
         # Simulate jailbreak detection
-        jailbreak_type = 'role_playing'
-        severity = 'critical'
+        jailbreak_type = "role_playing"
+        severity = "critical"
 
         metrics.record_jailbreak_attempt(
             jailbreak_type=jailbreak_type,
             severity=severity,
-            patterns_matched=['DAN', 'unrestricted'],
-            confidence=0.95
+            patterns_matched=["DAN", "unrestricted"],
+            confidence=0.95,
         )
 
         # Should record without error
@@ -755,10 +754,10 @@ class TestMetricsWithThreatDetection:
         """Test recording behavioral analysis metrics"""
         # Simulate behavioral anomaly
         metrics.record_behavioral_anomaly(
-            user_id='user_123',
-            category='bot_automation',
-            threat_type='bot_automation',
-            risk_score=0.85
+            user_id="user_123",
+            category="bot_automation",
+            threat_type="bot_automation",
+            risk_score=0.85,
         )
 
         # Should record without error
@@ -767,21 +766,15 @@ class TestMetricsWithThreatDetection:
         """Test recording threat assessment metrics"""
         # Simulate threat assessment
         metrics.record_threat_assessment(
-            session_id='sess_789',
-            threat_level='high',
-            risk_score=0.72
+            session_id="sess_789", threat_level="high", risk_score=0.72
         )
 
         metrics.record_threat_signal(
-            source='jailbreak',
-            severity='high',
-            threat_type='role_playing'
+            source="jailbreak", severity="high", threat_type="role_playing"
         )
 
         metrics.record_threat_signal(
-            source='behavioral',
-            severity='medium',
-            threat_type='anomaly'
+            source="behavioral", severity="medium", threat_type="anomaly"
         )
 
         # Should record without error
@@ -790,10 +783,10 @@ class TestMetricsWithThreatDetection:
         """Test recording response action metrics"""
         # Simulate response action
         metrics.record_response_action(
-            action='Block Session',
-            status='executed',
+            action="Block Session",
+            status="executed",
             duration_seconds=0.35,
-            success=True
+            success=True,
         )
 
         # Should record without error
@@ -812,17 +805,15 @@ class TestEndToEndWorkflow:
 
         # Record jailbreak detection
         metrics.record_jailbreak_attempt(
-            jailbreak_type='direct_injection',
-            severity='critical',
-            patterns_matched=['ignore.*instructions'],
-            confidence=0.92
+            jailbreak_type="direct_injection",
+            severity="critical",
+            patterns_matched=["ignore.*instructions"],
+            confidence=0.92,
         )
 
         # Record threat assessment
         metrics.record_threat_assessment(
-            session_id='sess_test',
-            threat_level='critical',
-            risk_score=0.88
+            session_id="sess_test", threat_level="critical", risk_score=0.88
         )
 
         # Step 2: Send notification
@@ -831,7 +822,7 @@ class TestEndToEndWorkflow:
                 channel=NotificationChannel.SLACK,
                 enabled=True,
                 min_severity=AlertSeverity.CRITICAL,
-                config={'webhook_url': 'https://hooks.slack.com/test'}
+                config={"webhook_url": "https://hooks.slack.com/test"},
             )
         ]
 
@@ -839,31 +830,31 @@ class TestEndToEndWorkflow:
 
         notification = AlertNotification(
             severity=AlertSeverity.CRITICAL,
-            title='Critical Jailbreak Detected',
-            description='Direct injection jailbreak attempt detected',
-            threat_type='direct_injection',
-            session_id='sess_test',
-            ip_address='192.168.1.1'
+            title="Critical Jailbreak Detected",
+            description="Direct injection jailbreak attempt detected",
+            threat_type="direct_injection",
+            session_id="sess_test",
+            ip_address="192.168.1.1",
         )
 
-        with patch('aiohttp.ClientSession.post') as mock_post:
+        with patch("aiohttp.ClientSession.post") as mock_post:
             mock_response = Mock()
             mock_response.status = 200
             mock_post.return_value.__aenter__.return_value = mock_response
 
             results = await notification_system.send_alert(notification)
 
-            assert 'slack' in results
+            assert "slack" in results
 
         # Step 3: Record response metrics
         metrics.record_response_action(
-            action='Block Session',
-            status='executed',
+            action="Block Session",
+            status="executed",
             duration_seconds=0.5,
-            success=True
+            success=True,
         )
 
 
 # Run tests
-if __name__ == '__main__':
-    pytest.main([__file__, '-v', '--tb=short'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--tb=short"])

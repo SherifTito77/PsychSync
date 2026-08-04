@@ -3,18 +3,13 @@ Assessment Taking Load Test for PsychSync
 Tests the complete assessment flow: start, save responses, complete, view results
 """
 
-from locust import HttpUser, task, between, events
+import json
 import logging
 import random
-import json
 from datetime import datetime, timedelta
 
-from locust_config import (
-    LoadTestConfig,
-    get_headers,
-    log_response,
-    test_data_manager,
-)
+from locust import HttpUser, between, events, task
+from locust_config import LoadTestConfig, get_headers, log_response, test_data_manager
 
 logger = logging.getLogger(__name__)
 
@@ -191,7 +186,9 @@ class AssessmentUser(HttpUser):
         Weight: 8
         """
         # Either view current assessment or a historical one
-        assessment_id = self.current_assessment_id or test_data_manager.get_random_assessment_id()
+        assessment_id = (
+            self.current_assessment_id or test_data_manager.get_random_assessment_id()
+        )
 
         with self.client.get(
             f"/api/v1/assessments/{assessment_id}/results",
@@ -302,7 +299,9 @@ def on_test_stop(environment, **kwargs):
     logger.info("=" * 60)
     logger.info(f"Total requests: {stats.total.num_requests}")
     logger.info(f"Failures: {stats.total.num_failures}")
-    logger.info(f"Failure rate: {(stats.total.num_failures / stats.total.num_requests * 100):.2f}%")
+    logger.info(
+        f"Failure rate: {(stats.total.num_failures / stats.total.num_requests * 100):.2f}%"
+    )
     logger.info(f"Median response time: {stats.total.median_response_time}ms")
     logger.info(f"Average response time: {stats.total.avg_response_time}ms")
     logger.info(f"Min response time: {stats.total.min_response_time}ms")

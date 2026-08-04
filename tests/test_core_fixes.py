@@ -4,14 +4,15 @@ This test validates that our critical security and functionality fixes work corr
 """
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.services.security import verify_password, get_password_hash, validate_password
-from app.services.user_service import UserService, user_to_dict
-from app.db.models.user import User, UserRole
-from app.db.models.response import AssessmentResponse, Response
-from app.db.models.analytics import Analytics, AnalyticsEvent
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.v1.api import api_router
+from app.db.models.analytics import Analytics, AnalyticsEvent
+from app.db.models.response import AssessmentResponse, Response
+from app.db.models.user import User, UserRole
+from app.services.security import get_password_hash, validate_password, verify_password
+from app.services.user_service import UserService, user_to_dict
 
 
 class TestSecurityFixes:
@@ -74,7 +75,7 @@ class TestModelImports:
         """Test User model has role field"""
         # Check that role column exists in the model
         user_table = User.__table__
-        assert 'role' in user_table.columns
+        assert "role" in user_table.columns
 
 
 class TestUserServiceAvailability:
@@ -82,6 +83,7 @@ class TestUserServiceAvailability:
 
     def test_user_to_dict_function(self):
         """Test user_to_dict helper function works"""
+
         # Create a mock user object with required attributes
         class MockUser:
             def __init__(self):
@@ -108,12 +110,12 @@ class TestUserServiceAvailability:
         assert UserService is not None
 
         # Check that required static methods exist
-        assert hasattr(UserService, 'create')
-        assert hasattr(UserService, 'get_by_id')
-        assert hasattr(UserService, 'get_by_email')
-        assert hasattr(UserService, 'update')
-        assert hasattr(UserService, 'delete')
-        assert hasattr(UserService, 'authenticate')
+        assert hasattr(UserService, "create")
+        assert hasattr(UserService, "get_by_id")
+        assert hasattr(UserService, "get_by_email")
+        assert hasattr(UserService, "update")
+        assert hasattr(UserService, "delete")
+        assert hasattr(UserService, "authenticate")
 
 
 class TestAPIRouterAvailability:

@@ -3,11 +3,12 @@
 End-to-End Tests using Playwright
 These tests simulate real user interactions in a browser
 """
-import pytest
 import re
-from playwright.sync_api import Page, expect
-from typing import Generator
 import time
+from typing import Generator
+
+import pytest
+from playwright.sync_api import Page, expect
 
 pytestmark = pytest.mark.e2e
 
@@ -17,8 +18,7 @@ def browser_context(playwright):
     """Create a new browser context for each test"""
     browser = playwright.chromium.launch(headless=True)
     context = browser.new_context(
-        viewport={"width": 1280, "height": 720},
-        locale="en-US"
+        viewport={"width": 1280, "height": 720}, locale="en-US"
     )
     yield context
     context.close()
@@ -55,10 +55,12 @@ class TestAuthentication:
         page.click('button[type="submit"]')
 
         # Verify redirect to dashboard or success message
-        expect(page).to_have_url(re.compile(r".*(dashboard|login|success).*"), timeout=10000)
+        expect(page).to_have_url(
+            re.compile(r".*(dashboard|login|success).*"), timeout=10000
+        )
 
         # Check for success message
-        success_message = page.locator('text=/successfully|registered|welcome/i')
+        success_message = page.locator("text=/successfully|registered|welcome/i")
         if success_message.is_visible():
             expect(success_message).to_be_visible()
 
@@ -77,7 +79,9 @@ class TestAuthentication:
         page.wait_for_load_state("networkidle")
 
         # Verify we're logged in (check for user menu, dashboard, etc.)
-        expect(page.locator('[data-testid="user-menu"], .user-profile, text=/dashboard/i')).to_be_visible(timeout=10000)
+        expect(
+            page.locator('[data-testid="user-menu"], .user-profile, text=/dashboard/i')
+        ).to_be_visible(timeout=10000)
 
     def test_login_with_invalid_credentials(self, page: Page, base_url: str):
         """Test login failure handling"""
@@ -88,7 +92,7 @@ class TestAuthentication:
         page.click('button[type="submit"]:has-text("Login")')
 
         # Check for error message
-        error_message = page.locator('text=/invalid|incorrect|failed|error/i')
+        error_message = page.locator("text=/invalid|incorrect|failed|error/i")
         expect(error_message).to_be_visible(timeout=5000)
 
     def test_logout_flow(self, page: Page, base_url: str):
@@ -101,7 +105,9 @@ class TestAuthentication:
         page.wait_for_load_state("networkidle")
 
         # Click logout
-        logout_button = page.locator('button:has-text("Logout"), a:has-text("Logout"), [data-testid="logout"]')
+        logout_button = page.locator(
+            'button:has-text("Logout"), a:has-text("Logout"), [data-testid="logout"]'
+        )
         logout_button.click()
 
         # Verify redirect to login or home
@@ -155,7 +161,9 @@ class TestTeamManagement:
         page.click('button:has-text("Send Invite")')
 
         # Verify success message
-        expect(page.locator('text=/invited|invitation sent/i')).to_be_visible(timeout=5000)
+        expect(page.locator("text=/invited|invitation sent/i")).to_be_visible(
+            timeout=5000
+        )
 
     def test_view_team_members(self, page: Page, base_url: str):
         """Test viewing team members list"""
@@ -170,7 +178,9 @@ class TestTeamManagement:
             members_tab.click()
 
         # Verify members list is visible
-        expect(page.locator('.members-list, [data-testid="members-list"]')).to_be_visible(timeout=5000)
+        expect(
+            page.locator('.members-list, [data-testid="members-list"]')
+        ).to_be_visible(timeout=5000)
 
 
 class TestAssessmentCreation:
@@ -203,7 +213,9 @@ class TestAssessmentCreation:
         # Add a question
         page.click('button:has-text("Add Question")')
         page.select_option('select[name="question_type"]', "likert")
-        page.fill('textarea[name="question_text"]', "How satisfied are you with your work?")
+        page.fill(
+            'textarea[name="question_text"]', "How satisfied are you with your work?"
+        )
 
         # Save assessment
         page.click('button[type="submit"]:has-text("Save"), button:has-text("Create")')
@@ -249,34 +261,44 @@ class TestAssessmentCreation:
 
         # Verify all questions were saved
         expect(page.locator('text="Rate your proficiency"')).to_be_visible(timeout=5000)
-        expect(page.locator('text="What is your experience level?"')).to_be_visible(timeout=5000)
-        expect(page.locator('text="Describe your experience"')).to_be_visible(timeout=5000)
+        expect(page.locator('text="What is your experience level?"')).to_be_visible(
+            timeout=5000
+        )
+        expect(page.locator('text="Describe your experience"')).to_be_visible(
+            timeout=5000
+        )
 
     def test_publish_assessment(self, page: Page, base_url: str):
         """Test publishing an assessment"""
         page.goto(f"{base_url}/assessments")
 
         # Find draft assessment
-        draft_assessment = page.locator('.assessment-card:has-text("Draft"), [data-status="draft"]').first
+        draft_assessment = page.locator(
+            '.assessment-card:has-text("Draft"), [data-status="draft"]'
+        ).first
         draft_assessment.click()
 
         # Click publish button
         page.click('button:has-text("Publish")')
 
         # Confirm if modal appears
-        confirm_button = page.locator('button:has-text("Confirm"), button:has-text("Yes")')
+        confirm_button = page.locator(
+            'button:has-text("Confirm"), button:has-text("Yes")'
+        )
         if confirm_button.is_visible():
             confirm_button.click()
 
         # Verify status changed
-        expect(page.locator('text=/published|live/i, [data-status="published"]')).to_be_visible(timeout=5000)
+        expect(
+            page.locator('text=/published|live/i, [data-status="published"]')
+        ).to_be_visible(timeout=5000)
 
     def test_clone_assessment(self, page: Page, base_url: str):
         """Test cloning an existing assessment"""
         page.goto(f"{base_url}/assessments")
 
         # Find an assessment
-        assessment = page.locator('.assessment-card').first
+        assessment = page.locator(".assessment-card").first
         assessment.click()
 
         # Click clone/duplicate button
@@ -308,14 +330,18 @@ class TestTakingAssessment:
         page.goto(f"{base_url}/assessments")
 
         # Find published assessment
-        published = page.locator('[data-status="published"], .assessment-card:has-text("Published")').first
+        published = page.locator(
+            '[data-status="published"], .assessment-card:has-text("Published")'
+        ).first
         published.click()
 
         # Start assessment
         page.click('button:has-text("Start Assessment"), button:has-text("Begin")')
 
         # Answer first question (assuming Likert)
-        likert_option = page.locator('input[type="radio"][value="5"], button:has-text("5")').first
+        likert_option = page.locator(
+            'input[type="radio"][value="5"], button:has-text("5")'
+        ).first
         if likert_option.is_visible():
             likert_option.click()
 
@@ -339,7 +365,9 @@ class TestTakingAssessment:
         page.click('button:has-text("Submit"), button:has-text("Complete")')
 
         # Verify completion
-        expect(page.locator('text=/completed|thank you|submitted/i')).to_be_visible(timeout=10000)
+        expect(page.locator("text=/completed|thank you|submitted/i")).to_be_visible(
+            timeout=10000
+        )
 
     def test_save_progress_and_resume(self, page: Page, base_url: str):
         """Test saving progress and resuming later"""
@@ -354,7 +382,9 @@ class TestTakingAssessment:
         page.locator('input[type="radio"]').first.click()
 
         # Save and exit
-        save_button = page.locator('button:has-text("Save"), button:has-text("Save Progress")')
+        save_button = page.locator(
+            'button:has-text("Save"), button:has-text("Save Progress")'
+        )
         if save_button.is_visible():
             save_button.click()
 
@@ -368,7 +398,9 @@ class TestTakingAssessment:
         page.click('button:has-text("Resume"), button:has-text("Continue")')
 
         # Verify we're on the correct question
-        expect(page.locator('.question-container, [data-testid="question"]')).to_be_visible()
+        expect(
+            page.locator('.question-container, [data-testid="question"]')
+        ).to_be_visible()
 
     def test_validation_on_required_questions(self, page: Page, base_url: str):
         """Test that required questions are validated"""
@@ -384,7 +416,7 @@ class TestTakingAssessment:
             next_button.click()
 
             # Check for validation error
-            error = page.locator('text=/required|must answer|please select/i')
+            error = page.locator("text=/required|must answer|please select/i")
             if error.is_visible():
                 expect(error).to_be_visible()
 
@@ -406,21 +438,25 @@ class TestResultsAndAnalytics:
         page.goto(f"{base_url}/responses")
 
         # Click on completed response
-        completed = page.locator('[data-status="completed"], .response-card:has-text("Completed")').first
+        completed = page.locator(
+            '[data-status="completed"], .response-card:has-text("Completed")'
+        ).first
         completed.click()
 
         # Verify results page loaded
-        expect(page.locator('.results-container, [data-testid="results"]')).to_be_visible(timeout=5000)
+        expect(
+            page.locator('.results-container, [data-testid="results"]')
+        ).to_be_visible(timeout=5000)
 
         # Check for score or summary
-        expect(page.locator('text=/score|result|summary/i')).to_be_visible()
+        expect(page.locator("text=/score|result|summary/i")).to_be_visible()
 
     def test_view_team_analytics(self, page: Page, base_url: str):
         """Test viewing team-wide analytics"""
         page.goto(f"{base_url}/teams")
 
         # Select team
-        page.locator('.team-card').first.click()
+        page.locator(".team-card").first.click()
 
         # Navigate to analytics
         analytics_tab = page.locator('text="Analytics", a:has-text("Analytics")')
@@ -430,7 +466,7 @@ class TestResultsAndAnalytics:
             page.goto(f"{base_url}/analytics")
 
         # Verify charts/graphs are visible
-        expect(page.locator('canvas, svg, .chart')).to_be_visible(timeout=5000)
+        expect(page.locator("canvas, svg, .chart")).to_be_visible(timeout=5000)
 
     def test_export_results(self, page: Page, base_url: str):
         """Test exporting assessment results"""
@@ -440,7 +476,9 @@ class TestResultsAndAnalytics:
         page.locator('[data-status="completed"]').first.click()
 
         # Click export button
-        export_button = page.locator('button:has-text("Export"), button:has-text("Download")')
+        export_button = page.locator(
+            'button:has-text("Export"), button:has-text("Download")'
+        )
 
         # Start waiting for download before clicking
         with page.expect_download() as download_info:
@@ -449,14 +487,16 @@ class TestResultsAndAnalytics:
         download = download_info.value
 
         # Verify download completed
-        assert download.suggested_filename.endswith(('.pdf', '.csv', '.xlsx'))
+        assert download.suggested_filename.endswith((".pdf", ".csv", ".xlsx"))
 
     def test_filter_and_search_results(self, page: Page, base_url: str):
         """Test filtering and searching through results"""
         page.goto(f"{base_url}/responses")
 
         # Use search
-        search_input = page.locator('input[type="search"], input[placeholder*="Search"]')
+        search_input = page.locator(
+            'input[type="search"], input[placeholder*="Search"]'
+        )
         if search_input.is_visible():
             search_input.fill("Test Assessment")
             page.wait_for_timeout(1000)  # Wait for search to execute
@@ -467,7 +507,7 @@ class TestResultsAndAnalytics:
         # Use status filter
         status_filter = page.locator('select[name="status"], button:has-text("Filter")')
         if status_filter.is_visible():
-            if status_filter.get_attribute('tagName') == 'SELECT':
+            if status_filter.get_attribute("tagName") == "SELECT":
                 status_filter.select_option("completed")
             else:
                 status_filter.click()
@@ -491,12 +531,14 @@ class TestResponsiveDesign:
         page.wait_for_load_state("networkidle")
 
         # Open mobile menu
-        menu_button = page.locator('button[aria-label*="menu"], .hamburger, button:has-text("☰")')
+        menu_button = page.locator(
+            'button[aria-label*="menu"], .hamburger, button:has-text("☰")'
+        )
         if menu_button.is_visible():
             menu_button.click()
 
             # Verify menu is visible
-            expect(page.locator('nav, .mobile-menu')).to_be_visible()
+            expect(page.locator("nav, .mobile-menu")).to_be_visible()
 
     def test_tablet_layout(self, page: Page, base_url: str):
         """Test layout on tablet viewport"""
@@ -505,7 +547,7 @@ class TestResponsiveDesign:
         page.goto(f"{base_url}")
 
         # Verify layout adapts
-        expect(page.locator('body')).to_be_visible()
+        expect(page.locator("body")).to_be_visible()
 
         # Navigation should be accessible
         expect(page.locator('nav, [role="navigation"]')).to_be_visible()
@@ -542,10 +584,16 @@ class TestAccessibility:
 
         # Check for labels or aria-labels
         email_input = page.locator('input[name="email"]')
-        assert email_input.get_attribute("aria-label") or page.locator('label[for="email"]').is_visible()
+        assert (
+            email_input.get_attribute("aria-label")
+            or page.locator('label[for="email"]').is_visible()
+        )
 
         password_input = page.locator('input[name="password"]')
-        assert password_input.get_attribute("aria-label") or page.locator('label[for="password"]').is_visible()
+        assert (
+            password_input.get_attribute("aria-label")
+            or page.locator('label[for="password"]').is_visible()
+        )
 
 
 class TestPerformance:
@@ -578,7 +626,9 @@ class TestPerformance:
             page.wait_for_load_state("networkidle")
 
             # Verify content changed
-            expect(page.locator('.assessment-card, [data-testid="assessment"]')).to_be_visible()
+            expect(
+                page.locator('.assessment-card, [data-testid="assessment"]')
+            ).to_be_visible()
 
 
 class TestErrorScenarios:
@@ -596,7 +646,9 @@ class TestErrorScenarios:
         page.click('button[type="submit"]')
 
         # Should show error message
-        expect(page.locator('text=/network|offline|connection/i')).to_be_visible(timeout=5000)
+        expect(page.locator("text=/network|offline|connection/i")).to_be_visible(
+            timeout=5000
+        )
 
         # Restore online mode
         page.context.set_offline(False)
@@ -623,4 +675,6 @@ class TestErrorScenarios:
         page.goto(f"{base_url}/this-page-does-not-exist-12345")
 
         # Should show 404 message
-        expect(page.locator('text=/404|not found|page.*not.*exist/i')).to_be_visible(timeout=5000)
+        expect(page.locator("text=/404|not found|page.*not.*exist/i")).to_be_visible(
+            timeout=5000
+        )

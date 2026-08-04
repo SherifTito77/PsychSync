@@ -16,21 +16,21 @@ Integrates with:
 """
 
 import logging
-from datetime import datetime, timedelta, time
-from typing import Any, Dict, List, Optional
+from datetime import datetime, time, timedelta
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 import pytz
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func, case
 
+from app.core.logging_config import logger
 from app.db.models.clinical_extended import ClinicalAssessmentExtended
 from app.db.models.clinical_screening import ClinicalAlert
 from app.db.models.notification import NotificationPreference
 from app.db.models.user import User
-from app.services.clinical.risk_prediction_service import RiskPredictionService
 from app.services.clinical.notification_service import ClinicianNotificationService
-from app.core.logging_config import logger
+from app.services.clinical.risk_prediction_service import RiskPredictionService
 
 # =============================================================================
 # Alert Types and Severity
@@ -136,17 +136,13 @@ class AutomatedAlertService:
 
             # Check for high/critical risk level
             if assessment.risk_level in ["high", "critical"]:
-                trigger = await self._check_high_risk_assessment(
-                    assessment, user
-                )
+                trigger = await self._check_high_risk_assessment(assessment, user)
                 if trigger:
                     triggers.append(trigger)
 
             # Check for specific risk flags (suicidal ideation, etc.)
             if assessment.risk_flags:
-                trigger = await self._check_risk_flags(
-                    assessment, user
-                )
+                trigger = await self._check_risk_flags(assessment, user)
                 if trigger:
                     triggers.append(trigger)
 
@@ -157,9 +153,7 @@ class AutomatedAlertService:
             return triggers
 
         except Exception as e:
-            self.logger.error(
-                f"Error monitoring assessment for user {user.id}: {e}"
-            )
+            self.logger.error(f"Error monitoring assessment for user {user.id}: {e}")
             return []
 
     async def _check_crisis_alert(
@@ -179,9 +173,7 @@ class AutomatedAlertService:
             severity = AlertSeverity.HIGH
 
         # Build detailed message
-        assessment_name = self._get_assessment_name(
-            assessment.assessment_type
-        )
+        assessment_name = self._get_assessment_name(assessment.assessment_type)
 
         # Check for specific crisis indicators
         if assessment.risk_flags:
@@ -237,9 +229,7 @@ class AutomatedAlertService:
         if assessment.total_score < threshold:
             return None
 
-        assessment_name = self._get_assessment_name(
-            assessment.assessment_type
-        )
+        assessment_name = self._get_assessment_name(assessment.assessment_type)
 
         message = (
             f"HIGH RISK ALERT: {user.full_name} scored {assessment.total_score} "
@@ -272,10 +262,7 @@ class AutomatedAlertService:
         """Check for specific risk flags"""
 
         # Check for suicidal ideation flag
-        if any(
-            "suicid" in flag.lower()
-            for flag in (assessment.risk_flags or [])
-        ):
+        if any("suicid" in flag.lower() for flag in (assessment.risk_flags or [])):
             return AlertTrigger(
                 trigger_type=AlertType.CRISIS_SUICIDE,
                 severity=AlertSeverity.CRITICAL,
@@ -542,9 +529,7 @@ class AutomatedAlertService:
             subquery = (
                 select(
                     ClinicalAssessmentExtended.user_id,
-                    func.count(ClinicalAssessmentExtended.id).label(
-                        "assessment_count"
-                    ),
+                    func.count(ClinicalAssessmentExtended.id).label("assessment_count"),
                 )
                 .where(
                     and_(
@@ -588,9 +573,7 @@ class AutomatedAlertService:
             self.logger.error(f"Error checking trending alerts: {e}")
             return []
 
-    async def _check_worsening_trend(
-        self, user_id: str
-    ) -> Optional[AlertTrigger]:
+    async def _check_worsening_trend(self, user_id: str) -> Optional[AlertTrigger]:
         """Check if user has worsening trend requiring alert"""
 
         try:
@@ -603,9 +586,7 @@ class AutomatedAlertService:
                     and_(
                         ClinicalAssessmentExtended.user_id == user_id,
                         ClinicalAssessmentExtended.completed_at >= cutoff_date,
-                        ClinicalAssessmentExtended.assessment_type.in_(
-                            ["BDI2", "BAI"]
-                        ),
+                        ClinicalAssessmentExtended.assessment_type.in_(["BDI2", "BAI"]),
                     )
                 )
                 .order_by(ClinicalAssessmentExtended.completed_at)
@@ -641,9 +622,7 @@ class AutomatedAlertService:
                     metadata={
                         "initial_average": first_avg,
                         "recent_average": last_avg,
-                        "percent_increase": (
-                            (last_avg - first_avg) / first_avg * 100
-                        ),
+                        "percent_increase": ((last_avg - first_avg) / first_avg * 100),
                         "assessment_count": len(assessments),
                     },
                     requires_immediate_action=requires_immediate,
@@ -709,9 +688,17 @@ class AutomatedAlertService:
                 alert_type=trigger.trigger_type.value,
                 severity=trigger.severity.value,
                 alert_message=trigger.message,
-                resolution_status="pending" if trigger.severity != AlertSeverity.CRITICAL else "escalated",
+                resolution_status=(
+                    "pending"
+                    if trigger.severity != AlertSeverity.CRITICAL
+                    else "escalated"
+                ),
                 escalated=trigger.severity == AlertSeverity.CRITICAL,
-                escalation_level="clinical_team" if trigger.severity == AlertSeverity.CRITICAL else None,
+                escalation_level=(
+                    "clinical_team"
+                    if trigger.severity == AlertSeverity.CRITICAL
+                    else None
+                ),
             )
 
             self.db.add(alert)
@@ -725,9 +712,7 @@ class AutomatedAlertService:
             await self.db.rollback()
             return None
 
-    async def _send_clinician_notifications(
-        self, trigger: AlertTrigger
-    ) -> None:
+    async def _send_clinician_notifications(self, trigger: AlertTrigger) -> None:
         """Send notifications to eligible clinicians"""
 
         try:
@@ -735,9 +720,11 @@ class AutomatedAlertService:
             notification_service = ClinicianNotificationService(self.db)
 
             # Determine notification type based on trigger
-            notification_type = "crisis_alert" if trigger.severity in [
-                AlertSeverity.CRITICAL
-            ] else "high_risk"
+            notification_type = (
+                "crisis_alert"
+                if trigger.severity in [AlertSeverity.CRITICAL]
+                else "high_risk"
+            )
 
             # Send notifications
             await notification_service.notify_clinicians_of_alert(
@@ -866,7 +853,9 @@ class AutomatedAlertService:
         query = select(ClinicalAlert).where(
             and_(
                 ClinicalAlert.org_id == org_id,
-                ClinicalAlert.resolution_status.in_(["pending", "in_progress", "escalated"]),
+                ClinicalAlert.resolution_status.in_(
+                    ["pending", "in_progress", "escalated"]
+                ),
                 ClinicalAlert.acknowledged == False,
             )
         )
@@ -911,9 +900,7 @@ class AutomatedAlertService:
         """Acknowledge an alert"""
 
         try:
-            query = select(ClinicalAlert).where(
-                ClinicalAlert.id == alert_id
-            )
+            query = select(ClinicalAlert).where(ClinicalAlert.id == alert_id)
             result = await self.db.execute(query)
             alert = result.scalar_one_or_none()
 
@@ -949,9 +936,7 @@ class AutomatedAlertService:
         """Resolve an alert"""
 
         try:
-            query = select(ClinicalAlert).where(
-                ClinicalAlert.id == alert_id
-            )
+            query = select(ClinicalAlert).where(ClinicalAlert.id == alert_id)
             result = await self.db.execute(query)
             alert = result.scalar_one_or_none()
 
@@ -965,9 +950,7 @@ class AutomatedAlertService:
 
             await self.db.commit()
 
-            self.logger.info(
-                f"Alert {alert_id} resolved by clinician {clinician_id}"
-            )
+            self.logger.info(f"Alert {alert_id} resolved by clinician {clinician_id}")
 
             return True
 

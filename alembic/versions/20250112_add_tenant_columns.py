@@ -22,13 +22,14 @@ Migration Strategy:
 
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 # revision identifiers, used by Alembic
-revision = '20250112_add_tenant_columns'
-down_revision = 'f8db50401323'
+revision = "20250112_add_tenant_columns"
+down_revision = "f8db50401323"
 branch_labels = None
 depends_on = None
 
@@ -42,26 +43,24 @@ def upgrade():
 
     # Users table
     op.add_column(
-        'users',
-        sa.Column('tenant_id', postgresql.UUID(as_uuid=True), nullable=True)
+        "users", sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=True)
     )
 
     # Teams table
     op.add_column(
-        'teams',
-        sa.Column('tenant_id', postgresql.UUID(as_uuid=True), nullable=True)
+        "teams", sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=True)
     )
 
     # Assessments table
     op.add_column(
-        'assessments',
-        sa.Column('tenant_id', postgresql.UUID(as_uuid=True), nullable=True)
+        "assessments",
+        sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=True),
     )
 
     # Assessment responses table
     op.add_column(
-        'assessment_responses',
-        sa.Column('tenant_id', postgresql.UUID(as_uuid=True), nullable=True)
+        "assessment_responses",
+        sa.Column("tenant_id", postgresql.UUID(as_uuid=True), nullable=True),
     )
 
     print("✅ Added tenant_id columns (nullable)")
@@ -71,34 +70,42 @@ def upgrade():
     # ============================================
 
     # Migrate users: tenant_id = organization_id
-    op.execute("""
+    op.execute(
+        """
         UPDATE users
         SET tenant_id = organization_id
         WHERE organization_id IS NOT NULL
-    """)
+    """
+    )
 
     # Migrate teams: tenant_id = organization_id
-    op.execute("""
+    op.execute(
+        """
         UPDATE teams
         SET tenant_id = organization_id
         WHERE organization_id IS NOT NULL
-    """)
+    """
+    )
 
     # Migrate assessments: tenant_id = organization_id
-    op.execute("""
+    op.execute(
+        """
         UPDATE assessments
         SET tenant_id = organization_id
         WHERE organization_id IS NOT NULL
-    """)
+    """
+    )
 
     # Migrate assessment_responses: tenant_id from assessment
-    op.execute("""
+    op.execute(
+        """
         UPDATE assessment_responses
         SET tenant_id = assessments.tenant_id
         FROM assessments
         WHERE assessment_responses.assessment_id = assessments.id
         AND assessments.tenant_id IS NOT NULL
-    """)
+    """
+    )
 
     print("✅ Migrated existing data from organization_id to tenant_id")
 
@@ -107,45 +114,39 @@ def upgrade():
     # ============================================
 
     # First, ensure all rows have tenant_id
-    op.execute("""
+    op.execute(
+        """
         UPDATE users SET tenant_id = organization_id
         WHERE tenant_id IS NULL AND organization_id IS NOT NULL
-    """)
+    """
+    )
 
-    op.execute("""
+    op.execute(
+        """
         UPDATE teams SET tenant_id = organization_id
         WHERE tenant_id IS NULL AND organization_id IS NOT NULL
-    """)
+    """
+    )
 
-    op.execute("""
+    op.execute(
+        """
         UPDATE assessments SET tenant_id = organization_id
         WHERE tenant_id IS NULL AND organization_id IS NOT NULL
-    """)
+    """
+    )
 
     # Set NOT NULL constraint
-    op.alter_column(
-        'users',
-        'tenant_id',
-        nullable=False
-    )
+    op.alter_column("users", "tenant_id", nullable=False)
 
-    op.alter_column(
-        'teams',
-        'tenant_id',
-        nullable=False
-    )
+    op.alter_column("teams", "tenant_id", nullable=False)
 
-    op.alter_column(
-        'assessments',
-        'tenant_id',
-        nullable=False
-    )
+    op.alter_column("assessments", "tenant_id", nullable=False)
 
     # assessment_responses can remain nullable (responses without assessment)
     op.create_check_constraint(
-        'ck_assessment_responses_tenant_or_assessment',
-        'assessment_responses',
-        'tenant_id IS NOT NULL OR assessment_id IS NOT NULL'
+        "ck_assessment_responses_tenant_or_assessment",
+        "assessment_responses",
+        "tenant_id IS NOT NULL OR assessment_id IS NOT NULL",
     )
 
     print("✅ Made tenant_id columns non-nullable")
@@ -155,47 +156,23 @@ def upgrade():
     # ============================================
 
     # Create indexes on tenant_id
-    op.create_index(
-        'idx_users_tenant_id',
-        'users',
-        ['tenant_id']
-    )
+    op.create_index("idx_users_tenant_id", "users", ["tenant_id"])
+
+    op.create_index("idx_teams_tenant_id", "teams", ["tenant_id"])
+
+    op.create_index("idx_assessments_tenant_id", "assessments", ["tenant_id"])
 
     op.create_index(
-        'idx_teams_tenant_id',
-        'teams',
-        ['tenant_id']
-    )
-
-    op.create_index(
-        'idx_assessments_tenant_id',
-        'assessments',
-        ['tenant_id']
-    )
-
-    op.create_index(
-        'idx_assessment_responses_tenant_id',
-        'assessment_responses',
-        ['tenant_id']
+        "idx_assessment_responses_tenant_id", "assessment_responses", ["tenant_id"]
     )
 
     # Composite indexes for common queries
-    op.create_index(
-        'idx_users_tenant_email',
-        'users',
-        ['tenant_id', 'email']
-    )
+    op.create_index("idx_users_tenant_email", "users", ["tenant_id", "email"])
+
+    op.create_index("idx_teams_tenant_org", "teams", ["tenant_id", "organization_id"])
 
     op.create_index(
-        'idx_teams_tenant_org',
-        'teams',
-        ['tenant_id', 'organization_id']
-    )
-
-    op.create_index(
-        'idx_assessments_tenant_created',
-        'assessments',
-        ['tenant_id', 'created_at']
+        "idx_assessments_tenant_created", "assessments", ["tenant_id", "created_at"]
     )
 
     print("✅ Created indexes on tenant_id columns")
@@ -206,37 +183,31 @@ def upgrade():
 
     # Add FK to organizations table
     op.create_foreign_key(
-        'fk_users_tenant_organization',
-        'users',
-        'organizations',
-        ['tenant_id'],
-        ['id']
+        "fk_users_tenant_organization", "users", "organizations", ["tenant_id"], ["id"]
     )
 
     op.create_foreign_key(
-        'fk_teams_tenant_organization',
-        'teams',
-        'organizations',
-        ['tenant_id'],
-        ['id']
+        "fk_teams_tenant_organization", "teams", "organizations", ["tenant_id"], ["id"]
     )
 
     op.create_foreign_key(
-        'fk_assessments_tenant_organization',
-        'assessments',
-        'organizations',
-        ['tenant_id'],
-        ['id']
+        "fk_assessments_tenant_organization",
+        "assessments",
+        "organizations",
+        ["tenant_id"],
+        ["id"],
     )
 
     print("✅ Added foreign key constraints to organizations")
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("✅ TENANT_ID COLUMNS ADDED SUCCESSFULLY")
-    print("="*80)
+    print("=" * 80)
     print("\nNext steps:")
     print("1. Run: alembic upgrade head")
-    print("2. Verify data migration: SELECT COUNT(*) FROM users WHERE tenant_id IS NULL;")
+    print(
+        "2. Verify data migration: SELECT COUNT(*) FROM users WHERE tenant_id IS NULL;"
+    )
     print("3. Apply RLS policies: alembic upgrade 20250112_enable_rls")
     print("4. Test tenant isolation")
 
@@ -246,44 +217,36 @@ def downgrade():
 
     # Drop foreign keys
     op.drop_constraint(
-        'fk_assessments_tenant_organization',
-        'assessments',
-        type_='foreignkey'
+        "fk_assessments_tenant_organization", "assessments", type_="foreignkey"
     )
 
-    op.drop_constraint(
-        'fk_teams_tenant_organization',
-        'teams',
-        type_='foreignkey'
-    )
+    op.drop_constraint("fk_teams_tenant_organization", "teams", type_="foreignkey")
 
-    op.drop_constraint(
-        'fk_users_tenant_organization',
-        'users',
-        type_='foreignkey'
-    )
+    op.drop_constraint("fk_users_tenant_organization", "users", type_="foreignkey")
 
     # Drop indexes
-    op.drop_index('idx_assessments_tenant_created')
-    op.drop_index('idx_teams_tenant_org')
-    op.drop_index('idx_users_tenant_email')
-    op.drop_index('idx_assessment_responses_tenant_id')
-    op.drop_index('idx_assessments_tenant_id')
-    op.drop_index('idx_teams_tenant_id')
-    op.drop_index('idx_users_tenant_id')
+    op.drop_index("idx_assessments_tenant_created")
+    op.drop_index("idx_teams_tenant_org")
+    op.drop_index("idx_users_tenant_email")
+    op.drop_index("idx_assessment_responses_tenant_id")
+    op.drop_index("idx_assessments_tenant_id")
+    op.drop_index("idx_teams_tenant_id")
+    op.drop_index("idx_users_tenant_id")
 
     # Make columns nullable
-    op.alter_column('assessments', 'tenant_id', nullable=True)
-    op.alter_column('teams', 'tenant_id', nullable=True)
-    op.alter_column('users', 'tenant_id', nullable=True)
+    op.alter_column("assessments", "tenant_id", nullable=True)
+    op.alter_column("teams", "tenant_id", nullable=True)
+    op.alter_column("users", "tenant_id", nullable=True)
 
     # Drop check constraint
-    op.drop_constraint('ck_assessment_responses_tenant_or_assessment', 'assessment_responses')
+    op.drop_constraint(
+        "ck_assessment_responses_tenant_or_assessment", "assessment_responses"
+    )
 
     # Drop columns
-    op.drop_column('assessment_responses', 'tenant_id')
-    op.drop_column('assessments', 'tenant_id')
-    op.drop_column('teams', 'tenant_id')
-    op.drop_column('users', 'tenant_id')
+    op.drop_column("assessment_responses", "tenant_id")
+    op.drop_column("assessments", "tenant_id")
+    op.drop_column("teams", "tenant_id")
+    op.drop_column("users", "tenant_id")
 
     print("⚠️  Rolled back: tenant_id columns removed")

@@ -13,29 +13,31 @@ Author: PsychSync Security Team
 Version: 1.0.0
 """
 
+import hashlib
+import json
 import logging
 import re
-import json
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
 from pathlib import Path
-import hashlib
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
 
 class UncertaintyThreshold(Enum):
     """Uncertainty threshold levels for different use cases."""
-    CRITICAL = 0.10    # Medical/clinical decisions - require high confidence
-    HIGH = 0.25        # Legal/compliance decisions
-    MEDIUM = 0.40      # Business/recommendation decisions
-    LOW = 0.60         # General assistance
+
+    CRITICAL = 0.10  # Medical/clinical decisions - require high confidence
+    HIGH = 0.25  # Legal/compliance decisions
+    MEDIUM = 0.40  # Business/recommendation decisions
+    LOW = 0.60  # General assistance
 
 
 class TaskCategory(Enum):
     """Categories of AI tasks with different uncertainty tolerances."""
+
     CLINICAL_ASSESSMENT = ("clinical", UncertaintyThreshold.CRITICAL)
     LEGAL_ADVICE = ("legal", UncertaintyThreshold.HIGH)
     TEAM_OPTIMIZATION = ("team", UncertaintyThreshold.MEDIUM)
@@ -50,18 +52,20 @@ class TaskCategory(Enum):
 @dataclass
 class UncertaintySignals:
     """Signals contributing to uncertainty score."""
-    semantic_variance: float = 0.0      # Inconsistency across samples
+
+    semantic_variance: float = 0.0  # Inconsistency across samples
     low_confidence_tokens: float = 0.0  # Proportion of low-prob tokens
-    knowledge_gap_score: float = 0.0    # Outside training knowledge
-    contradiction_score: float = 0.0    # Internal contradictions
-    hallucination_risk: float = 0.0     # Pattern matching for hallucinations
-    specificity_mismatch: float = 0.0   # Over-specific when uncertain
+    knowledge_gap_score: float = 0.0  # Outside training knowledge
+    contradiction_score: float = 0.0  # Internal contradictions
+    hallucination_risk: float = 0.0  # Pattern matching for hallucinations
+    specificity_mismatch: float = 0.0  # Over-specific when uncertain
 
 
 @dataclass
 class UncertaintyReport:
     """Complete uncertainty assessment report."""
-    overall_score: float                # 0.0 = confident, 1.0 = highly uncertain
+
+    overall_score: float  # 0.0 = confident, 1.0 = highly uncertain
     signals: UncertaintySignals
     exceeds_threshold: bool
     requires_human_review: bool
@@ -76,26 +80,29 @@ class UncertaintyReport:
 
     def to_json(self) -> str:
         """Convert report to JSON."""
-        return json.dumps({
-            'overall_score': self.overall_score,
-            'signals': {
-                'semantic_variance': self.signals.semantic_variance,
-                'low_confidence_tokens': self.signals.low_confidence_tokens,
-                'knowledge_gap_score': self.signals.knowledge_gap_score,
-                'contradiction_score': self.signals.contradiction_score,
-                'hallucination_risk': self.signals.hallucination_risk,
-                'specificity_mismatch': self.signals.specificity_mismatch,
+        return json.dumps(
+            {
+                "overall_score": self.overall_score,
+                "signals": {
+                    "semantic_variance": self.signals.semantic_variance,
+                    "low_confidence_tokens": self.signals.low_confidence_tokens,
+                    "knowledge_gap_score": self.signals.knowledge_gap_score,
+                    "contradiction_score": self.signals.contradiction_score,
+                    "hallucination_risk": self.signals.hallucination_risk,
+                    "specificity_mismatch": self.signals.specificity_mismatch,
+                },
+                "exceeds_threshold": self.exceeds_threshold,
+                "requires_human_review": self.requires_human_review,
+                "task_category": self.task_category,
+                "threshold_used": self.threshold_used,
+                "sample_count": self.sample_count,
+                "flagged_claims": self.flagged_claims,
+                "recommendations": self.recommendations,
+                "timestamp": self.timestamp,
+                "report_hash": self.report_hash,
             },
-            'exceeds_threshold': self.exceeds_threshold,
-            'requires_human_review': self.requires_human_review,
-            'task_category': self.task_category,
-            'threshold_used': self.threshold_used,
-            'sample_count': self.sample_count,
-            'flagged_claims': self.flagged_claims,
-            'recommendations': self.recommendations,
-            'timestamp': self.timestamp,
-            'report_hash': self.report_hash,
-        }, indent=2)
+            indent=2,
+        )
 
 
 class SemanticUncertaintyDetector:
@@ -129,35 +136,51 @@ class SemanticUncertaintyDetector:
 
     # Known hallucination patterns
     HALLUCINATION_PATTERNS = {
-        'fake_citations': r'\b(?:\w+\s+){0,3}(?:et\s+al\.|Eds\.|pp\.|\d{4})\b',
-        'fake_stats': r'\b\d{1,2}\.\d+\b',  # Any specific decimal number (could be fake stat)
-        'over_specific': r'\b(?:exactly|precisely)\s+(?:\d+%|\d+(?:\.\d+)?\s*(?:times?|days?|points?|percent))',
-        'absolute_certainty': r'\b(?:certainly|definitely|undoubtedly|absolutely)\b',
-        'fake_quotes': r'(?:"[^"]{20,}"|\'[^\']{20,}\')(?:\s*(?:said|stated|claimed))?[^.]*$',
+        "fake_citations": r"\b(?:\w+\s+){0,3}(?:et\s+al\.|Eds\.|pp\.|\d{4})\b",
+        "fake_stats": r"\b\d{1,2}\.\d+\b",  # Any specific decimal number (could be fake stat)
+        "over_specific": r"\b(?:exactly|precisely)\s+(?:\d+%|\d+(?:\.\d+)?\s*(?:times?|days?|points?|percent))",
+        "absolute_certainty": r"\b(?:certainly|definitely|undoubtedly|absolutely)\b",
+        "fake_quotes": r'(?:"[^"]{20,}"|\'[^\']{20,}\')(?:\s*(?:said|stated|claimed))?[^.]*$',
     }
 
     # Indicators of low confidence
     UNCERTAINTY_MARKERS = [
-        'might', 'could', 'possibly', 'perhaps', 'may',
-        'seems', 'appears', 'suggests', 'indicates',
-        'uncertain', 'unclear', 'ambiguous', 'possibly',
+        "might",
+        "could",
+        "possibly",
+        "perhaps",
+        "may",
+        "seems",
+        "appears",
+        "suggests",
+        "indicates",
+        "uncertain",
+        "unclear",
+        "ambiguous",
+        "possibly",
     ]
 
     # Contradiction pairs
     CONTRADICTION_PAIRS = [
-        (r'\balways\b', r'\bnever\b'),
-        (r'\ball\b', r'\bnone\b'),
-        (r'\bincrease\b|\bincreased\b|\bhas\s+increased\b', r'\bdecrease\b|\bdecreased\b|\bhas\s+decreased\b'),
-        (r'\bhigh\b', r'\blow\b'),
-        (r'\bbetter\b', r'\bworse\b'),
-        (r'\bsymptoms\s+have\s+increased\b', r'\bdecreased\s+severity\b'),  # Specific pattern
+        (r"\balways\b", r"\bnever\b"),
+        (r"\ball\b", r"\bnone\b"),
+        (
+            r"\bincrease\b|\bincreased\b|\bhas\s+increased\b",
+            r"\bdecrease\b|\bdecreased\b|\bhas\s+decreased\b",
+        ),
+        (r"\bhigh\b", r"\blow\b"),
+        (r"\bbetter\b", r"\bworse\b"),
+        (
+            r"\bsymptoms\s+have\s+increased\b",
+            r"\bdecreased\s+severity\b",
+        ),  # Specific pattern
     ]
 
     def __init__(
         self,
         enable_logging: bool = True,
         cache_results: bool = True,
-        max_samples: int = 10
+        max_samples: int = 10,
     ):
         """
         Initialize uncertainty detector.
@@ -178,7 +201,7 @@ class SemanticUncertaintyDetector:
         task_category: TaskCategory,
         num_samples: int = 5,
         token_probabilities: Optional[List[float]] = None,
-        additional_context: Optional[Dict[str, Any]] = None
+        additional_context: Optional[Dict[str, Any]] = None,
     ) -> UncertaintyReport:
         """
         Check uncertainty of LLM output for critical task usage.
@@ -197,7 +220,9 @@ class SemanticUncertaintyDetector:
         if self.cache_results:
             output_hash = hashlib.sha256(llm_output.encode()).hexdigest()
             if output_hash in self._cache:
-                logger.info(f"Returning cached uncertainty report for {output_hash[:16]}")
+                logger.info(
+                    f"Returning cached uncertainty report for {output_hash[:16]}"
+                )
                 return self._cache[output_hash]
 
         # Analyze all uncertainty signals
@@ -213,8 +238,7 @@ class SemanticUncertaintyDetector:
 
         # 3. Knowledge gap detection
         signals.knowledge_gap_score = self._detect_knowledge_gaps(
-            llm_output,
-            additional_context
+            llm_output, additional_context
         )
 
         # 4. Contradiction detection
@@ -237,9 +261,7 @@ class SemanticUncertaintyDetector:
         # Generate recommendations
         flagged_claims = self._extract_flagged_claims(llm_output, signals)
         recommendations = self._generate_recommendations(
-            overall_score,
-            signals,
-            task_category
+            overall_score, signals, task_category
         )
 
         # Create timestamp for report
@@ -260,7 +282,7 @@ class SemanticUncertaintyDetector:
             timestamp=timestamp,
             report_hash=hashlib.sha256(
                 f"{llm_output}{overall_score}{timestamp}".encode()
-            ).hexdigest()[:16]
+            ).hexdigest()[:16],
         )
 
         # Cache result
@@ -285,15 +307,13 @@ class SemanticUncertaintyDetector:
         For now, use heuristics based on uncertainty markers.
         """
         uncertainty_count = sum(
-            1 for marker in self.UNCERTAINTY_MARKERS
-            if marker.lower() in output.lower()
+            1 for marker in self.UNCERTAINTY_MARKERS if marker.lower() in output.lower()
         )
         output_length = len(output.split())
         return min(uncertainty_count / max(output_length / 50, 1), 1.0)
 
     def _analyze_token_probabilities(
-        self,
-        probabilities: Optional[List[float]]
+        self, probabilities: Optional[List[float]]
     ) -> float:
         """
         Analyze token-level probabilities for low confidence.
@@ -311,9 +331,7 @@ class SemanticUncertaintyDetector:
         return low_prob_count / len(probabilities)
 
     def _detect_knowledge_gaps(
-        self,
-        output: str,
-        context: Optional[Dict[str, Any]]
+        self, output: str, context: Optional[Dict[str, Any]]
     ) -> float:
         """
         Detect claims outside training knowledge or context.
@@ -332,14 +350,14 @@ class SemanticUncertaintyDetector:
         total_indicators = 0
 
         # Check for specific numbers not in context
-        numbers_in_output = re.findall(r'\b\d+(?:\.\d+)?\b', output)
+        numbers_in_output = re.findall(r"\b\d+(?:\.\d+)?\b", output)
         context_numbers = set()
 
         for value in context.values():
             if isinstance(value, (int, float)):
                 context_numbers.add(str(value))
             elif isinstance(value, str):
-                context_numbers.update(re.findall(r'\b\d+(?:\.\d+)?\b', value))
+                context_numbers.update(re.findall(r"\b\d+(?:\.\d+)?\b", value))
 
         for number in numbers_in_output:
             total_indicators += 1
@@ -348,8 +366,8 @@ class SemanticUncertaintyDetector:
 
         # Check for specific dates
         dates = re.findall(
-            r'\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s,]?\d{1,2}[\s,]?\d{4}\b',
-            output
+            r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s,]?\d{1,2}[\s,]?\d{4}\b",
+            output,
         )
         if dates:
             total_indicators += len(dates)
@@ -415,14 +433,14 @@ class SemanticUncertaintyDetector:
 
         # Check for absolute certainty language
         certainty_count = sum(
-            1 for word in ['certainly', 'definitely', 'undoubtedly', 'absolutely']
+            1
+            for word in ["certainly", "definitely", "undoubtedly", "absolutely"]
             if word in output_lower
         )
 
         # Check for uncertainty markers
         uncertainty_count = sum(
-            1 for marker in self.UNCERTAINTY_MARKERS
-            if marker in output_lower
+            1 for marker in self.UNCERTAINTY_MARKERS if marker in output_lower
         )
 
         # High certainty + high uncertainty = mismatch
@@ -431,19 +449,18 @@ class SemanticUncertaintyDetector:
 
         # Check for "precisely" or "exactly" with numbers/percentages
         precise_claims = re.findall(
-            r'\b(?:precisely|exactly)\s+(?:\d+(?:\.\d+)?%?)\b',
-            output_lower
+            r"\b(?:precisely|exactly)\s+(?:\d+(?:\.\d+)?%?)\b", output_lower
         )
         if precise_claims:
             return 0.5
 
         # Check for precise percentages without uncertainty
-        precise_percentages = re.findall(r'\b\d{1,2}\.\d+%\b', output)
+        precise_percentages = re.findall(r"\b\d{1,2}\.\d+%\b", output)
         if precise_percentages and uncertainty_count == 0:
             return 0.4
 
         # Check for precise numbers without uncertainty
-        precise_numbers = re.findall(r'\b\d{3,}\b', output)
+        precise_numbers = re.findall(r"\b\d{3,}\b", output)
         if precise_numbers and uncertainty_count == 0:
             return 0.3
 
@@ -462,29 +479,27 @@ class SemanticUncertaintyDetector:
         - Specificity mismatch: 10%
         """
         weights = {
-            'semantic_variance': 0.25,
-            'low_confidence_tokens': 0.15,
-            'knowledge_gap_score': 0.20,
-            'contradiction_score': 0.15,
-            'hallucination_risk': 0.15,
-            'specificity_mismatch': 0.10,
+            "semantic_variance": 0.25,
+            "low_confidence_tokens": 0.15,
+            "knowledge_gap_score": 0.20,
+            "contradiction_score": 0.15,
+            "hallucination_risk": 0.15,
+            "specificity_mismatch": 0.10,
         }
 
         score = (
-            signals.semantic_variance * weights['semantic_variance'] +
-            signals.low_confidence_tokens * weights['low_confidence_tokens'] +
-            signals.knowledge_gap_score * weights['knowledge_gap_score'] +
-            signals.contradiction_score * weights['contradiction_score'] +
-            signals.hallucination_risk * weights['hallucination_risk'] +
-            signals.specificity_mismatch * weights['specificity_mismatch']
+            signals.semantic_variance * weights["semantic_variance"]
+            + signals.low_confidence_tokens * weights["low_confidence_tokens"]
+            + signals.knowledge_gap_score * weights["knowledge_gap_score"]
+            + signals.contradiction_score * weights["contradiction_score"]
+            + signals.hallucination_risk * weights["hallucination_risk"]
+            + signals.specificity_mismatch * weights["specificity_mismatch"]
         )
 
         return round(score, 3)
 
     def _extract_flagged_claims(
-        self,
-        output: str,
-        signals: UncertaintySignals
+        self, output: str, signals: UncertaintySignals
     ) -> List[Dict[str, Any]]:
         """
         Extract specific claims that are flagged as uncertain.
@@ -493,42 +508,39 @@ class SemanticUncertaintyDetector:
 
         # Flag sentences with hallucination patterns
         for pattern_name, pattern in self.HALLUCINATION_PATTERNS.items():
-            matches = re.finditer(
-                pattern,
-                output,
-                re.IGNORECASE | re.MULTILINE
-            )
+            matches = re.finditer(pattern, output, re.IGNORECASE | re.MULTILINE)
             for match in matches:
                 # Extract surrounding sentence
                 start = max(0, match.start() - 50)
                 end = min(len(output), match.end() + 50)
                 context = output[start:end].strip()
 
-                flagged.append({
-                    'type': pattern_name,
-                    'match': match.group(),
-                    'context': context,
-                    'reason': f"Matches {pattern_name} pattern"
-                })
+                flagged.append(
+                    {
+                        "type": pattern_name,
+                        "match": match.group(),
+                        "context": context,
+                        "reason": f"Matches {pattern_name} pattern",
+                    }
+                )
 
         # Flag sentences with uncertainty markers
-        sentences = re.split(r'[.!?]+', output)
+        sentences = re.split(r"[.!?]+", output)
         for sentence in sentences:
             if any(marker in sentence.lower() for marker in self.UNCERTAINTY_MARKERS):
-                flagged.append({
-                    'type': 'uncertainty_marker',
-                    'match': sentence.strip(),
-                    'context': sentence.strip(),
-                    'reason': 'Contains uncertainty language'
-                })
+                flagged.append(
+                    {
+                        "type": "uncertainty_marker",
+                        "match": sentence.strip(),
+                        "context": sentence.strip(),
+                        "reason": "Contains uncertainty language",
+                    }
+                )
 
         return flagged[:10]  # Limit to top 10
 
     def _generate_recommendations(
-        self,
-        score: float,
-        signals: UncertaintySignals,
-        task_category: TaskCategory
+        self, score: float, signals: UncertaintySignals, task_category: TaskCategory
     ) -> List[str]:
         """
         Generate actionable recommendations based on uncertainty signals.
@@ -587,7 +599,7 @@ class SemanticUncertaintyDetector:
             f"Uncertainty Check | Score: {report.overall_score:.3f} | "
             f"Threshold: {report.threshold_used:.2f} | "
             f"Review Required: {report.requires_human_review} | "
-            f"Task: {report.task_category}"
+            f"Task: {report.task_category}",
         )
 
         if report.flagged_claims:
@@ -619,7 +631,7 @@ class HumanReviewQueue:
         report: UncertaintyReport,
         llm_input: str,
         llm_output: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Queue an LLM output for human review.
@@ -643,8 +655,8 @@ class HumanReviewQueue:
 
         # Priority score (higher = more urgent)
         priority = (
-            report.overall_score * 0.7 +
-            self._task_category_priority(report.task_category) * 0.3
+            report.overall_score * 0.7
+            + self._task_category_priority(report.task_category) * 0.3
         )
 
         self._queue.append((priority, report))
@@ -659,11 +671,11 @@ class HumanReviewQueue:
     def _task_category_priority(self, category: str) -> float:
         """Get priority weight for task category."""
         priorities = {
-            'clinical': 1.0,
-            'legal': 0.9,
-            'team': 0.7,
-            'personality': 0.6,
-            'general': 0.5,
+            "clinical": 1.0,
+            "legal": 0.9,
+            "team": 0.7,
+            "personality": 0.6,
+            "general": 0.5,
         }
         return priorities.get(category, 0.5)
 
@@ -681,11 +693,11 @@ class HumanReviewQueue:
 
         return [
             {
-                'ticket_id': f"REVIEW-{report.report_hash}",
-                'priority': priority,
-                'uncertainty_score': report.overall_score,
-                'task_category': report.task_category,
-                'timestamp': report.timestamp,
+                "ticket_id": f"REVIEW-{report.report_hash}",
+                "priority": priority,
+                "uncertainty_score": report.overall_score,
+                "task_category": report.task_category,
+                "timestamp": report.timestamp,
             }
             for priority, report in self._queue[:limit]
         ]

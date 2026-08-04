@@ -21,13 +21,14 @@ Usage:
 - Set app.is_platform_admin = 'true' for platform admins
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import text
 
+from alembic import op
+
 # revision identifiers, used by Alembic
-revision = '20250112_rls_enhanced'
-down_revision = '20250112_enable_rls'
+revision = "20250112_rls_enhanced"
+down_revision = "20250112_enable_rls"
 branch_labels = None
 depends_on = None
 
@@ -38,7 +39,8 @@ def upgrade():
     # ============================================
     # 1. CREATE RLS VIOLATION AUDIT TABLE
     # ============================================
-    op.execute("""
+    op.execute(
+        """
         CREATE TABLE IF NOT EXISTS rls_violation_log (
             id SERIAL PRIMARY KEY,
             table_name VARCHAR(255) NOT NULL,
@@ -52,16 +54,22 @@ def upgrade():
             sql_statement TEXT,
             PRIMARY KEY (id)
         );
-    """)
+    """
+    )
 
     # Create index for violation log queries
-    op.execute("CREATE INDEX idx_rls_violations_time ON rls_violation_log(violation_time DESC)")
-    op.execute("CREATE INDEX idx_rls_violations_tenant ON rls_violation_log(attempted_tenant_id)")
+    op.execute(
+        "CREATE INDEX idx_rls_violations_time ON rls_violation_log(violation_time DESC)"
+    )
+    op.execute(
+        "CREATE INDEX idx_rls_violations_tenant ON rls_violation_log(attempted_tenant_id)"
+    )
 
     # ============================================
     # 2. CREATE PLATFORM ADMIN CHECK FUNCTION
     # ============================================
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION is_platform_admin()
         RETURNS BOOLEAN AS $$
         BEGIN
@@ -71,12 +79,14 @@ def upgrade():
             );
         END;
         $$ LANGUAGE plpgsql IMMUTABLE;
-    """)
+    """
+    )
 
     # ============================================
     # 3. CREATE RLS VIOLATION LOGGING FUNCTION
     # ============================================
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION log_rls_violation(
             p_table_name VARCHAR,
             p_operation VARCHAR,
@@ -110,17 +120,18 @@ def upgrade():
                 NULL;
         END;
         $$ LANGUAGE plpgsql SECURITY DEFINER;
-    """)
+    """
+    )
 
     # ============================================
     # 4. CREATE ENHANCED RLS POLICIES WITH ADMIN BYPASS
     # ============================================
     tenant_tables = [
-        ('users', 'user_id'),
-        ('teams', 'team_id'),
-        ('assessments', 'assessment_id'),
-        ('assessment_responses', 'response_id'),
-        ('organizations', 'organization_id'),
+        ("users", "user_id"),
+        ("teams", "team_id"),
+        ("assessments", "assessment_id"),
+        ("assessment_responses", "response_id"),
+        ("organizations", "organization_id"),
     ]
 
     for table_name, _ in tenant_tables:
@@ -128,7 +139,8 @@ def upgrade():
         op.execute(f"DROP POLICY IF EXISTS tenant_isolation_policy ON {table_name}")
 
         # Create enhanced policy with admin bypass
-        op.execute(f"""
+        op.execute(
+            f"""
             CREATE POLICY enhanced_tenant_isolation_policy ON {table_name}
             FOR ALL
             TO public
@@ -146,7 +158,8 @@ def upgrade():
                 -- Standard users can only modify their tenant's data
                 tenant_id = get_current_tenant_id()
             );
-        """)
+        """
+        )
 
         print(f"✅ Enhanced RLS policy on {table_name}")
 
@@ -154,16 +167,17 @@ def upgrade():
     # 5. CREATE PERFORMANCE INDEXES ON TENANT_ID
     # ============================================
     index_tables = [
-        'users',
-        'teams',
-        'assessments',
-        'assessment_responses',
-        'organizations',
+        "users",
+        "teams",
+        "assessments",
+        "assessment_responses",
+        "organizations",
     ]
 
     for table in index_tables:
         # Check if index exists before creating
-        op.execute(f"""
+        op.execute(
+            f"""
             DO $$
             BEGIN
                 IF NOT EXISTS (
@@ -174,14 +188,16 @@ def upgrade():
                     CREATE INDEX idx_{table}_tenant_id ON {table}(tenant_id);
                 END IF;
             END$$;
-        """)
+        """
+        )
 
         print(f"✅ Created tenant_id index on {table}")
 
     # ============================================
     # 6. CREATE MIGRATION VERIFICATION FUNCTION
     # ============================================
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION verify_tenant_isolation(
             p_table_name VARCHAR,
             p_tenant_id_1 UUID,
@@ -220,12 +236,14 @@ def upgrade():
                 (count_2 = 0) AS isolation_verified;
         END;
         $$ LANGUAGE plpgsql SECURITY DEFINER;
-    """)
+    """
+    )
 
     # ============================================
     # 7. CREATE TENANT MIGRATION HELPER FUNCTION
     # ============================================
-    op.execute("""
+    op.execute(
+        """
         CREATE OR REPLACE FUNCTION migrate_tenant_data(
             p_source_tenant_id UUID,
             p_destination_tenant_id UUID,
@@ -263,7 +281,8 @@ def upgrade():
             RETURN migrated_count;
         END;
         $$ LANGUAGE plpgsql SECURITY DEFINER;
-    """)
+    """
+    )
 
     print("✅ Enhanced RLS security policies created")
 
@@ -284,18 +303,19 @@ def downgrade():
 
     # Drop enhanced policies (revert to basic policies)
     tenant_tables = [
-        'users',
-        'teams',
-        'assessments',
-        'assessment_responses',
-        'organizations',
+        "users",
+        "teams",
+        "assessments",
+        "assessment_responses",
+        "organizations",
     ]
 
     for table in tenant_tables:
         op.execute(f"DROP POLICY IF EXISTS enhanced_tenant_isolation_policy ON {table}")
 
         # Recreate basic policy
-        op.execute(f"""
+        op.execute(
+            f"""
             CREATE POLICY tenant_isolation_policy ON {table}
             FOR ALL
             TO public
@@ -305,7 +325,8 @@ def downgrade():
             WITH CHECK (
                 tenant_id = CAST(current_setting('app.current_tenant', true) AS UUID)
             )
-        """)
+        """
+        )
 
     # Drop helper functions
     op.execute("DROP FUNCTION IF EXISTS log_rls_violation(VARCHAR, VARCHAR, UUID)")

@@ -11,17 +11,18 @@ Coverage Areas:
 - Edge cases and error handling
 """
 
-import pytest
-import numpy as np
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import numpy as np
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.team_personality_service import TeamPersonalityService
-from app.db.models.team_personality_map import TeamPersonalityMap
-from app.db.models.team import Team, TeamMember
 from app.db.models.assessment import Assessment
 from app.db.models.score import Score
+from app.db.models.team import Team, TeamMember
+from app.db.models.team_personality_map import TeamPersonalityMap
+from app.services.team_personality_service import TeamPersonalityService
 
 
 class TestCalculateDimensionStats:
@@ -105,7 +106,7 @@ class TestDetermineCompositionType:
             "Extraversion": {"avg": 4.0},
             "Conscientiousness": {"avg": 3.0},
             "Agreeableness": {"avg": 3.0},
-            "Neuroticism": {"avg": 2.5}
+            "Neuroticism": {"avg": 2.5},
         }
 
         result = TeamPersonalityService._determine_composition_type(dimension_stats)
@@ -119,7 +120,7 @@ class TestDetermineCompositionType:
             "Conscientiousness": {"avg": 4.2},
             "Extraversion": {"avg": 3.0},
             "Agreeableness": {"avg": 3.0},
-            "Neuroticism": {"avg": 2.5}
+            "Neuroticism": {"avg": 2.5},
         }
 
         result = TeamPersonalityService._determine_composition_type(dimension_stats)
@@ -133,7 +134,7 @@ class TestDetermineCompositionType:
             "Conscientiousness": {"avg": 3.0},
             "Extraversion": {"avg": 3.0},
             "Agreeableness": {"avg": 3.0},
-            "Neuroticism": {"avg": 3.0}
+            "Neuroticism": {"avg": 3.0},
         }
 
         result = TeamPersonalityService._determine_composition_type(dimension_stats)
@@ -155,7 +156,7 @@ class TestDetermineCompositionType:
             "Agreeableness": {"avg": 4.0},
             "Openness": {"avg": 3.0},
             "Conscientiousness": {"avg": 3.0},
-            "Neuroticism": {"avg": 2.5}
+            "Neuroticism": {"avg": 2.5},
         }
 
         result = TeamPersonalityService._determine_composition_type(dimension_stats)
@@ -173,10 +174,12 @@ class TestGenerateStrengthsAndGaps:
             "Conscientiousness": {"avg": 3.0, "std_dev": 0.5},
             "Extraversion": {"avg": 3.0, "std_dev": 0.5},
             "Agreeableness": {"avg": 3.0, "std_dev": 0.5},
-            "Neuroticism": {"avg": 3.0, "std_dev": 0.5}
+            "Neuroticism": {"avg": 3.0, "std_dev": 0.5},
         }
 
-        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(dimension_stats)
+        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(
+            dimension_stats
+        )
 
         assert "Creative problem-solving and innovation" in strengths
 
@@ -187,10 +190,12 @@ class TestGenerateStrengthsAndGaps:
             "Conscientiousness": {"avg": 2.0, "std_dev": 0.5},
             "Extraversion": {"avg": 3.0, "std_dev": 0.5},
             "Agreeableness": {"avg": 3.0, "std_dev": 0.5},
-            "Neuroticism": {"avg": 3.0, "std_dev": 0.5}
+            "Neuroticism": {"avg": 3.0, "std_dev": 0.5},
         }
 
-        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(dimension_stats)
+        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(
+            dimension_stats
+        )
 
         assert "May struggle with organization and follow-through" in gaps
 
@@ -201,10 +206,12 @@ class TestGenerateStrengthsAndGaps:
             "Conscientiousness": {"avg": 3.0, "std_dev": 0.5},
             "Extraversion": {"avg": 3.0, "std_dev": 0.5},
             "Agreeableness": {"avg": 3.0, "std_dev": 0.5},
-            "Neuroticism": {"avg": 1.5, "std_dev": 0.5}
+            "Neuroticism": {"avg": 1.5, "std_dev": 0.5},
         }
 
-        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(dimension_stats)
+        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(
+            dimension_stats
+        )
 
         assert "Emotional stability and stress resilience" in strengths
 
@@ -215,10 +222,12 @@ class TestGenerateStrengthsAndGaps:
             "Conscientiousness": {"avg": 3.0, "std_dev": 0.5},
             "Extraversion": {"avg": 4.2, "std_dev": 0.5},
             "Agreeableness": {"avg": 3.0, "std_dev": 0.5},
-            "Neuroticism": {"avg": 3.0, "std_dev": 0.5}
+            "Neuroticism": {"avg": 3.0, "std_dev": 0.5},
         }
 
-        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(dimension_stats)
+        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(
+            dimension_stats
+        )
 
         assert "Excellent communication and social engagement" in strengths
 
@@ -229,10 +238,12 @@ class TestGenerateStrengthsAndGaps:
             "Conscientiousness": {"avg": 3.0, "std_dev": 0.3},
             "Extraversion": {"avg": 3.0, "std_dev": 0.2},
             "Agreeableness": {"avg": 3.0, "std_dev": 0.3},
-            "Neuroticism": {"avg": 3.0, "std_dev": 0.2}
+            "Neuroticism": {"avg": 3.0, "std_dev": 0.2},
         }
 
-        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(dimension_stats)
+        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(
+            dimension_stats
+        )
 
         assert "Low personality diversity may limit perspective variety" in gaps
 
@@ -240,7 +251,9 @@ class TestGenerateStrengthsAndGaps:
         """Test with empty dimension stats"""
         dimension_stats = {}
 
-        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(dimension_stats)
+        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(
+            dimension_stats
+        )
 
         assert len(strengths) == 0
         assert len(gaps) == 0
@@ -252,10 +265,12 @@ class TestGenerateStrengthsAndGaps:
             "Conscientiousness": {"avg": 2.0, "std_dev": 0.8},
             "Extraversion": {"avg": 4.0, "std_dev": 0.8},
             "Agreeableness": {"avg": 4.0, "std_dev": 0.8},
-            "Neuroticism": {"avg": 1.5, "std_dev": 0.8}
+            "Neuroticism": {"avg": 1.5, "std_dev": 0.8},
         }
 
-        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(dimension_stats)
+        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(
+            dimension_stats
+        )
 
         # Should have multiple strengths
         assert len(strengths) >= 3
@@ -273,7 +288,7 @@ class TestCalculateCompatibility:
             "Conscientiousness": {"std_dev": 0.9},
             "Extraversion": {"std_dev": 0.7},
             "Agreeableness": {"std_dev": 0.8},
-            "Neuroticism": {"std_dev": 0.9}
+            "Neuroticism": {"std_dev": 0.9},
         }
 
         result = TeamPersonalityService._calculate_compatibility(dimension_stats)
@@ -287,7 +302,7 @@ class TestCalculateCompatibility:
             "Conscientiousness": {"std_dev": 0.4},
             "Extraversion": {"std_dev": 0.3},
             "Agreeableness": {"std_dev": 0.4},
-            "Neuroticism": {"std_dev": 0.3}
+            "Neuroticism": {"std_dev": 0.3},
         }
 
         result = TeamPersonalityService._calculate_compatibility(dimension_stats)
@@ -302,7 +317,7 @@ class TestCalculateCompatibility:
             "Conscientiousness": {"std_dev": 1.7},
             "Extraversion": {"std_dev": 1.9},
             "Agreeableness": {"std_dev": 1.8},
-            "Neuroticism": {"std_dev": 1.7}
+            "Neuroticism": {"std_dev": 1.7},
         }
 
         result = TeamPersonalityService._calculate_compatibility(dimension_stats)
@@ -329,7 +344,7 @@ class TestCalculateDiversity:
             "Conscientiousness": {"std_dev": 1.9},
             "Extraversion": {"std_dev": 2.0},
             "Agreeableness": {"std_dev": 1.7},
-            "Neuroticism": {"std_dev": 1.8}
+            "Neuroticism": {"std_dev": 1.8},
         }
 
         result = TeamPersonalityService._calculate_diversity(dimension_stats)
@@ -345,7 +360,7 @@ class TestCalculateDiversity:
             "Conscientiousness": {"std_dev": 0.9},
             "Extraversion": {"std_dev": 1.1},
             "Agreeableness": {"std_dev": 1.0},
-            "Neuroticism": {"std_dev": 0.9}
+            "Neuroticism": {"std_dev": 0.9},
         }
 
         result = TeamPersonalityService._calculate_diversity(dimension_stats)
@@ -360,7 +375,7 @@ class TestCalculateDiversity:
             "Conscientiousness": {"std_dev": 0.3},
             "Extraversion": {"std_dev": 0.2},
             "Agreeableness": {"std_dev": 0.3},
-            "Neuroticism": {"std_dev": 0.2}
+            "Neuroticism": {"std_dev": 0.2},
         }
 
         result = TeamPersonalityService._calculate_diversity(dimension_stats)
@@ -395,9 +410,7 @@ class TestGetTeamComposition:
         db.execute.return_value = mock_result
 
         result = await TeamPersonalityService.get_team_composition(
-            db=db,
-            team_id="test-team-id",
-            force_refresh=False
+            db=db, team_id="test-team-id", force_refresh=False
         )
 
         assert result == cached_map
@@ -420,16 +433,14 @@ class TestGetTeamComposition:
         # Mock _calculate_team_composition to return fresh data
         with patch.object(
             TeamPersonalityService,
-            '_calculate_team_composition',
-            new_callable=AsyncMock
+            "_calculate_team_composition",
+            new_callable=AsyncMock,
         ) as mock_calculate:
             fresh_map = Mock(spec=TeamPersonalityMap)
             mock_calculate.return_value = fresh_map
 
             result = await TeamPersonalityService.get_team_composition(
-                db=db,
-                team_id="test-team-id",
-                force_refresh=False
+                db=db, team_id="test-team-id", force_refresh=False
             )
 
             assert result == fresh_map
@@ -443,16 +454,14 @@ class TestGetTeamComposition:
         # Mock _calculate_team_composition
         with patch.object(
             TeamPersonalityService,
-            '_calculate_team_composition',
-            new_callable=AsyncMock
+            "_calculate_team_composition",
+            new_callable=AsyncMock,
         ) as mock_calculate:
             fresh_map = Mock(spec=TeamPersonalityMap)
             mock_calculate.return_value = fresh_map
 
             result = await TeamPersonalityService.get_team_composition(
-                db=db,
-                team_id="test-team-id",
-                force_refresh=True
+                db=db, team_id="test-team-id", force_refresh=True
             )
 
             assert result == fresh_map
@@ -472,16 +481,14 @@ class TestGetTeamComposition:
         # Mock _calculate_team_composition
         with patch.object(
             TeamPersonalityService,
-            '_calculate_team_composition',
-            new_callable=AsyncMock
+            "_calculate_team_composition",
+            new_callable=AsyncMock,
         ) as mock_calculate:
             fresh_map = Mock(spec=TeamPersonalityMap)
             mock_calculate.return_value = fresh_map
 
             result = await TeamPersonalityService.get_team_composition(
-                db=db,
-                team_id="test-team-id",
-                force_refresh=False
+                db=db, team_id="test-team-id", force_refresh=False
             )
 
             assert result == fresh_map
@@ -502,8 +509,7 @@ class TestCalculateTeamComposition:
         db.execute.return_value = mock_result
 
         result = await TeamPersonalityService._calculate_team_composition(
-            db=db,
-            team_id="nonexistent-team-id"
+            db=db, team_id="nonexistent-team-id"
         )
 
         assert result is None
@@ -522,8 +528,7 @@ class TestCalculateTeamComposition:
         db.execute.return_value = mock_result
 
         result = await TeamPersonalityService._calculate_team_composition(
-            db=db,
-            team_id="team-with-no-members"
+            db=db, team_id="team-with-no-members"
         )
 
         assert result is None
@@ -541,13 +546,12 @@ class TestCalculateTeamComposition:
         # First call returns team, second returns empty list (no assessments)
         mock_results = [
             Mock(scalar_one_or_none=Mock(return_value=mock_team)),
-            Mock(fetchmany=Mock(return_value=[]))
+            Mock(fetchmany=Mock(return_value=[])),
         ]
         db.execute.side_effect = mock_results
 
         result = await TeamPersonalityService._calculate_team_composition(
-            db=db,
-            team_id="test-team-id"
+            db=db, team_id="test-team-id"
         )
 
         assert result is None
@@ -563,9 +567,7 @@ class TestCompareTeams:
 
         # Mock get_team_composition to return team data
         with patch.object(
-            TeamPersonalityService,
-            'get_team_composition',
-            new_callable=AsyncMock
+            TeamPersonalityService, "get_team_composition", new_callable=AsyncMock
         ) as mock_get_composition:
             # Create mock team data
             team1 = Mock(spec=TeamPersonalityMap)
@@ -593,8 +595,7 @@ class TestCompareTeams:
             mock_get_composition.side_effect = [team1, team2]
 
             result = await TeamPersonalityService.compare_teams(
-                db=db,
-                team_ids=["team1-id", "team2-id"]
+                db=db, team_ids=["team1-id", "team2-id"]
             )
 
             assert len(result) == 2
@@ -610,9 +611,7 @@ class TestCompareTeams:
 
         # Mock get_team_composition to return None for one team
         with patch.object(
-            TeamPersonalityService,
-            'get_team_composition',
-            new_callable=AsyncMock
+            TeamPersonalityService, "get_team_composition", new_callable=AsyncMock
         ) as mock_get_composition:
             team1 = Mock(spec=TeamPersonalityMap)
             team1.composition_type = "Creative & Social"
@@ -628,8 +627,7 @@ class TestCompareTeams:
             mock_get_composition.side_effect = [team1, None, None]
 
             result = await TeamPersonalityService.compare_teams(
-                db=db,
-                team_ids=["team1-id", "team2-id", "team3-id"]
+                db=db, team_ids=["team1-id", "team2-id", "team3-id"]
             )
 
             # Should only return the first team
@@ -641,10 +639,7 @@ class TestCompareTeams:
         """Test comparison with empty team list"""
         db = Mock(spec=AsyncSession)
 
-        result = await TeamPersonalityService.compare_teams(
-            db=db,
-            team_ids=[]
-        )
+        result = await TeamPersonalityService.compare_teams(db=db, team_ids=[])
 
         assert result == []
 
@@ -681,7 +676,7 @@ class TestEdgeCases:
         """Test composition type when not all dimensions have data"""
         dimension_stats = {
             "Openness": {"avg": 4.0},
-            "Extraversion": {"avg": 3.5}
+            "Extraversion": {"avg": 3.5},
             # Missing other dimensions
         }
 
@@ -695,13 +690,18 @@ class TestEdgeCases:
         # Test at exact threshold (3.5 for strengths, 2.5 for gaps)
         dimension_stats = {
             "Openness": {"avg": 3.5, "std_dev": 0.8},  # Exactly at strength threshold
-            "Conscientiousness": {"avg": 2.5, "std_dev": 0.8},  # Exactly at gap threshold
+            "Conscientiousness": {
+                "avg": 2.5,
+                "std_dev": 0.8,
+            },  # Exactly at gap threshold
             "Extraversion": {"avg": 3.0, "std_dev": 0.8},
             "Agreeableness": {"avg": 3.0, "std_dev": 0.8},
-            "Neuroticism": {"avg": 3.0, "std_dev": 0.8}
+            "Neuroticism": {"avg": 3.0, "std_dev": 0.8},
         }
 
-        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(dimension_stats)
+        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(
+            dimension_stats
+        )
 
         # 3.5 should trigger strength
         assert "Creative problem-solving and innovation" in strengths

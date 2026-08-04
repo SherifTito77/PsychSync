@@ -35,27 +35,23 @@ For monitoring:
     redis-cli INFO stats | grep keyspace
 """
 
-from locust import HttpUser, task, between, events
-from locust.runners import MasterRunner
 import logging
 import random
-from datetime import datetime
-from collections import defaultdict
 import time
+from collections import defaultdict
+from datetime import datetime
 
-from locust_config import (
-    LoadTestConfig,
-    get_headers,
-    test_data_manager,
-)
+from locust import HttpUser, between, events, task
+from locust.runners import MasterRunner
+from locust_config import LoadTestConfig, get_headers, test_data_manager
 
 logger = logging.getLogger(__name__)
 
 
 # Endurance test thresholds
 ENDURANCE_THRESHOLDS = {
-    "p50": 300,   # 50th percentile: < 300ms
-    "p95": 500,   # 95th percentile: < 500ms
+    "p50": 300,  # 50th percentile: < 300ms
+    "p95": 500,  # 95th percentile: < 500ms
     "p99": 1000,  # 99th percentile: < 1000ms
     "max_error_rate": 1.0,  # Max 1% error rate
     "performance_degradation": 20,  # Max 20% performance degradation over 4 hours
@@ -400,7 +396,9 @@ def on_test_start(*args, **kwargs):
 
 
 @events.request.add_hook
-def track_performance_for_degradation(request_type, name, response_time, response_length, exception, **kwargs):
+def track_performance_for_degradation(
+    request_type, name, response_time, response_length, exception, **kwargs
+):
     """Track performance metrics over time for degradation analysis"""
     global last_snapshot_time
 
@@ -440,7 +438,9 @@ def generate_endurance_report(environment, **kwargs):
     p99 = response_times.get_response_time_percentile(0.99)
     rps = stats.total.total_rps
 
-    print(f"\nTest Duration: {test_duration_hours:.2f} hours ({test_duration/60:.0f} minutes)")
+    print(
+        f"\nTest Duration: {test_duration_hours:.2f} hours ({test_duration/60:.0f} minutes)"
+    )
     print(f"\nOverall Performance:")
     print(f"  Total Requests: {total_requests:,}")
     print(f"  Successful: {total_requests - total_failures:,}")
@@ -460,43 +460,58 @@ def generate_endurance_report(environment, **kwargs):
     # (In real implementation, compare first 2 hours vs last 2 hours)
     initial_p95 = p95 * 0.9  # Simulated initial performance
     final_p95 = p95
-    degradation = ((final_p95 - initial_p95) / initial_p95 * 100)
+    degradation = (final_p95 - initial_p95) / initial_p95 * 100
 
     if degradation <= ENDURANCE_THRESHOLDS["performance_degradation"]:
-        print(f"  ✅ Performance Degradation: {degradation:.1f}% "
-              f"(threshold: {ENDURANCE_THRESHOLDS['performance_degradation']}%)")
+        print(
+            f"  ✅ Performance Degradation: {degradation:.1f}% "
+            f"(threshold: {ENDURANCE_THRESHOLDS['performance_degradation']}%)"
+        )
     else:
-        print(f"  ⚠️  Performance Degradation: {degradation:.1f}% "
-              f"(exceeds threshold: {ENDURANCE_THRESHOLDS['performance_degradation']}%)")
+        print(
+            f"  ⚠️  Performance Degradation: {degradation:.1f}% "
+            f"(exceeds threshold: {ENDURANCE_THRESHOLDS['performance_degradation']}%)"
+        )
 
     # Check error rate stability
     if error_rate <= ENDURANCE_THRESHOLDS["max_error_rate"]:
-        print(f"  ✅ Error Rate Stability: {error_rate:.2f}% "
-              f"(threshold: {ENDURANCE_THRESHOLDS['max_error_rate']}%)")
+        print(
+            f"  ✅ Error Rate Stability: {error_rate:.2f}% "
+            f"(threshold: {ENDURANCE_THRESHOLDS['max_error_rate']}%)"
+        )
     else:
-        print(f"  ❌ Error Rate Exceeded: {error_rate:.2f}% "
-              f"(threshold: {ENDURANCE_THRESHOLDS['max_error_rate']}%)")
+        print(
+            f"  ❌ Error Rate Exceeded: {error_rate:.2f}% "
+            f"(threshold: {ENDURANCE_THRESHOLDS['max_error_rate']}%)"
+        )
 
     # Check response time thresholds
     if p95 <= ENDURANCE_THRESHOLDS["p95"]:
-        print(f"  ✅ p95 Response Time: {p95:.0f}ms "
-              f"(threshold: {ENDURANCE_THRESHOLDS['p95']}ms)")
+        print(
+            f"  ✅ p95 Response Time: {p95:.0f}ms "
+            f"(threshold: {ENDURANCE_THRESHOLDS['p95']}ms)"
+        )
     else:
-        print(f"  ⚠️  p95 Response Time Degraded: {p95:.0f}ms "
-              f"(threshold: {ENDURANCE_THRESHOLDS['p95']}ms)")
+        print(
+            f"  ⚠️  p95 Response Time Degraded: {p95:.0f}ms "
+            f"(threshold: {ENDURANCE_THRESHOLDS['p95']}ms)"
+        )
 
     # Memory leak indicators
     print(f"\nPotential Issues:")
 
     # Check for increasing response times (possible memory leak)
     if p99 > p95 * 1.5:
-        print(f"  ⚠️  Tail Latency Spike: p99 ({p99:.0f}ms) is significantly "
-              f"higher than p95 ({p95:.0f}ms)")
+        print(
+            f"  ⚠️  Tail Latency Spike: p99 ({p99:.0f}ms) is significantly "
+            f"higher than p95 ({p95:.0f}ms)"
+        )
         print(f"     This may indicate memory pressure or GC issues")
 
     # Check error patterns
     failed_endpoints = [
-        s.name for s in stats.entries.values()
+        s.name
+        for s in stats.entries.values()
         if s.num_failures > 0 and (s.num_failures / s.num_requests) > 0.01
     ]
 
@@ -545,17 +560,24 @@ def generate_endurance_report(environment, **kwargs):
     print(f"\nTop 10 Busiest Endpoints:")
     for i, entry in enumerate(sorted_endpoints, 1):
         p95 = entry.get_response_time_percentile(0.95)
-        err_rate = (entry.num_failures / entry.num_requests * 100) if entry.num_requests > 0 else 0
+        err_rate = (
+            (entry.num_failures / entry.num_requests * 100)
+            if entry.num_requests > 0
+            else 0
+        )
         print(f"  {i}. {entry.name}:")
-        print(f"     Requests: {entry.num_requests:,}, "
-              f"p95: {p95:.0f}ms, "
-              f"Errors: {err_rate:.2f}%")
+        print(
+            f"     Requests: {entry.num_requests:,}, "
+            f"p95: {p95:.0f}ms, "
+            f"Errors: {err_rate:.2f}%"
+        )
 
     print("\n" + "=" * 80 + "\n")
 
 
 if __name__ == "__main__":
-    print("""
+    print(
+        """
 ╔══════════════════════════════════════════════════════════════════════╗
 ║             ENDURANCE TESTING LOAD TEST - PsychSync                 ║
 ╚══════════════════════════════════════════════════════════════════════╝
@@ -599,4 +621,5 @@ Monitoring (run in separate terminals):
 ⏱️  Expected Duration: 4 hours
 ⚠️  Run during maintenance window for initial testing
 
-    """)
+    """
+    )

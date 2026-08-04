@@ -45,7 +45,10 @@ class ProductionSecurityConfig:
         if self.is_production:
             if feature in ["docs", "debug", "auto_reload"]:
                 return False
-            if feature == "captcha" and os.getenv("CAPTCHA_ENABLED", "true").lower() == "true":
+            if (
+                feature == "captcha"
+                and os.getenv("CAPTCHA_ENABLED", "true").lower() == "true"
+            ):
                 return True
             return True
 
@@ -76,7 +79,9 @@ class ProductionSecurityConfig:
         }
 
         if not self.is_development:
-            headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+            headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains; preload"
+            )
 
         return headers
 

@@ -4,16 +4,16 @@ Structured Request/Response Logging Middleware
 Provides comprehensive logging for all API calls with correlation IDs
 """
 
-from collections.abc import Callable
 import logging
 import time
 import uuid
+from collections.abc import Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from app.core.correlation import set_correlation_id, clear_correlation_id
+from app.core.correlation import clear_correlation_id, set_correlation_id
 
 # Configure structured logger
 logger = logging.getLogger("psychsync.api")
@@ -90,7 +90,11 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
         # Skip logging for auth endpoints to avoid consuming the body before OAuth2PasswordRequestForm reads it
         skip_body_logging = "/auth/" in request.url.path or "/token" in request.url.path
 
-        if self.log_body and request.method in ["POST", "PUT", "PATCH"] and not skip_body_logging:
+        if (
+            self.log_body
+            and request.method in ["POST", "PUT", "PATCH"]
+            and not skip_body_logging
+        ):
             try:
                 body = await request.body()
                 if body:
@@ -109,9 +113,9 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                         "path": request.url.path,
                         "method": request.method,
                         "error_type": type(e).__name__,
-                        "correlation_id": correlation_id
+                        "correlation_id": correlation_id,
                     },
-                    exc_info=True
+                    exc_info=True,
                 )
                 request_log["body"] = "[Unable to read body]"
 
@@ -143,9 +147,9 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
                             "path": request.url.path,
                             "status_code": response.status_code,
                             "error_type": type(e).__name__,
-                            "correlation_id": correlation_id
+                            "correlation_id": correlation_id,
                         },
-                        exc_info=True
+                        exc_info=True,
                     )
                     response_size = 0
 
@@ -245,7 +249,9 @@ class SecurityEventLogger:
             logger.warning("Login Failed", extra=event_log)
 
     @staticmethod
-    def log_password_change(user_id: str, ip: str, success: bool, correlation_id: str = None):
+    def log_password_change(
+        user_id: str, ip: str, success: bool, correlation_id: str = None
+    ):
         """Log password change attempt"""
         event_log = {
             "event": "security_password_change",
@@ -279,7 +285,10 @@ class SecurityEventLogger:
 
     @staticmethod
     def log_suspicious_activity(
-        description: str, details: dict, severity: str = "medium", correlation_id: str = None
+        description: str,
+        details: dict,
+        severity: str = "medium",
+        correlation_id: str = None,
     ):
         """Log suspicious activity"""
         event_log = {

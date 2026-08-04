@@ -2,20 +2,22 @@
 Test suite for async response endpoints conversion
 Tests all modified endpoints for proper async behavior
 """
-import pytest
+
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import UUID, uuid4
-from unittest.mock import Mock, AsyncMock, patch
+
+import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
 
-from app.main import app
 from app.db.models.response import Response
+from app.main import app
 from app.services.response_service import ResponseService
-
 
 # ========================================================================
 # Response Service Tests
 # ========================================================================
+
 
 class TestResponseServiceAsyncMethods:
     """Test new async methods added to ResponseService"""
@@ -30,27 +32,25 @@ class TestResponseServiceAsyncMethods:
             user_id=uuid4(),
             score=0.85,
             normalized_score=0.85,
-            percentage=85.0
+            percentage=85.0,
         )
 
-        with patch.object(ResponseService, 'get_by_id', return_value=response):
+        with patch.object(ResponseService, "get_by_id", return_value=response):
             score = await ResponseService.get_response_score(
-                db_session,
-                response_id=response.id
+                db_session, response_id=response.id
             )
 
             assert score is not None
-            assert score['raw_score'] == 0.85
-            assert score['normalized_score'] == 0.85
-            assert score['percentage'] == 85.0
+            assert score["raw_score"] == 0.85
+            assert score["normalized_score"] == 0.85
+            assert score["percentage"] == 85.0
 
     @pytest.mark.asyncio
     async def test_get_response_score_not_found(self, db_session):
         """Test get_response_score returns None for non-existent response"""
-        with patch.object(ResponseService, 'get_by_id', return_value=None):
+        with patch.object(ResponseService, "get_by_id", return_value=None):
             score = await ResponseService.get_response_score(
-                db_session,
-                response_id=uuid4()
+                db_session, response_id=uuid4()
             )
 
             assert score is None
@@ -58,34 +58,28 @@ class TestResponseServiceAsyncMethods:
     @pytest.mark.asyncio
     async def test_save_progress(self, db_session):
         """Test save_progress method"""
-        response = Response(
-            id=uuid4(),
-            assessment_id=uuid4(),
-            user_id=uuid4()
-        )
+        response = Response(id=uuid4(), assessment_id=uuid4(), user_id=uuid4())
 
         mock_refresh = AsyncMock()
         db_session.refresh = mock_refresh
 
-        with patch.object(db_session, 'commit'):
+        with patch.object(db_session, "commit"):
             result = await ResponseService.save_progress(
                 db_session,
                 response=response,
-                responses_data={'question_1': 'answer_1'},
-                current_section='section_2'
+                responses_data={"question_1": "answer_1"},
+                current_section="section_2",
             )
 
             assert result == response
-            assert response.responses == {'question_1': 'answer_1'}
-            assert response.current_section == 'section_2'
+            assert response.responses == {"question_1": "answer_1"}
+            assert response.current_section == "section_2"
 
     @pytest.mark.asyncio
     async def test_validate_response_data_valid(self, db_session):
         """Test validate_response_data with valid data"""
         is_valid, error = await ResponseService.validate_response_data(
-            db_session,
-            assessment_id=uuid4(),
-            responses_data={'q1': 'a1', 'q2': 'a2'}
+            db_session, assessment_id=uuid4(), responses_data={"q1": "a1", "q2": "a2"}
         )
 
         assert is_valid is True
@@ -95,9 +89,7 @@ class TestResponseServiceAsyncMethods:
     async def test_validate_response_data_empty(self, db_session):
         """Test validate_response_data rejects empty data"""
         is_valid, error = await ResponseService.validate_response_data(
-            db_session,
-            assessment_id=uuid4(),
-            responses_data={}
+            db_session, assessment_id=uuid4(), responses_data={}
         )
 
         assert is_valid is False
@@ -106,49 +98,38 @@ class TestResponseServiceAsyncMethods:
     @pytest.mark.asyncio
     async def test_submit_response(self, db_session):
         """Test submit_response method"""
-        response = Response(
-            id=uuid4(),
-            assessment_id=uuid4(),
-            user_id=uuid4()
-        )
+        response = Response(id=uuid4(), assessment_id=uuid4(), user_id=uuid4())
 
         mock_commit = AsyncMock()
         mock_refresh = AsyncMock()
         db_session.commit = mock_commit
         db_session.refresh = mock_refresh
 
-        with patch.object(ResponseService, '_calculate_score', new=AsyncMock()):
+        with patch.object(ResponseService, "_calculate_score", new=AsyncMock()):
             result = await ResponseService.submit_response(
                 db_session,
                 response=response,
-                responses_data={'q1': 'a1'},
-                time_taken=120
+                responses_data={"q1": "a1"},
+                time_taken=120,
             )
 
             assert result == response
             assert response.is_complete is True
-            assert response.responses == {'q1': 'a1'}
+            assert response.responses == {"q1": "a1"}
             assert response.time_taken_minutes == 2.0
             assert response.completed_at is not None
 
     @pytest.mark.asyncio
     async def test_delete_response(self, db_session):
         """Test delete_response method"""
-        response = Response(
-            id=uuid4(),
-            assessment_id=uuid4(),
-            user_id=uuid4()
-        )
+        response = Response(id=uuid4(), assessment_id=uuid4(), user_id=uuid4())
 
         mock_delete = AsyncMock()
         mock_commit = AsyncMock()
         db_session.delete = mock_delete
         db_session.commit = mock_commit
 
-        result = await ResponseService.delete_response(
-            db_session,
-            response=response
-        )
+        result = await ResponseService.delete_response(db_session, response=response)
 
         assert result is True
         mock_delete.assert_called_once_with(response)
@@ -158,6 +139,7 @@ class TestResponseServiceAsyncMethods:
 # ========================================================================
 # Response Endpoint Tests
 # ========================================================================
+
 
 class TestResponseEndpointsAsync:
     """Test async response endpoints"""
@@ -174,11 +156,14 @@ class TestResponseEndpointsAsync:
         assessment_id = str(uuid4())
         response_data = {
             "assessment_id": assessment_id,
-            "user_id": str(authenticated_user.id)
+            "user_id": str(authenticated_user.id),
         }
 
-        with patch('app.api.v1.endpoints.responses.AssessmentService.get_by_id') as mock_get_assessment, \
-             patch('app.api.v1.endpoints.responses.ResponseService.create') as mock_create:
+        with patch(
+            "app.api.v1.endpoints.responses.AssessmentService.get_by_id"
+        ) as mock_get_assessment, patch(
+            "app.api.v1.endpoints.responses.ResponseService.create"
+        ) as mock_create:
 
             mock_assessment = Mock()
             mock_assessment.status.value = "active"
@@ -192,7 +177,7 @@ class TestResponseEndpointsAsync:
             response = await client.post(
                 "/api/v1/responses/start",
                 json=response_data,
-                headers={"Authorization": f"Bearer {authenticated_user.id}"}
+                headers={"Authorization": f"Bearer {authenticated_user.id}"},
             )
 
             # Verify endpoint doesn't crash with UUID conversion
@@ -203,7 +188,7 @@ class TestResponseEndpointsAsync:
         """Test get_response rejects invalid UUID format"""
         response = await client.get(
             "/api/v1/responses/invalid-uuid-format",
-            headers={"Authorization": "Bearer test-token"}
+            headers={"Authorization": "Bearer test-token"},
         )
 
         assert response.status_code == 400
@@ -212,13 +197,13 @@ class TestResponseEndpointsAsync:
     async def test_save_progress_with_valid_uuid(self, client):
         """Test save_progress with UUID conversion"""
         response_id = str(uuid4())
-        save_data = {
-            "responses": {"q1": "a1"},
-            "current_section": "section_2"
-        }
+        save_data = {"responses": {"q1": "a1"}, "current_section": "section_2"}
 
-        with patch('app.api.v1.endpoints.responses.ResponseService.get_by_id') as mock_get, \
-             patch('app.api.v1.endpoints.responses.ResponseService.save_progress') as mock_save:
+        with patch(
+            "app.api.v1.endpoints.responses.ResponseService.get_by_id"
+        ) as mock_get, patch(
+            "app.api.v1.endpoints.responses.ResponseService.save_progress"
+        ) as mock_save:
 
             mock_response = Mock()
             mock_response.respondent_id = uuid4()
@@ -229,7 +214,7 @@ class TestResponseEndpointsAsync:
             response = await client.put(
                 f"/api/v1/responses/{response_id}/save",
                 json=save_data,
-                headers={"Authorization": "Bearer test-token"}
+                headers={"Authorization": "Bearer test-token"},
             )
 
             # Verify UUID conversion works
@@ -240,8 +225,11 @@ class TestResponseEndpointsAsync:
         """Test delete_response with UUID conversion"""
         response_id = str(uuid4())
 
-        with patch('app.api.v1.endpoints.responses.ResponseService.get_by_id') as mock_get, \
-             patch('app.api.v1.endpoints.responses.ResponseService.delete_response') as mock_delete:
+        with patch(
+            "app.api.v1.endpoints.responses.ResponseService.get_by_id"
+        ) as mock_get, patch(
+            "app.api.v1.endpoints.responses.ResponseService.delete_response"
+        ) as mock_delete:
 
             mock_response = Mock()
             mock_response.respondent_id = uuid4()
@@ -251,7 +239,7 @@ class TestResponseEndpointsAsync:
 
             response = await client.delete(
                 f"/api/v1/responses/{response_id}",
-                headers={"Authorization": "Bearer test-token"}
+                headers={"Authorization": "Bearer test-token"},
             )
 
             # Verify UUID conversion works
@@ -261,6 +249,7 @@ class TestResponseEndpointsAsync:
 # ========================================================================
 # Feature Request Endpoint Tests
 # ========================================================================
+
 
 class TestFeatureRequestAsyncHelpers:
     """Test async helper functions in feature_requests.py"""
@@ -281,7 +270,7 @@ class TestFeatureRequestAsyncHelpers:
             priority="P3",
             effort="M",
             value="V3",
-            source_type="customer"
+            source_type="customer",
         )
 
         # This should work with async/await
@@ -309,6 +298,7 @@ class TestFeatureRequestAsyncHelpers:
 # Activation Endpoint Tests
 # ========================================================================
 
+
 class TestActivationAsyncHelpers:
     """Test async helper functions in activation.py"""
 
@@ -322,7 +312,7 @@ class TestActivationAsyncHelpers:
             id=uuid4(),
             user_id=uuid4(),
             segment="individual_free",
-            signup_timestamp=None
+            signup_timestamp=None,
         )
 
         # This should work with async/await
@@ -351,6 +341,7 @@ class TestActivationAsyncHelpers:
 # Async Performance Tests
 # ========================================================================
 
+
 class TestAsyncPerformance:
     """Test that async operations don't block"""
 
@@ -360,11 +351,7 @@ class TestAsyncPerformance:
         import asyncio
 
         async def create_response():
-            response = Response(
-                id=uuid4(),
-                assessment_id=uuid4(),
-                user_id=uuid4()
-            )
+            response = Response(id=uuid4(), assessment_id=uuid4(), user_id=uuid4())
             # Simulate async operation
             await asyncio.sleep(0.01)
             return response
@@ -380,8 +367,8 @@ class TestAsyncPerformance:
     @pytest.mark.asyncio
     async def test_database_query_non_blocking(self, db_session):
         """Test database queries wrapped in run_in_executor don't block"""
-        import time
         import asyncio
+        import time
 
         async def simulated_query():
             # Simulate a query that takes time

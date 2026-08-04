@@ -10,17 +10,18 @@ Documentation: http://localhost:5000/docs
 
 import logging
 import os
-from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-import uvicorn
 
 # Add project root to Python path
 import sys
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
+
+import uvicorn
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -29,8 +30,7 @@ from app.api.v1.endpoints.ai_agents import router as ai_agents_router
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -107,6 +107,7 @@ app.add_middleware(
 # Root Endpoints
 # =============================================================================
 
+
 @app.get("/")
 async def root():
     """Root endpoint - service information"""
@@ -127,7 +128,7 @@ async def root():
             "development": 8,
             "operations": 9,
         },
-        "documentation": "https://docs.psychsync.com/ai-agents"
+        "documentation": "https://docs.psychsync.com/ai-agents",
     }
 
 
@@ -138,7 +139,7 @@ async def health_check():
         "status": "healthy",
         "service": "ai-agents",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "version": "1.0.0"
+        "version": "1.0.0",
     }
 
 
@@ -156,6 +157,7 @@ app.include_router(
 # Error Handlers
 # =============================================================================
 
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     """Handle HTTP exceptions"""
@@ -169,17 +171,12 @@ async def http_exception_handler(request, exc):
                 "path": str(request.url.path),
                 "method": request.method,
             },
-            "errors": [
-                {
-                    "code": f"HTTP_{exc.status_code}",
-                    "message": exc.detail
-                }
-            ],
+            "errors": [{"code": f"HTTP_{exc.status_code}", "message": exc.detail}],
             "meta": {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "service": "ai-agents"
-            }
-        }
+                "service": "ai-agents",
+            },
+        },
     )
 
 
@@ -200,14 +197,18 @@ async def general_exception_handler(request, exc):
             "errors": [
                 {
                     "code": "INTERNAL_ERROR",
-                    "message": str(exc) if os.getenv("DEBUG") else "An unexpected error occurred"
+                    "message": (
+                        str(exc)
+                        if os.getenv("DEBUG")
+                        else "An unexpected error occurred"
+                    ),
                 }
             ],
             "meta": {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
-                "service": "ai-agents"
-            }
-        }
+                "service": "ai-agents",
+            },
+        },
     )
 
 
@@ -231,9 +232,5 @@ if __name__ == "__main__":
     logger.info("=" * 60)
 
     uvicorn.run(
-        "ai_agents_service:app",
-        host=host,
-        port=port,
-        reload=reload,
-        log_level="info"
+        "ai_agents_service:app", host=host, port=port, reload=reload, log_level="info"
     )

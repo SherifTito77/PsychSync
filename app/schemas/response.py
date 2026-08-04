@@ -43,9 +43,16 @@ class ResponseSubmit(BaseModel):
 
     model_config = ConfigDict(
         json_schema_extra={
-            "example": {'answers': [{'question_id': 1, 'value': 4}, {'question_id': 2, 'value': 5}, {'question_id': 3, 'value': 3}]}
+            "example": {
+                "answers": [
+                    {"question_id": 1, "value": 4},
+                    {"question_id": 2, "value": 5},
+                    {"question_id": 3, "value": 3},
+                ]
+            }
         }
     )
+
 
 class Response(BaseModel):
     """Response response schema"""

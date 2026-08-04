@@ -23,11 +23,11 @@ from app.api.v1.deps import get_async_db, get_current_user
 from app.core.logging_config import logger
 from app.db.models.user import User
 from app.services.clinical.population_health_service import (
+    HighRiskUser,
     PopulationHealthService,
     PopulationMetrics,
-    HighRiskUser,
-    TreatmentOutcome,
     TimeSeriesData,
+    TreatmentOutcome,
 )
 
 router = APIRouter(prefix="/population-health", tags=["population-health"])
@@ -123,7 +123,8 @@ async def get_population_metrics(
         # Verify authorization
         if current_user.role not in ["clinician", "admin"]:
             raise HTTPException(
-                status_code=403, detail="Population health data requires clinician or admin role"
+                status_code=403,
+                detail="Population health data requires clinician or admin role",
             )
 
         # Parse assessment types
@@ -156,9 +157,13 @@ async def get_population_metrics(
 
 @router.get("/high-risk-users", response_model=List[HighRiskUserResponse])
 async def get_high_risk_users(
-    assessment_types: Optional[str] = Query(None, description="Comma-separated assessment types"),
+    assessment_types: Optional[str] = Query(
+        None, description="Comma-separated assessment types"
+    ),
     days_back: int = Query(30, ge=7, le=180, description="Lookback period in days"),
-    min_assessments: int = Query(2, ge=1, le=10, description="Minimum assessments per user"),
+    min_assessments: int = Query(
+        2, ge=1, le=10, description="Minimum assessments per user"
+    ),
     limit: int = Query(50, ge=1, le=200, description="Maximum users to return"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
@@ -182,7 +187,8 @@ async def get_high_risk_users(
         # Verify authorization
         if current_user.role not in ["clinician", "admin"]:
             raise HTTPException(
-                status_code=403, detail="High-risk user data requires clinician or admin role"
+                status_code=403,
+                detail="High-risk user data requires clinician or admin role",
             )
 
         # Parse assessment types
@@ -227,7 +233,9 @@ async def get_high_risk_users(
 async def get_treatment_outcomes(
     assessment_type: str = Query("BDI2", description="Assessment type to analyze"),
     days_back: int = Query(90, ge=30, le=365, description="Lookback period in days"),
-    min_assessments: int = Query(4, ge=2, le=10, description="Minimum assessments per user"),
+    min_assessments: int = Query(
+        4, ge=2, le=10, description="Minimum assessments per user"
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -251,7 +259,8 @@ async def get_treatment_outcomes(
         # Verify authorization
         if current_user.role not in ["clinician", "admin"]:
             raise HTTPException(
-                status_code=403, detail="Treatment outcome data requires clinician or admin role"
+                status_code=403,
+                detail="Treatment outcome data requires clinician or admin role",
             )
 
         # Initialize service
@@ -285,7 +294,9 @@ async def get_treatment_outcomes(
 async def get_time_series_trends(
     assessment_type: str = Query("BDI2", description="Assessment type to analyze"),
     days_back: int = Query(90, ge=30, le=365, description="Total lookback period"),
-    interval_days: int = Query(7, ge=1, le=30, description="Size of each time bucket (days)"),
+    interval_days: int = Query(
+        7, ge=1, le=30, description="Size of each time bucket (days)"
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -311,7 +322,8 @@ async def get_time_series_trends(
         # Verify authorization
         if current_user.role not in ["clinician", "admin"]:
             raise HTTPException(
-                status_code=403, detail="Time series data requires clinician or admin role"
+                status_code=403,
+                detail="Time series data requires clinician or admin role",
             )
 
         # Initialize service
@@ -370,7 +382,8 @@ async def get_demographic_breakdown(
         # Verify authorization
         if current_user.role not in ["clinician", "admin"]:
             raise HTTPException(
-                status_code=403, detail="Demographic breakdown requires clinician or admin role"
+                status_code=403,
+                detail="Demographic breakdown requires clinician or admin role",
             )
 
         # Initialize service
@@ -522,9 +535,11 @@ async def compare_assessment_types(
                     "crisis_count": metrics.crisis_count,
                     "high_risk_count": metrics.high_risk_count,
                     "crisis_rate": round(
-                        metrics.crisis_count / metrics.active_assessments * 100
-                        if metrics.active_assessments > 0
-                        else 0,
+                        (
+                            metrics.crisis_count / metrics.active_assessments * 100
+                            if metrics.active_assessments > 0
+                            else 0
+                        ),
                         2,
                     ),
                 }

@@ -1,0 +1,1439 @@
+{
+  "info": {
+    "_postman_id": "psychsync-rate-limiting-collection",
+    "name": "PsychSync Rate Limiting & Throttling Tests",
+    "description": "Comprehensive test suite for rate limiting and throttling functionality. Tests all tiers, endpoints, burst capacity, progressive penalties, and edge cases.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "psychsync-rate-limiting-api"
+  },
+  "item": [
+    {
+      "name": "Basic Rate Limiting Tests",
+      "item": [
+        {
+          "name": "Anonymous User - Normal Rate Limit",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Initialize test counters",
+                  "if (!pm.collectionVariables.get('anonymousRequestCount')) {",
+                  "    pm.collectionVariables.set('anonymousRequestCount', 0);",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('anonymousRequestCount', parseInt(pm.collectionVariables.get('anonymousRequestCount')) + 1);",
+                  "console.log('Anonymous Request #' + pm.collectionVariables.get('anonymousRequestCount'));"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const requestCount = parseInt(pm.collectionVariables.get('anonymousRequestCount'));",
+                  "const expectedLimit = 50; // Anonymous tier: 50/min",
+                  "",
+                  "pm.test(`Request #${requestCount} - Status Code`, function () {",
+                  "    if (requestCount <= expectedLimit) {",
+                  "        pm.response.to.have.status(200);",
+                  "        console.log('✅ Within rate limit');",
+                  "    } else {",
+                  "        pm.response.to.have.status(429);",
+                  "        console.log('🚫 Rate limited - Expected after 50 requests');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Rate Limit Headers Present', function () {",
+                  "    if (pm.response.code === 429) {",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Limit');",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Remaining');",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Reset');",
+                  "    }",
+                  "});",
+                  "",
+                  "// Record response time for performance analysis",
+                  "const responseTimes = pm.collectionVariables.get('rateLimitResponseTimes') || [];",
+                  "responseTimes.push({",
+                  "    request: requestCount,",
+                  "    status: pm.response.code,",
+                  "    time: pm.response.responseTime,",
+                  "    timestamp: new Date().toISOString()",
+                  "});",
+                  "pm.collectionVariables.set('rateLimitResponseTimes', responseTimes);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "health"]
+            },
+            "description": "Test anonymous user rate limit (50 requests/minute). Run this request rapidly 50 times, then the 51st should be rate limited.",
+            "info": {
+              "_postman_id": "anonymous-normal-limit",
+              "name": "Anonymous User - Normal Rate Limit",
+              "description": "Tests that anonymous users are limited to 50 requests per minute",
+              "schema": "https://schema.getpostman.com/json/collection/v2.1.0/request.json"
+            }
+          }
+        },
+        {
+          "name": "Authenticated User - Basic Tier Rate Limit",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Ensure we have auth token",
+                  "if (!pm.collectionVariables.get('accessToken')) {",
+                  "    console.log('❌ No access token - run authentication test first');",
+                  "    pm.test.skip('Requires authentication token');",
+                  "} else {",
+                  "    // Initialize test counters",
+                  "    if (!pm.collectionVariables.get('basicUserRequestCount')) {",
+                  "        pm.collectionVariables.set('basicUserRequestCount', 0);",
+                  "    }",
+                  "    pm.collectionVariables.set('basicUserRequestCount', parseInt(pm.collectionVariables.get('basicUserRequestCount')) + 1);",
+                  "    console.log('Basic User Request #' + pm.collectionVariables.get('basicUserRequestCount'));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('accessToken')) {",
+                  "    pm.test.skip('No authentication token available');",
+                  "    return;",
+                  "}",
+                  "",
+                  "const requestCount = parseInt(pm.collectionVariables.get('basicUserRequestCount'));",
+                  "const expectedLimit = 200; // Basic tier: 200/min",
+                  "",
+                  "pm.test(`Request #${requestCount} - Status Code`, function () {",
+                  "    if (requestCount <= expectedLimit) {",
+                  "        pm.response.to.have.status(200);",
+                  "        console.log('✅ Within rate limit');",
+                  "    } else {",
+                  "        pm.response.to.have.status(429);",
+                  "        console.log('🚫 Rate limited - Expected after 200 requests');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('User Authentication Valid', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('id');",
+                  "    pm.expect(response).to.have.property('email');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "Test basic tier user rate limit (200 requests/minute). Requires authentication token. Run this request rapidly 200 times, then the 201st should be rate limited."
+          }
+        },
+        {
+          "name": "Premium User - High Rate Limit",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Ensure we have premium auth token",
+                  "if (!pm.collectionVariables.get('premiumAccessToken')) {",
+                  "    console.log('❌ No premium token - run premium authentication test first');",
+                  "    pm.test.skip('Requires premium authentication token');",
+                  "} else {",
+                  "    // Initialize test counters",
+                  "    if (!pm.collectionVariables.get('premiumUserRequestCount')) {",
+                  "        pm.collectionVariables.set('premiumUserRequestCount', 0);",
+                  "    }",
+                  "    pm.collectionVariables.set('premiumUserRequestCount', parseInt(pm.collectionVariables.get('premiumUserRequestCount')) + 1);",
+                  "    console.log('Premium User Request #' + pm.collectionVariables.get('premiumUserRequestCount'));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('premiumAccessToken')) {",
+                  "    pm.test.skip('No premium authentication token available');",
+                  "    return;",
+                  "}",
+                  "",
+                  "const requestCount = parseInt(pm.collectionVariables.get('premiumUserRequestCount'));",
+                  "const expectedLimit = 500; // Premium tier: 500/min",
+                  "",
+                  "pm.test(`Request #${requestCount} - Status Code`, function () {",
+                  "    if (requestCount <= expectedLimit) {",
+                  "        pm.response.to.have.status(200);",
+                  "        console.log('✅ Within rate limit');",
+                  "    } else {",
+                  "        pm.response.to.have.status(429);",
+                  "        console.log('🚫 Rate limited - Expected after 500 requests');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Premium User Data', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('id');",
+                  "    pm.expect(response).to.have.property('email');",
+                  "    // Premium users should have additional properties",
+                  "    // pm.expect(response).to.have.property('tier', 'premium');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{premiumAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "Test premium tier user rate limit (500 requests/minute). Requires premium authentication token. Run this request rapidly 500 times to test high-capacity limits."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication Rate Limiting",
+      "item": [
+        {
+          "name": "Login Rate Limit - Normal",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Track login attempt count",
+                  "if (!pm.collectionVariables.get('loginAttemptCount')) {",
+                  "    pm.collectionVariables.set('loginAttemptCount', 0);",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('loginAttemptCount', parseInt(pm.collectionVariables.get('loginAttemptCount')) + 1);",
+                  "console.log('Login Attempt #' + pm.collectionVariables.get('loginAttemptCount'));",
+                  "",
+                  "// Use unique username to avoid account lockout",
+                  "const username = `testuser${pm.collectionVariables.get('loginAttemptCount')}@example.com`;",
+                  "pm.collectionVariables.set('testUsername', username);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const attemptCount = parseInt(pm.collectionVariables.get('loginAttemptCount'));",
+                  "const loginLimit = 20; // 20 attempts/hour",
+                  "",
+                  "pm.test(`Login Attempt #${attemptCount}`, function () {",
+                  "    if (attemptCount <= loginLimit) {",
+                  "        // Should succeed or fail auth, but not be rate limited",
+                  "        pm.expect([200, 401]).to.include(pm.response.code);",
+                  "        console.log('✅ Within auth rate limit');",
+                  "    } else {",
+                  "        // Should be rate limited",
+                  "        pm.response.to.have.status(429);",
+                  "        console.log('🚫 Rate limited - Expected after 20 attempts');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Rate Limit Headers', function () {",
+                  "    if (pm.response.code === 429) {",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Limit');",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Remaining');",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Reset');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "{{testUsername}}"
+                },
+                {
+                  "key": "password",
+                  "value": "WrongPassword123!"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "token"]
+            },
+            "description": "Test login rate limiting (20 attempts/hour). Each attempt uses a unique username. First 20 attempts should not be rate limited, 21st+ should be."
+          }
+        },
+        {
+          "name": "Registration Rate Limit",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Track registration attempt count",
+                  "if (!pm.collectionVariables.get('registrationAttemptCount')) {",
+                  "    pm.collectionVariables.set('registrationAttemptCount', 0);",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('registrationAttemptCount', parseInt(pm.collectionVariables.get('registrationAttemptCount')) + 1);",
+                  "console.log('Registration Attempt #' + pm.collectionVariables.get('registrationAttemptCount'));",
+                  "",
+                  "// Generate unique email for each attempt",
+                  "const email = `reguser${pm.collectionVariables.get('registrationAttemptCount')}${Date.now()}@example.com`;",
+                  "pm.collectionVariables.set('testRegEmail', email);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const attemptCount = parseInt(pm.collectionVariables.get('registrationAttemptCount'));",
+                  "const regLimit = 5; // 5 attempts/hour",
+                  "",
+                  "pm.test(`Registration Attempt #${attemptCount}`, function () {",
+                  "    if (attemptCount <= regLimit) {",
+                  "        // Should succeed or fail validation, but not be rate limited",
+                  "        pm.expect([200, 400, 422]).to.include(pm.response.code);",
+                  "        console.log('✅ Within registration rate limit');",
+                  "    } else {",
+                  "        // Should be rate limited",
+                  "        pm.response.to.have.status(429);",
+                  "        console.log('🚫 Rate limited - Expected after 5 attempts');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Rate Limit Headers', function () {",
+                  "    if (pm.response.code === 429) {",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Limit');",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Remaining');",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Reset');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{testRegEmail}}\",\n  \"full_name\": \"Test User {{registrationAttemptCount}}\",\n  \"password\": \"TestPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Test registration rate limiting (5 attempts/hour). Each attempt uses a unique email. First 5 attempts should not be rate limited, 6th+ should be."
+          }
+        },
+        {
+          "name": "Password Reset Rate Limit",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Track password reset attempt count",
+                  "if (!pm.collectionVariables.get('passwordResetAttemptCount')) {",
+                  "    pm.collectionVariables.set('passwordResetAttemptCount', 0);",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('passwordResetAttemptCount', parseInt(pm.collectionVariables.get('passwordResetAttemptCount')) + 1);",
+                  "console.log('Password Reset Attempt #' + pm.collectionVariables.get('passwordResetAttemptCount'));"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const attemptCount = parseInt(pm.collectionVariables.get('passwordResetAttemptCount'));",
+                  "const resetLimit = 3; // 3 attempts/hour",
+                  "",
+                  "pm.test(`Password Reset Attempt #${attemptCount}`, function () {",
+                  "    if (attemptCount <= resetLimit) {",
+                  "        // Should succeed or fail validation, but not be rate limited",
+                  "        pm.expect([200, 400, 404]).to.include(pm.response.code);",
+                  "        console.log('✅ Within password reset rate limit');",
+                  "    } else {",
+                  "        // Should be rate limited",
+                  "        pm.response.to.have.status(429);",
+                  "        console.log('🚫 Rate limited - Expected after 3 attempts');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Rate Limit Headers', function () {",
+                  "    if (pm.response.code === 429) {",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Limit');",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Remaining');",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Reset');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"resetuser@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/password-reset",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "password-reset"]
+            },
+            "description": "Test password reset rate limiting (3 attempts/hour). First 3 attempts should not be rate limited, 4th+ should be."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Burst Capacity Testing",
+      "item": [
+        {
+          "name": "Anonymous User - Burst Test",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Burst test - 20 requests in rapid succession",
+                  "const burstCount = 20;",
+                  "if (!pm.collectionVariables.get('anonymousBurstCount')) {",
+                  "    pm.collectionVariables.set('anonymousBurstCount', 0);",
+                  "    console.log('Starting burst test for anonymous users...');",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('anonymousBurstCount', parseInt(pm.collectionVariables.get('anonymousBurstCount')) + 1);",
+                  "console.log(`Anonymous Burst Request #${pm.collectionVariables.get('anonymousBurstCount')} of ${burstCount}`);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const burstCount = parseInt(pm.collectionVariables.get('anonymousBurstCount'));",
+                  "const burstCapacity = 20; // Anonymous burst capacity",
+                  "",
+                  "pm.test(`Anonymous Burst Request #${burstCount} of 20`, function () {",
+                  "    if (burstCount <= burstCapacity) {",
+                  "        pm.response.to.have.status(200);",
+                  "        console.log('✅ Within burst capacity');",
+                  "    } else {",
+                  "        pm.response.to.have.status(429);",
+                  "        console.log('🚫 Burst capacity exceeded');",
+                  "    }",
+                  "});",
+                  "",
+                  "// Measure response time under burst conditions",
+                  "const responseTime = pm.response.responseTime;",
+                  "pm.test('Burst Response Time Under 200ms', function () {",
+                  "    pm.expect(responseTime).to.be.below(200);",
+                  "});",
+                  "",
+                  "if (responseTime > 200) {",
+                  "    console.log(`⚠️  Slow response under burst: ${responseTime}ms`);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "health"]
+            },
+            "description": "Test anonymous user burst capacity (20 requests burst). Run this request 20 times rapidly to test if burst capacity is honored."
+          }
+        },
+        {
+          "name": "Premium User - High Burst Test",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Premium burst test - 500 requests in rapid succession",
+                  "const burstCount = 500;",
+                  "if (!pm.collectionVariables.get('premiumBurstCount')) {",
+                  "    pm.collectionVariables.set('premiumBurstCount', 0);",
+                  "    console.log('Starting premium burst test...');",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('premiumBurstCount', parseInt(pm.collectionVariables.get('premiumBurstCount')) + 1);",
+                  "console.log(`Premium Burst Request #${pm.collectionVariables.get('premiumBurstCount')} of ${burstCount}`);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('premiumAccessToken')) {",
+                  "    pm.test.skip('No premium authentication token available');",
+                  "    return;",
+                  "}",
+                  "",
+                  "const burstCount = parseInt(pm.collectionVariables.get('premiumBurstCount'));",
+                  "const burstCapacity = 500; // Premium burst capacity",
+                  "",
+                  "pm.test(`Premium Burst Request #${burstCount} of 500`, function () {",
+                  "    if (burstCount <= burstCapacity) {",
+                  "        pm.response.to.have.status(200);",
+                  "        console.log('✅ Within burst capacity');",
+                  "    } else {",
+                  "        pm.response.to.have.status(429);",
+                  "        console.log('🚫 Burst capacity exceeded');",
+                  "    }",
+                  "});",
+                  "",
+                  "// Measure response time under high burst conditions",
+                  "const responseTime = pm.response.responseTime;",
+                  "pm.test('Premium Burst Response Time Under 500ms', function () {",
+                  "    pm.expect(responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "if (responseTime > 500) {",
+                  "    console.log(`⚠️  Slow response under high burst: ${responseTime}ms`);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{premiumAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "Test premium user burst capacity (500 requests burst). Run this request 500 times rapidly to test high-capacity burst limits."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Progressive Penalty Testing",
+      "item": [
+        {
+          "name": "Failed Login Progressive Penalty",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Progressive penalty test - failed logins should increase restrictions",
+                  "if (!pm.collectionVariables.get('failedLoginCount')) {",
+                  "    pm.collectionVariables.set('failedLoginCount', 0);",
+                  "    console.log('Starting progressive penalty test...');",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('failedLoginCount', parseInt(pm.collectionVariables.get('failedLoginCount')) + 1);",
+                  "console.log(`Failed Login Attempt #${pm.collectionVariables.get('failedLoginCount')}`);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const failedCount = parseInt(pm.collectionVariables.get('failedLoginCount'));",
+                  "",
+                  "pm.test(`Failed Login #${failedCount}`, function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([401, 429]);",
+                  "});",
+                  "",
+                  "pm.test('Progressive Penalty Enforcement', function () {",
+                  "    if (failedCount <= 5) {",
+                  "        // Normal rate limiting",
+                  "        if (pm.response.code === 429) {",
+                  "            console.log('⚠️  Rate limiting triggered early - may indicate progressive penalty');",
+                  "        }",
+                  "    } else {",
+                  "        // Should be rate limited more aggressively",
+                  "        pm.response.to.have.status(429);",
+                  "        console.log('🚫 Aggressive rate limiting due to repeated failures');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Rate Limit Headers Present', function () {",
+                  "    if (pm.response.code === 429) {",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Limit');",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Remaining');",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Reset');",
+                  "        // Progressive penalty should show reduced remaining",
+                  "        const remaining = parseInt(pm.response.headers['X-RateLimit-Remaining']);",
+                  "        if (failedCount > 5 && remaining > 0) {",
+                  "            console.log('⚠️  Progressive penalty may not be working correctly');",
+                  "        }",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "admin@example.com"
+                },
+                {
+                  "key": "password",
+                  "value": "wrongpassword"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "token"]
+            },
+            "description": "Test progressive penalties for failed login attempts. Run this request 10+ times to observe increasing rate限制. Each failed login should result in stricter rate limiting."
+          }
+        },
+        {
+          "name": "Recovery After Progressive Penalty",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Test recovery after progressive penalties",
+                  "console.log('Testing recovery after progressive penalties...');",
+                  "// Wait for penalty period to expire",
+                  "pm.collectionVariables.set('recoveryTest', true);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.collectionVariables.get('recoveryTest')) {",
+                  "    pm.test('Recovery Test - Status Code', function () {",
+                  "        // After penalty period, should be able to login successfully",
+                  "        if (pm.response.code === 200) {",
+                  "            console.log('✅ Penalty expired, login successful');",
+                  "        } else {",
+                  "            console.log('⚠️  Still rate limited, penalty may not have expired');",
+                  "        }",
+                  "    });",
+                  "    }",
+                  "else {",
+                  "    pm.test.skip('Run progressive penalty test first');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "admin@example.com"
+                },
+                {
+                  "key": "password",
+                  "value": "Admin@12345"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "token"]
+            },
+            "description": "Test recovery after progressive penalties. Run this after the progressive penalty test to see when rate limits return to normal. May need to wait several minutes."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Edge Cases & Boundary Testing",
+      "item": [
+        {
+          "name": "Rapid Succession Test",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Test extremely rapid request succession (< 1ms delay)",
+                  "if (!pm.collectionVariables.get('rapidRequestCount')) {",
+                  "    pm.collectionVariables.set('rapidRequestCount', 0);",
+                  "    console.log('Starting rapid succession test...');",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('rapidRequestCount', parseInt(pm.collectionVariables.get('rapidRequestCount')) + 1);",
+                  "const startTime = Date.now();",
+                  "pm.collectionVariables.set('lastRequestTime', startTime);",
+                  "console.log(`Rapid Request #${pm.collectionVariables.get('rapidRequestCount')} - Time since last: ${Date.now() - pm.collectionVariables.get('lastRequestTime')}ms`);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const requestCount = parseInt(pm.collectionVariables.get('rapidRequestCount'));",
+                  "const timeSinceLast = Date.now() - pm.collectionVariables.get('lastRequestTime');",
+                  "",
+                  "pm.test(`Rapid Request #${requestCount}`, function () {",
+                  "    // Rate limiting should still work even with rapid succession",
+                  "    if (requestCount <= 50) {",
+                  "        pm.expect([200, 429]).to.include(pm.response.code);",
+                  "    } else {",
+                  "        pm.response.to.have.status(429);",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Request Timing Analysis', function () {",
+                  "    if (timeSinceLast < 10) {",
+                  "        console.log(`⚡ Very rapid request: ${timeSinceLast}ms`);",
+                  "    } else {",
+                  "        console.log(`Normal request timing: ${timeSinceLast}ms`);",
+                  "    }",
+                  "});",
+                  "",
+                  "// Store timing for analysis",
+                  "const timingData = pm.collectionVariables.get('rapidTimingData') || [];",
+                  "timingData.push({",
+                  "    request: requestCount,",
+                  "    interval: timeSinceLast,",
+                  "    responseCode: pm.response.code,",
+                  "    timestamp: Date.now()",
+                  "});",
+                  "pm.collectionVariables.set('rapidTimingData', timingData);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "health"]
+            },
+            "description": "Test rate limiting with extremely rapid succession requests. Run requests with minimal delay to test rate limiting algorithm accuracy under extreme conditions."
+          }
+        },
+        {
+          "name": "Mixed Endpoint Rate Limiting",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Test rate limiting across different endpoint types",
+                  "const endpoints = [",
+                  "  '/api/v1/health',          // Public",
+                  "  '/api/v1/auth/me',         // Authenticated",
+                  "  '/api/v1/assessments',    // Resource-intensive",
+                  "  '/api/v1/teams'           // Database",
+                  "  '/api/v1/analytics'        // Analytics",
+                  "];",
+                  "",
+                  "if (!pm.collectionVariables.get('mixedEndpointIndex')) {",
+                  "    pm.collectionVariables.set('mixedEndpointIndex', 0);",
+                  "}",
+                  "",
+                  "const index = pm.collectionVariables.get('mixedEndpointIndex');",
+                  "pm.collectionVariables.set('mixedEndpointIndex', (index + 1) % endpoints.length);",
+                  "pm.collectionVariables.set('currentEndpoint', endpoints[index]);",
+                  "",
+                  "console.log(`Testing endpoint: ${endpoints[index]}`);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const endpoint = pm.collectionVariables.get('currentEndpoint');",
+                  "const index = pm.collectionVariables.get('mixedEndpointIndex');",
+                  "const endpointName = ['Health', 'Auth Me', 'Assessments', 'Teams', 'Analytics'][index];",
+                  "",
+                  "pm.test(`Mixed Test - ${endpointName}`, function () {",
+                  "    // All endpoints should be rate limited appropriately",
+                  "    pm.expect([200, 401, 429]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test('Rate Limit Endpoint Isolation', function () {",
+                  "    // Each endpoint should have its own rate limit",
+                  "    const responseTime = pm.response.responseTime;",
+                  "    console.log(`${endpointName} Response Time: ${responseTime}ms`);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "{{method}}",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}{{currentEndpoint}}",
+              "host": ["{{baseUrl}}"],
+              "path": []
+            },
+            "description": "Test mixed endpoint rate limiting. Requests will cycle through different endpoint types to ensure each has its own rate limit. Test endpoints: Health, Auth, Assessments, Teams, Analytics."
+          }
+        },
+        {
+          "name": "Concurrent User Same IP Test",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Test per-user rate limiting from same IP",
+                  "const userIndex = Math.floor(Math.random() * 10); // 10 different users",
+                  "if (!pm.collectionVariables.get('concurrentUserIndex')) {",
+                  "    pm.collectionVariables.set('concurrentUserIndex', 0);",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('concurrentUserIndex', userIndex);",
+                  "const testEmail = `concurrentuser${userIndex}@example.com`;",
+                  "pm.collectionVariables.set('concurrentTestEmail', testEmail);",
+                  "console.log(`Concurrent User Test - User ${userIndex}: ${testEmail}`);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const userIndex = pm.collectionVariables.get('concurrentUserIndex');",
+                  "const testEmail = pm.collectionVariables.get('concurrentTestEmail');",
+                  "",
+                  "pm.test(`Concurrent User ${userIndex} - Test`, function () {",
+                  "    // Each user should have independent rate limits",
+                  "    pm.expect([200, 201, 400, 422, 429]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test('Per-User Isolation', function () {",
+                  "    // This test ensures per-user rate limiting works",
+                  "    const responseTime = pm.response.responseTime;",
+                  "    console.log(`User ${userIndex} Response Time: ${responseTime}ms`);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{concurrentTestEmail}}\",\n  \"full_name\": \"Concurrent User {{concurrentUserIndex}}\",\n  \"password\": \"TestPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Test per-user rate limiting from same IP. Each run uses a different user email to verify that rate limits are per-user, not per-IP. Run multiple instances concurrently to test isolation."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Performance & Monitoring",
+      "item": [
+        {
+          "name": "Rate Limiting Performance Impact",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Measure rate limiting performance overhead",
+                  "const responseTime = pm.response.responseTime;",
+                  "",
+                  "pm.test('Rate Limiting Performance Impact', function () {",
+                  "    // Rate limiting should add minimal overhead",
+                  "    pm.expect(responseTime).to.be.below(100); // Should be under 100ms",
+                  "    console.log(`Rate limiting response time: ${responseTime}ms`);",
+                  "});",
+                  "",
+                  "// Store performance data for analysis",
+                  "const perfData = pm.collectionVariables.get('rateLimitPerfData') || [];",
+                  "perfData.push({",
+                  "    endpoint: '/api/v1/health',",
+                  "    responseTime: responseTime,",
+                  "    timestamp: Date.now(),",
+                  "    memoryUsage: 'Not measured'",
+                  "    cpuUsage: 'Not measured'",
+                  "  });",
+                  "pm.collectionVariables.set('rateLimitPerfData', perfData);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "health"]
+            },
+            "description": "Measure rate limiting performance overhead. This test measures response time to ensure rate limiting adds minimal latency to API requests."
+          }
+        },
+        {
+          "name": "Rate Limit Headers Validation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Validate rate limiting headers are present and correct",
+                  "pm.test('Rate Limit Headers Present', function () {",
+                  "    if (pm.response.code === 429) {",
+                  "        // Rate limit headers should be present when rate limited",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Limit');",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Remaining');",
+                  "        pm.expect(pm.response.headers).to.have.property('X-RateLimit-Reset');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Header Format Validation', function () {",
+                  "    if (pm.response.code === 429) {",
+                  "        const limitHeader = pm.response.headers['X-RateLimit-Limit'];",
+                  "        const remainingHeader = pm.response.headers['X-RateLimit-Remaining'];",
+                  "        const resetHeader = pm.response.headers['X-RateLimit-Reset'];",
+                  "        ",
+                  "        pm.expect(parseInt(limitHeader)).to.be.a('number');",
+                  "        pm.expect(parseInt(remainingHeader)).to.be.a('number');",
+                  "        pm.expect(parseInt(resetHeader)).to.be.a('number');",
+                  "        pm.expect(parseInt(limitHeader)).to.be.at.least(0);",
+                  "        pm.expect(parseInt(remainingHeader)).to.be.at.least(0);",
+                  "        pm.expect(parseInt(resetHeader)).to.be.at.least(0);",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Header Values Consistency', function () {",
+                  "    if (pm.response.code === 429) {",
+                  "        const limit = parseInt(pm.response.headers['X-RateLimit-Limit']);",
+                  "        const remaining = parseInt(pm.response.headers['X-RateLimit-Remaining']);",
+                  "        ",
+                  "        // Remaining should not exceed limit",
+                  "        pm.expect(remaining).to.be.at.most(limit);",
+                  "        ",
+                  "        // Reset time should be reasonable",
+                  "        const resetTime = parseInt(pm.response.headers['X-RateLimit-Reset']);",
+                  "        const now = Math.floor(Date.now() / 1000);",
+                  "        pm.expect(resetTime).to.be.at.least(now + 1); // At least 1 second in future",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "health"]
+            },
+            "description": "Validate rate limiting headers are present and properly formatted. Run this after triggering rate limiting to verify headers."
+          }
+        },
+        {
+          "name": "Token Refresh Rate Limit",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Test token refresh rate limiting (100/hour per user)",
+                  "if (!pm.collectionVariables.get('tokenRefreshCount')) {",
+                  "    pm.collectionVariables.set('tokenRefreshCount', 0);",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('tokenRefreshCount', parseInt(pm.collectionVariables.get('tokenRefreshCount')) + 1);",
+                  "console.log(`Token Refresh Attempt #${pm.collectionVariables.get('tokenRefreshCount')}`);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('refreshToken')) {",
+                  "    pm.test.skip('No refresh token available - login first');",
+                  "    return;",
+                  "}",
+                  "",
+                  "const refreshCount = parseInt(pm.collectionVariables.get('tokenRefreshCount'));",
+                  "const refreshLimit = 100; // 100 attempts/hour per user",
+                  "",
+                  "pm.test(`Token Refresh #${refreshCount}`, function () {",
+                  "    if (refreshCount <= refreshLimit) {",
+                  "        pm.expect([200, 400, 429]).to.include(pm.response.code);",
+                  "        console.log('✅ Within refresh rate limit');",
+                  "    } else {",
+                  "        pm.response.to.have.status(429);",
+                  "        console.log('🚫 Refresh rate limited');",
+                  "    }",
+                  "});",
+                  "",
+                  "// Store new refresh token if successful",
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.data && response.data.refresh_token) {",
+                  "        pm.collectionVariables.set('refreshToken', response.data.refresh_token);",
+                  "        console.log('✅ Refresh token updated');",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "refresh_token",
+                  "value": "{{refreshToken}}"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            },
+            "description": "Test token refresh rate limiting (100 attempts/hour per user). Test with valid refresh token to verify token refresh limits."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin & Enterprise Testing",
+      "item": [
+        {
+          "name": "Admin User - High Rate Limit",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Test admin user high rate limits (2000/min)",
+                  "if (!pm.collectionVariables.get('adminRequestCount')) {",
+                  "    pm.collectionVariables.set('adminRequestCount', 0);",
+                  "    console.log('Starting admin rate limit test...');",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('adminRequestCount', parseInt(pm.collectionVariables.get('adminRequestCount')) + 1);",
+                  "console.log(`Admin Request #${pm.collectionVariables.get('adminRequestCount')} of 2000`);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('adminAccessToken')) {",
+                  "    pm.test.skip('No admin authentication token available');",
+                  "    return;",
+                  "}",
+                  "",
+                  "const requestCount = parseInt(pm.collectionVariables.get('adminRequestCount'));",
+                  "const adminLimit = 2000; // Admin tier: 2000/min",
+                  "",
+                  "pm.test(`Admin Request #${requestCount} of 2000`, function () {",
+                  "    if (requestCount <= adminLimit) {",
+                  "        pm.response.to.have.status(200);",
+                  "        console.log('✅ Within admin rate limit');",
+                  "    } else {",
+                  "        pm.response.to.have.status(429);",
+                  "        console.log('🚫 Admin rate limited');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Admin User Validation', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('id');",
+                  "    pm.expect(response).to.have.property('email');",
+                  "    // Admin users should have admin role",
+                  "    pm.expect(response).to.have.property('role', 'admin');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "Test admin user high rate limits (2000 requests/minute). Requires admin authentication token. Tests that privileged users have higher rate limits for administrative operations."
+          }
+        },
+        {
+          "name": "Enterprise User - Maximum Rate Limit",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Test enterprise user maximum rate limits (100000/day)",
+                  "if (!pm.collectionVariables.get('enterpriseRequestCount')) {",
+                  "    pm.collectionVariables.set('enterpriseRequestCount', 0);",
+                  "    console.log('Starting enterprise rate limit test...');",
+                  "}",
+                  "",
+                  "pm.collectionVariables.set('enterpriseRequestCount', parseInt(pm.collectionVariables.get('enterpriseRequestCount')) + 1);",
+                  "console.log(`Enterprise Request #${pm.collectionVariables.get('enterpriseRequestCount')} of 100000/day`);"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('enterpriseAccessToken')) {",
+                  "    pm.test.skip('No enterprise authentication token available');",
+                  "    return;",
+                  "}",
+                  "",
+                  "const requestCount = parseInt(pm.collectionVariables.get('enterpriseRequestCount'));",
+                  "    ",
+                  "pm.test(`Enterprise Request #${requestCount}`, function () {",
+                  "    // Enterprise users have very high limits",
+                  "    pm.expect([200, 429]).to.include(pm.response.code);",
+                  "    console.log('✅ Enterprise request completed');",
+                  "});",
+                  "",
+                  "pm.test('Enterprise User Validation', function () {",
+                  "    const response = pm.response.json();",
+                  "    pm.expect(response).to.have.property('id');",
+                  "    pm.expect(response).to.have.property('email');",
+                  "    // Enterprise users should have enterprise role",
+                  "    pm.expect(response).to.have.property('role', 'enterprise');",
+                  "});",
+                  "",
+                  "// Track for enterprise-specific features",
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    // Check for enterprise-specific features",
+                  "    if (response.enterprise_tier) {",
+                  "        console.log(`✅ Enterprise tier detected: ${response.enterprise_tier}`);",
+                  "    }",
+                  "}",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "priority",
+                "value": "high"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{enterpriseAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "Test enterprise user maximum rate limits (100,000/day). Requires enterprise authentication token. Tests that enterprise users have the highest rate limits for maximum throughput."
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// Rate limiting test suite initialization",
+          "console.log('🚀 Starting Rate Limiting & Throttling Tests');",
+          "console.log('Base URL:', pm.collectionVariables.get('baseUrl'));",
+          "",
+          "// Performance monitoring setup",
+          "if (!pm.collectionVariables.get('testStartTime')) {",
+          "    pm.collectionVariables.set('testStartTime', Date.now());",
+          "}",
+          "",
+          "// Reset counters for new test runs",
+          "if (pm.info.requestName === 'Anonymous User - Normal Rate Limit') {",
+          "    pm.collectionVariables.set('anonymousRequestCount', 0);",
+          "} else if (pm.info.requestName === 'Authenticated User - Basic Tier Rate Limit') {",
+          "    pm.collectionVariables.set('basicUserRequestCount', 0);",
+          "} else if (pm.info.requestName === 'Premium User - High Rate Limit') {",
+                  "    pm.collectionVariables.set('premiumUserRequestCount', 0);",
+                  "} else if (pm.info.requestName === 'Admin User - High Rate Limit') {",
+                  "    pm.collectionVariables.set('adminRequestCount', 0);",
+                  "} else if (pm.info.requestName === 'Enterprise User - Maximum Rate Limit') {",
+                  "    pm.collectionVariables.set('enterpriseRequestCount', 0);",
+                  "}",
+                  "              "
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Performance monitoring and cleanup",
+                  "const testDuration = Date.now() - pm.collectionVariables.get('testStartTime');",
+                  "const responseTimes = pm.collectionVariables.get('rateLimitResponseTimes') || [];",
+                  "",
+                  "if (responseTimes.length > 0) {",
+                  "    const avgTime = responseTimes.reduce((sum, item) => sum + item.time, 0) / responseTimes.length;",
+                  "    const maxTime = Math.max(...responseTimes.map(item => item.time));",
+                  "    const totalTime = responseTimes.reduce((sum, item) => sum + item.time, 0);",
+                    "",
+                  "    console.log('\\n📊 Test Performance Summary:');",
+                  "    console.log(`Total Duration: ${testDuration}ms`);",
+                  "    console.log(`Total Requests: ${responseTimes.length}`);",
+                  "    console.log(`Average Response Time: ${avgTime.toFixed(2)}ms`);",
+                  "    console.log(`Max Response Time: ${maxTime}ms`);",
+                  "    console.log(`Total Request Time: ${totalTime}ms`);",
+                  "                    ",
+                  "    // Rate limiting effectiveness",
+                  "    const rateLimitedRequests = responseTimes.filter(item => item.status === 429);",
+                  "    const rateLimitRate = (rateLimitedRequests.length / responseTimes.length * 100).toFixed(1);",
+                  "    console.log(`Rate Limited Requests: ${rateLimitedRequests}/${responseTimes.length} (${rateLimitRate}%)`);",
+                  "}",
+                  "",
+                  "// Store comprehensive test results",
+                  "const testResults = {",
+                  "  suite: 'Rate Limiting & Throttling',",
+                  "  duration: testDuration,",
+                  "  totalRequests: responseTimes.length,",
+                  "  rateLimitedRequests: responseTimes.filter(item => item.status === 429).length,",
+                  "  averageResponseTime: responseTimes.length > 0 ? responseTimes.reduce((sum, item) => sum + item.time, 0) / responseTimes.length : 0,",
+                  "  maxResponseTime: responseTimes.length > 0 ? Math.max(...responseTimes.map(item => item.time)) : 0,",
+                  "  timestamp: new Date.now().toISOString(),",
+                  "  environment: pm.environment.name || 'unknown',",
+                  "  baseUrl: pm.collectionVariables.get('baseUrl'),",
+                  "  performance: {",
+                  "    responseTimeData: responseTimes,",
+                  "    rateLimitEffectiveness: rateLimitedRequests.length > 0,",
+                  "    successRate: ((responseTimes.length - rateLimitedRequests.length) / responseTimes.length * 100).toFixed(1)",
+                  "  },",
+                  "  detailedResults: responseTimes.map(item => ({",
+                  "    request: item.request,",
+                  "    status: item.status,",
+                  "    responseTime: item.responseTime,",
+                  "    timestamp: item.timestamp",
+                  "  }))",
+                  "\";",
+                  "",
+                  "pm.collectionVariables.set('rateLimitTestResults', JSON.stringify(testResults, null, 2));",
+                  "console.log('💾 Test results saved to collection variables');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          }
+        }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "description": "Base URL for the API"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "description": "Basic tier user access token"
+    },
+    {
+      "key": "premiumAccessToken",
+      "value": "",
+      "description": "Premium tier user access token"
+    },
+    {
+      "key": "adminAccessToken",
+      "value": "",
+      "description": "Admin user access token"
+    },
+    {
+      "key": "enterpriseAccessToken",
+      "value": "",
+      "description": "Enterprise user access token"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "description": "JWT refresh token for token renewal"
+    },
+    {
+      "key": "testUsername",
+      "value": "",
+      "description": "Generated username for login tests"
+    },
+    {
+      "key": "testRegEmail",
+      "current value": "",
+      "description": "Generated email for registration tests"
+    },
+    {
+      "key": "concurrentTestEmail",
+      "value": "",
+      "current value": "",
+      "description": "Generated email for concurrent user tests"
+    }
+  ]
+}

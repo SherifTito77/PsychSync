@@ -10,25 +10,26 @@ Tests the complete security monitoring system including:
 - Score calculation
 """
 
-import pytest
 import json
-import tempfile
 import os
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from app.monitoring.security_metrics import (
-    SecurityMetricsCollector,
-    SecurityMetrics,
-    VulnerabilityFinding,
-    SeverityLevel,
-    collect_security_metrics,
-    get_security_score,
-    get_security_grade
-)
+import pytest
+
 from app.monitoring.prometheus_metrics import (
     PrometheusMetrics,
-    generate_prometheus_metrics
+    generate_prometheus_metrics,
+)
+from app.monitoring.security_metrics import (
+    SecurityMetrics,
+    SecurityMetricsCollector,
+    SeverityLevel,
+    VulnerabilityFinding,
+    collect_security_metrics,
+    get_security_grade,
+    get_security_score,
 )
 
 
@@ -40,61 +41,46 @@ def mock_sast_results():
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "runs": [
             {
-                "tool": {
-                    "driver": {
-                        "name": "Semgrep",
-                        "version": "1.0.0"
-                    }
-                },
+                "tool": {"driver": {"name": "Semgrep", "version": "1.0.0"}},
                 "results": [
                     {
                         "ruleId": "python.sql-injection",
                         "level": "error",
-                        "message": {
-                            "text": "Possible SQL injection"
-                        },
+                        "message": {"text": "Possible SQL injection"},
                         "locations": [
                             {
                                 "physicalLocation": {
                                     "artifactLocation": {
                                         "uri": "app/services/user_service.py"
                                     },
-                                    "region": {
-                                        "startLine": 127
-                                    }
+                                    "region": {"startLine": 127},
                                 }
                             }
-                        ]
+                        ],
                     },
                     {
                         "ruleId": "python.best-practice",
                         "level": "warning",
-                        "message": {
-                            "text": "Use of assert detected"
-                        },
+                        "message": {"text": "Use of assert detected"},
                         "locations": [
                             {
                                 "physicalLocation": {
-                                    "artifactLocation": {
-                                        "uri": "app/main.py"
-                                    },
-                                    "region": {
-                                        "startLine": 45
-                                    }
+                                    "artifactLocation": {"uri": "app/main.py"},
+                                    "region": {"startLine": 45},
                                 }
                             }
-                        ]
-                    }
-                ]
+                        ],
+                    },
+                ],
             }
-        ]
+        ],
     }
 
 
 @pytest.fixture
 def mock_dast_results():
     """Mock OWASP ZAP XML results"""
-    return '''<?xml version="1.0"?>
+    return """<?xml version="1.0"?>
 <OWASPZAPReport>
     <site name="http://staging.psychsync.com">
         <alerts>
@@ -120,7 +106,7 @@ def mock_dast_results():
             </alert>
         </alerts>
     </site>
-</OWASPZAPReport>'''
+</OWASPZAPReport>"""
 
 
 @pytest.fixture
@@ -131,48 +117,35 @@ def mock_sca_results():
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "runs": [
             {
-                "tool": {
-                    "driver": {
-                        "name": "Trivy",
-                        "version": "0.40.0"
-                    }
-                },
+                "tool": {"driver": {"name": "Trivy", "version": "0.40.0"}},
                 "results": [
                     {
                         "ruleId": "CVE-2023-1234 (HIGH)",
                         "level": "error",
-                        "message": {
-                            "text": "High severity vulnerability in package"
-                        },
+                        "message": {"text": "High severity vulnerability in package"},
                         "locations": [
                             {
                                 "physicalLocation": {
-                                    "artifactLocation": {
-                                        "uri": "requirements.txt"
-                                    }
+                                    "artifactLocation": {"uri": "requirements.txt"}
                                 }
                             }
-                        ]
+                        ],
                     },
                     {
                         "ruleId": "CVE-2023-5678 (MEDIUM)",
                         "level": "warning",
-                        "message": {
-                            "text": "Medium severity vulnerability in package"
-                        },
+                        "message": {"text": "Medium severity vulnerability in package"},
                         "locations": [
                             {
                                 "physicalLocation": {
-                                    "artifactLocation": {
-                                        "uri": "package.json"
-                                    }
+                                    "artifactLocation": {"uri": "package.json"}
                                 }
                             }
-                        ]
-                    }
-                ]
+                        ],
+                    },
+                ],
             }
-        ]
+        ],
     }
 
 
@@ -183,7 +156,7 @@ class TestSecurityMetricsCollector:
     async def test_collect_from_sast(self, mock_sast_results):
         """Test collecting SAST metrics from Semgrep SARIF"""
         # Create temporary file with mock results
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(mock_sast_results, f)
             temp_path = f.name
 
@@ -204,7 +177,7 @@ class TestSecurityMetricsCollector:
     async def test_collect_from_dast(self, mock_dast_results):
         """Test collecting DAST metrics from ZAP XML"""
         # Create temporary file with mock results
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False) as f:
             f.write(mock_dast_results)
             temp_path = f.name
 
@@ -225,7 +198,7 @@ class TestSecurityMetricsCollector:
     async def test_collect_from_sca(self, mock_sca_results):
         """Test collecting SCA metrics from Trivy SARIF"""
         # Create temporary file with mock results
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(mock_sca_results, f)
             temp_path = f.name
 
@@ -242,18 +215,20 @@ class TestSecurityMetricsCollector:
             os.unlink(temp_path)
 
     @pytest.mark.asyncio
-    async def test_collect_all_metrics(self, mock_sast_results, mock_dast_results, mock_sca_results):
+    async def test_collect_all_metrics(
+        self, mock_sast_results, mock_dast_results, mock_sca_results
+    ):
         """Test collecting all security metrics"""
         # Create temporary files
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(mock_sast_results, f)
             sast_path = f.name
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False) as f:
             f.write(mock_dast_results)
             dast_path = f.name
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(mock_sca_results, f)
             sca_path = f.name
 
@@ -270,15 +245,15 @@ class TestSecurityMetricsCollector:
                 scan_date=datetime.utcnow(),
                 sast_findings=sast_findings,
                 dast_findings=dast_findings,
-                sca_findings=sca_findings
+                sca_findings=sca_findings,
             )
 
             summary = metrics.get_summary()
 
-            assert summary['sast_findings'] == 2
-            assert summary['dast_findings'] == 2
-            assert summary['sca_findings'] == 2
-            assert summary['total_findings'] == 6
+            assert summary["sast_findings"] == 2
+            assert summary["dast_findings"] == 2
+            assert summary["sca_findings"] == 2
+            assert summary["total_findings"] == 6
 
         finally:
             os.unlink(sast_path)
@@ -295,12 +270,12 @@ class TestSecurityMetrics:
             scan_date=datetime.utcnow(),
             sast_findings=[],
             dast_findings=[],
-            sca_findings=[]
+            sca_findings=[],
         )
 
         summary = metrics.get_summary()
-        assert summary['security_score'] == 100
-        assert summary['security_grade'] == 'A+'
+        assert summary["security_score"] == 100
+        assert summary["security_grade"] == "A+"
 
     def test_calculate_security_score_with_critical(self):
         """Test score calculation with critical vulnerabilities"""
@@ -310,40 +285,46 @@ class TestSecurityMetrics:
             tool="trivy",
             severity=SeverityLevel.CRITICAL,
             title="Critical vulnerability",
-            location="requirements.txt"
+            location="requirements.txt",
         )
 
         metrics = SecurityMetrics(
             scan_date=datetime.utcnow(),
             sast_findings=[finding],
             dast_findings=[],
-            sca_findings=[]
+            sca_findings=[],
         )
 
         summary = metrics.get_summary()
         # Score = 100 - (1 * 50) = 50
-        assert summary['security_score'] == 50
-        assert summary['security_grade'] == 'F'
+        assert summary["security_score"] == 50
+        assert summary["security_grade"] == "F"
 
     def test_calculate_security_score_with_multiple(self):
         """Test score calculation with mixed vulnerabilities"""
         findings = [
-            VulnerabilityFinding(source="SAST", tool="semgrep", severity=SeverityLevel.HIGH),
-            VulnerabilityFinding(source="SAST", tool="semgrep", severity=SeverityLevel.HIGH),
-            VulnerabilityFinding(source="DAST", tool="zap", severity=SeverityLevel.MEDIUM),
+            VulnerabilityFinding(
+                source="SAST", tool="semgrep", severity=SeverityLevel.HIGH
+            ),
+            VulnerabilityFinding(
+                source="SAST", tool="semgrep", severity=SeverityLevel.HIGH
+            ),
+            VulnerabilityFinding(
+                source="DAST", tool="zap", severity=SeverityLevel.MEDIUM
+            ),
         ]
 
         metrics = SecurityMetrics(
             scan_date=datetime.utcnow(),
             sast_findings=findings,
             dast_findings=[],
-            sca_findings=[]
+            sca_findings=[],
         )
 
         summary = metrics.get_summary()
         # Score = 100 - (2 * 20) - (1 * 10) = 50
-        assert summary['security_score'] == 50
-        assert summary['security_grade'] == 'F'
+        assert summary["security_score"] == 50
+        assert summary["security_grade"] == "F"
 
     def test_get_top_vulnerabilities(self):
         """Test getting top vulnerabilities sorted by severity"""
@@ -352,19 +333,19 @@ class TestSecurityMetrics:
                 source="SCA",
                 tool="trivy",
                 severity=SeverityLevel.LOW,
-                title="Low severity issue"
+                title="Low severity issue",
             ),
             VulnerabilityFinding(
                 source="SAST",
                 tool="semgrep",
                 severity=SeverityLevel.CRITICAL,
-                title="Critical issue"
+                title="Critical issue",
             ),
             VulnerabilityFinding(
                 source="DAST",
                 tool="zap",
                 severity=SeverityLevel.HIGH,
-                title="High severity issue"
+                title="High severity issue",
             ),
         ]
 
@@ -372,43 +353,51 @@ class TestSecurityMetrics:
             scan_date=datetime.utcnow(),
             sast_findings=findings,
             dast_findings=[],
-            sca_findings=[]
+            sca_findings=[],
         )
 
         top = metrics.get_top_vulnerabilities(limit=10)
 
         # Critical should be first, then High, then Low
-        assert top[0]['severity'] == 'critical'
-        assert top[1]['severity'] == 'high'
-        assert top[2]['severity'] == 'low'
+        assert top[0]["severity"] == "critical"
+        assert top[1]["severity"] == "high"
+        assert top[2]["severity"] == "low"
 
     def test_get_vulnerabilities_by_tool(self):
         """Test getting vulnerability breakdown by tool"""
         findings = [
-            VulnerabilityFinding(source="SAST", tool="semgrep", severity=SeverityLevel.HIGH),
-            VulnerabilityFinding(source="SAST", tool="semgrep", severity=SeverityLevel.MEDIUM),
-            VulnerabilityFinding(source="DAST", tool="zap", severity=SeverityLevel.HIGH),
-            VulnerabilityFinding(source="SCA", tool="trivy", severity=SeverityLevel.CRITICAL),
+            VulnerabilityFinding(
+                source="SAST", tool="semgrep", severity=SeverityLevel.HIGH
+            ),
+            VulnerabilityFinding(
+                source="SAST", tool="semgrep", severity=SeverityLevel.MEDIUM
+            ),
+            VulnerabilityFinding(
+                source="DAST", tool="zap", severity=SeverityLevel.HIGH
+            ),
+            VulnerabilityFinding(
+                source="SCA", tool="trivy", severity=SeverityLevel.CRITICAL
+            ),
         ]
 
         metrics = SecurityMetrics(
             scan_date=datetime.utcnow(),
             sast_findings=findings[:2],
             dast_findings=[findings[2]],
-            sca_findings=[findings[3]]
+            sca_findings=[findings[3]],
         )
 
         by_tool = metrics.get_vulnerabilities_by_tool()
 
-        assert by_tool['semgrep']['total'] == 2
-        assert by_tool['semgrep']['high'] == 1
-        assert by_tool['semgrep']['medium'] == 1
+        assert by_tool["semgrep"]["total"] == 2
+        assert by_tool["semgrep"]["high"] == 1
+        assert by_tool["semgrep"]["medium"] == 1
 
-        assert by_tool['zap']['total'] == 1
-        assert by_tool['zap']['high'] == 1
+        assert by_tool["zap"]["total"] == 1
+        assert by_tool["zap"]["high"] == 1
 
-        assert by_tool['trivy']['total'] == 1
-        assert by_tool['trivy']['critical'] == 1
+        assert by_tool["trivy"]["total"] == 1
+        assert by_tool["trivy"]["critical"] == 1
 
 
 class TestComplianceChecking:
@@ -427,30 +416,38 @@ class TestComplianceChecking:
             scan_date=datetime.utcnow(),
             sast_findings=[],
             dast_findings=[],
-            sca_findings=[]
+            sca_findings=[],
         )
 
         # Mock the collect_all_metrics method
-        with patch.object(collector, 'collect_all_metrics', new=AsyncMock(return_value=perfect_metrics)):
+        with patch.object(
+            collector,
+            "collect_all_metrics",
+            new=AsyncMock(return_value=perfect_metrics),
+        ):
             compliance = await collector.get_compliance_status()
 
         # All standards should be compliant when there are no vulnerabilities
         expected_standards = [
-            'owasp_asvs_1_4_1',
-            'owasp_asvs_5_2_1',
-            'owasp_asvs_7_1_1',
-            'owasp_a08_2021',
-            'nist_800_53_cm',
-            'soc_2_cc7_2',
-            'hipaa_security'
+            "owasp_asvs_1_4_1",
+            "owasp_asvs_5_2_1",
+            "owasp_asvs_7_1_1",
+            "owasp_a08_2021",
+            "nist_800_53_cm",
+            "soc_2_cc7_2",
+            "hipaa_security",
         ]
 
         for standard in expected_standards:
             assert standard in compliance, f"Missing standard: {standard}"
-            assert compliance[standard] is True, f"Standard {standard} should be compliant with zero vulnerabilities"
+            assert (
+                compliance[standard] is True
+            ), f"Standard {standard} should be compliant with zero vulnerabilities"
 
         # Verify all are True
-        assert all(compliance.values()) is True, "All standards should be True with no vulnerabilities"
+        assert (
+            all(compliance.values()) is True
+        ), "All standards should be True with no vulnerabilities"
 
     @pytest.mark.asyncio
     async def test_compliance_with_critical_vulnerabilities(self):
@@ -466,33 +463,41 @@ class TestComplianceChecking:
             tool="trivy",
             severity=SeverityLevel.CRITICAL,
             title="Critical vulnerability in package",
-            location="requirements.txt"
+            location="requirements.txt",
         )
 
         metrics_with_critical = SecurityMetrics(
             scan_date=datetime.utcnow(),
             sast_findings=[critical_finding],
             dast_findings=[],
-            sca_findings=[]
+            sca_findings=[],
         )
 
         # Mock the collect_all_metrics method
-        with patch.object(collector, 'collect_all_metrics', new=AsyncMock(return_value=metrics_with_critical)):
+        with patch.object(
+            collector,
+            "collect_all_metrics",
+            new=AsyncMock(return_value=metrics_with_critical),
+        ):
             compliance = await collector.get_compliance_status()
 
         # These standards require zero critical vulnerabilities, so should be False
         strict_standards = [
-            'owasp_a08_2021',
-            'nist_800_53_cm',
-            'soc_2_cc7_2',
-            'hipaa_security'
+            "owasp_a08_2021",
+            "nist_800_53_cm",
+            "soc_2_cc7_2",
+            "hipaa_security",
         ]
 
         for standard in strict_standards:
-            assert compliance[standard] is False, f"{standard} should be non-compliant with critical vulnerabilities"
+            assert (
+                compliance[standard] is False
+            ), f"{standard} should be non-compliant with critical vulnerabilities"
 
         # SAST compliance checks if SAST is running (not if vulns exist), so should be True
-        assert compliance['owasp_asvs_1_4_1'] is True, "SAST compliance should be True (SAST is running)"
+        assert (
+            compliance["owasp_asvs_1_4_1"] is True
+        ), "SAST compliance should be True (SAST is running)"
 
 
 class TestPrometheusMetrics:
@@ -508,8 +513,11 @@ class TestPrometheusMetrics:
         assert isinstance(metrics_text, str)
 
         # Check for required Prometheus elements
-        assert '# HELP' in metrics_text or '# TYPE' in metrics_text
-        assert 'psychsync_security_score' in metrics_text or 'psychsync_metrics_up' in metrics_text
+        assert "# HELP" in metrics_text or "# TYPE" in metrics_text
+        assert (
+            "psychsync_security_score" in metrics_text
+            or "psychsync_metrics_up" in metrics_text
+        )
 
     @pytest.mark.asyncio
     async def test_generate_metrics_contains_all_metrics(self):
@@ -519,27 +527,27 @@ class TestPrometheusMetrics:
 
         # Verify all expected metric names are present
         expected_metrics = [
-            'psychsync_security_score',
-            'psychsync_vulnerabilities_total',
-            'psychsync_vulnerabilities_by_severity',
-            'psychsync_vulnerabilities_by_source',
-            'psychsync_compliance_status'
+            "psychsync_security_score",
+            "psychsync_vulnerabilities_total",
+            "psychsync_vulnerabilities_by_severity",
+            "psychsync_vulnerabilities_by_source",
+            "psychsync_compliance_status",
         ]
 
         for metric_name in expected_metrics:
             assert metric_name in metrics_text, f"Missing metric: {metric_name}"
 
         # Verify HELP comments exist for key metrics
-        assert '# HELP psychsync_security_score' in metrics_text
-        assert '# HELP psychsync_vulnerabilities_total' in metrics_text
+        assert "# HELP psychsync_security_score" in metrics_text
+        assert "# HELP psychsync_vulnerabilities_total" in metrics_text
 
         # Verify TYPE comments exist for key metrics
-        assert '# TYPE psychsync_security_score gauge' in metrics_text
-        assert '# TYPE psychsync_vulnerabilities_total gauge' in metrics_text
+        assert "# TYPE psychsync_security_score gauge" in metrics_text
+        assert "# TYPE psychsync_vulnerabilities_total gauge" in metrics_text
 
         # Verify the format contains Prometheus elements
-        assert '# HELP' in metrics_text
-        assert '# TYPE' in metrics_text
+        assert "# HELP" in metrics_text
+        assert "# TYPE" in metrics_text
 
 
 class TestConvenienceFunctions:
@@ -553,7 +561,7 @@ class TestConvenienceFunctions:
         dashboard_data = await collect_security_metrics()
 
         assert isinstance(dashboard_data, dict)
-        assert 'overview' in dashboard_data or 'security_score' in dashboard_data
+        assert "overview" in dashboard_data or "security_score" in dashboard_data
 
     @pytest.mark.asyncio
     async def test_get_security_score(self):
@@ -567,7 +575,7 @@ class TestConvenienceFunctions:
         """Test the get_security_grade convenience function"""
         grade = await get_security_grade()
         assert isinstance(grade, str)
-        assert grade in ['A+', 'A', 'B', 'C', 'F']
+        assert grade in ["A+", "A", "B", "C", "F"]
 
 
 @pytest.mark.integration
@@ -586,15 +594,15 @@ class TestEndToEndWorkflow:
         # 6. Prometheus metrics are exported
 
         # Step 1: Create temporary files with mock scan results (SAST, DAST, SCA)
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(mock_sast_results, f)
             sast_path = f.name
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".xml", delete=False) as f:
             f.write(create_mock_dast_results())
             dast_path = f.name
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(mock_sca_results, f)
             sca_path = f.name
 
@@ -611,7 +619,7 @@ class TestEndToEndWorkflow:
                 scan_date=datetime.utcnow(),
                 sast_findings=sast_findings,
                 dast_findings=dast_findings,
-                sca_findings=sca_findings
+                sca_findings=sca_findings,
             )
 
             total_findings = len(sast_findings) + len(dast_findings) + len(sca_findings)
@@ -619,15 +627,18 @@ class TestEndToEndWorkflow:
 
             # Step 4: Verify security score is calculated correctly
             summary = metrics.get_summary()
-            assert 'security_score' in summary
-            assert 'security_grade' in summary
-            assert 0 <= summary['security_score'] <= 100
-            assert summary['security_grade'] in ['A+', 'A', 'B', 'C', 'F']
+            assert "security_score" in summary
+            assert "security_grade" in summary
+            assert 0 <= summary["security_score"] <= 100
+            assert summary["security_grade"] in ["A+", "A", "B", "C", "F"]
 
             # Step 5: Verify compliance status reflects findings
             # Create a collector with our metrics and check compliance
             from unittest.mock import AsyncMock, patch
-            with patch.object(collector, 'collect_all_metrics', new=AsyncMock(return_value=metrics)):
+
+            with patch.object(
+                collector, "collect_all_metrics", new=AsyncMock(return_value=metrics)
+            ):
                 compliance = await collector.get_compliance_status()
 
             # Should have compliance status for all standards
@@ -639,19 +650,19 @@ class TestEndToEndWorkflow:
 
             # Verify Prometheus format
             assert isinstance(prometheus_text, str)
-            assert '# HELP' in prometheus_text
-            assert '# TYPE' in prometheus_text
-            assert 'psychsync_security_score' in prometheus_text
+            assert "# HELP" in prometheus_text
+            assert "# TYPE" in prometheus_text
+            assert "psychsync_security_score" in prometheus_text
 
             # Step 7: Dashboard data generation
             # Note: generate_dashboard_data calls collect_all_metrics internally,
             # so we need to handle that appropriately or just verify the structure
             dashboard_data = await collector.generate_dashboard_data()
 
-            assert 'overview' in dashboard_data
-            assert 'severity_breakdown' in dashboard_data
-            assert 'by_source' in dashboard_data
-            assert 'compliance' in dashboard_data
+            assert "overview" in dashboard_data
+            assert "severity_breakdown" in dashboard_data
+            assert "by_source" in dashboard_data
+            assert "compliance" in dashboard_data
 
         finally:
             # Clean up temporary files
@@ -662,7 +673,7 @@ class TestEndToEndWorkflow:
 
 def create_mock_dast_results():
     """Helper function to create mock DAST results"""
-    return '''<?xml version="1.0"?>
+    return """<?xml version="1.0"?>
 <OWASPZAPReport>
     <site name="http://staging.psychsync.com">
         <alerts>
@@ -678,4 +689,4 @@ def create_mock_dast_results():
             </alert>
         </alerts>
     </site>
-</OWASPZAPReport>'''
+</OWASPZAPReport>"""

@@ -4,8 +4,8 @@ Handles Slack bot commands and team assessment integration
 """
 
 import asyncio
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -34,10 +34,12 @@ class SlackIntegrationService:
             "/team-insights": self.handle_team_insights,
             "/quick-poll": self.handle_quick_poll,
             "/team-checkin": self.handle_team_checkin,
-            "/help": self.handle_help
+            "/help": self.handle_help,
         }
 
-    async def process_slash_command(self, command_data: dict[str, Any]) -> dict[str, Any]:
+    async def process_slash_command(
+        self, command_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Process incoming Slack slash command"""
         try:
             command = command_data.get("command", "").lower()
@@ -52,7 +54,7 @@ class SlackIntegrationService:
             if not slack_team_id:
                 return {
                     "response_type": "ephemeral",
-                    "text": "❌ Your Slack workspace isn't connected to PsychSync yet. Please contact your administrator."
+                    "text": "❌ Your Slack workspace isn't connected to PsychSync yet. Please contact your administrator.",
                 }
 
             # Process command
@@ -60,42 +62,43 @@ class SlackIntegrationService:
                 # Acknowledge immediately (Slash commands must respond within 3 seconds)
                 initial_response = {
                     "response_type": "in_channel",
-                    "text": "🔄 Processing `/command`..."
+                    "text": "🔄 Processing `/command`...",
                 }
 
                 # Process command asynchronously
                 asyncio.create_task(
                     self._process_command_async(
-                        command, text, user_id, channel_id,
-                        slack_team_id, response_url
+                        command, text, user_id, channel_id, slack_team_id, response_url
                     )
                 )
 
                 return initial_response
             return {
                 "response_type": "ephemeral",
-                "text": f"❌ Unknown command: {command}. Type `/help` for available commands."
+                "text": f"❌ Unknown command: {command}. Type `/help` for available commands.",
             }
 
         except Exception as e:
             logger.error(f"Error processing Slack command: {e!s}")
             return {
                 "response_type": "ephemeral",
-                "text": "❌ An error occurred while processing your command. Please try again."
+                "text": "❌ An error occurred while processing your command. Please try again.",
             }
 
     async def _process_command_async(
-        self, command: str, text: str, user_id: str,
-        channel_id: str, team_id: UUID, response_url: str
+        self,
+        command: str,
+        text: str,
+        user_id: str,
+        channel_id: str,
+        team_id: UUID,
+        response_url: str,
     ):
         """Process command asynchronously and update response"""
         try:
             # Execute command handler
             result = await self.commands[command](
-                text=text,
-                user_id=user_id,
-                channel_id=channel_id,
-                team_id=team_id
+                text=text, user_id=user_id, channel_id=channel_id, team_id=team_id
             )
 
             # Update the original response with results
@@ -105,7 +108,7 @@ class SlackIntegrationService:
             logger.error(f"Error in async command processing: {e!s}")
             error_response = {
                 "response_type": "ephemeral",
-                "text": "❌ An error occurred while processing your command."
+                "text": "❌ An error occurred while processing your command.",
             }
             await self._update_slack_response(response_url, error_response)
 
@@ -128,19 +131,19 @@ class SlackIntegrationService:
                     {
                         "text": "How's your energy level today?",
                         "type": "scale",
-                        "scale": "1-5"
+                        "scale": "1-5",
                     },
                     {
                         "text": "How aligned do you feel with team goals?",
                         "type": "scale",
-                        "scale": "1-5"
+                        "scale": "1-5",
                     },
                     {
                         "text": "Any blockers or challenges?",
                         "type": "text",
-                        "optional": True
-                    }
-                ]
+                        "optional": True,
+                    },
+                ],
             }
 
             # Generate assessment
@@ -150,11 +153,13 @@ class SlackIntegrationService:
                 organization_id=None,  # Will get from team
                 created_by_id=UUID(user_id) if self._is_valid_uuid(user_id) else None,
                 team_id=team_id,
-                questions=assessment_data["questions"]
+                questions=assessment_data["questions"],
             )
 
             if result.get("success"):
-                assessment_url = f"{settings.FRONTEND_URL}/assessments/{result['assessment_id']}"
+                assessment_url = (
+                    f"{settings.FRONTEND_URL}/assessments/{result['assessment_id']}"
+                )
 
                 return {
                     "response_type": "in_channel",
@@ -163,8 +168,8 @@ class SlackIntegrationService:
                             "type": "section",
                             "text": {
                                 "type": "mrkdwn",
-                                "text": f"📊 *Team Assessment Created*\n\n{assessment_data['description']}"
-                            }
+                                "text": f"📊 *Team Assessment Created*\n\n{assessment_data['description']}",
+                            },
                         },
                         {
                             "type": "actions",
@@ -173,34 +178,34 @@ class SlackIntegrationService:
                                     "type": "button",
                                     "text": {
                                         "type": "plain_text",
-                                        "text": "Start Assessment"
+                                        "text": "Start Assessment",
                                     },
                                     "url": assessment_url,
-                                    "style": "primary"
+                                    "style": "primary",
                                 }
-                            ]
+                            ],
                         },
                         {
                             "type": "context",
                             "elements": [
                                 {
                                     "type": "mrkdwn",
-                                    "text": f"📝 {len(assessment_data['questions'])} questions • ⏱️ {duration} • Team: {channel_id}"
+                                    "text": f"📝 {len(assessment_data['questions'])} questions • ⏱️ {duration} • Team: {channel_id}",
                                 }
-                            ]
-                        }
-                    ]
+                            ],
+                        },
+                    ],
                 }
             return {
                 "response_type": "ephemeral",
-                "text": "❌ Failed to create team assessment. Please try again."
+                "text": "❌ Failed to create team assessment. Please try again.",
             }
 
         except Exception as e:
             logger.error(f"Error in team assessment command: {e!s}")
             return {
                 "response_type": "ephemeral",
-                "text": "❌ Error creating team assessment."
+                "text": "❌ Error creating team assessment.",
             }
 
     async def handle_team_status(
@@ -214,7 +219,7 @@ class SlackIntegrationService:
             if "error" in analytics:
                 return {
                     "response_type": "ephemeral",
-                    "text": "❌ Could not retrieve team status. Make sure team assessments have been completed."
+                    "text": "❌ Could not retrieve team status. Make sure team assessments have been completed.",
                 }
 
             # Format team status for Slack
@@ -237,32 +242,30 @@ class SlackIntegrationService:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": f"{status_emoji} *Team Status Overview*"
-                        }
+                            "text": f"{status_emoji} *Team Status Overview*",
+                        },
                     },
-                    {
-                        "type": "divider"
-                    },
+                    {"type": "divider"},
                     {
                         "type": "section",
                         "fields": [
                             {
                                 "type": "mrkdwn",
-                                "text": f"*Team Size:*\n{team_size} members"
+                                "text": f"*Team Size:*\n{team_size} members",
                             },
                             {
                                 "type": "mrkdwn",
-                                "text": f"*Completion Rate:*\n{completion_rate:.1f}%"
+                                "text": f"*Completion Rate:*\n{completion_rate:.1f}%",
                             },
                             {
                                 "type": "mrkdwn",
-                                "text": f"*Performance Score:*\n{avg_performance:.1f}/100"
+                                "text": f"*Performance Score:*\n{avg_performance:.1f}/100",
                             },
                             {
                                 "type": "mrkdwn",
-                                "text": f"*Last Update:*\n{datetime.now().strftime('%b %d, %H:%M')}"
-                            }
-                        ]
+                                "text": f"*Last Update:*\n{datetime.now().strftime('%b %d, %H:%M')}",
+                            },
+                        ],
                     },
                     {
                         "type": "actions",
@@ -271,21 +274,21 @@ class SlackIntegrationService:
                                 "type": "button",
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "View Detailed Analytics"
+                                    "text": "View Detailed Analytics",
                                 },
                                 "url": f"{settings.FRONTEND_URL}/analytics/team/{team_id}",
-                                "style": "primary"
+                                "style": "primary",
                             }
-                        ]
-                    }
-                ]
+                        ],
+                    },
+                ],
             }
 
         except Exception as e:
             logger.error(f"Error in team status command: {e!s}")
             return {
                 "response_type": "ephemeral",
-                "text": "❌ Error retrieving team status."
+                "text": "❌ Error retrieving team status.",
             }
 
     async def handle_team_compatibility(
@@ -300,8 +303,10 @@ class SlackIntegrationService:
 
             if member1_id and member2_id:
                 # Check compatibility between specific members
-                compatibility = await self.compatibility_service.analyze_member_compatibility(
-                    UUID(member1_id), UUID(member2_id)
+                compatibility = (
+                    await self.compatibility_service.analyze_member_compatibility(
+                        UUID(member1_id), UUID(member2_id)
+                    )
                 )
 
                 return {
@@ -311,37 +316,37 @@ class SlackIntegrationService:
                             "type": "section",
                             "text": {
                                 "type": "mrkdwn",
-                                "text": "🤝 *Member Compatibility Analysis*"
-                            }
+                                "text": "🤝 *Member Compatibility Analysis*",
+                            },
                         },
-                        {
-                            "type": "divider"
-                        },
+                        {"type": "divider"},
                         {
                             "type": "section",
                             "fields": [
                                 {
                                     "type": "mrkdwn",
-                                    "text": f"*Overall Score:*\n{compatibility.overall_score:.1%}"
+                                    "text": f"*Overall Score:*\n{compatibility.overall_score:.1%}",
                                 },
                                 {
                                     "type": "mrkdwn",
-                                    "text": f"*Personality Fit:*\n{compatibility.personality_fit:.1%}"
+                                    "text": f"*Personality Fit:*\n{compatibility.personality_fit:.1%}",
                                 },
                                 {
                                     "type": "mrkdwn",
-                                    "text": f"*Skills Complement:*\n{compatibility.skills_complement:.1%}"
+                                    "text": f"*Skills Complement:*\n{compatibility.skills_complement:.1%}",
                                 },
                                 {
                                     "type": "mrkdwn",
-                                    "text": f"*Work Style Match:*\n{compatibility.work_style_match:.1%}"
-                                }
-                            ]
-                        }
-                    ]
+                                    "text": f"*Work Style Match:*\n{compatibility.work_style_match:.1%}",
+                                },
+                            ],
+                        },
+                    ],
                 }
             # Analyze overall team compatibility
-            team_compatibility = await self.compatibility_service.analyze_team_compatibility(team_id)
+            team_compatibility = (
+                await self.compatibility_service.analyze_team_compatibility(team_id)
+            )
 
             return {
                 "response_type": "in_channel",
@@ -350,24 +355,22 @@ class SlackIntegrationService:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "👥 *Team Compatibility Report*"
-                        }
+                            "text": "👥 *Team Compatibility Report*",
+                        },
                     },
-                    {
-                        "type": "divider"
-                    },
+                    {"type": "divider"},
                     {
                         "type": "section",
                         "fields": [
                             {
                                 "type": "mrkdwn",
-                                "text": f"*Overall Compatibility:*\n{team_compatibility.overall_compatibility:.1%}"
+                                "text": f"*Overall Compatibility:*\n{team_compatibility.overall_compatibility:.1%}",
                             },
                             {
                                 "type": "mrkdwn",
-                                "text": f"*Team Balance Score:*\n{team_compatibility.team_balance_score:.1%}"
-                            }
-                        ]
+                                "text": f"*Team Balance Score:*\n{team_compatibility.team_balance_score:.1%}",
+                            },
+                        ],
                     },
                     {
                         "type": "actions",
@@ -376,21 +379,21 @@ class SlackIntegrationService:
                                 "type": "button",
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "View Full Report"
+                                    "text": "View Full Report",
                                 },
                                 "url": f"{settings.FRONTEND_URL}/team/compatibility/{team_id}",
-                                "style": "primary"
+                                "style": "primary",
                             }
-                        ]
-                    }
-                ]
+                        ],
+                    },
+                ],
             }
 
         except Exception as e:
             logger.error(f"Error in team compatibility command: {e!s}")
             return {
                 "response_type": "ephemeral",
-                "text": "❌ Error analyzing team compatibility."
+                "text": "❌ Error analyzing team compatibility.",
             }
 
     async def handle_team_insights(
@@ -404,7 +407,7 @@ class SlackIntegrationService:
             if "error" in insights:
                 return {
                     "response_type": "ephemeral",
-                    "text": "❌ Could not retrieve team insights. Please ensure team assessments are completed."
+                    "text": "❌ Could not retrieve team insights. Please ensure team assessments are completed.",
                 }
 
             # Extract key insights
@@ -418,75 +421,84 @@ class SlackIntegrationService:
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": "💡 *Team Insights & Recommendations*"
-                    }
+                        "text": "💡 *Team Insights & Recommendations*",
+                    },
                 },
-                {
-                    "type": "divider"
-                }
+                {"type": "divider"},
             ]
 
             # Add strengths
             if strengths:
-                strengths_text = "\n".join([f"• {strength}" for strength in strengths[:3]])
-                blocks.append({
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"*🎯 Team Strengths:*\n{strengths_text}"
+                strengths_text = "\n".join(
+                    [f"• {strength}" for strength in strengths[:3]]
+                )
+                blocks.append(
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"*🎯 Team Strengths:*\n{strengths_text}",
+                        },
                     }
-                })
+                )
 
             # Add top recommendations
             if recommendations:
                 top_recommendations = recommendations[:2]
                 recs_text = "\n".join([f"• {rec}" for rec in top_recommendations])
-                blocks.append({
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"*📈 Recommendations:*\n{recs_text}"
+                blocks.append(
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"*📈 Recommendations:*\n{recs_text}",
+                        },
                     }
-                })
+                )
 
             # Add performance trend
             if trends:
                 trend = trends[0] if trends else "stable"
-                trend_emoji = "📈" if trend == "improving" else "📉" if trend == "declining" else "➡️"
-                blocks.append({
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"{trend_emoji} *Recent Performance Trend:* {trend.title()}"
+                trend_emoji = (
+                    "📈"
+                    if trend == "improving"
+                    else "📉" if trend == "declining" else "➡️"
+                )
+                blocks.append(
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": f"{trend_emoji} *Recent Performance Trend:* {trend.title()}",
+                        },
                     }
-                })
+                )
 
             # Add action button
-            blocks.append({
-                "type": "actions",
-                "elements": [
-                    {
-                        "type": "button",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "View Detailed Insights"
-                        },
-                        "url": f"{settings.FRONTEND_URL}/team/insights/{team_id}",
-                        "style": "primary"
-                    }
-                ]
-            })
+            blocks.append(
+                {
+                    "type": "actions",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "View Detailed Insights",
+                            },
+                            "url": f"{settings.FRONTEND_URL}/team/insights/{team_id}",
+                            "style": "primary",
+                        }
+                    ],
+                }
+            )
 
-            return {
-                "response_type": "in_channel",
-                "blocks": blocks
-            }
+            return {"response_type": "in_channel", "blocks": blocks}
 
         except Exception as e:
             logger.error(f"Error in team insights command: {e!s}")
             return {
                 "response_type": "ephemeral",
-                "text": "❌ Error retrieving team insights."
+                "text": "❌ Error retrieving team insights.",
             }
 
     async def handle_quick_poll(
@@ -498,7 +510,7 @@ class SlackIntegrationService:
             if not text:
                 return {
                     "response_type": "ephemeral",
-                    "text": '❌ Please provide a poll question. Usage: `/quick-poll "Question here"`'
+                    "text": '❌ Please provide a poll question. Usage: `/quick-poll "Question here"`',
                 }
 
             # Create poll options (thumbs up/down, or custom)
@@ -511,40 +523,34 @@ class SlackIntegrationService:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": f"📊 *Quick Poll*\n\n{text}"
-                        }
+                            "text": f"📊 *Quick Poll*\n\n{text}",
+                        },
                     },
                     {
                         "type": "actions",
                         "elements": [
                             {
                                 "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "👍"
-                                },
+                                "text": {"type": "plain_text", "text": "👍"},
                                 "value": f"poll:thumbs_up:{user_id}",
-                                "action_id": "thumbs_up"
+                                "action_id": "thumbs_up",
                             },
                             {
                                 "type": "button",
-                                "text": {
-                                    "type": "plain_text",
-                                    "text": "👎"
-                                },
+                                "text": {"type": "plain_text", "text": "👎"},
                                 "value": f"poll:thumbs_down:{user_id}",
-                                "action_id": "thumbs_down"
-                            }
-                        ]
-                    }
-                ]
+                                "action_id": "thumbs_down",
+                            },
+                        ],
+                    },
+                ],
             }
 
         except Exception as e:
             logger.error(f"Error in quick poll command: {e!s}")
             return {
                 "response_type": "ephemeral",
-                "text": "❌ Error creating quick poll."
+                "text": "❌ Error creating quick poll.",
             }
 
     async def handle_team_checkin(
@@ -556,7 +562,7 @@ class SlackIntegrationService:
             checkin_questions = [
                 "What's your main priority today?",
                 "Any blockers you need help with?",
-                "How are you feeling (1-5)?"
+                "How are you feeling (1-5)?",
             ]
 
             checkin_url = f"{settings.FRONTEND_URL}/team/checkin/{team_id}"
@@ -568,8 +574,8 @@ class SlackIntegrationService:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "🌅 *Daily Team Check-in*\n\nQuick daily sync to align the team"
-                        }
+                            "text": "🌅 *Daily Team Check-in*\n\nQuick daily sync to align the team",
+                        },
                     },
                     {
                         "type": "actions",
@@ -578,30 +584,30 @@ class SlackIntegrationService:
                                 "type": "button",
                                 "text": {
                                     "type": "plain_text",
-                                    "text": "Start Check-in"
+                                    "text": "Start Check-in",
                                 },
                                 "url": checkin_url,
-                                "style": "primary"
+                                "style": "primary",
                             }
-                        ]
+                        ],
                     },
                     {
                         "type": "context",
                         "elements": [
                             {
                                 "type": "mrkdwn",
-                                "text": f"📝 {len(checkin_questions)} questions • ⏱️ 2 minutes • Daily sync"
+                                "text": f"📝 {len(checkin_questions)} questions • ⏱️ 2 minutes • Daily sync",
                             }
-                        ]
-                    }
-                ]
+                        ],
+                    },
+                ],
             }
 
         except Exception as e:
             logger.error(f"Error in team checkin command: {e!s}")
             return {
                 "response_type": "ephemeral",
-                "text": "❌ Error creating team check-in."
+                "text": "❌ Error creating team check-in.",
             }
 
     async def handle_help(
@@ -616,61 +622,58 @@ class SlackIntegrationService:
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "🤖 *PsychSync Slack Bot Commands*\n\nHere are the available commands:"
-                        }
+                            "text": "🤖 *PsychSync Slack Bot Commands*\n\nHere are the available commands:",
+                        },
                     },
+                    {"type": "divider"},
                     {
-                        "type": "divider"
+                        "type": "section",
+                        "fields": [
+                            {
+                                "type": "mrkdwn",
+                                "text": "*`/team-assessment [type] [duration]`*\nCreate quick team assessment",
+                            },
+                            {
+                                "type": "mrkdwn",
+                                "text": "*`/team-status`*\nView team performance overview",
+                            },
+                            {
+                                "type": "mrkdwn",
+                                "text": "*`/team-compatibility [user1] [user2]`*\nAnalyze team compatibility",
+                            },
+                            {
+                                "type": "mrkdwn",
+                                "text": "*`/team-insights`*\nGet AI-powered team insights",
+                            },
+                        ],
                     },
                     {
                         "type": "section",
                         "fields": [
                             {
                                 "type": "mrkdwn",
-                                "text": "*`/team-assessment [type] [duration]`*\nCreate quick team assessment"
+                                "text": '*`/quick-poll "question"`*\nCreate instant team poll',
                             },
                             {
                                 "type": "mrkdwn",
-                                "text": "*`/team-status`*\nView team performance overview"
+                                "text": "*`/team-checkin`*\nStart daily team check-in",
                             },
                             {
                                 "type": "mrkdwn",
-                                "text": "*`/team-compatibility [user1] [user2]`*\nAnalyze team compatibility"
+                                "text": "*`/help`*\nShow this help message",
                             },
-                            {
-                                "type": "mrkdwn",
-                                "text": "*`/team-insights`*\nGet AI-powered team insights"
-                            }
-                        ]
+                        ],
                     },
-                    {
-                        "type": "section",
-                        "fields": [
-                            {
-                                "type": "mrkdwn",
-                                "text": '*`/quick-poll "question"`*\nCreate instant team poll'
-                            },
-                            {
-                                "type": "mrkdwn",
-                                "text": "*`/team-checkin`*\nStart daily team check-in"
-                            },
-                            {
-                                "type": "mrkdwn",
-                                "text": "*`/help`*\nShow this help message"
-                            }
-                        ]
-                    }
-                ]
+                ],
             }
 
         except Exception as e:
             logger.error(f"Error in help command: {e!s}")
-            return {
-                "response_type": "ephemeral",
-                "text": "❌ Error displaying help."
-            }
+            return {"response_type": "ephemeral", "text": "❌ Error displaying help."}
 
-    async def handle_interactive_component(self, payload: dict[str, Any]) -> dict[str, Any]:
+    async def handle_interactive_component(
+        self, payload: dict[str, Any]
+    ) -> dict[str, Any]:
         """Handle interactive components (button clicks, etc.)"""
         try:
             action = payload.get("actions", [{}])[0]
@@ -680,16 +683,13 @@ class SlackIntegrationService:
             if action_id == "thumbs_up" or action_id == "thumbs_down":
                 # Handle poll response
                 return await self._handle_poll_response(payload)
-            return {
-                "response_type": "ephemeral",
-                "text": "❌ Unknown action."
-            }
+            return {"response_type": "ephemeral", "text": "❌ Unknown action."}
 
         except Exception as e:
             logger.error(f"Error handling interactive component: {e!s}")
             return {
                 "response_type": "ephemeral",
-                "text": "❌ Error processing your action."
+                "text": "❌ Error processing your action.",
             }
 
     async def _handle_poll_response(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -701,16 +701,13 @@ class SlackIntegrationService:
             # Update the original message to show poll results
             # (This is simplified - in production, you'd track votes in database)
 
-            return {
-                "replace_original": True,
-                "text": "Thanks for your vote! 📊"
-            }
+            return {"replace_original": True, "text": "Thanks for your vote! 📊"}
 
         except Exception as e:
             logger.error(f"Error handling poll response: {e!s}")
             return {
                 "response_type": "ephemeral",
-                "text": "❌ Error recording your vote."
+                "text": "❌ Error recording your vote.",
             }
 
     async def _get_internal_team_id(self, slack_team_id: str) -> UUID | None:
@@ -722,7 +719,9 @@ class SlackIntegrationService:
         except Exception:
             return None
 
-    async def _update_slack_response(self, response_url: str, response_data: dict[str, Any]):
+    async def _update_slack_response(
+        self, response_url: str, response_data: dict[str, Any]
+    ):
         """Update original Slack response with processed results"""
         try:
             import aiohttp
@@ -764,11 +763,14 @@ class SlackIntegrationService:
 
             # Create signature
             sig_basestring = f"v0:{timestamp}:{body}"
-            my_signature = "v0=" + hmac.new(
-                slack_signing_secret.encode(),
-                sig_basestring.encode(),
-                hashlib.sha256
-            ).hexdigest()
+            my_signature = (
+                "v0="
+                + hmac.new(
+                    slack_signing_secret.encode(),
+                    sig_basestring.encode(),
+                    hashlib.sha256,
+                ).hexdigest()
+            )
 
             return hmac.compare_digest(my_signature, slack_signature)
 

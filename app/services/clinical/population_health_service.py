@@ -15,12 +15,12 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
+from sqlalchemy import and_, case, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_, case, text
 from sqlalchemy.orm import aliased
 
-from app.db.models.clinical_extended import ClinicalAssessmentExtended
 from app.core.logging_config import logger
+from app.db.models.clinical_extended import ClinicalAssessmentExtended
 
 # =============================================================================
 # Data Models for Population Analytics
@@ -119,7 +119,9 @@ class TreatmentOutcome:
             "outcome_type": self.outcome_type,
             "count": self.count,
             "percentage": round(self.percentage, 2),
-            "avg_score_change": round(self.avg_score_change, 2) if self.avg_score_change else None,
+            "avg_score_change": (
+                round(self.avg_score_change, 2) if self.avg_score_change else None
+            ),
         }
 
 
@@ -194,16 +196,21 @@ class PopulationHealthService:
 
             # Default to all clinical assessment types
             if assessment_types is None:
-                assessment_types = ["BDI2", "BAI", "GAD7", "PHQ9", "LSAS", "EAT26", "YBOCS"]
+                assessment_types = [
+                    "BDI2",
+                    "BAI",
+                    "GAD7",
+                    "PHQ9",
+                    "LSAS",
+                    "EAT26",
+                    "YBOCS",
+                ]
 
             # Build query
-            query = (
-                select(ClinicalAssessmentExtended)
-                .where(
-                    and_(
-                        ClinicalAssessmentExtended.assessment_type.in_(assessment_types),
-                        ClinicalAssessmentExtended.completed_at >= cutoff_date,
-                    )
+            query = select(ClinicalAssessmentExtended).where(
+                and_(
+                    ClinicalAssessmentExtended.assessment_type.in_(assessment_types),
+                    ClinicalAssessmentExtended.completed_at >= cutoff_date,
                 )
             )
 
@@ -229,11 +236,13 @@ class PopulationHealthService:
             # Average scores by type
             avg_scores = {}
             for assess_type in assessment_types:
-                type_assessments = [a for a in assessments if a.assessment_type == assess_type]
+                type_assessments = [
+                    a for a in assessments if a.assessment_type == assess_type
+                ]
                 if type_assessments:
-                    avg_scores[assess_type] = sum(a.total_score for a in type_assessments) / len(
-                        type_assessments
-                    )
+                    avg_scores[assess_type] = sum(
+                        a.total_score for a in type_assessments
+                    ) / len(type_assessments)
 
             # Risk distribution
             risk_counts = {"critical": 0, "high": 0, "moderate": 0, "low": 0}
@@ -303,11 +312,15 @@ class PopulationHealthService:
                 select(ClinicalAssessmentExtended)
                 .where(
                     and_(
-                        ClinicalAssessmentExtended.assessment_type.in_(assessment_types),
+                        ClinicalAssessmentExtended.assessment_type.in_(
+                            assessment_types
+                        ),
                         ClinicalAssessmentExtended.completed_at >= cutoff_date,
                         or_(
                             ClinicalAssessmentExtended.crisis_alert == True,
-                            ClinicalAssessmentExtended.risk_level.in_(["high", "critical"]),
+                            ClinicalAssessmentExtended.risk_level.in_(
+                                ["high", "critical"]
+                            ),
                         ),
                     )
                 )
@@ -338,7 +351,10 @@ class PopulationHealthService:
                 latest = max(user_assessments, key=lambda a: a.completed_at)
 
                 # Calculate trend (compare first and last)
-                scores = [a.total_score for a in sorted(user_assessments, key=lambda a: a.completed_at)]
+                scores = [
+                    a.total_score
+                    for a in sorted(user_assessments, key=lambda a: a.completed_at)
+                ]
                 if len(scores) >= 2:
                     score_change = scores[-1] - scores[0]
                     if score_change > 5:
@@ -438,7 +454,9 @@ class PopulationHealthService:
             first_assessment = (
                 select(
                     ClinicalAssessmentExtended.user_id,
-                    func.min(ClinicalAssessmentExtended.total_score).label("first_score"),
+                    func.min(ClinicalAssessmentExtended.total_score).label(
+                        "first_score"
+                    ),
                 )
                 .where(
                     and_(
@@ -453,7 +471,9 @@ class PopulationHealthService:
             last_assessment = (
                 select(
                     ClinicalAssessmentExtended.user_id,
-                    func.max(ClinicalAssessmentExtended.total_score).label("last_score"),
+                    func.max(ClinicalAssessmentExtended.total_score).label(
+                        "last_score"
+                    ),
                 )
                 .where(
                     and_(
@@ -472,7 +492,9 @@ class PopulationHealthService:
                     first_assessment.c.first_score,
                     last_assessment.c.last_score,
                 )
-                .join(first_assessment, subquery.c.user_id == first_assessment.c.user_id)
+                .join(
+                    first_assessment, subquery.c.user_id == first_assessment.c.user_id
+                )
                 .join(last_assessment, subquery.c.user_id == last_assessment.c.user_id)
             )
 
@@ -564,14 +586,11 @@ class PopulationHealthService:
                 interval_start = interval_end - timedelta(days=interval_days)
 
                 # Query assessments in this interval
-                query = (
-                    select(ClinicalAssessmentExtended)
-                    .where(
-                        and_(
-                            ClinicalAssessmentExtended.assessment_type == assessment_type,
-                            ClinicalAssessmentExtended.completed_at >= interval_start,
-                            ClinicalAssessmentExtended.completed_at < interval_end,
-                        )
+                query = select(ClinicalAssessmentExtended).where(
+                    and_(
+                        ClinicalAssessmentExtended.assessment_type == assessment_type,
+                        ClinicalAssessmentExtended.completed_at >= interval_start,
+                        ClinicalAssessmentExtended.completed_at < interval_end,
                     )
                 )
 
@@ -632,9 +651,8 @@ class PopulationHealthService:
             cutoff_date = datetime.utcnow() - timedelta(days=days_back)
 
             # Get assessments
-            query = (
-                select(ClinicalAssessmentExtended)
-                .where(ClinicalAssessmentExtended.completed_at >= cutoff_date)
+            query = select(ClinicalAssessmentExtended).where(
+                ClinicalAssessmentExtended.completed_at >= cutoff_date
             )
 
             result = await self.db.execute(query)
@@ -670,7 +688,9 @@ class PopulationHealthService:
                     "min_score": min(scores),
                     "max_score": max(scores),
                     "crisis_count": crisis_count,
-                    "crisis_rate": round(crisis_count / len(group_assessments) * 100, 2),
+                    "crisis_rate": round(
+                        crisis_count / len(group_assessments) * 100, 2
+                    ),
                 }
 
             return breakdown
@@ -698,13 +718,17 @@ class PopulationHealthService:
             metrics = await self.get_population_metrics(days_back=days_back)
 
             # Get high-risk users
-            high_risk_users = await self.identify_high_risk_users(days_back=days_back, limit=10)
+            high_risk_users = await self.identify_high_risk_users(
+                days_back=days_back, limit=10
+            )
 
             # Get treatment outcomes
             treatment_outcomes = await self.get_treatment_outcomes(days_back=days_back)
 
             # Get recent trend
-            time_series = await self.get_time_series_trends(days_back=days_back, interval_days=7)
+            time_series = await self.get_time_series_trends(
+                days_back=days_back, interval_days=7
+            )
 
             # Calculate trend direction
             if len(time_series) >= 2:
@@ -728,15 +752,19 @@ class PopulationHealthService:
                 "treatment_outcomes": [o.to_dict() for o in treatment_outcomes],
                 "trend_direction": trend_direction,
                 "crisis_rate": round(
-                    metrics.crisis_count / metrics.active_assessments * 100
-                    if metrics.active_assessments > 0
-                    else 0,
+                    (
+                        metrics.crisis_count / metrics.active_assessments * 100
+                        if metrics.active_assessments > 0
+                        else 0
+                    ),
                     2,
                 ),
                 "high_risk_rate": round(
-                    metrics.high_risk_count / metrics.active_assessments * 100
-                    if metrics.active_assessments > 0
-                    else 0,
+                    (
+                        metrics.high_risk_count / metrics.active_assessments * 100
+                        if metrics.active_assessments > 0
+                        else 0
+                    ),
                     2,
                 ),
             }

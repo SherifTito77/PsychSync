@@ -6,15 +6,15 @@ Handles assessment administration, scoring, and results retrieval.
 File: app/api/routes/assessment_routes.py
 """
 
-from datetime import datetime
 import uuid
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 # Import assessment modules
 from app.assessments.scoring_engine import ScoringEngine
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 
 # Initialize router
 router = APIRouter(prefix="/assessments", tags=["Assessments"])
@@ -88,7 +88,9 @@ class AssessmentResultResponse(BaseModel):
 
 @rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.get("/catalog", response_model=list[AssessmentListItem])
-async def get_assessment_catalog(category: str | None = None, search: str | None = None):
+async def get_assessment_catalog(
+    category: str | None = None, search: str | None = None
+):
     """
     Get catalog of available assessments.
 
@@ -204,7 +206,8 @@ async def get_assessment_details(assessment_id: str):
 
     if assessment_id not in scorer.scoring_methods:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Assessment {assessment_id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Assessment {assessment_id} not found",
         )
 
     # Return details (simplified for demo)
@@ -291,7 +294,9 @@ async def complete_assessment(request: CompleteAssessmentRequest):
     try:
         # Score the assessment
         result = scorer.score_assessment(
-            assessment_id=request.administration_id.split("_")[0],  # Extract assessment type
+            assessment_id=request.administration_id.split("_")[
+                0
+            ],  # Extract assessment type
             responses=request.responses,
             demographics=request.client_demographics,
         )
@@ -314,7 +319,9 @@ async def complete_assessment(request: CompleteAssessmentRequest):
         }
 
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -347,7 +354,10 @@ async def get_assessment_results(administration_id: str):
         "severity_level": "Moderate",
         "interpretation": "Client shows moderate depression symptoms.",
         "clinical_significance": "moderate",
-        "recommendations": ["Psychotherapy recommended", "Consider medication evaluation"],
+        "recommendations": [
+            "Psychotherapy recommended",
+            "Consider medication evaluation",
+        ],
         "completed_at": datetime.utcnow().isoformat(),
     }
 
@@ -381,7 +391,11 @@ async def get_client_assessment_history(
         for i in range(1, min(limit, 6))
     ]
 
-    return {"client_id": client_id, "total_assessments": len(history), "assessments": history}
+    return {
+        "client_id": client_id,
+        "total_assessments": len(history),
+        "assessments": history,
+    }
 
 
 @router.get("/client/{client_id}/progress")
@@ -482,10 +496,16 @@ async def get_scoring_rules(assessment_id: str):
                 {"range": [0, 4], "severity": "None-Minimal", "clinical_sig": "none"},
                 {"range": [5, 9], "severity": "Mild", "clinical_sig": "mild"},
                 {"range": [10, 14], "severity": "Moderate", "clinical_sig": "moderate"},
-                {"range": [15, 19], "severity": "Moderately Severe", "clinical_sig": "severe"},
+                {
+                    "range": [15, 19],
+                    "severity": "Moderately Severe",
+                    "clinical_sig": "severe",
+                },
                 {"range": [20, 27], "severity": "Severe", "clinical_sig": "severe"},
             ],
-            "special_items": {"item_9": "Suicide risk - requires immediate assessment if >0"},
+            "special_items": {
+                "item_9": "Suicide risk - requires immediate assessment if >0"
+            },
         },
         "gad7": {
             "total_range": [0, 21],
@@ -528,8 +548,8 @@ app.include_router(assessment_routes.router)
 """
 
 if __name__ == "__main__":
-    from fastapi import FastAPI
     import uvicorn
+    from fastapi import FastAPI
 
     app = FastAPI(
         title="PsychSync Assessment API",

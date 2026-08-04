@@ -32,9 +32,9 @@ from enum import Enum
 from functools import wraps
 from typing import Any, Callable
 
+import redis.asyncio as aioredis
 from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
-import redis.asyncio as aioredis
 
 from app.core.config import settings
 
@@ -174,7 +174,9 @@ class StorageBackendInterface(ABC):
         pass
 
     @abstractmethod
-    async def zrange(self, key: str, start: int, end: int, withscores: bool = False) -> list:
+    async def zrange(
+        self, key: str, start: int, end: int, withscores: bool = False
+    ) -> list:
         """Get range from sorted set"""
         pass
 
@@ -183,10 +185,14 @@ class RedisStorage(StorageBackendInterface):
     """Redis storage backend with thread-safe connection initialization"""
 
     def __init__(self, redis_url: str | None = None):
-        self.redis_url = redis_url or getattr(settings, "REDIS_URL", "redis://localhost:6379")
+        self.redis_url = redis_url or getattr(
+            settings, "REDIS_URL", "redis://localhost:6379"
+        )
         self._redis: aioredis.Redis | None = None
         self._initialized = False
-        self._connection_lock = asyncio.Lock()  # **Fixed Race:** Add lock for connection initialization
+        self._connection_lock = (
+            asyncio.Lock()
+        )  # **Fixed Race:** Add lock for connection initialization
 
     async def _ensure_connected(self):
         """
@@ -207,7 +213,9 @@ class RedisStorage(StorageBackendInterface):
                 return
 
             try:
-                self._redis = aioredis.from_url(self.redis_url, encoding="utf-8", decode_responses=True)
+                self._redis = aioredis.from_url(
+                    self.redis_url, encoding="utf-8", decode_responses=True
+                )
                 await self._redis.ping()
                 self._initialized = True
                 logger.info(f"Rate limiter connected to Redis: {self.redis_url}")
@@ -254,7 +262,9 @@ class RedisStorage(StorageBackendInterface):
         await self._ensure_connected()
         return await self._redis.zcard(key) if self._redis else 0
 
-    async def zrange(self, key: str, start: int, end: int, withscores: bool = False) -> list:
+    async def zrange(
+        self, key: str, start: int, end: int, withscores: bool = False
+    ) -> list:
         await self._ensure_connected()
         if self._redis:
             return await self._redis.zrange(key, start, end, withscores=withscores)
@@ -286,7 +296,9 @@ class MemoryStorage(StorageBackendInterface):
         now = time.time()
         async with self._lock:
             # Create snapshot of expired keys BEFORE modifying dictionaries
-            expired_keys = [key for key, expiry in self._expires.items() if expiry < now]
+            expired_keys = [
+                key for key, expiry in self._expires.items() if expiry < now
+            ]
 
             # Now safe to modify dictionaries
             for key in expired_keys:
@@ -342,14 +354,22 @@ class MemoryStorage(StorageBackendInterface):
         async with self._lock:
             return len(self._sorted_sets.get(key, {}))
 
-    async def zrange(self, key: str, start: int, end: int, withscores: bool = False) -> list:
+    async def zrange(
+        self, key: str, start: int, end: int, withscores: bool = False
+    ) -> list:
         async with self._lock:
             sorted_items = sorted(
                 self._sorted_sets.get(key, {}).items(), key=lambda x: x[1]
             )
             if withscores:
-                return sorted_items[start : end + 1] if end >= 0 else sorted_items[start:]
-            return [k for k, v in sorted_items[start : end + 1]] if end >= 0 else [k for k, v in sorted_items[start:]]
+                return (
+                    sorted_items[start : end + 1] if end >= 0 else sorted_items[start:]
+                )
+            return (
+                [k for k, v in sorted_items[start : end + 1]]
+                if end >= 0
+                else [k for k, v in sorted_items[start:]]
+            )
 
 
 # ============================================================================
@@ -473,12 +493,24 @@ class TokenBucketStrategy(RateLimitStrategyInterface):
         # Use atomic Lua script for Redis backend
         if isinstance(storage, RedisStorage):
             result = await self._check_atomic_redis(
-                storage, tokens_key, refill_key, current_time, capacity, refill_rate, expire_time
+                storage,
+                tokens_key,
+                refill_key,
+                current_time,
+                capacity,
+                refill_rate,
+                expire_time,
             )
         else:
             # Fallback for in-memory storage (still has race, but only for development)
             result = await self._check_memory(
-                storage, tokens_key, refill_key, current_time, capacity, refill_rate, expire_time
+                storage,
+                tokens_key,
+                refill_key,
+                current_time,
+                capacity,
+                refill_rate,
+                expire_time,
             )
 
         return RateLimitResult(
@@ -505,14 +537,16 @@ class TokenBucketStrategy(RateLimitStrategyInterface):
         # Get or register Lua script
         script_key = "token_bucket"
         if script_key not in self._lua_scripts:
-            self._lua_scripts[script_key] = storage._redis.register_script(self.TOKEN_BUCKET_SCRIPT)
+            self._lua_scripts[script_key] = storage._redis.register_script(
+                self.TOKEN_BUCKET_SCRIPT
+            )
 
         script = self._lua_scripts[script_key]
 
         # Execute script atomically
         result = await script(
             keys=[tokens_key, refill_key],
-            args=[current_time, capacity, refill_rate, expire_time]
+            args=[current_time, capacity, refill_rate, expire_time],
         )
 
         return {
@@ -565,7 +599,11 @@ class TokenBucketStrategy(RateLimitStrategyInterface):
             remaining = 0
 
         tokens_until_full = capacity - tokens
-        reset_time = current_time + (tokens_until_full / refill_rate) if tokens_until_full > 0 else current_time
+        reset_time = (
+            current_time + (tokens_until_full / refill_rate)
+            if tokens_until_full > 0
+            else current_time
+        )
 
         return {
             "allowed": allowed,
@@ -675,14 +713,15 @@ class SlidingWindowStrategy(RateLimitStrategyInterface):
         # Get or register Lua script
         script_key = "sliding_window"
         if script_key not in self._lua_scripts:
-            self._lua_scripts[script_key] = storage._redis.register_script(self.SLIDING_WINDOW_SCRIPT)
+            self._lua_scripts[script_key] = storage._redis.register_script(
+                self.SLIDING_WINDOW_SCRIPT
+            )
 
         script = self._lua_scripts[script_key]
 
         # Execute script atomically
         result = await script(
-            keys=[key],
-            args=[current_time, window_start, window_size, limit]
+            keys=[key], args=[current_time, window_start, window_size, limit]
         )
 
         return {
@@ -842,15 +881,14 @@ class FixedWindowStrategy(RateLimitStrategyInterface):
         # Get or register Lua script
         script_key = "fixed_window"
         if script_key not in self._lua_scripts:
-            self._lua_scripts[script_key] = storage._redis.register_script(self.FIXED_WINDOW_SCRIPT)
+            self._lua_scripts[script_key] = storage._redis.register_script(
+                self.FIXED_WINDOW_SCRIPT
+            )
 
         script = self._lua_scripts[script_key]
 
         # Execute script atomically
-        result = await script(
-            keys=[window_key],
-            args=[limit, window_expire]
-        )
+        result = await script(keys=[window_key], args=[limit, window_expire])
 
         return {
             "allowed": bool(result[0]),
@@ -900,7 +938,9 @@ class UnifiedRateLimiter:
         # Initialize strategy
         self.strategy: RateLimitStrategyInterface = self._create_strategy(strategy)
 
-    def _create_strategy(self, strategy_type: RateLimitStrategy) -> RateLimitStrategyInterface:
+    def _create_strategy(
+        self, strategy_type: RateLimitStrategy
+    ) -> RateLimitStrategyInterface:
         """Factory method to create strategy instance"""
         strategies = {
             RateLimitStrategy.TOKEN_BUCKET: TokenBucketStrategy(),
@@ -1219,9 +1259,12 @@ API = RateLimitConfig(limit=1000, window=60)
 # Alias for UnifiedRateLimiter (old name)
 RateLimiter = UnifiedRateLimiter
 
+
 # Alias for rate_limit decorator (was used in old imports)
 # These are kept for backward compatibility with existing code
-def check_rate_limit(identifier: str, limit: int = 100, window: int = 60) -> tuple[bool, str | None, dict]:
+def check_rate_limit(
+    identifier: str, limit: int = 100, window: int = 60
+) -> tuple[bool, str | None, dict]:
     """
     Backward compatibility wrapper for old check_rate_limit function.
 
@@ -1242,7 +1285,11 @@ def check_rate_limit(identifier: str, limit: int = 100, window: int = 60) -> tup
     if result.allowed:
         return True, None, {"remaining": result.remaining, "limit": result.limit}
     else:
-        return False, f"Rate limit exceeded: {result.retry_after}s", {"retry_after": result.retry_after}
+        return (
+            False,
+            f"Rate limit exceeded: {result.retry_after}s",
+            {"retry_after": result.retry_after},
+        )
 
 
 # Legacy class name for middleware

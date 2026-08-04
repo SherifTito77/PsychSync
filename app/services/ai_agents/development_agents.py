@@ -13,11 +13,11 @@ Consolidated implementation of multiple development automation agents:
 """
 
 import logging
-from typing import Dict, List, Optional, Any
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-import re
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # Agent #4: Coding Style Enforcer
 # =============================================================================
+
 
 class CodingStyleAgent:
     """Enforces coding style standards using prompts and linting"""
@@ -63,12 +64,14 @@ class CodingStyleAgent:
 
             for i, line in enumerate(lines, 1):
                 if len(line) > max_length:
-                    violations.append({
-                        "line": i,
-                        "issue": f"Line exceeds {max_length} characters ({len(line)} chars)",
-                        "severity": "low",
-                        "recommendation": "Break long lines into multiple lines",
-                    })
+                    violations.append(
+                        {
+                            "line": i,
+                            "issue": f"Line exceeds {max_length} characters ({len(line)} chars)",
+                            "severity": "low",
+                            "recommendation": "Break long lines into multiple lines",
+                        }
+                    )
 
         except Exception as e:
             logger.error(f"Style check failed: {str(e)}")
@@ -95,9 +98,11 @@ class CodingStyleAgent:
 # Agent #5: Performance Regression Detector
 # =============================================================================
 
+
 @dataclass
 class PerformanceMetric:
     """Performance measurement"""
+
     endpoint: str
     avg_response_time_ms: float
     p95_response_time_ms: float
@@ -136,18 +141,21 @@ class PerformanceRegressionAgent:
                 # Check if response time increased significantly
                 time_increase = (
                     (metric.avg_response_time_ms - baseline.avg_response_time_ms)
-                    / baseline.avg_response_time_ms * 100
+                    / baseline.avg_response_time_ms
+                    * 100
                 )
 
                 if time_increase > threshold_percent:
-                    regressions.append({
-                        "endpoint": metric.endpoint,
-                        "baseline_time_ms": baseline.avg_response_time_ms,
-                        "current_time_ms": metric.avg_response_time_ms,
-                        "regression_percent": round(time_increase, 2),
-                        "severity": "high" if time_increase > 50 else "medium",
-                        "recommendation": "Profile endpoint for performance bottlenecks",
-                    })
+                    regressions.append(
+                        {
+                            "endpoint": metric.endpoint,
+                            "baseline_time_ms": baseline.avg_response_time_ms,
+                            "current_time_ms": metric.avg_response_time_ms,
+                            "regression_percent": round(time_increase, 2),
+                            "severity": "high" if time_increase > 50 else "medium",
+                            "recommendation": "Profile endpoint for performance bottlenecks",
+                        }
+                    )
 
         return regressions
 
@@ -163,6 +171,7 @@ class PerformanceRegressionAgent:
 # =============================================================================
 # Agent #6: Localization Key Detector
 # =============================================================================
+
 
 class LocalizationAgent:
     """Detects missing localization keys"""
@@ -195,8 +204,7 @@ class LocalizationAgent:
             "missing_keys": list(missing),
             "unused_keys": list(unused),
             "coverage_percent": round(
-                len(defined_keys) / len(used_keys) * 100 if used_keys else 100,
-                2
+                len(defined_keys) / len(used_keys) * 100 if used_keys else 100, 2
             ),
         }
 
@@ -229,6 +237,7 @@ class LocalizationAgent:
                 en_json = locale_path / "en.json"
                 if en_json.exists():
                     import json
+
                     content = json.loads(en_json.read_text())
                     keys = self._extract_all_keys(content)
 
@@ -255,6 +264,7 @@ class LocalizationAgent:
 # =============================================================================
 # Agent #7: Slow Endpoint Tracker
 # =============================================================================
+
 
 class SlowEndpointAgent:
     """Tracks slow endpoints and proposes fixes"""
@@ -287,28 +297,32 @@ class SlowEndpointAgent:
         recommendations = []
 
         for endpoint in very_slow:
-            recommendations.append({
-                "endpoint": endpoint.endpoint,
-                "response_time_ms": endpoint.avg_response_time_ms,
-                "priority": "critical",
-                "recommendations": [
-                    "Add database indexes",
-                    "Implement caching",
-                    "Optimize queries",
-                    "Consider async processing",
-                ],
-            })
+            recommendations.append(
+                {
+                    "endpoint": endpoint.endpoint,
+                    "response_time_ms": endpoint.avg_response_time_ms,
+                    "priority": "critical",
+                    "recommendations": [
+                        "Add database indexes",
+                        "Implement caching",
+                        "Optimize queries",
+                        "Consider async processing",
+                    ],
+                }
+            )
 
         for endpoint in slow:
-            recommendations.append({
-                "endpoint": endpoint.endpoint,
-                "response_time_ms": endpoint.avg_response_time_ms,
-                "priority": "high",
-                "recommendations": [
-                    "Review query performance",
-                    "Add caching if appropriate",
-                ],
-            })
+            recommendations.append(
+                {
+                    "endpoint": endpoint.endpoint,
+                    "response_time_ms": endpoint.avg_response_time_ms,
+                    "priority": "high",
+                    "recommendations": [
+                        "Review query performance",
+                        "Add caching if appropriate",
+                    ],
+                }
+            )
 
         return {
             "total_endpoints": len(metrics),
@@ -321,6 +335,7 @@ class SlowEndpointAgent:
 # =============================================================================
 # Agent #8: Release Notes Generator
 # =============================================================================
+
 
 class ReleaseNotesAgent:
     """Auto-generates release notes from commits"""
@@ -375,6 +390,7 @@ class ReleaseNotesAgent:
 # Agent #15: Permission Gap Detector
 # =============================================================================
 
+
 class PermissionGapAgent:
     """Detects gaps in permission enforcement"""
 
@@ -396,22 +412,28 @@ class PermissionGapAgent:
         for endpoint in endpoints:
             # Check if endpoint requires authentication
             if not endpoint.get("auth_required", False):
-                gaps.append({
-                    "endpoint": endpoint["path"],
-                    "method": endpoint["method"],
-                    "issue": "No authentication required",
-                    "severity": "high",
-                    "recommendation": "Add authentication requirement",
-                })
+                gaps.append(
+                    {
+                        "endpoint": endpoint["path"],
+                        "method": endpoint["method"],
+                        "issue": "No authentication required",
+                        "severity": "high",
+                        "recommendation": "Add authentication requirement",
+                    }
+                )
 
             # Check if sensitive data is protected
-            if "user" in endpoint["path"].lower() and not endpoint.get("permission_checked", False):
-                gaps.append({
-                    "endpoint": endpoint["path"],
-                    "issue": "User data endpoint without permission check",
-                    "severity": "critical",
-                    "recommendation": "Add permission dependency for user data access",
-                })
+            if "user" in endpoint["path"].lower() and not endpoint.get(
+                "permission_checked", False
+            ):
+                gaps.append(
+                    {
+                        "endpoint": endpoint["path"],
+                        "issue": "User data endpoint without permission check",
+                        "severity": "critical",
+                        "recommendation": "Add permission dependency for user data access",
+                    }
+                )
 
         return gaps
 
@@ -419,6 +441,7 @@ class PermissionGapAgent:
 # =============================================================================
 # Agent #16: Uptime Monitor
 # =============================================================================
+
 
 class UptimeMonitorAgent:
     """Monitors uptime and provides daily status"""
@@ -478,6 +501,7 @@ class UptimeMonitorAgent:
 # Agent #17: Stability Score Calculator
 # =============================================================================
 
+
 class StabilityScoreAgent:
     """Calculates weekly stability score"""
 
@@ -500,11 +524,7 @@ class StabilityScoreAgent:
         performance_score = 1.0 - (metrics.get("slow_request_rate", 0) / 100)
 
         # Weighted average
-        overall_score = (
-            uptime_score * 0.4 +
-            error_score * 0.3 +
-            performance_score * 0.3
-        )
+        overall_score = uptime_score * 0.4 + error_score * 0.3 + performance_score * 0.3
 
         return {
             "overall_score": round(overall_score * 100, 2),

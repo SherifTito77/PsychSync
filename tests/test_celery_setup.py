@@ -2,9 +2,11 @@
 Test script to verify Celery setup
 Run this after starting your Celery worker
 """
+
 import sys
 import time
 from datetime import datetime
+
 
 def test_redis_connection():
     """Test Redis connection"""
@@ -14,7 +16,8 @@ def test_redis_connection():
 
     try:
         import redis
-        r = redis.Redis(host='localhost', port=6379, db=0)
+
+        r = redis.Redis(host="localhost", port=6379, db=0)
         result = r.ping()
 
         if result:
@@ -40,6 +43,7 @@ def test_celery_import():
 
     try:
         from app.core.celery_worker import celery_app
+
         print("✅ Celery app import: SUCCESS")
         print(f"   Broker: {celery_app.conf.broker_url}")
         print(f"   Backend: {celery_app.conf.result_backend}")
@@ -65,12 +69,16 @@ def test_celery_worker():
             print("✅ Celery worker: RUNNING")
             for worker_name, worker_stats in stats.items():
                 print(f"   Worker: {worker_name}")
-                print(f"   Pool: {worker_stats.get('pool', {}).get('implementation', 'N/A')}")
+                print(
+                    f"   Pool: {worker_stats.get('pool', {}).get('implementation', 'N/A')}"
+                )
             return True
         else:
             print("❌ Celery worker: NOT RUNNING")
             print("\nTo start worker:")
-            print("  celery -A app.core.celery_worker.celery_app worker --loglevel=info")
+            print(
+                "  celery -A app.core.celery_worker.celery_app worker --loglevel=info"
+            )
             return False
     except Exception as e:
         print(f"❌ Celery worker check: ERROR - {str(e)}")
@@ -130,7 +138,9 @@ def test_scheduled_tasks():
             else:
                 print("\n⚠️  Celery Beat: NOT RUNNING")
                 print("   To start beat:")
-                print("   celery -A app.core.celery_worker.celery_app beat --loglevel=info")
+                print(
+                    "   celery -A app.core.celery_worker.celery_app beat --loglevel=info"
+                )
 
             return True
         else:

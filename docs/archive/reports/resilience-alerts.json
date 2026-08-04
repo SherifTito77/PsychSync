@@ -1,0 +1,341 @@
+{
+  "prometheus_alerts": {
+    "groups": [
+      {
+        "name": "psychsync_resilience",
+        "interval": "30s",
+        "rules": [
+          {
+            "alert": "CircuitBreakerOpen",
+            "expr": "resilience_circuit_breaker_state{state=\"open\"} == 1",
+            "for": "1m",
+            "labels": {
+              "severity": "critical",
+              "team": "platform"
+            },
+            "annotations": {
+              "summary": "Circuit breaker {{ $labels.name }} is OPEN",
+              "description": "Circuit breaker {{ $labels.name }} has been OPEN for more than 1 minute. This indicates {{ $labels.service }} is failing fast and preventing cascading failures.",
+              "runbook": "https://docs.psychsync.com/runbooks#runbook-circuit-breaker-open",
+              "impact": "API endpoints may be returning degraded responses"
+            }
+          },
+          {
+            "alert": "CircuitBreakerHalfOpen",
+            "expr": "resilience_circuit_breaker_state{state=\"half_open\"} == 1",
+            "for": "5m",
+            "labels": {
+              "severity": "warning",
+              "team": "platform"
+            },
+            "annotations": {
+              "summary": "Circuit breaker {{ $labels.name }} is HALF_OPEN",
+              "description": "Circuit breaker {{ $labels.name }} is testing recovery after being OPEN. Monitor for successful recovery or return to OPEN state.",
+              "runbook": "https://docs.psychsync.com/runbooks#runbook-circuit-breaker-open"
+            }
+          },
+          {
+            "alert": "LowCircuitBreakerSuccessRate",
+            "expr": "resilience_circuit_breaker_success_rate < 90",
+            "for": "5m",
+            "labels": {
+              "severity": "warning",
+              "team": "platform"
+            },
+            "annotations": {
+              "summary": "Circuit breaker {{ $labels.name }} has low success rate",
+              "description": "Success rate for {{ $labels.name }} is {{ $value }}% below 90% threshold. Investigate {{ $labels.service }} for issues.",
+              "runbook": "https://docs.psychsync.com/runbooks#runbook-high-error-rate"
+            }
+          },
+          {
+            "alert": "HighCircuitBreakerFailureCount",
+            "expr": "resilience_circuit_breaker_failure_count > 10",
+            "for": "2m",
+            "labels": {
+              "severity": "critical",
+              "team": "platform"
+            },
+            "annotations": {
+              "summary": "Circuit breaker {{ $labels.name }} has high failure count",
+              "description": "Circuit breaker {{ $labels.name }} has {{ $value }} failures. This may indicate {{ $labels.service }} is down or severely degraded.",
+              "runbook": "https://docs.psychsync.com/runbooks#runbook-circuit-breaker-open"
+            }
+          },
+          {
+            "alert": "CacheCircuitBreakerOpen",
+            "expr": "resilience_circuit_breaker_state{circuit_breaker=\"redis_cache\",state=\"open\"} == 1",
+            "for": "1m",
+            "labels": {
+              "severity": "warning",
+              "team": "platform"
+            },
+            "annotations": {
+              "summary": "Redis cache circuit breaker is OPEN",
+              "description": "Cache is unavailable and system is falling back to database queries. Expect increased database load and slower response times.",
+              "runbook": "https://docs.psychsync.com/runbooks#runbook-cache-layer-failure"
+            }
+          },
+          {
+            "alert": "DatabaseConnectionPoolExhaustion",
+            "expr": "database_pool_utilization_percent > 90",
+            "for": "2m",
+            "labels": {
+              "severity": "critical",
+              "team": "platform"
+            },
+            "annotations": {
+              "summary": "Database connection pool near exhaustion",
+              "description": "Connection pool utilization is {{ $value }}%. Application may experience hangs or timeouts.",
+              "runbook": "https://docs.psychsync.com/runbooks#runbook-database-connection-pool-exhaustion",
+              "immediate_action": "Check for blocking queries and consider restarting application"
+            }
+          },
+          {
+            "alert": "CircuitBreakerRecovered",
+            "expr": "resilience_circuit_breaker_state{state=\"closed\"} == 1 and changes(resilience_circuit_breaker_state{state!=\"closed\"}[5m]) > 0",
+            "for": "1m",
+            "labels": {
+              "severity": "info",
+              "team": "platform"
+            },
+            "annotations": {
+              "summary": "Circuit breaker {{ $labels.name }} recovered to CLOSED",
+              "description": "Circuit breaker {{ $labels.name }} has successfully recovered and is now CLOSED. Service {{ $labels.service }} is healthy again."
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "grafana_dashboard": {
+    "dashboard": {
+      "title": "PsychSync Resilience Monitoring",
+      "description": "Real-time monitoring of circuit breakers and system boundary resilience",
+      "tags": [
+        "psychsync",
+        "resilience",
+        "circuit-breakers"
+      ],
+      "timezone": "UTC",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Circuit Breaker States",
+          "type": "stat",
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "count(resilience_circuit_breaker_state{state=\"closed\"})",
+              "legendFormat": "Closed (Healthy)"
+            },
+            {
+              "expr": "count(resilience_circuit_breaker_state{state=\"open\"})",
+              "legendFormat": "Open (Failing)"
+            },
+            {
+              "expr": "count(resilience_circuit_breaker_state{state=\"half_open\"})",
+              "legendFormat": "Half-Open (Recovering)"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Circuit Breaker Success Rates",
+          "type": "graph",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 6,
+            "y": 0
+          },
+          "targets": [
+            {
+              "expr": "resilience_circuit_breaker_success_rate",
+              "legendFormat": "{{name}}"
+            }
+          ],
+          "yaxes": [
+            {
+              "format": "percent",
+              "min": 0,
+              "max": 100
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "title": "Circuit Breaker Failure Counts",
+          "type": "graph",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 8
+          },
+          "targets": [
+            {
+              "expr": "resilience_circuit_breaker_failure_count",
+              "legendFormat": "{{name}}"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Circuit Breaker Response Times",
+          "type": "graph",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 8
+          },
+          "targets": [
+            {
+              "expr": "resilience_circuit_breaker_avg_response_time_ms",
+              "legendFormat": "{{name}}"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "title": "Alerts and Warnings",
+          "type": "table",
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 16
+          },
+          "targets": [
+            {
+              "expr": "resilience_alerts_total",
+              "legendFormat": "{{severity}} - {{message}}"
+            }
+          ],
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {},
+                "indexByName": {},
+                "renameByName": {
+                  "severity": "Severity",
+                  "message": "Message",
+                  "component": "Component",
+                  "timestamp": "Time"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "pagerduty_rules": {
+    "routing_rules": [
+      {
+        "name": "Circuit Breaker Critical",
+        "conditions": {
+          "alert_name": "CircuitBreakerOpen",
+          "severity": "critical"
+        },
+        "route_to": "platform-on-call",
+        "escalation_policy": "platform-critical",
+        "urgency": "high"
+      },
+      {
+        "name": "Database Pool Critical",
+        "conditions": {
+          "alert_name": "DatabaseConnectionPoolExhaustion",
+          "severity": "critical"
+        },
+        "route_to": "platform-on-call",
+        "escalation_policy": "database-critical",
+        "urgency": "high"
+      },
+      {
+        "name": "Circuit Breaker Warnings",
+        "conditions": {
+          "alert_name": [
+            "CircuitBreakerHalfOpen",
+            "LowCircuitBreakerSuccessRate"
+          ],
+          "severity": "warning"
+        },
+        "route_to": "platform-team",
+        "escalation_policy": "platform-warning",
+        "urgency": "medium"
+      },
+      {
+        "name": "Cache Warnings",
+        "conditions": {
+          "alert_name": "CacheCircuitBreakerOpen",
+          "severity": "warning"
+        },
+        "route_to": "platform-team",
+        "escalation_policy": "cache-degradation",
+        "urgency": "low"
+      }
+    ],
+    "escalation_policies": {
+      "platform-critical": {
+        "levels": [
+          {
+            "delay": 0,
+            "target": "platform-lead"
+          },
+          {
+            "delay": 300,
+            "target": "engineering-manager"
+          },
+          {
+            "delay": 900,
+            "target": "cto"
+          }
+        ]
+      },
+      "database-critical": {
+        "levels": [
+          {
+            "delay": 0,
+            "target": "platform-lead"
+          },
+          {
+            "delay": 300,
+            "target": "engineering-manager"
+          },
+          {
+            "delay": 900,
+            "target": "cto"
+          }
+        ]
+      },
+      "platform-warning": {
+        "levels": [
+          {
+            "delay": 0,
+            "target": "platform-team"
+          },
+          {
+            "delay": 1800,
+            "target": "platform-lead"
+          }
+        ]
+      },
+      "cache-degradation": {
+        "levels": [
+          {
+            "delay": 0,
+            "target": "platform-team"
+          }
+        ]
+      }
+    }
+  }
+}

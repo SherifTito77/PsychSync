@@ -42,7 +42,9 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
         env_file = ".env"
         case_sensitive = True
         env_file_encoding = "utf-8"
-        extra = "ignore"  # Ignore extra environment variables (e.g., VITE_* from frontend)
+        extra = (
+            "ignore"  # Ignore extra environment variables (e.g., VITE_* from frontend)
+        )
 
     # API Settings
     API_V1_PREFIX: str = Field(default="/api/v1", env="API_V1_PREFIX")
@@ -65,7 +67,9 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
 
     # Encryption Settings (for PII field encryption)
     ENCRYPTION_KEY: str = Field(
-        default="", env="ENCRYPTION_KEY", description="Fernet encryption key for PII data at rest"
+        default="",
+        env="ENCRYPTION_KEY",
+        description="Fernet encryption key for PII data at rest",
     )
 
     # Master Encryption Key (for advanced encryption operations)
@@ -111,7 +115,9 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
     SMTP_PASSWORD: str | None = Field(default=None, env="SMTP_PASSWORD")
     EMAILS_FROM_EMAIL: str | None = Field(default=None, env="EMAILS_FROM_EMAIL")
     EMAILS_FROM_NAME: str | None = Field(default=None, env="EMAILS_FROM_NAME")
-    EMAIL_TEMPLATES_DIR: str = Field(default="app/email_templates", env="EMAIL_TEMPLATES_DIR")
+    EMAIL_TEMPLATES_DIR: str = Field(
+        default="app/email_templates", env="EMAIL_TEMPLATES_DIR"
+    )
 
     # Email Processing Settings
     EMAIL_CALLBACK_URL: str = Field(
@@ -142,15 +148,25 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
     SIEM_VERIFY_SSL: bool = Field(default=True, env="SIEM_VERIFY_SSL")
 
     # Security Monitoring Settings
-    SECURITY_MONITORING_ENABLED: bool = Field(default=True, env="SECURITY_MONITORING_ENABLED")
-    ANOMALY_DETECTION_THRESHOLD: float = Field(default=0.7, env="ANOMALY_DETECTION_THRESHOLD")
-    SECURITY_ALERT_RETENTION_DAYS: int = Field(default=90, env="SECURITY_ALERT_RETENTION_DAYS")
-    BEHAVIOR_PROFILE_RETENTION_DAYS: int = Field(default=30, env="BEHAVIOR_PROFILE_RETENTION_DAYS")
+    SECURITY_MONITORING_ENABLED: bool = Field(
+        default=True, env="SECURITY_MONITORING_ENABLED"
+    )
+    ANOMALY_DETECTION_THRESHOLD: float = Field(
+        default=0.7, env="ANOMALY_DETECTION_THRESHOLD"
+    )
+    SECURITY_ALERT_RETENTION_DAYS: int = Field(
+        default=90, env="SECURITY_ALERT_RETENTION_DAYS"
+    )
+    BEHAVIOR_PROFILE_RETENTION_DAYS: int = Field(
+        default=30, env="BEHAVIOR_PROFILE_RETENTION_DAYS"
+    )
 
     # Failed Login Settings
     MAX_LOGIN_ATTEMPTS: int = Field(default=5, env="MAX_LOGIN_ATTEMPTS")
     LOCKOUT_DURATION_MINUTES: int = Field(default=15, env="LOCKOUT_DURATION_MINUTES")
-    LOGIN_ATTEMPT_WINDOW_MINUTES: int = Field(default=15, env="LOGIN_ATTEMPT_WINDOW_MINUTES")
+    LOGIN_ATTEMPT_WINDOW_MINUTES: int = Field(
+        default=15, env="LOGIN_ATTEMPT_WINDOW_MINUTES"
+    )
 
     # File upload settings
     UPLOAD_DIR: str = Field(default="uploads", env="UPLOAD_DIR")
@@ -192,17 +208,23 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
         """
         # Validate email settings if email features are enabled
         if self.ENABLE_EMAIL_VERIFICATION and not all([self.SMTP_HOST, self.SMTP_USER]):
-            settings_logger.warning("Email verification enabled but SMTP configuration incomplete")
+            settings_logger.warning(
+                "Email verification enabled but SMTP configuration incomplete"
+            )
 
         # Validate Slack settings if Slack integration is configured
         if self.SLACK_BOT_TOKEN and not self.SLACK_SIGNING_SECRET:
-            settings_logger.warning("Slack bot token configured but signing secret missing")
+            settings_logger.warning(
+                "Slack bot token configured but signing secret missing"
+            )
 
         # Validate Redis settings if cache is enabled
         if self.CACHE_ENABLED and not self.REDIS_URL:
             settings_logger.warning("Cache enabled but Redis URL not configured")
 
-    def get_database_url(self, async_driver: bool = True, test_mode: bool = False) -> str:
+    def get_database_url(
+        self, async_driver: bool = True, test_mode: bool = False
+    ) -> str:
         """
         Get database URL for specific use case
 
@@ -349,7 +371,9 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
                 issues.append("Rate limiting is disabled in production")
 
             if not self.CACHE_ENABLED:
-                issues.append("Caching is disabled in production (recommended for performance)")
+                issues.append(
+                    "Caching is disabled in production (recommended for performance)"
+                )
 
             # Check required production configurations
             required_configs = {

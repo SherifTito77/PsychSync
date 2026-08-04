@@ -3,9 +3,9 @@ PsychSync Sentry Configuration for FastAPI
 Comprehensive error tracking and performance monitoring
 """
 
-from contextlib import asynccontextmanager
 import logging
 import os
+from contextlib import asynccontextmanager
 from typing import Any
 
 import sentry_sdk
@@ -26,11 +26,17 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 RELEASE = os.getenv("APP_VERSION", "unknown")
 
 # Sampling configuration
-TRACES_SAMPLE_RATE = float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1"))  # 10% for production
-PROFILES_SAMPLE_RATE = float(os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.1"))  # 10% for production
+TRACES_SAMPLE_RATE = float(
+    os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")
+)  # 10% for production
+PROFILES_SAMPLE_RATE = float(
+    os.getenv("SENTRY_PROFILES_SAMPLE_RATE", "0.1")
+)  # 10% for production
 
 # Feature flags
-ENABLE_PERFORMANCE_MONITORING = os.getenv("SENTRY_ENABLE_PERFORMANCE", "true").lower() == "true"
+ENABLE_PERFORMANCE_MONITORING = (
+    os.getenv("SENTRY_ENABLE_PERFORMANCE", "true").lower() == "true"
+)
 ENABLE_ERROR_MONITORING = os.getenv("SENTRY_ENABLE_ERRORS", "true").lower() == "true"
 
 
@@ -63,7 +69,8 @@ def init_sentry() -> None:
         RedisIntegration(enable_spans=True, enable_breadcrumbs=True),
         # HTTP clients
         HttpxIntegration(
-            enable_tracing=ENABLE_PERFORMANCE_MONITORING, httpx_capture_all_requests=True
+            enable_tracing=ENABLE_PERFORMANCE_MONITORING,
+            httpx_capture_all_requests=True,
         ),
         # Background tasks
         CeleryIntegration(
@@ -80,7 +87,9 @@ def init_sentry() -> None:
     ]
 
     # Configure before_send to filter sensitive data
-    def before_send(event: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
+    def before_send(
+        event: dict[str, Any], hint: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Filter sensitive data and add context"""
 
         # Remove sensitive data from headers
@@ -109,13 +118,18 @@ def init_sentry() -> None:
         return event
 
     # Configure before_breadcrumb to add context
-    def before_breadcrumb(crumb: dict[str, Any], hint: dict[str, Any]) -> dict[str, Any] | None:
+    def before_breadcrumb(
+        crumb: dict[str, Any], hint: dict[str, Any]
+    ) -> dict[str, Any] | None:
         """Filter and enhance breadcrumb data"""
 
         # Filter sensitive URLs
         if "url" in crumb:
             url = crumb["url"]
-            if any(sensitive in url.lower() for sensitive in ["password", "token", "secret"]):
+            if any(
+                sensitive in url.lower()
+                for sensitive in ["password", "token", "secret"]
+            ):
                 crumb["url"] = url.split("?")[0] + "?[FILTERED]"
 
         return crumb
@@ -127,7 +141,9 @@ def init_sentry() -> None:
         release=RELEASE,
         # Sampling
         traces_sample_rate=TRACES_SAMPLE_RATE if ENABLE_PERFORMANCE_MONITORING else 0,
-        profiles_sample_rate=PROFILES_SAMPLE_RATE if ENABLE_PERFORMANCE_MONITORING else 0,
+        profiles_sample_rate=(
+            PROFILES_SAMPLE_RATE if ENABLE_PERFORMANCE_MONITORING else 0
+        ),
         # Integrations
         integrations=integrations,
         # Data filtering
@@ -165,7 +181,9 @@ async def sentry_transaction(name: str, op: str = "function"):
         yield
         return
 
-    with sentry_sdk.start_transaction(name=name, op=op, auto_finish=True) as transaction:
+    with sentry_sdk.start_transaction(
+        name=name, op=op, auto_finish=True
+    ) as transaction:
         try:
             yield transaction
         except Exception as e:
@@ -294,7 +312,9 @@ class SentryTransactionMiddleware:
             await send(message)
 
             # Finish transaction when response is complete
-            if message["type"] == "http.response.body" and not message.get("more_body", False):
+            if message["type"] == "http.response.body" and not message.get(
+                "more_body", False
+            ):
                 transaction.finish()
 
         try:

@@ -19,17 +19,17 @@ SECURITY:
 - Access logging for all sessions
 """
 
-from typing import Dict, Optional, List
-from datetime import datetime, timedelta
-import logging
 import json
+import logging
 import secrets
-from twilio.rest import Client
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 from twilio.jwt.access_token import AccessToken
 from twilio.jwt.access_token.grants import VideoGrant
-
-from sqlalchemy import select, and_, func
-from sqlalchemy.ext.asyncio import AsyncSession
+from twilio.rest import Client
 
 from app.core.config import settings
 from app.db.session import get_async_db
@@ -52,8 +52,13 @@ class TelehealthVideoService:
     def __init__(self):
         """Initialize Twilio client with credentials from settings"""
 
-        if not hasattr(settings, 'TWILIO_ACCOUNT_SID') or not settings.TWILIO_ACCOUNT_SID:
-            logger.warning("Twilio credentials not configured - video service will be disabled")
+        if (
+            not hasattr(settings, "TWILIO_ACCOUNT_SID")
+            or not settings.TWILIO_ACCOUNT_SID
+        ):
+            logger.warning(
+                "Twilio credentials not configured - video service will be disabled"
+            )
             self.twilio_client = None
             self.api_key = None
             self.api_secret = None
@@ -61,8 +66,7 @@ class TelehealthVideoService:
 
         try:
             self.twilio_client = Client(
-                settings.TWILIO_ACCOUNT_SID,
-                settings.TWILIO_AUTH_TOKEN
+                settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN
             )
             self.api_key = settings.TWILIO_API_KEY
             self.api_secret = settings.TWILIO_API_SECRET
@@ -79,7 +83,7 @@ class TelehealthVideoService:
         session_id: str,
         user_name: str,
         scheduled_time: datetime,
-        duration_minutes: int = 50
+        duration_minutes: int = 50,
     ) -> Dict:
         """
         Create a new Twilio Video room for telehealth session
@@ -100,8 +104,8 @@ class TelehealthVideoService:
 
         if not self.twilio_client:
             return {
-                'error': 'Video service not available - Twilio not configured',
-                'status': 'unavailable'
+                "error": "Video service not available - Twilio not configured",
+                "status": "unavailable",
             }
 
         try:
@@ -113,43 +117,41 @@ class TelehealthVideoService:
             # Record participants on enabled for HIPAA compliance
             twilio_room = self.twilio_client.video.rooms.create(
                 unique_name=room_name,
-                type='go',  # Peer-to-peer for 1:1 clinician-patient sessions
+                type="go",  # Peer-to-peer for 1:1 clinician-patient sessions
                 record_participants_on_enabled=False,  # Enable if recording needed
                 status_callback=f"{settings.API_BASE_URL}/api/v1/telehealth/webhooks/room",
-                status_callback_method='POST',
-                max_participants=10  # Allow for interpreter, family member, etc.
+                status_callback_method="POST",
+                max_participants=10,  # Allow for interpreter, family member, etc.
             )
 
-            logger.info(f"Created video room: {twilio_room.sid} for session {session_id}")
+            logger.info(
+                f"Created video room: {twilio_room.sid} for session {session_id}"
+            )
 
             # Generate access token for patient
             user_token = self._generate_access_token(
                 room_name=room_name,
                 participant_identity=f"patient-{session_id}",
-                ttl=duration_minutes * 60 + 300  # Session duration + 5 min buffer
+                ttl=duration_minutes * 60 + 300,  # Session duration + 5 min buffer
             )
 
             return {
-                'room_sid': twilio_room.sid,
-                'room_name': room_name,
-                'user_token': user_token,
-                'status': 'created',
-                'created_at': datetime.utcnow().isoformat(),
-                'expires_at': (scheduled_time + timedelta(minutes=duration_minutes)).isoformat()
+                "room_sid": twilio_room.sid,
+                "room_name": room_name,
+                "user_token": user_token,
+                "status": "created",
+                "created_at": datetime.utcnow().isoformat(),
+                "expires_at": (
+                    scheduled_time + timedelta(minutes=duration_minutes)
+                ).isoformat(),
             }
 
         except Exception as e:
             logger.error(f"Failed to create video room: {str(e)}")
-            return {
-                'error': str(e),
-                'status': 'failed'
-            }
+            return {"error": str(e), "status": "failed"}
 
     def generate_clinician_token(
-        self,
-        room_name: str,
-        session_id: str,
-        ttl: int = 3600
+        self, room_name: str, session_id: str, ttl: int = 3600
     ) -> str:
         """
         Generate access token for clinician to join room
@@ -167,16 +169,11 @@ class TelehealthVideoService:
             raise ValueError("Video service not available")
 
         return self._generate_access_token(
-            room_name=room_name,
-            participant_identity=f"clinician-{session_id}",
-            ttl=ttl
+            room_name=room_name, participant_identity=f"clinician-{session_id}", ttl=ttl
         )
 
     def _generate_access_token(
-        self,
-        room_name: str,
-        participant_identity: str,
-        ttl: int = 3600
+        self, room_name: str, participant_identity: str, ttl: int = 3600
     ) -> str:
         """
         Generate Twilio JWT access token for video room
@@ -196,7 +193,7 @@ class TelehealthVideoService:
             key_sid=self.api_key,
             secret=self.api_secret,
             identity=participant_identity,
-            ttl=ttl
+            ttl=ttl,
         )
 
         # Create video grant
@@ -205,11 +202,7 @@ class TelehealthVideoService:
 
         return token.to_jwt()
 
-    async def complete_room(
-        self,
-        room_sid: str,
-        session_id: str
-    ) -> Dict:
+    async def complete_room(self, room_sid: str, session_id: str) -> Dict:
         """
         Complete video room and update session status
 
@@ -222,10 +215,7 @@ class TelehealthVideoService:
         """
 
         if not self.twilio_client:
-            return {
-                'error': 'Video service not available',
-                'status': 'unavailable'
-            }
+            return {"error": "Video service not available", "status": "unavailable"}
 
         try:
             # Get room details before completing
@@ -244,11 +234,13 @@ class TelehealthVideoService:
 
                 if session:
                     # Calculate actual duration
-                    if room.status == 'in-progress' and room.date_created:
-                        duration_seconds = (datetime.utcnow() - room.date_created).total_seconds()
+                    if room.status == "in-progress" and room.date_created:
+                        duration_seconds = (
+                            datetime.utcnow() - room.date_created
+                        ).total_seconds()
                         session.actual_duration_minutes = int(duration_seconds / 60)
 
-                    session.status = 'completed'
+                    session.status = "completed"
                     session.ended_at = datetime.utcnow()
 
                     await db.commit()
@@ -256,24 +248,20 @@ class TelehealthVideoService:
             logger.info(f"Completed video room {room_sid} for session {session_id}")
 
             return {
-                'room_sid': room_sid,
-                'status': 'completed',
-                'ended_at': datetime.utcnow().isoformat(),
-                'duration_minutes': session.actual_duration_minutes if session else None
+                "room_sid": room_sid,
+                "status": "completed",
+                "ended_at": datetime.utcnow().isoformat(),
+                "duration_minutes": (
+                    session.actual_duration_minutes if session else None
+                ),
             }
 
         except Exception as e:
             logger.error(f"Failed to complete room {room_sid}: {str(e)}")
-            return {
-                'error': str(e),
-                'status': 'failed'
-            }
+            return {"error": str(e), "status": "failed"}
 
     async def cancel_room(
-        self,
-        room_sid: str,
-        session_id: str,
-        cancellation_reason: str
+        self, room_sid: str, session_id: str, cancellation_reason: str
     ) -> Dict:
         """
         Cancel scheduled video room
@@ -288,14 +276,11 @@ class TelehealthVideoService:
         """
 
         if not self.twilio_client:
-            return {
-                'error': 'Video service not available',
-                'status': 'unavailable'
-            }
+            return {"error": "Video service not available", "status": "unavailable"}
 
         try:
             # Complete room in Twilio
-            self.twilio_client.video.rooms(room_sid).update(status='completed')
+            self.twilio_client.video.rooms(room_sid).update(status="completed")
 
             # Update session in database
             async for db in get_async_db():
@@ -309,27 +294,26 @@ class TelehealthVideoService:
                 session = result.scalar_one_or_none()
 
                 if session:
-                    session.status = 'cancelled'
+                    session.status = "cancelled"
                     session.cancellation_reason = cancellation_reason[:200]
                     session.cancelled_at = datetime.utcnow()
 
                     await db.commit()
 
-            logger.info(f"Cancelled video room {room_sid} for session {session_id}: {cancellation_reason}")
+            logger.info(
+                f"Cancelled video room {room_sid} for session {session_id}: {cancellation_reason}"
+            )
 
             return {
-                'room_sid': room_sid,
-                'status': 'cancelled',
-                'cancelled_at': datetime.utcnow().isoformat(),
-                'reason': cancellation_reason
+                "room_sid": room_sid,
+                "status": "cancelled",
+                "cancelled_at": datetime.utcnow().isoformat(),
+                "reason": cancellation_reason,
             }
 
         except Exception as e:
             logger.error(f"Failed to cancel room {room_sid}: {str(e)}")
-            return {
-                'error': str(e),
-                'status': 'failed'
-            }
+            return {"error": str(e), "status": "failed"}
 
     def get_room_recording(self, room_sid: str) -> List[Dict]:
         """
@@ -351,11 +335,15 @@ class TelehealthVideoService:
 
             return [
                 {
-                    'sid': rec.sid,
-                    'type': rec.type,
-                    'duration_seconds': rec.duration,
-                    'status': rec.status,
-                    'url': rec.links['media_download_url'] if hasattr(rec, 'links') else None
+                    "sid": rec.sid,
+                    "type": rec.type,
+                    "duration_seconds": rec.duration,
+                    "status": rec.status,
+                    "url": (
+                        rec.links["media_download_url"]
+                        if hasattr(rec, "links")
+                        else None
+                    ),
                 }
                 for rec in recordings
             ]
@@ -365,9 +353,7 @@ class TelehealthVideoService:
             return []
 
     async def get_active_sessions_for_user(
-        self,
-        user_id: str,
-        role: str = 'patient'
+        self, user_id: str, role: str = "patient"
     ) -> List[Dict]:
         """
         Get all active/scheduled video sessions for user
@@ -384,35 +370,45 @@ class TelehealthVideoService:
             from app.db.models.clinical_extended import TelehealthSession
 
             # Build query based on role
-            if role == 'clinician':
-                query = select(TelehealthSession).where(
-                    and_(
-                        TelehealthSession.clinician_id == user_id,
-                        TelehealthSession.status.in_(['scheduled', 'in_progress']),
-                        TelehealthSession.scheduled_time >= datetime.utcnow() - timedelta(hours=1)
+            if role == "clinician":
+                query = (
+                    select(TelehealthSession)
+                    .where(
+                        and_(
+                            TelehealthSession.clinician_id == user_id,
+                            TelehealthSession.status.in_(["scheduled", "in_progress"]),
+                            TelehealthSession.scheduled_time
+                            >= datetime.utcnow() - timedelta(hours=1),
+                        )
                     )
-                ).order_by(TelehealthSession.scheduled_time.asc())
+                    .order_by(TelehealthSession.scheduled_time.asc())
+                )
             else:  # patient
-                query = select(TelehealthSession).where(
-                    and_(
-                        TelehealthSession.user_id == user_id,
-                        TelehealthSession.status.in_(['scheduled', 'in_progress']),
-                        TelehealthSession.scheduled_time >= datetime.utcnow() - timedelta(hours=1)
+                query = (
+                    select(TelehealthSession)
+                    .where(
+                        and_(
+                            TelehealthSession.user_id == user_id,
+                            TelehealthSession.status.in_(["scheduled", "in_progress"]),
+                            TelehealthSession.scheduled_time
+                            >= datetime.utcnow() - timedelta(hours=1),
+                        )
                     )
-                ).order_by(TelehealthSession.scheduled_time.asc())
+                    .order_by(TelehealthSession.scheduled_time.asc())
+                )
 
             result = await db.execute(query)
             sessions = result.scalars().all()
 
             return [
                 {
-                    'id': str(session.id),
-                    'session_type': session.session_type,
-                    'scheduled_time': session.scheduled_time.isoformat(),
-                    'duration_minutes': session.duration_minutes,
-                    'status': session.status,
-                    'room_sid': session.room_sid,
-                    'room_name': session.room_name
+                    "id": str(session.id),
+                    "session_type": session.session_type,
+                    "scheduled_time": session.scheduled_time.isoformat(),
+                    "duration_minutes": session.duration_minutes,
+                    "status": session.status,
+                    "room_sid": session.room_sid,
+                    "room_name": session.room_name,
                 }
                 for session in sessions
             ]
@@ -431,18 +427,14 @@ class TelehealthVideoService:
         """
 
         if not self.twilio_client:
-            return {
-                'error': 'Video service not available',
-                'cleaned': 0
-            }
+            return {"error": "Video service not available", "cleaned": 0}
 
         try:
             cutoff_time = datetime.utcnow() - timedelta(hours=hours_old)
 
             # Get old completed rooms from Twilio
             rooms = self.twilio_client.video.rooms.list(
-                status='completed',
-                date_created_before=cutoff_time
+                status="completed", date_created_before=cutoff_time
             )
 
             cleaned_count = 0
@@ -450,7 +442,9 @@ class TelehealthVideoService:
             for room in rooms:
                 try:
                     # Delete recording files first
-                    recordings = self.twilio_client.video.rooms(room.sid).recordings.list()
+                    recordings = self.twilio_client.video.rooms(
+                        room.sid
+                    ).recordings.list()
                     for recording in recordings:
                         recording.delete()
 
@@ -464,23 +458,17 @@ class TelehealthVideoService:
                     logger.error(f"Failed to delete room {room.sid}: {str(e)}")
 
             return {
-                'status': 'success',
-                'cleaned': cleaned_count,
-                'timestamp': datetime.utcnow().isoformat()
+                "status": "success",
+                "cleaned": cleaned_count,
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
         except Exception as e:
             logger.error(f"Failed to cleanup expired rooms: {str(e)}")
-            return {
-                'error': str(e),
-                'cleaned': 0
-            }
+            return {"error": str(e), "cleaned": 0}
 
     def validate_webhook_signature(
-        self,
-        payload: str,
-        signature: str,
-        url: str
+        self, payload: str, signature: str, url: str
     ) -> bool:
         """
         Validate Twilio webhook signature for security
@@ -508,10 +496,7 @@ class TelehealthVideoService:
             logger.error(f"Failed to validate webhook signature: {str(e)}")
             return False
 
-    async def handle_room_webhook(
-        self,
-        webhook_data: Dict
-    ) -> Dict:
+    async def handle_room_webhook(self, webhook_data: Dict) -> Dict:
         """
         Handle Twilio room status webhook events
 
@@ -529,8 +514,8 @@ class TelehealthVideoService:
         """
 
         try:
-            event_type = webhook_data.get('StatusCallbackEvent', '')
-            room_sid = webhook_data.get('RoomSid', '')
+            event_type = webhook_data.get("StatusCallbackEvent", "")
+            room_sid = webhook_data.get("RoomSid", "")
 
             logger.info(f"Received webhook event: {event_type} for room {room_sid}")
 
@@ -547,38 +532,40 @@ class TelehealthVideoService:
 
                 if not session:
                     logger.warning(f"No session found for room {room_sid}")
-                    return {'status': 'session_not_found'}
+                    return {"status": "session_not_found"}
 
                 # Handle different event types
-                if event_type == 'room-participant-connected':
-                    participant = webhook_data.get('ParticipantIdentity', '')
+                if event_type == "room-participant-connected":
+                    participant = webhook_data.get("ParticipantIdentity", "")
 
-                    if 'clinician' in participant:
+                    if "clinician" in participant:
                         session.clinician_joined_at = datetime.utcnow()
-                    elif 'patient' in participant:
+                    elif "patient" in participant:
                         session.user_joined_at = datetime.utcnow()
 
                     # Update session status to in_progress if both joined
                     if session.clinician_joined_at and session.user_joined_at:
-                        session.status = 'in_progress'
+                        session.status = "in_progress"
 
                     await db.commit()
 
-                elif event_type == 'room-ended':
-                    session.status = 'completed'
+                elif event_type == "room-ended":
+                    session.status = "completed"
                     session.ended_at = datetime.utcnow()
 
                     # Calculate duration if we have start time
                     if session.user_joined_at:
                         duration = session.ended_at - session.user_joined_at
-                        session.actual_duration_minutes = int(duration.total_seconds() / 60)
+                        session.actual_duration_minutes = int(
+                            duration.total_seconds() / 60
+                        )
 
                     await db.commit()
 
-                elif event_type == 'room-recording-callback':
+                elif event_type == "room-recording-callback":
                     # Recording available
-                    recording_sid = webhook_data.get('RecordingSid', '')
-                    recording_url = webhook_data.get('RecordingUrl', '')
+                    recording_sid = webhook_data.get("RecordingSid", "")
+                    recording_url = webhook_data.get("RecordingUrl", "")
 
                     session.recording_sid = recording_sid
                     session.recording_url = recording_url
@@ -586,24 +573,21 @@ class TelehealthVideoService:
                     await db.commit()
 
             return {
-                'status': 'processed',
-                'event_type': event_type,
-                'room_sid': room_sid
+                "status": "processed",
+                "event_type": event_type,
+                "room_sid": room_sid,
             }
 
         except Exception as e:
             logger.error(f"Failed to handle webhook: {str(e)}")
-            return {
-                'error': str(e),
-                'status': 'failed'
-            }
+            return {"error": str(e), "status": "failed"}
 
     async def send_calendar_invite(
         self,
         session_id: str,
         participant_email: str,
         scheduled_time: datetime,
-        duration_minutes: int
+        duration_minutes: int,
     ) -> Dict:
         """
         Send calendar invitation for telehealth session
@@ -634,18 +618,16 @@ class TelehealthVideoService:
                 session = result.scalar_one_or_none()
 
                 if not session:
-                    return {'error': 'Session not found', 'status': 'failed'}
+                    return {"error": "Session not found", "status": "failed"}
 
                 # Get clinician details
-                clinician_query = select(User).where(
-                    User.id == session.clinician_id
-                )
+                clinician_query = select(User).where(User.id == session.clinician_id)
 
                 clinician_result = await db.execute(clinician_query)
                 clinician = clinician_result.scalar_one_or_none()
 
                 if not clinician:
-                    return {'error': 'Clinician not found', 'status': 'failed'}
+                    return {"error": "Clinician not found", "status": "failed"}
 
             # Generate ICS calendar file
             ics_content = self._generate_ics_calendar(
@@ -653,7 +635,7 @@ class TelehealthVideoService:
                 scheduled_time=scheduled_time,
                 duration_minutes=duration_minutes,
                 clinician_name=clinician.full_name or clinician.email,
-                participant_email=participant_email
+                participant_email=participant_email,
             )
 
             # TODO: Send email with ICS attachment
@@ -667,17 +649,14 @@ class TelehealthVideoService:
             logger.info(f"Calendar invite generated for session {session_id}")
 
             return {
-                'status': 'success',
-                'ics_content': ics_content,
-                'scheduled_time': scheduled_time.isoformat()
+                "status": "success",
+                "ics_content": ics_content,
+                "scheduled_time": scheduled_time.isoformat(),
             }
 
         except Exception as e:
             logger.error(f"Failed to send calendar invite: {str(e)}")
-            return {
-                'error': str(e),
-                'status': 'failed'
-            }
+            return {"error": str(e), "status": "failed"}
 
     def _generate_ics_calendar(
         self,
@@ -685,7 +664,7 @@ class TelehealthVideoService:
         scheduled_time: datetime,
         duration_minutes: int,
         clinician_name: str,
-        participant_email: str
+        participant_email: str,
     ) -> str:
         """
         Generate ICS calendar file content
@@ -702,7 +681,7 @@ class TelehealthVideoService:
         """
 
         end_time = scheduled_time + timedelta(minutes=duration_minutes)
-        timestamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
 
         ics = f"""BEGIN:VCALENDAR
 VERSION:2.0

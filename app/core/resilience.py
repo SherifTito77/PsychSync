@@ -11,15 +11,15 @@ This module provides enterprise-grade resilience patterns including:
 """
 
 import asyncio
+import logging
+import statistics
+import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum, auto
 from functools import wraps
-import logging
-import statistics
-import time
 from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
@@ -78,7 +78,9 @@ class ErrorInfo:
             "timestamp": self.timestamp.isoformat(),
             "context": self.context,
             "retry_count": self.retry_count,
-            "original_exception": str(self.original_exception) if self.original_exception else None,
+            "original_exception": (
+                str(self.original_exception) if self.original_exception else None
+            ),
         }
 
 
@@ -91,7 +93,9 @@ class ErrorClassifier:
         context = context or {}
 
         # Network-related errors
-        if isinstance(error, (ConnectionError, ConnectionRefusedError, ConnectionResetError)):
+        if isinstance(
+            error, (ConnectionError, ConnectionRefusedError, ConnectionResetError)
+        ):
             return ErrorInfo(
                 error_type=ErrorType.NETWORK,
                 error_message=str(error),
@@ -207,7 +211,9 @@ class CircuitBreaker:
             if self._should_attempt_reset():
                 self.state = CircuitState.HALF_OPEN
                 self.half_open_calls = 0
-                self.logger.info(f"Circuit breaker {self.name} transitioning to HALF_OPEN")
+                self.logger.info(
+                    f"Circuit breaker {self.name} transitioning to HALF_OPEN"
+                )
             else:
                 raise CircuitBreakerOpenError(f"Circuit breaker {self.name} is OPEN")
 
@@ -215,7 +221,9 @@ class CircuitBreaker:
             self.state == CircuitState.HALF_OPEN
             and self.half_open_calls >= self.half_open_max_calls
         ):
-            raise CircuitBreakerOpenError(f"Circuit breaker {self.name} HALF_OPEN limit reached")
+            raise CircuitBreakerOpenError(
+                f"Circuit breaker {self.name} HALF_OPEN limit reached"
+            )
 
         try:
             # Execute with timeout
@@ -229,13 +237,17 @@ class CircuitBreaker:
 
         except self.expected_exception as e:
             execution_time = time.time() - start_time
-            error_info = ErrorClassifier.classify_error(e, {"circuit_breaker": self.name})
+            error_info = ErrorClassifier.classify_error(
+                e, {"circuit_breaker": self.name}
+            )
             self._on_failure(error_info, execution_time)
             raise
 
         except Exception as e:
             execution_time = time.time() - start_time
-            error_info = ErrorClassifier.classify_error(e, {"circuit_breaker": self.name})
+            error_info = ErrorClassifier.classify_error(
+                e, {"circuit_breaker": self.name}
+            )
             self._on_failure(error_info, execution_time)
             raise
 
@@ -301,11 +313,15 @@ class CircuitBreaker:
         """Get circuit breaker metrics"""
         recent_calls = list(self.call_history)[-20:] if self.call_history else []
         recent_failures = [
-            f for f in self.failure_history if (datetime.now() - f.timestamp).seconds < 300
+            f
+            for f in self.failure_history
+            if (datetime.now() - f.timestamp).seconds < 300
         ]
 
         success_rate = sum(recent_calls) / len(recent_calls) if recent_calls else 1.0
-        avg_response_time = statistics.mean(self.response_times) if self.response_times else 0
+        avg_response_time = (
+            statistics.mean(self.response_times) if self.response_times else 0
+        )
 
         return {
             "name": self.name,
@@ -314,9 +330,9 @@ class CircuitBreaker:
             "success_count": self.success_count,
             "success_rate": round(success_rate * 100, 2),
             "avg_response_time": round(avg_response_time * 1000, 2),  # ms
-            "last_failure_time": self.last_failure_time.isoformat()
-            if self.last_failure_time
-            else None,
+            "last_failure_time": (
+                self.last_failure_time.isoformat() if self.last_failure_time else None
+            ),
             "last_state_change": self.last_state_change.isoformat(),
             "recent_failures_count": len(recent_failures),
             "total_calls": len(self.call_history),
@@ -342,7 +358,11 @@ class RetryPolicy:
         self.max_delay = max_delay
         self.exponential_base = exponential_base
         self.jitter = jitter
-        self.retry_on = retry_on or [ErrorType.NETWORK, ErrorType.TIMEOUT, ErrorType.DEPENDENCY]
+        self.retry_on = retry_on or [
+            ErrorType.NETWORK,
+            ErrorType.TIMEOUT,
+            ErrorType.DEPENDENCY,
+        ]
         self.stop_on = stop_on or [ErrorType.VALIDATION, ErrorType.AUTHENTICATION]
 
     def should_retry(self, error_info: ErrorInfo, attempt: int) -> bool:
@@ -531,9 +551,13 @@ class Bulkhead:
     def get_metrics(self) -> dict[str, Any]:
         """Get bulkhead metrics"""
         rejection_rate = (
-            (self.rejected_calls / self.total_calls * 100) if self.total_calls > 0 else 0
+            (self.rejected_calls / self.total_calls * 100)
+            if self.total_calls > 0
+            else 0
         )
-        timeout_rate = (self.timeouts / self.total_calls * 100) if self.total_calls > 0 else 0
+        timeout_rate = (
+            (self.timeouts / self.total_calls * 100) if self.total_calls > 0 else 0
+        )
 
         return {
             "name": self.name,
@@ -589,8 +613,12 @@ class ResilienceManager:
             "circuit_breakers": {
                 name: cb.get_metrics() for name, cb in self.circuit_breakers.items()
             },
-            "rate_limiters": {name: rl.get_metrics() for name, rl in self.rate_limiters.items()},
-            "bulkheads": {name: bh.get_metrics() for name, bh in self.bulkheads.items()},
+            "rate_limiters": {
+                name: rl.get_metrics() for name, rl in self.rate_limiters.items()
+            },
+            "bulkheads": {
+                name: bh.get_metrics() for name, bh in self.bulkheads.items()
+            },
             "retry_policies": list(self.retry_policies.keys()),
         }
 
@@ -624,7 +652,11 @@ def resilient(
             manager = get_resilience_manager()
 
             # Get resilience components
-            cb = manager.circuit_breakers.get(circuit_breaker) if circuit_breaker else None
+            cb = (
+                manager.circuit_breakers.get(circuit_breaker)
+                if circuit_breaker
+                else None
+            )
             rl = manager.rate_limiters.get(rate_limiter) if rate_limiter else None
             bh = manager.bulkheads.get(bulkhead) if bulkhead else None
             rp = manager.retry_policies.get(retry_policy) if retry_policy else None
@@ -632,14 +664,23 @@ def resilient(
             # Apply rate limiting
             if rl:
                 if not await rl.acquire():
-                    raise RateLimitExceededError(f"Rate limit exceeded for {rate_limiter}")
+                    raise RateLimitExceededError(
+                        f"Rate limit exceeded for {rate_limiter}"
+                    )
 
             # Apply bulkhead
             if bh:
                 return await bh.execute(
-                    _execute_with_circuit_breaker_and_retry, func, cb, rp, *args, **kwargs
+                    _execute_with_circuit_breaker_and_retry,
+                    func,
+                    cb,
+                    rp,
+                    *args,
+                    **kwargs,
                 )
-            return await _execute_with_circuit_breaker_and_retry(func, cb, rp, *args, **kwargs)
+            return await _execute_with_circuit_breaker_and_retry(
+                func, cb, rp, *args, **kwargs
+            )
 
         return wrapper
 
@@ -721,8 +762,11 @@ def with_retry(**kwargs):
     rp_name = kwargs.get("name", "default")
     manager = get_resilience_manager()
     if rp_name not in manager.retry_policies:
-        manager.create_retry_policy(rp_name, **{k: v for k, v in kwargs.items() if k != "name"})
+        manager.create_retry_policy(
+            rp_name, **{k: v for k, v in kwargs.items() if k != "name"}
+        )
     return resilient(retry_policy=rp_name)
+
 
 # Compatibility alias for resilient_client
 # CircuitBreaker was renamed to Circuit in some parts of the codebase

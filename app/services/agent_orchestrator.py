@@ -29,6 +29,7 @@ from app.services.agent_tool_middleware import TOOL_REGISTRY, AgentToolMiddlewar
 # Tool Invocation Request
 # ============================================================================
 
+
 class ToolInvocationRequest(BaseModel):
     """Request to invoke an agent tool"""
 
@@ -47,6 +48,7 @@ class ToolInvocationRequest(BaseModel):
 # Tool Invocation Response
 # ============================================================================
 
+
 class ToolInvocationResponse(BaseModel):
     """Response from tool invocation"""
 
@@ -61,6 +63,7 @@ class ToolInvocationResponse(BaseModel):
 # ============================================================================
 # Agent Orchestrator
 # ============================================================================
+
 
 class AgentOrchestrator:
     """
@@ -78,8 +81,7 @@ class AgentOrchestrator:
         self.middleware = AgentToolMiddleware()
 
     async def invoke_tool(
-        self,
-        request: ToolInvocationRequest
+        self, request: ToolInvocationRequest
     ) -> ToolInvocationResponse:
         """
         Invoke an agent tool with full policy enforcement
@@ -97,7 +99,7 @@ class AgentOrchestrator:
                 user_id=request.user_id,
                 user_role=request.user_role,
                 tool_name=request.tool_name,
-                parameters=request.parameters
+                parameters=request.parameters,
             )
 
             # Step 2: Handle consent requirement
@@ -116,27 +118,24 @@ class AgentOrchestrator:
                     success=False,
                     consent_required=True,
                     consent_request_id=consent_request_id,
-                    error="Consent required for sensitive action"
+                    error="Consent required for sensitive action",
                 )
 
             # Step 3: Access denied
             if not access_result.allowed:
-                return ToolInvocationResponse(
-                    success=False,
-                    error=access_result.reason
-                )
+                return ToolInvocationResponse(success=False, error=access_result.reason)
 
             # Step 4: Execute tool
             context = {
                 "ip_address": request.ip_address,
                 "user_agent": request.user_agent,
-                "session_id": request.session_id
+                "session_id": request.session_id,
             }
 
             execution_result = await self.middleware.execute_tool(
                 access_result=access_result,
                 parameters=request.parameters,
-                context=context
+                context=context,
             )
 
             # Step 5: Return result
@@ -144,20 +143,17 @@ class AgentOrchestrator:
                 success=execution_result["success"],
                 result=execution_result.get("result"),
                 error=execution_result.get("error"),
-                execution_time_ms=execution_result.get("execution_time_ms")
+                execution_time_ms=execution_result.get("execution_time_ms"),
             )
 
         except Exception as e:
             # Log error
             return ToolInvocationResponse(
-                success=False,
-                error=f"Tool invocation failed: {e!s}"
+                success=False, error=f"Tool invocation failed: {e!s}"
             )
 
     async def invoke_tool_with_consent(
-        self,
-        request: ToolInvocationRequest,
-        consent_granted: bool
+        self, request: ToolInvocationRequest, consent_granted: bool
     ) -> ToolInvocationResponse:
         """
         Invoke tool after consent has been granted/denied
@@ -172,18 +168,14 @@ class AgentOrchestrator:
 
         if not consent_granted:
             return ToolInvocationResponse(
-                success=False,
-                error="Consent was denied by user"
+                success=False, error="Consent was denied by user"
             )
 
         # Proceed with tool invocation
         # (consent already granted, so consent_required check will be skipped)
         return await self.invoke_tool(request)
 
-    async def list_available_tools(
-        self,
-        user_role: str
-    ) -> list[dict[str, Any]]:
+    async def list_available_tools(self, user_role: str) -> list[dict[str, Any]]:
         """
         List tools available to user based on role
 
@@ -199,20 +191,19 @@ class AgentOrchestrator:
         for tool_name, tool_def in TOOL_REGISTRY.items():
             # Check if user's role is allowed
             if user_role in tool_def.allowed_roles:
-                available_tools.append({
-                    "name": tool_def.name,
-                    "description": tool_def.description,
-                    "safety_level": tool_def.safety_level.value,
-                    "requires_consent": tool_def.requires_consent,
-                    "rate_limit": tool_def.rate_limit
-                })
+                available_tools.append(
+                    {
+                        "name": tool_def.name,
+                        "description": tool_def.description,
+                        "safety_level": tool_def.safety_level.value,
+                        "requires_consent": tool_def.requires_consent,
+                        "rate_limit": tool_def.rate_limit,
+                    }
+                )
 
         return available_tools
 
-    async def get_tool_info(
-        self,
-        tool_name: str
-    ) -> dict[str, Any] | None:
+    async def get_tool_info(self, tool_name: str) -> dict[str, Any] | None:
         """
         Get information about a specific tool
 
@@ -236,7 +227,7 @@ class AgentOrchestrator:
             "requires_consent": tool_def.requires_consent,
             "consent_type": tool_def.consent_type,
             "rate_limit": tool_def.rate_limit,
-            "row_limit": tool_def.row_limit
+            "row_limit": tool_def.row_limit,
         }
 
 
@@ -253,8 +244,7 @@ router = APIRouter(prefix="/agent/tools", tags=["agent-tools"])
 
 @router.post("/invoke", response_model=ToolInvocationResponse)
 async def invoke_agent_tool(
-    request: ToolInvocationRequest,
-    current_user = Depends(get_current_user)
+    request: ToolInvocationRequest, current_user=Depends(get_current_user)
 ):
     """
     Invoke an agent tool
@@ -275,11 +265,11 @@ async def invoke_agent_tool(
     return await orchestrator.invoke_tool(request)
 
 
-@router.post("/invoke/{consent_request_id}/consent", response_model=ToolInvocationResponse)
+@router.post(
+    "/invoke/{consent_request_id}/consent", response_model=ToolInvocationResponse
+)
 async def grant_tool_consent(
-    consent_request_id: str,
-    granted: bool,
-    current_user = Depends(get_current_user)
+    consent_request_id: str, granted: bool, current_user=Depends(get_current_user)
 ):
     """
     Grant or deny consent for tool invocation
@@ -297,18 +287,13 @@ async def grant_tool_consent(
     if granted:
         return ToolInvocationResponse(
             success=False,
-            error="Consent granted. Please retry original tool invocation."
+            error="Consent granted. Please retry original tool invocation.",
         )
-    return ToolInvocationResponse(
-        success=False,
-        error="Consent denied by user."
-    )
+    return ToolInvocationResponse(success=False, error="Consent denied by user.")
 
 
 @router.get("/list", response_model=list[dict[str, Any]])
-async def list_available_tools(
-    current_user = Depends(get_current_user)
-):
+async def list_available_tools(current_user=Depends(get_current_user)):
     """
     List tools available to current user
     """
@@ -318,10 +303,7 @@ async def list_available_tools(
 
 
 @router.get("/{tool_name}", response_model=dict[str, Any])
-async def get_tool_info(
-    tool_name: str,
-    current_user = Depends(get_current_user)
-):
+async def get_tool_info(tool_name: str, current_user=Depends(get_current_user)):
     """
     Get information about a specific tool
     """
@@ -367,12 +349,14 @@ async def consent_websocket(websocket: WebSocket):
             action_description = data.get("action_description")
 
             # Display to user (in production, this would be UI)
-            await websocket.send_json({
-                "type": "consent_request",
-                "consent_request_id": consent_request_id,
-                "tool_name": tool_name,
-                "action_description": action_description
-            })
+            await websocket.send_json(
+                {
+                    "type": "consent_request",
+                    "consent_request_id": consent_request_id,
+                    "tool_name": tool_name,
+                    "action_description": action_description,
+                }
+            )
 
             # Wait for user response
             response = await websocket.receive_json()
@@ -384,11 +368,13 @@ async def consent_websocket(websocket: WebSocket):
             await middleware.grant_consent(consent_request_id, consent_granted)
 
             # Send acknowledgment
-            await websocket.send_json({
-                "type": "consent_recorded",
-                "consent_request_id": consent_request_id,
-                "granted": consent_granted
-            })
+            await websocket.send_json(
+                {
+                    "type": "consent_recorded",
+                    "consent_request_id": consent_request_id,
+                    "granted": consent_granted,
+                }
+            )
 
     except Exception as e:
         await websocket.close(code=1011, reason=str(e))

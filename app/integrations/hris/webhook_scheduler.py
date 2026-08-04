@@ -5,21 +5,21 @@ Real-time event processing and automated synchronization.
 File: app/integrations/hris/webhook_scheduler.py
 """
 
-from collections.abc import Callable
-from dataclasses import asdict, dataclass
-from datetime import datetime
-from enum import Enum
 import hashlib
 import hmac
 import json
 import logging
 import threading
 import time
+from collections.abc import Callable
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from enum import Enum
 from typing import Any
 
-from flask import Flask, jsonify, request
 import requests
 import schedule
+from flask import Flask, jsonify, request
 
 logger = logging.getLogger(__name__)
 
@@ -115,13 +115,16 @@ class WebhookReceiver:
                 # Process event
                 self._process_event(event)
 
-                return jsonify(
-                    {
-                        "status": "success",
-                        "event_id": event.event_id,
-                        "processed_at": datetime.now().isoformat(),
-                    }
-                ), 200
+                return (
+                    jsonify(
+                        {
+                            "status": "success",
+                            "event_id": event.event_id,
+                            "processed_at": datetime.now().isoformat(),
+                        }
+                    ),
+                    200,
+                )
 
             except Exception as e:
                 logger.error(f"Webhook processing error: {e}")
@@ -152,7 +155,9 @@ class WebhookReceiver:
         if not signature:
             return False
 
-        expected_signature = hmac.new(self.secret_key.encode(), payload, hashlib.sha256).hexdigest()
+        expected_signature = hmac.new(
+            self.secret_key.encode(), payload, hashlib.sha256
+        ).hexdigest()
 
         return hmac.compare_digest(signature, expected_signature)
 
@@ -275,7 +280,9 @@ class WebhookSender:
 
         for url in self.webhook_urls:
             try:
-                response = self.session.post(url, data=payload, headers=headers, timeout=10)
+                response = self.session.post(
+                    url, data=payload, headers=headers, timeout=10
+                )
 
                 results[url] = response.status_code == 200
 

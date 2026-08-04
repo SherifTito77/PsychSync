@@ -3,21 +3,33 @@ Boundary Condition Tests for Advanced Functions
 Tests the 1000% optimized functions with extreme values and stress conditions
 """
 
-import pytest
 import asyncio
-import time
-from datetime import datetime, timedelta
-from typing import Dict, Any, List
-from unittest.mock import AsyncMock, patch, MagicMock
-from unittest.mock import PropertyMock
 import json
-import uuid
 import random
+import time
+import uuid
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
-from app.services.request_processor import RequestProcessor, RequestPriority, ProcessedRequest
-from app.services.intelligent_cache import IntelligentCache, CacheLevel
-from app.services.response_transformer import ResponseTransformer, ResponseFormat, ClientType
-from app.services.validation_framework import ValidationFramework, ValidationScope, ValidationRule
+import pytest
+
+from app.services.intelligent_cache import CacheLevel, IntelligentCache
+from app.services.request_processor import (
+    ProcessedRequest,
+    RequestPriority,
+    RequestProcessor,
+)
+from app.services.response_transformer import (
+    ClientType,
+    ResponseFormat,
+    ResponseTransformer,
+)
+from app.services.validation_framework import (
+    ValidationFramework,
+    ValidationRule,
+    ValidationScope,
+)
 
 
 @pytest.mark.comprehensive
@@ -37,14 +49,12 @@ class TestRequestProcessorBoundaryConditions:
         # Test with extremely large payload (stress test)
         large_payload = {
             "data": "x" * 10_000_000,  # 10MB of data
-            "metadata": {"size": "huge"}
+            "metadata": {"size": "huge"},
         }
 
         start_time = time.time()
         processed = await processor.process_request(
-            large_payload,
-            priority=RequestPriority.LOW,
-            enable_compression=True
+            large_payload, priority=RequestPriority.LOW, enable_compression=True
         )
         duration = time.time() - start_time
 
@@ -90,18 +100,18 @@ class TestRequestProcessorBoundaryConditions:
         requests = []
         for i in range(100):
             priority = random.choice(list(RequestPriority))
-            requests.append({
-                "id": i,
-                "priority": priority,
-                "timestamp": time.time() + random.uniform(-10, 10)
-            })
+            requests.append(
+                {
+                    "id": i,
+                    "priority": priority,
+                    "timestamp": time.time() + random.uniform(-10, 10),
+                }
+            )
 
         # Process all requests
         tasks = [
             processor.process_request(
-                req,
-                priority=req["priority"],
-                created_at=req["timestamp"]
+                req, priority=req["priority"], created_at=req["timestamp"]
             )
             for req in requests
         ]
@@ -110,8 +120,9 @@ class TestRequestProcessorBoundaryConditions:
 
         # High priority requests should be processed first
         high_priority_results = [
-            r for r in results
-            if getattr(r, 'priority', RequestPriority.NORMAL) == RequestPriority.HIGH
+            r
+            for r in results
+            if getattr(r, "priority", RequestPriority.NORMAL) == RequestPriority.HIGH
         ]
 
         # Verify priority ordering was respected
@@ -133,7 +144,9 @@ class TestRequestProcessorBoundaryConditions:
         results = await asyncio.gather(*tasks)
 
         # Should have significant cache hit rate for identical requests
-        unique_results = set(r.cache_status for r in results if hasattr(r, 'cache_status'))
+        unique_results = set(
+            r.cache_status for r in results if hasattr(r, "cache_status")
+        )
         assert "HIT" in unique_results
 
         # Test requests with minimal differences
@@ -160,8 +173,7 @@ class TestRequestProcessorBoundaryConditions:
         # Test with already compressed data (shouldn't compress further)
         compressed_data = "x" * 1000  # Repetitive data compresses well
         processed = await processor.process_request(
-            {"data": compressed_data},
-            enable_compression=True
+            {"data": compressed_data}, enable_compression=True
         )
         assert processed.compression_ratio > 10.0  # Should compress very well
 
@@ -169,21 +181,20 @@ class TestRequestProcessorBoundaryConditions:
         import random
         import string
 
-        uncompressible_data = ''.join(random.choices(
-            string.ascii_letters + string.digits + string.punctuation,
-            k=1000
-        ))
+        uncompressible_data = "".join(
+            random.choices(
+                string.ascii_letters + string.digits + string.punctuation, k=1000
+            )
+        )
         processed = await processor.process_request(
-            {"data": uncompressible_data},
-            enable_compression=True
+            {"data": uncompressible_data}, enable_compression=True
         )
         # Should have minimal compression for random data
         assert processed.compression_ratio < 2.0
 
         # Test with empty data
         processed = await processor.process_request(
-            {"data": ""},
-            enable_compression=True
+            {"data": ""}, enable_compression=True
         )
         assert processed.compression_ratio == 1.0
 
@@ -196,8 +207,7 @@ class TestRequestProcessorBoundaryConditions:
             # Process a large number of requests
             for batch in range(10):
                 requests = [
-                    {"batch": batch, "id": i, "data": "x" * 1000}
-                    for i in range(100)
+                    {"batch": batch, "id": i, "data": "x" * 1000} for i in range(100)
                 ]
 
                 tasks = [processor.process_request(req) for req in requests]
@@ -205,6 +215,7 @@ class TestRequestProcessorBoundaryConditions:
 
                 # Force garbage collection
                 import gc
+
                 gc.collect()
 
         # Memory usage should be reasonable and not grow indefinitely
@@ -374,7 +385,7 @@ class TestIntelligentCacheBoundaryConditions:
             return {
                 "id": random.randint(1, 1000),
                 "data": "x" * random.randint(100, 10000),
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
         # Test warming with large dataset
@@ -411,18 +422,16 @@ class TestResponseTransformerBoundaryConditions:
                     "id": i,
                     "name": f"User {i}",
                     "email": f"user{i}@example.com",
-                    "data": "x" * 1000  # Extra data per user
+                    "data": "x" * 1000,  # Extra data per user
                 }
                 for i in range(10000)  # 10k users
             ],
-            "metadata": {"total": 10000, "page": 1}
+            "metadata": {"total": 10000, "page": 1},
         }
 
         start_time = time.time()
         transformed = await transformer.transform_response(
-            large_data,
-            target_format=ResponseFormat.JSON,
-            client_type=ClientType.WEB
+            large_data, target_format=ResponseFormat.JSON, client_type=ClientType.WEB
         )
         duration = time.time() - start_time
 
@@ -439,35 +448,19 @@ class TestResponseTransformerBoundaryConditions:
         complex_data = {
             "null_values": [None, None],
             "empty_containers": [[], {}],
-            "special_numbers": [float('inf'), float('-inf'), float('nan')],
+            "special_numbers": [float("inf"), float("-inf"), float("nan")],
             "unicode_data": "Unicode: 🚀 ✓ ✗ 中文 ñoño",
             "deep_nesting": {
-                "level1": {
-                    "level2": {
-                        "level3": {
-                            "level4": {
-                                "level5": "deep value"
-                            }
-                        }
-                    }
-                }
+                "level1": {"level2": {"level3": {"level4": {"level5": "deep value"}}}}
             },
-            "mixed_types": [
-                "string",
-                42,
-                True,
-                None,
-                {"nested": "object"},
-                [1, 2, 3]
-            ]
+            "mixed_types": ["string", 42, True, None, {"nested": "object"}, [1, 2, 3]],
         }
 
         # Test conversion to all supported formats
         for format_type in ResponseFormat:
             try:
                 transformed = await transformer.transform_response(
-                    complex_data,
-                    target_format=format_type
+                    complex_data, target_format=format_type
                 )
                 assert transformed is not None
                 assert transformed.data is not None
@@ -488,7 +481,8 @@ class TestResponseTransformerBoundaryConditions:
             "curl/7.68.0",  # Command-line client
             "Python/3.9 requests/2.25.1",  # Python client
             "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",  # Bot
-            "VeryLongUserAgentStringThatExceedsNormalLengthsAndMightCauseIssues" * 10,  # Extremely long
+            "VeryLongUserAgentStringThatExceedsNormalLengthsAndMightCauseIssues"
+            * 10,  # Extremely long
         ]
 
         for ua in user_agents:
@@ -519,10 +513,7 @@ class TestResponseTransformerBoundaryConditions:
         include_fields = [f"field_{i}" for i in range(0, 1000, 2)]
 
         filtered = await transformer.transform_response(
-            large_data,
-            field_filtering={
-                "include_fields": include_fields
-            }
+            large_data, field_filtering={"include_fields": include_fields}
         )
 
         # Should only include requested fields
@@ -532,10 +523,7 @@ class TestResponseTransformerBoundaryConditions:
         exclude_fields = [f"field_{i}" for i in range(100, 200)]
 
         filtered = await transformer.transform_response(
-            large_data,
-            field_filtering={
-                "exclude_fields": exclude_fields
-            }
+            large_data, field_filtering={"exclude_fields": exclude_fields}
         )
 
         # Should exclude specified fields
@@ -554,21 +542,22 @@ class TestResponseTransformerBoundaryConditions:
         }
 
         compressed = await transformer.transform_response(
-            compressible_data,
-            enable_compression=True
+            compressible_data, enable_compression=True
         )
 
         assert compressed.metadata.compression_ratio > 5.0
 
         # Test with uncompressible data
         import random
+
         random_data = {
-            "random_string": ''.join(random.choices('abcdefghijklmnopqrstuvwxyz', k=10000))
+            "random_string": "".join(
+                random.choices("abcdefghijklmnopqrstuvwxyz", k=10000)
+            )
         }
 
         compressed = await transformer.transform_response(
-            random_data,
-            enable_compression=True
+            random_data, enable_compression=True
         )
 
         # Should still have some compression but less than compressible data
@@ -583,14 +572,13 @@ class TestResponseTransformerBoundaryConditions:
             data = {
                 "worker_id": worker_id,
                 "timestamp": time.time(),
-                "data": "x" * 1000
+                "data": "x" * 1000,
             }
 
             for i in range(50):
                 format_type = random.choice(list(ResponseFormat))
                 transformed = await transformer.transform_response(
-                    data,
-                    target_format=format_type
+                    data, target_format=format_type
                 )
                 assert transformed is not None
 
@@ -619,14 +607,12 @@ class TestValidationFrameworkBoundaryConditions:
         schema = {
             "large_field": {
                 "type": "string",
-                "max_length": 2_000_000  # Allow large strings
+                "max_length": 2_000_000,  # Allow large strings
             }
         }
 
         result = await validator.validate(
-            {"large_field": large_string},
-            schema,
-            scope=ValidationScope.BASIC
+            {"large_field": large_string}, schema, scope=ValidationScope.BASIC
         )
 
         assert result.is_valid
@@ -634,9 +620,7 @@ class TestValidationFrameworkBoundaryConditions:
         # Test with string exceeding maximum
         too_large_string = "x" * 3_000_000
         result = await validator.validate(
-            {"large_field": too_large_string},
-            schema,
-            scope=ValidationScope.BASIC
+            {"large_field": too_large_string}, schema, scope=ValidationScope.BASIC
         )
 
         assert not result.is_valid
@@ -658,9 +642,7 @@ class TestValidationFrameworkBoundaryConditions:
         schema = {"nested": {"type": "object", "recursive": True}}
 
         result = await validator.validate(
-            reasonable_data,
-            schema,
-            scope=ValidationScope.COMPREHENSIVE
+            reasonable_data, schema, scope=ValidationScope.COMPREHENSIVE
         )
 
         assert result.is_valid
@@ -669,9 +651,7 @@ class TestValidationFrameworkBoundaryConditions:
         try:
             excessive_data = create_nested_structure(1000)
             result = await validator.validate(
-                excessive_data,
-                schema,
-                scope=ValidationScope.COMPREHENSIVE
+                excessive_data, schema, scope=ValidationScope.COMPREHENSIVE
             )
             # Should either succeed with depth limiting or fail gracefully
         except RecursionError:
@@ -699,30 +679,23 @@ class TestValidationFrameworkBoundaryConditions:
         # Add boundary rule
         validator.add_custom_rule("boundary_check", BoundaryRule(-1000, 1000))
 
-        schema = {
-            "value": {
-                "type": "number",
-                "custom_rules": ["boundary_check"]
-            }
-        }
+        schema = {"value": {"type": "number", "custom_rules": ["boundary_check"]}}
 
         # Test boundary values
         boundary_tests = [
-            (-1000, True),   # At minimum
-            (-999.99, True), # Just above minimum
-            (0, True),       # Zero
+            (-1000, True),  # At minimum
+            (-999.99, True),  # Just above minimum
+            (0, True),  # Zero
             (999.99, True),  # Just below maximum
-            (1000, True),    # At maximum
-            (-1000.01, False), # Just below minimum
+            (1000, True),  # At maximum
+            (-1000.01, False),  # Just below minimum
             (1000.01, False),  # Just above maximum
-            ("invalid", False), # Invalid type
+            ("invalid", False),  # Invalid type
         ]
 
         for test_value, expected_valid in boundary_tests:
             result = await validator.validate(
-                {"value": test_value},
-                schema,
-                scope=ValidationScope.BUSINESS
+                {"value": test_value}, schema, scope=ValidationScope.BUSINESS
             )
 
             assert result.is_valid == expected_valid, f"Failed for value: {test_value}"
@@ -735,7 +708,7 @@ class TestValidationFrameworkBoundaryConditions:
         schema = {
             "name": {"type": "string", "required": True, "min_length": 1},
             "email": {"type": "email", "required": True},
-            "age": {"type": "integer", "min": 0, "max": 150}
+            "age": {"type": "integer", "min": 0, "max": 150},
         }
 
         async def validation_worker(worker_id):
@@ -743,13 +716,11 @@ class TestValidationFrameworkBoundaryConditions:
                 data = {
                     "name": f"User {worker_id}-{i}",
                     "email": f"user{worker_id}{i}@example.com",
-                    "age": random.randint(18, 80)
+                    "age": random.randint(18, 80),
                 }
 
                 result = await validator.validate(
-                    data,
-                    schema,
-                    scope=ValidationScope.COMPREHENSIVE
+                    data, schema, scope=ValidationScope.COMPREHENSIVE
                 )
 
                 assert result.is_valid
@@ -770,9 +741,7 @@ class TestValidationFrameworkBoundaryConditions:
         validator.cache_enabled = True
         validator.cache_max_size = 10  # Small cache for testing
 
-        schema = {
-            "field": {"type": "string", "min_length": 5}
-        }
+        schema = {"field": {"type": "string", "min_length": 5}}
 
         # Fill cache beyond capacity
         for i in range(50):
@@ -784,8 +753,12 @@ class TestValidationFrameworkBoundaryConditions:
 
         # Recently used validations should still be cached
         recent_data = {"field": "value_49"}
-        result1 = await validator.validate(recent_data, schema, scope=ValidationScope.BASIC)
-        result2 = await validator.validate(recent_data, schema, scope=ValidationScope.BASIC)
+        result1 = await validator.validate(
+            recent_data, schema, scope=ValidationScope.BASIC
+        )
+        result2 = await validator.validate(
+            recent_data, schema, scope=ValidationScope.BASIC
+        )
 
         # Should get cached result
         assert result1.cache_hit == False
@@ -811,13 +784,13 @@ class TestValidationFrameworkBoundaryConditions:
                                         "type": "array",
                                         "items": {"type": "string"},
                                         "min_items": 1,
-                                        "max_items": 100
+                                        "max_items": 100,
                                     }
-                                }
+                                },
                             }
-                        }
+                        },
                     }
-                }
+                },
             }
         }
 
@@ -825,9 +798,7 @@ class TestValidationFrameworkBoundaryConditions:
         complex_data = {
             "user": {
                 "profile": {
-                    "personal": {
-                        "interests": [f"interest_{i}" for i in range(50)]
-                    }
+                    "personal": {"interests": [f"interest_{i}" for i in range(50)]}
                 }
             }
         }
@@ -835,9 +806,7 @@ class TestValidationFrameworkBoundaryConditions:
         with performance_timer() as timer:
             for i in range(1000):
                 await validator.validate(
-                    complex_data,
-                    complex_schema,
-                    scope=ValidationScope.COMPREHENSIVE
+                    complex_data, complex_schema, scope=ValidationScope.COMPREHENSIVE
                 )
 
         # Should complete 1000 complex validations efficiently

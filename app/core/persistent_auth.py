@@ -4,12 +4,12 @@ Secure Persistent Authentication Manager for PsychSync
 Handles secure remember-me tokens with cryptographic signatures
 """
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta
 import hashlib
 import hmac
 import logging
 import secrets
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any
 
 from app.core.cache import cache_delete, cache_get, cache_set
@@ -95,7 +95,9 @@ class PersistentAuthManager:
             # Create final token (selector + validator hash for storage)
             validator_hash = self._hash_validator(validator)
 
-            logger.info(f"Persistent token generated: {selector[:8]}... for user: {user_id}")
+            logger.info(
+                f"Persistent token generated: {selector[:8]}... for user: {user_id}"
+            )
 
             return {
                 "selector": selector,
@@ -147,13 +149,17 @@ class PersistentAuthManager:
             stored_validator_hash = token_data["validator"]
             provided_validator_hash = self._hash_validator(validator)
 
-            if not self._constant_time_compare(stored_validator_hash, provided_validator_hash):
+            if not self._constant_time_compare(
+                stored_validator_hash, provided_validator_hash
+            ):
                 logger.warning(f"Invalid persistent token validator: {selector[:8]}...")
                 await self._revoke_token(selector, "invalid_validator")
                 return {"valid": False, "reason": "invalid_validator", "user_id": None}
 
             # Check for suspicious usage patterns
-            security_warnings = await self._check_usage_patterns(token_data, ip_address, user_agent)
+            security_warnings = await self._check_usage_patterns(
+                token_data, ip_address, user_agent
+            )
 
             # Update last used timestamp
             await self._update_token_usage(selector, ip_address, user_agent)
@@ -162,7 +168,9 @@ class PersistentAuthManager:
             if await self._should_rotate_validator(token_data):
                 new_validator = await self._rotate_validator(selector)
                 if new_validator:
-                    logger.info(f"Token validator rotated for security: {selector[:8]}...")
+                    logger.info(
+                        f"Token validator rotated for security: {selector[:8]}..."
+                    )
 
             return {
                 "valid": True,
@@ -176,7 +184,9 @@ class PersistentAuthManager:
             logger.error(f"Persistent token verification failed: {e}")
             return {"valid": False, "reason": "verification_error", "user_id": None}
 
-    async def revoke_persistent_token(self, selector: str, reason: str = "logout") -> bool:
+    async def revoke_persistent_token(
+        self, selector: str, reason: str = "logout"
+    ) -> bool:
         """
         Revoke a persistent authentication token
 
@@ -189,7 +199,9 @@ class PersistentAuthManager:
         """
         return await self._revoke_token(selector, reason)
 
-    async def revoke_all_user_tokens(self, user_id: str, reason: str = "security_action") -> int:
+    async def revoke_all_user_tokens(
+        self, user_id: str, reason: str = "security_action"
+    ) -> int:
         """
         Revoke all persistent tokens for a user
 
@@ -212,7 +224,9 @@ class PersistentAuthManager:
             # Clear user's token list
             await cache_delete(user_tokens_key)
 
-            logger.info(f"Revoked {revoked_count} persistent tokens for user: {user_id}")
+            logger.info(
+                f"Revoked {revoked_count} persistent tokens for user: {user_id}"
+            )
 
             return revoked_count
 
@@ -245,7 +259,8 @@ class PersistentAuthManager:
 
                     active_tokens.append(
                         {
-                            "selector": selector[:8] + "...",  # Partial selector for display
+                            "selector": selector[:8]
+                            + "...",  # Partial selector for display
                             "created_at": token_data["created_at"],
                             "last_used": token_data["last_used"],
                             "expires_at": token_data["expires_at"],
@@ -286,13 +301,17 @@ class PersistentAuthManager:
             token_key = f"{self.TOKEN_PREFIX}{token_data.token_id}"
             selector_key = f"{self.SELECTOR_PREFIX}{token_data.selector}"
 
-            expire_seconds = int((token_data.expires_at - datetime.utcnow()).total_seconds())
+            expire_seconds = int(
+                (token_data.expires_at - datetime.utcnow()).total_seconds()
+            )
 
             cache_set(token_key, storage_data, expire_seconds=expire_seconds)
             cache_set(selector_key, storage_data, expire_seconds=expire_seconds)
 
             # Add to user's token list
-            self._add_user_token(token_data.user_id, token_data.selector, expire_seconds)
+            self._add_user_token(
+                token_data.user_id, token_data.selector, expire_seconds
+            )
 
         except Exception as e:
             logger.error(f"Failed to store token data: {e}")
@@ -360,7 +379,10 @@ class PersistentAuthManager:
                 )
 
             # User agent change
-            if token_data["user_agent"] and token_data["user_agent"] != user_agent[:200]:
+            if (
+                token_data["user_agent"]
+                and token_data["user_agent"] != user_agent[:200]
+            ):
                 warnings.append("user_agent_changed")
                 logger.warning(
                     f"Token used with different user agent: {token_data['selector'][:8]}..."
@@ -377,7 +399,9 @@ class PersistentAuthManager:
 
         return warnings
 
-    async def _update_token_usage(self, selector: str, ip_address: str, user_agent: str):
+    async def _update_token_usage(
+        self, selector: str, ip_address: str, user_agent: str
+    ):
         """Update token usage timestamp"""
         try:
             token_data = await self._get_token_by_selector(selector)

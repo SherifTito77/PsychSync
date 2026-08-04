@@ -9,21 +9,22 @@ This test suite verifies:
 5. Transaction rollback behavior
 """
 
+import asyncio
+from datetime import datetime, timedelta
+from typing import Any, AsyncGenerator, Dict, List
+from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
-from typing import AsyncGenerator, List, Dict, Any
-from datetime import datetime, timedelta
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text, select, delete
-from unittest.mock import patch, AsyncMock
-import asyncio
 
 from app.core.database import Base, get_async_db
-from app.db.models.user import User, UserRole
-from app.db.models.team import Team, TeamMember, TeamRole
-from app.db.models.organization import Organization
-from app.db.models.response import Response, AssessmentResponse
 from app.db.models.assessment import Assessment
+from app.db.models.organization import Organization
+from app.db.models.response import AssessmentResponse, Response
+from app.db.models.team import Team, TeamMember, TeamRole
+from app.db.models.user import User, UserRole
 from app.services.security import get_password_hash
 
 
@@ -40,8 +41,7 @@ class TestDatabaseIntegrity:
         """
         # Create test data
         org = Organization(
-            name="Test Org",
-            description="Test organization for integrity testing"
+            name="Test Org", description="Test organization for integrity testing"
         )
         db_session.add(org)
         await db_session.flush()
@@ -52,7 +52,7 @@ class TestDatabaseIntegrity:
             password_hash=get_password_hash("testpassword123"),
             full_name="Test User",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
         )
         db_session.add(user)
         await db_session.flush()
@@ -61,7 +61,7 @@ class TestDatabaseIntegrity:
         team = Team(
             name="Test Team",
             description="Test team for integrity testing",
-            organization_id=org.id
+            organization_id=org.id,
         )
         db_session.add(team)
         await db_session.flush()
@@ -70,7 +70,7 @@ class TestDatabaseIntegrity:
             team_id=team.id,
             user_id=user.id,
             role=TeamRole.MEMBER,
-            joined_at=datetime.utcnow()
+            joined_at=datetime.utcnow(),
         )
         db_session.add(team_member)
         await db_session.flush()
@@ -79,7 +79,7 @@ class TestDatabaseIntegrity:
         assessment = Assessment(
             title="Test Assessment",
             description="Test assessment for integrity testing",
-            organization_id=org.id
+            organization_id=org.id,
         )
         db_session.add(assessment)
         await db_session.flush()
@@ -89,7 +89,7 @@ class TestDatabaseIntegrity:
             user_id=user.id,
             responses={"question_1": "answer_1"},
             score=85,
-            completed_at=datetime.utcnow()
+            completed_at=datetime.utcnow(),
         )
         db_session.add(response)
         await db_session.commit()
@@ -115,7 +115,9 @@ class TestDatabaseIntegrity:
         org_after = await db_session.get(Organization, org.id)
 
         # Assertions
-        assert org_after is not None, "Organization should not be deleted when user is deleted"
+        assert (
+            org_after is not None
+        ), "Organization should not be deleted when user is deleted"
         assert team_after is not None, "Team should not be deleted when user is deleted"
 
         # These assertions depend on your cascade setup - adjust as needed
@@ -127,24 +129,28 @@ class TestDatabaseIntegrity:
         # Adjust this assertion based on your business logic
         # assert response_after is None, "Response should be deleted when user is deleted"
 
-    async def test_database_constraints_and_foreign_keys(self, db_session: AsyncSession):
+    async def test_database_constraints_and_foreign_keys(
+        self, db_session: AsyncSession
+    ):
         """
         Test database constraints and foreign key relationships
         """
         # Create organization
         org = Organization(
             name="Constraint Test Org",
-            description="Organization for constraint testing"
+            description="Organization for constraint testing",
         )
         db_session.add(org)
         await db_session.flush()
 
         # Test foreign key constraint
-        with pytest.raises(Exception):  # Should raise an exception for invalid foreign key
+        with pytest.raises(
+            Exception
+        ):  # Should raise an exception for invalid foreign key
             team = Team(
                 name="Invalid Team",
                 description="Team with invalid organization",
-                organization_id="00000000-0000-0000-0000-000000000000"  # Invalid UUID
+                organization_id="00000000-0000-0000-0000-000000000000",  # Invalid UUID
             )
             db_session.add(team)
             await db_session.commit()
@@ -156,7 +162,7 @@ class TestDatabaseIntegrity:
         valid_team = Team(
             name="Valid Team",
             description="Team with valid organization",
-            organization_id=org.id
+            organization_id=org.id,
         )
         db_session.add(valid_team)
         await db_session.commit()
@@ -177,7 +183,7 @@ class TestDatabaseIntegrity:
             password_hash=get_password_hash("password123"),
             full_name="First User",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
         )
         db_session.add(user1)
         await db_session.commit()
@@ -188,7 +194,7 @@ class TestDatabaseIntegrity:
             password_hash=get_password_hash("password456"),
             full_name="Second User",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
         )
         db_session.add(user2)
 
@@ -214,8 +220,7 @@ class TestDatabaseIntegrity:
 
         # Create organization (should be audited)
         org = Organization(
-            name="Audit Test Org",
-            description="Organization for audit testing"
+            name="Audit Test Org", description="Organization for audit testing"
         )
         db_session.add(org)
         await db_session.commit()
@@ -226,7 +231,7 @@ class TestDatabaseIntegrity:
             password_hash=get_password_hash("password123"),
             full_name="Audit Test User",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
         )
         db_session.add(user)
         await db_session.commit()
@@ -245,14 +250,15 @@ class TestDatabaseIntegrity:
         # For now, we'll just verify the operations completed
         assert user.full_name == "Updated Audit User"
 
-    async def test_transaction_rollback_on_workflow_failure(self, db_session: AsyncSession):
+    async def test_transaction_rollback_on_workflow_failure(
+        self, db_session: AsyncSession
+    ):
         """
         Test that transactions roll back properly when multi-step workflows fail
         """
         # Create organization
         org = Organization(
-            name="Rollback Test Org",
-            description="Organization for rollback testing"
+            name="Rollback Test Org", description="Organization for rollback testing"
         )
         db_session.add(org)
         await db_session.flush()
@@ -267,7 +273,7 @@ class TestDatabaseIntegrity:
                 password_hash=get_password_hash("password123"),
                 full_name="Rollback Test User",
                 role=UserRole.USER,
-                is_active=True
+                is_active=True,
             )
             db_session.add(user)
             await db_session.flush()
@@ -277,7 +283,7 @@ class TestDatabaseIntegrity:
             team = Team(
                 name="Rollback Test Team",
                 description="Team for rollback testing",
-                organization_id=org.id
+                organization_id=org.id,
             )
             db_session.add(team)
             await db_session.flush()
@@ -287,7 +293,7 @@ class TestDatabaseIntegrity:
                 team_id=team.id,
                 user_id=user_id,
                 role=TeamRole.MEMBER,
-                joined_at=datetime.utcnow()
+                joined_at=datetime.utcnow(),
             )
             db_session.add(invalid_team_member)
             await db_session.flush()
@@ -310,7 +316,7 @@ class TestDatabaseIntegrity:
                 password_hash=get_password_hash("password123"),
                 full_name="Rollback Success User",
                 role=UserRole.USER,
-                is_active=True
+                is_active=True,
             )
             db_session.add(user)
             await db_session.flush()
@@ -319,7 +325,7 @@ class TestDatabaseIntegrity:
             team = Team(
                 name="Rollback Success Team",
                 description="Team for successful rollback testing",
-                organization_id=org.id
+                organization_id=org.id,
             )
             db_session.add(team)
             await db_session.flush()
@@ -329,7 +335,7 @@ class TestDatabaseIntegrity:
                 team_id=team.id,
                 user_id=user.id,
                 role=TeamRole.MEMBER,
-                joined_at=datetime.utcnow()
+                joined_at=datetime.utcnow(),
             )
             db_session.add(team_member)
 
@@ -348,7 +354,7 @@ class TestDatabaseIntegrity:
         # This is a simplified test - in real scenarios you'd use multiple database connections
         org = Organization(
             name="Concurrent Test Org",
-            description="Organization for concurrent testing"
+            description="Organization for concurrent testing",
         )
         db_session.add(org)
         await db_session.commit()
@@ -368,7 +374,7 @@ class TestDatabaseIntegrity:
                 password_hash=get_password_hash("password123"),
                 full_name=full_name,
                 role=UserRole.USER,
-                is_active=True
+                is_active=True,
             )
             db_session.add(user)
             await db_session.flush()
@@ -383,14 +389,16 @@ class TestDatabaseIntegrity:
             assert user.id is not None
             assert user.email in [email for email, _ in users_to_create]
 
-    async def test_data_consistency_across_relationships(self, db_session: AsyncSession):
+    async def test_data_consistency_across_relationships(
+        self, db_session: AsyncSession
+    ):
         """
         Test data consistency across related tables
         """
         # Create complete hierarchy
         org = Organization(
             name="Consistency Test Org",
-            description="Organization for consistency testing"
+            description="Organization for consistency testing",
         )
         db_session.add(org)
         await db_session.flush()
@@ -401,7 +409,7 @@ class TestDatabaseIntegrity:
             password_hash=get_password_hash("admin123"),
             full_name="Admin User",
             role=UserRole.ADMIN,
-            is_active=True
+            is_active=True,
         )
         db_session.add(admin_user)
         await db_session.flush()
@@ -411,7 +419,7 @@ class TestDatabaseIntegrity:
             password_hash=get_password_hash("user123"),
             full_name="Regular User",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
         )
         db_session.add(regular_user)
         await db_session.flush()
@@ -420,7 +428,7 @@ class TestDatabaseIntegrity:
         team = Team(
             name="Consistency Test Team",
             description="Team for consistency testing",
-            organization_id=org.id
+            organization_id=org.id,
         )
         db_session.add(team)
         await db_session.flush()
@@ -430,7 +438,7 @@ class TestDatabaseIntegrity:
             team_id=team.id,
             user_id=admin_user.id,
             role=TeamRole.ADMIN,
-            joined_at=datetime.utcnow()
+            joined_at=datetime.utcnow(),
         )
         db_session.add(admin_member)
 
@@ -438,7 +446,7 @@ class TestDatabaseIntegrity:
             team_id=team.id,
             user_id=regular_user.id,
             role=TeamRole.MEMBER,
-            joined_at=datetime.utcnow()
+            joined_at=datetime.utcnow(),
         )
         db_session.add(regular_member)
         await db_session.commit()

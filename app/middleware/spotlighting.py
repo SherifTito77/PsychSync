@@ -19,13 +19,13 @@ Version: 1.0
 Date: 2025-12-27
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
 import hashlib
 import json
 import logging
 import re
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -38,31 +38,35 @@ logger = logging.getLogger(__name__)
 
 class ContentSource(Enum):
     """Source of content"""
-    USER = "user"                  # Direct user input
+
+    USER = "user"  # Direct user input
     EXTERNAL_API = "external_api"  # External API responses
-    DATABASE = "database"          # Database queries
-    LLM_OUTPUT = "llm_output"      # LLM generated content
-    SYSTEM = "system"              # System-generated content
-    FILE = "file"                  # File uploads
+    DATABASE = "database"  # Database queries
+    LLM_OUTPUT = "llm_output"  # LLM generated content
+    SYSTEM = "system"  # System-generated content
+    FILE = "file"  # File uploads
 
 
 class TrustLevel(Enum):
     """Trust level for content"""
-    UNTRUSTED = "untrusted"        # Must be validated/sanitized
-    PARTIAL = "partial"            # Some validation performed
-    TRUSTED = "trusted"            # Fully validated
+
+    UNTRUSTED = "untrusted"  # Must be validated/sanitized
+    PARTIAL = "partial"  # Some validation performed
+    TRUSTED = "trusted"  # Fully validated
 
 
 class SpotlightingMode(Enum):
     """Spotlighting mode"""
-    STRICT = "strict"              # All content must be explicitly marked
-    PERMISSIVE = "permissive"      # Auto-mark unmarked content as untrusted
-    DISABLED = "disabled"          # No spotlighting (testing only)
+
+    STRICT = "strict"  # All content must be explicitly marked
+    PERMISSIVE = "permissive"  # Auto-mark unmarked content as untrusted
+    DISABLED = "disabled"  # No spotlighting (testing only)
 
 
 @dataclass
 class SpotlightedContent:
     """Content with security metadata"""
+
     content: str
     source: ContentSource
     trust_level: TrustLevel
@@ -80,7 +84,7 @@ class SpotlightedContent:
             "content_hash": self.content_hash,
             "timestamp": self.timestamp.isoformat(),
             "metadata": self.metadata,
-            "spotlight_markers": self.spotlight_markers
+            "spotlight_markers": self.spotlight_markers,
         }
 
 
@@ -108,24 +112,19 @@ class SpotlightingEngine:
         # Attempting to execute code
         r"<script[^>]*>.*?</script>",
         r"javascript:",
-
         # SQL injection keywords
         r";\s*DROP\s+TABLE",
         r";\s*DELETE\s+FROM",
         r";\s*INSERT\s+INTO",
         r";\s*UPDATE\s+\w+\s+SET",
         r"UNION\s+SELECT",
-
         # Path traversal
         r"\.\.[/\\]",
-
         # Command injection
         r"[;&|`$]",
-
         # Template injection
         r"\{\{.*?\}\}",
         r"\${.*?}",
-
         # Attempting to bypass spotlighting
         r"(ignore|remove|strip).*(spotlight|marker|comment)",
     ]
@@ -134,7 +133,7 @@ class SpotlightingEngine:
         self,
         mode: SpotlightingMode = SpotlightingMode.STRICT,
         enable_hash_verification: bool = True,
-        max_content_size: int = 100000
+        max_content_size: int = 100000,
     ):
         """
         Initialize spotlighting engine.
@@ -161,7 +160,7 @@ class SpotlightingEngine:
         content: str,
         source: ContentSource,
         trust_level: TrustLevel = TrustLevel.UNTRUSTED,
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ) -> SpotlightedContent:
         """
         Mark content with spotlighting for tracking.
@@ -176,8 +175,10 @@ class SpotlightingEngine:
             SpotlightedContent with security markers
         """
         if len(content) > self.max_content_size:
-            logger.warning(f"Content exceeds max size: {len(content)} > {self.max_content_size}")
-            content = content[:self.max_content_size]
+            logger.warning(
+                f"Content exceeds max size: {len(content)} > {self.max_content_size}"
+            )
+            content = content[: self.max_content_size]
 
         # Generate content hash for integrity checking
         content_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
@@ -186,7 +187,7 @@ class SpotlightingEngine:
         source_marker = self.SOURCE_MARKERS[source]
         markers = {
             "start": f"{self.MARKER_START}\n<!-- SOURCE: {source_marker} -->\n<!-- TRUST: {trust_level.value} -->\n<!-- HASH: {content_hash} -->",
-            "end": f"\n{self.MARKER_END}"
+            "end": f"\n{self.MARKER_END}",
         }
 
         # Add metadata markers
@@ -201,14 +202,10 @@ class SpotlightingEngine:
             content_hash=content_hash,
             timestamp=datetime.utcnow(),
             metadata=metadata or {},
-            spotlight_markers=markers
+            spotlight_markers=markers,
         )
 
-    def wrap_content(
-        self,
-        content: str,
-        spotlighted: SpotlightedContent
-    ) -> str:
+    def wrap_content(self, content: str, spotlighted: SpotlightedContent) -> str:
         """
         Wrap content with spotlighting markers.
 
@@ -248,7 +245,7 @@ class SpotlightingEngine:
             rf"{re.escape(self.MARKER_START)}.*?{re.escape(self.MARKER_END)}\s*",
             lambda m: self._extract_content_from_markers(m.group(0)),
             content,
-            flags=re.DOTALL
+            flags=re.DOTALL,
         )
 
         # Remove any remaining comment markers
@@ -275,9 +272,7 @@ class SpotlightingEngine:
         return "\n".join(content_lines)
 
     def validate_llm_output(
-        self,
-        output: str,
-        input_content: SpotlightedContent | None = None
+        self, output: str, input_content: SpotlightedContent | None = None
     ) -> tuple[bool, list[str]]:
         """
         Validate LLM output for security issues.
@@ -329,17 +324,13 @@ class SpotlightingEngine:
             "remove markers",
             "strip comments",
             "UNTRUSTED_CONTENT_START",
-            "UNTRUSTED_CONTENT_END"
+            "UNTRUSTED_CONTENT_END",
         ]
 
         output_lower = output.lower()
         return any(phrase.lower() in output_lower for phrase in suspicious_phrases)
 
-    def verify_integrity(
-        self,
-        content: str,
-        original_hash: str
-    ) -> bool:
+    def verify_integrity(self, content: str, original_hash: str) -> bool:
         """
         Verify content integrity using hash.
 
@@ -369,16 +360,13 @@ class ToolAllowList:
         "analyze_assessment_results",
         "process_personality_test",
         "calculate_psychometric_scores",
-
         # Database read operations
         "get_user_profile",
         "get_assessment_results",
         "get_team_analytics",
-
         # Cache operations
         "cache_get",
         "cache_set",
-
         # Validation operations
         "validate_email",
         "validate_password",
@@ -407,7 +395,7 @@ class ToolAllowList:
     def __init__(
         self,
         custom_allowed_tools: set[str] | None = None,
-        custom_blocked_tools: set[str] | None = None
+        custom_blocked_tools: set[str] | None = None,
     ):
         """
         Initialize tool allow-list.
@@ -431,9 +419,7 @@ class ToolAllowList:
         )
 
     def is_tool_allowed(
-        self,
-        tool_name: str,
-        require_human_approval: bool = False
+        self, tool_name: str, require_human_approval: bool = False
     ) -> tuple[bool, str | None]:
         """
         Check if tool is allowed.
@@ -485,7 +471,7 @@ class SpotlightingMiddleware(BaseHTTPMiddleware):
         app,
         engine: SpotlightingEngine | None = None,
         tool_allowlist: ToolAllowList | None = None,
-        enable_path_filtering: bool = True
+        enable_path_filtering: bool = True,
     ):
         """
         Initialize spotlighting middleware.
@@ -603,7 +589,7 @@ class SpotlightingMiddleware(BaseHTTPMiddleware):
                 return Response(
                     content=body,
                     status_code=response.status_code,
-                    headers=dict(response.headers)
+                    headers=dict(response.headers),
                 )
 
             # Validate LLM output if this is AI endpoint
@@ -627,18 +613,14 @@ class SpotlightingMiddleware(BaseHTTPMiddleware):
             return Response(
                 content=spotlighted_body,
                 status_code=response.status_code,
-                headers=dict(response.headers)
+                headers=dict(response.headers),
             )
 
         except Exception as e:
             logger.error(f"Error spotlighting response: {e}")
             return response
 
-    def _spotlight_dict(
-        self,
-        data: Any,
-        source: ContentSource
-    ) -> Any:
+    def _spotlight_dict(self, data: Any, source: ContentSource) -> Any:
         """Recursively spotlight dictionary/string values"""
         if isinstance(data, dict):
             return {k: self._spotlight_dict(v, source) for k, v in data.items()}
@@ -658,13 +640,16 @@ class SpotlightingMiddleware(BaseHTTPMiddleware):
             return [self._sanitize_response(item) for item in data]
         if isinstance(data, str):
             # Remove script tags and dangerous content
-            sanitized = re.sub(r"<script[^>]*>.*?</script>", "", data, flags=re.IGNORECASE)
+            sanitized = re.sub(
+                r"<script[^>]*>.*?</script>", "", data, flags=re.IGNORECASE
+            )
             sanitized = re.sub(r"javascript:", "", sanitized, flags=re.IGNORECASE)
             return sanitized
         return data
 
 
 # ==================== Human Approval System ====================
+
 
 class HumanApprovalRequired(Exception):
     """Raised when human approval is required"""
@@ -689,10 +674,7 @@ class ApprovalManager:
         self.pending_approvals: dict[str, dict] = {}
 
     def request_approval(
-        self,
-        operation: str,
-        context: dict[str, Any],
-        user_id: str
+        self, operation: str, context: dict[str, Any], user_id: str
     ) -> str:
         """
         Request human approval for operation.
@@ -715,7 +697,7 @@ class ApprovalManager:
             "user_id": user_id,
             "requested_at": datetime.utcnow(),
             "approved": False,
-            "denied": False
+            "denied": False,
         }
 
         logger.info(
@@ -743,7 +725,9 @@ class ApprovalManager:
         approval = self.pending_approvals[approval_id]
 
         # Check timeout
-        if (datetime.utcnow() - approval["requested_at"]).total_seconds() > self.approval_timeout:
+        if (
+            datetime.utcnow() - approval["requested_at"]
+        ).total_seconds() > self.approval_timeout:
             logger.warning(f"Approval request expired: {approval_id}")
             del self.pending_approvals[approval_id]
             return False
@@ -761,7 +745,9 @@ class ApprovalManager:
         logger.info(f"Operation approved: {approval_id} by {approver_id}")
         return True
 
-    def deny_operation(self, approval_id: str, denier_id: str, reason: str = "") -> bool:
+    def deny_operation(
+        self, approval_id: str, denier_id: str, reason: str = ""
+    ) -> bool:
         """
         Deny operation.
 
@@ -780,7 +766,9 @@ class ApprovalManager:
         approval = self.pending_approvals[approval_id]
 
         # Check timeout
-        if (datetime.utcnow() - approval["requested_at"]).total_seconds() > self.approval_timeout:
+        if (
+            datetime.utcnow() - approval["requested_at"]
+        ).total_seconds() > self.approval_timeout:
             logger.warning(f"Approval request expired: {approval_id}")
             del self.pending_approvals[approval_id]
             return False
@@ -817,10 +805,15 @@ class ApprovalManager:
             return True, "Operation approved"
 
         if approval["denied"]:
-            return False, f"Operation denied: {approval.get('denial_reason', 'No reason provided')}"
+            return (
+                False,
+                f"Operation denied: {approval.get('denial_reason', 'No reason provided')}",
+            )
 
         # Check timeout
-        if (datetime.utcnow() - approval["requested_at"]).total_seconds() > self.approval_timeout:
+        if (
+            datetime.utcnow() - approval["requested_at"]
+        ).total_seconds() > self.approval_timeout:
             return False, "Approval request expired"
 
         return False, "Approval pending"
@@ -862,7 +855,7 @@ def spotlight_user_input(content: str, metadata: dict | None = None) -> str:
         content=content,
         source=ContentSource.USER,
         trust_level=TrustLevel.UNTRUSTED,
-        metadata=metadata
+        metadata=metadata,
     )
     return spotlighting_engine.wrap_content(content, spotlighted)
 
@@ -884,17 +877,14 @@ def validate_tool_use(tool_name: str, require_approval: bool = False) -> bool:
 
     if not is_allowed:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Tool not allowed: {reason}"
+            status_code=status.HTTP_403_FORBIDDEN, detail=f"Tool not allowed: {reason}"
         )
 
     return True
 
 
 def request_human_approval(
-    operation: str,
-    context: dict[str, Any],
-    user_id: str
+    operation: str, context: dict[str, Any], user_id: str
 ) -> str:
     """
     Convenience function to request human approval.
@@ -921,6 +911,7 @@ def check_human_approval(approval_id: str) -> tuple[bool, str]:
 
 
 # ==================== Usage Examples ====================
+
 
 def example_usage():
     """Example usage of spotlighting system"""
@@ -952,7 +943,7 @@ def example_usage():
     approval_id = request_human_approval(
         operation="delete_user",
         context={"user_id": 123, "reason": "policy violation"},
-        user_id="admin_456"
+        user_id="admin_456",
     )
     logger.info(f"Approval ID: {approval_id}")
 
@@ -964,7 +955,7 @@ def example_usage():
 
 
 if __name__ == "__main__":
-    logger.info("="*80)
+    logger.info("=" * 80)
     logger.info("SPOTLIGHTING MIDDLEWARE - LLM Security")
-    logger.info("="*80)
+    logger.info("=" * 80)
     example_usage()

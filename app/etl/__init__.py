@@ -7,4 +7,4 @@ transformation for analytics, and loading into the data warehouse.
 
 from app.etl.example_etl import DataWarehouseETL
 
-__all__ = ['DataWarehouseETL']
+__all__ = ["DataWarehouseETL"]

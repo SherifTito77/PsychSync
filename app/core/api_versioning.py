@@ -8,10 +8,10 @@ Supports multiple versioning strategies:
 - Custom version negotiation and deprecation policies
 """
 
+import re
 from collections.abc import Callable
 from datetime import datetime
 from enum import Enum
-import re
 from typing import Any
 
 from fastapi import HTTPException, Request, Response, status
@@ -57,7 +57,9 @@ class APIVersion:
         self.deprecation_date = deprecation_date
         self.sunset_date = sunset_date
         self.description = description
-        self.supported_strategies = supported_strategies or [APIVersioningStrategy.URL_PATH]
+        self.supported_strategies = supported_strategies or [
+            APIVersioningStrategy.URL_PATH
+        ]
         self.custom_headers = custom_headers or {}
         self.migration_guide = migration_guide
         self.breaking_changes = breaking_changes or []
@@ -90,7 +92,9 @@ class APIVersion:
         if self.is_deprecated():
             headers["Deprecation"] = "true"
             if self.sunset_date:
-                headers["Sunset"] = self.sunset_date.strftime("%a, %d %b %Y %H:%M:%S GMT")
+                headers["Sunset"] = self.sunset_date.strftime(
+                    "%a, %d %b %Y %H:%M:%S GMT"
+                )
             if self.migration_guide:
                 headers["Link"] = f'<{self.migration_guide}>; rel="deprecation"'
 
@@ -215,13 +219,19 @@ class APIVersionManager:
             "version": version_config.version,
             "status": version_config.status.value,
             "description": version_config.description,
-            "supported_strategies": [s.value for s in version_config.supported_strategies],
-            "deprecation_date": version_config.deprecation_date.isoformat()
-            if version_config.deprecation_date
-            else None,
-            "sunset_date": version_config.sunset_date.isoformat()
-            if version_config.sunset_date
-            else None,
+            "supported_strategies": [
+                s.value for s in version_config.supported_strategies
+            ],
+            "deprecation_date": (
+                version_config.deprecation_date.isoformat()
+                if version_config.deprecation_date
+                else None
+            ),
+            "sunset_date": (
+                version_config.sunset_date.isoformat()
+                if version_config.sunset_date
+                else None
+            ),
             "created_at": version_config.created_at.isoformat(),
             "breaking_changes": version_config.breaking_changes,
             "migration_guide": version_config.migration_guide,
@@ -275,7 +285,9 @@ class VersionedAPIRoute(APIRoute):
         async def versioned_route_handler(request: Request) -> Response:
             # Negotiate version
             version_manager = get_version_manager()
-            negotiated_version = version_manager.negotiate_version(request, [self.version_from])
+            negotiated_version = version_manager.negotiate_version(
+                request, [self.version_from]
+            )
 
             # Add version info to request state
             request.state.api_version = negotiated_version
@@ -358,7 +370,9 @@ def api_version(
     return decorator
 
 
-def versioned_response(version_mapping: dict[str, Any], default_version: str | None = None):
+def versioned_response(
+    version_mapping: dict[str, Any], default_version: str | None = None
+):
     """
     Decorator for versioned responses
 

@@ -15,10 +15,16 @@ class Organization(Base):
     __tablename__ = "organizations"
 
     # Match EXACTLY what's in your database
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
     name = Column(String(255), nullable=False)
-    created_at = Column(TIMESTAMP(timezone=True), server_default=text("NOW()"), nullable=False)
-    updated_at = Column(TIMESTAMP(timezone=True), server_default=text("NOW()"), nullable=False)
+    created_at = Column(
+        TIMESTAMP(timezone=True), server_default=text("NOW()"), nullable=False
+    )
+    updated_at = Column(
+        TIMESTAMP(timezone=True), server_default=text("NOW()"), nullable=False
+    )
 
     # Relationships
     # TEMPORARILY DISABLED: Requires User.organization_id which doesn't exist in database

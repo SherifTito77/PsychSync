@@ -16,11 +16,11 @@ Author: Security Team
 Version: 2.0 Enterprise
 """
 
+import enum
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-import enum
 from functools import wraps
-import logging
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -310,7 +310,9 @@ class RBACService:
 
         return has_perm
 
-    def has_all_permissions(self, user: User, required_permissions: list[Permission]) -> bool:
+    def has_all_permissions(
+        self, user: User, required_permissions: list[Permission]
+    ) -> bool:
         """
         Check if user has ALL specified permissions
 
@@ -323,7 +325,9 @@ class RBACService:
         """
         return all(self.has_permission(user, perm) for perm in required_permissions)
 
-    def has_any_permission(self, user: User, required_permissions: list[Permission]) -> bool:
+    def has_any_permission(
+        self, user: User, required_permissions: list[Permission]
+    ) -> bool:
         """
         Check if user has ANY of the specified permissions
 
@@ -383,7 +387,9 @@ class RBACService:
         # Users can only modify themselves
         return current_user.id == target_user.id
 
-    def get_accessible_resources(self, user: User, resource_type: str) -> dict[str, Any]:
+    def get_accessible_resources(
+        self, user: User, resource_type: str
+    ) -> dict[str, Any]:
         """
         Get list of resources user can access based on role
 
@@ -422,13 +428,17 @@ def require_permission(permission: Permission):
 
             if not current_user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required",
                 )
 
             if not rbac_service.has_permission(current_user, permission):
                 logger.warning(
                     f"Access denied: user {current_user.id} lacks {permission.value}",
-                    extra={"user_id": str(current_user.id), "permission": permission.value},
+                    extra={
+                        "user_id": str(current_user.id),
+                        "permission": permission.value,
+                    },
                 )
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -459,12 +469,15 @@ def require_all_permissions(*permissions: Permission):
 
             if not current_user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required",
                 )
 
             if not rbac_service.has_all_permissions(current_user, list(permissions)):
                 missing = [
-                    p.value for p in permissions if not rbac_service.has_permission(current_user, p)
+                    p.value
+                    for p in permissions
+                    if not rbac_service.has_permission(current_user, p)
                 ]
                 logger.warning(
                     f"Access denied: user {current_user.id} lacks permissions {missing}",
@@ -499,7 +512,8 @@ def require_role(*roles: UserRole):
 
             if not current_user:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required",
                 )
 
             # Superuser bypasses role checks
@@ -511,7 +525,10 @@ def require_role(*roles: UserRole):
                 logger.warning(
                     f"Access denied: user {current_user.id} has role {user_role}, "
                     f"required one of {[r.value for r in roles]}",
-                    extra={"user_id": str(current_user.id), "user_role": user_role.value},
+                    extra={
+                        "user_id": str(current_user.id),
+                        "user_role": user_role.value,
+                    },
                 )
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,

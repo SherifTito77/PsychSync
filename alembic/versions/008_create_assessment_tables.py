@@ -5,15 +5,17 @@ Revises: 007_add_user_role_field
 Create Date: 2025-11-19 11:25:00.000000
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 # revision identifiers, used by Alembic.
-revision: str = '008_create_assessment_tables'
-down_revision: Union[str, None] = '007_add_user_role_field'
+revision: str = "008_create_assessment_tables"
+down_revision: Union[str, None] = "007_add_user_role_field"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -23,114 +25,208 @@ def upgrade() -> None:
 
     # Create enums for assessment tables
     assessment_category_enum = postgresql.ENUM(
-        'personality', 'skills', 'behavioral', 'cognitive',
-        name='assessmentcategory'
+        "personality", "skills", "behavioral", "cognitive", name="assessmentcategory"
     )
     assessment_category_enum.create(op.get_bind())
 
     assessment_status_enum = postgresql.ENUM(
-        'draft', 'published', 'archived',
-        name='assessmentstatus'
+        "draft", "published", "archived", name="assessmentstatus"
     )
     assessment_status_enum.create(op.get_bind())
 
     response_status_enum = postgresql.ENUM(
-        'in_progress', 'completed', 'abandoned',
-        name='responsestatus'
+        "in_progress", "completed", "abandoned", name="responsestatus"
     )
     response_status_enum.create(op.get_bind())
 
     # Create assessments table
-    op.create_table('assessments',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
-        sa.Column('title', sa.String(), nullable=False),
-        sa.Column('description', sa.Text(), nullable=True),
-        sa.Column('category', assessment_category_enum, nullable=False),
-        sa.Column('status', assessment_status_enum, nullable=False),
-        sa.Column('created_by_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('team_id', postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column('organization_id', postgresql.UUID(as_uuid=True), nullable=True),
-        sa.Column('framework_code', sa.String(length=50), nullable=True),
-        sa.Column('started_at', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
-        sa.ForeignKeyConstraint(['created_by_id'], ['users.id'], ),
-        sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ),
-        sa.ForeignKeyConstraint(['team_id'], ['teams.id'], ),
-        sa.PrimaryKeyConstraint('id')
+    op.create_table(
+        "assessments",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            nullable=False,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column("title", sa.String(), nullable=False),
+        sa.Column("description", sa.Text(), nullable=True),
+        sa.Column("category", assessment_category_enum, nullable=False),
+        sa.Column("status", assessment_status_enum, nullable=False),
+        sa.Column("created_by_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("team_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("organization_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("framework_code", sa.String(length=50), nullable=True),
+        sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["created_by_id"],
+            ["users.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["organization_id"],
+            ["organizations.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["team_id"],
+            ["teams.id"],
+        ),
+        sa.PrimaryKeyConstraint("id"),
     )
 
     # Create assessment_sections table
-    op.create_table('assessment_sections',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
-        sa.Column('assessment_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('title', sa.String(), nullable=False),
-        sa.Column('description', sa.Text(), nullable=True),
-        sa.Column('order', sa.Integer(), nullable=True, server_default='0'),
-        sa.ForeignKeyConstraint(['assessment_id'], ['assessments.id'], ),
-        sa.PrimaryKeyConstraint('id')
+    op.create_table(
+        "assessment_sections",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            nullable=False,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column("assessment_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("title", sa.String(), nullable=False),
+        sa.Column("description", sa.Text(), nullable=True),
+        sa.Column("order", sa.Integer(), nullable=True, server_default="0"),
+        sa.ForeignKeyConstraint(
+            ["assessment_id"],
+            ["assessments.id"],
+        ),
+        sa.PrimaryKeyConstraint("id"),
     )
 
     # Create questions table
-    op.create_table('questions',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
-        sa.Column('section_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('question_type', sa.String(), nullable=False),
-        sa.Column('question_text', sa.Text(), nullable=False),
-        sa.Column('order', sa.Integer(), nullable=True, server_default='0'),
-        sa.Column('is_required', sa.Boolean(), nullable=True, server_default=True),
-        sa.Column('config', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.ForeignKeyConstraint(['section_id'], ['assessment_sections.id'], ),
-        sa.PrimaryKeyConstraint('id')
+    op.create_table(
+        "questions",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            nullable=False,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column("section_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("question_type", sa.String(), nullable=False),
+        sa.Column("question_text", sa.Text(), nullable=False),
+        sa.Column("order", sa.Integer(), nullable=True, server_default="0"),
+        sa.Column("is_required", sa.Boolean(), nullable=True, server_default=True),
+        sa.Column("config", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["section_id"],
+            ["assessment_sections.id"],
+        ),
+        sa.PrimaryKeyConstraint("id"),
     )
 
     # Create assessment_responses table
-    op.create_table('assessment_responses',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
-        sa.Column('assessment_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('respondent_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('status', response_status_enum, nullable=False),
-        sa.Column('responses', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column('started_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
-        sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
-        sa.ForeignKeyConstraint(['assessment_id'], ['assessments.id'], ),
-        sa.ForeignKeyConstraint(['respondent_id'], ['users.id'], ),
-        sa.PrimaryKeyConstraint('id')
+    op.create_table(
+        "assessment_responses",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            nullable=False,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column("assessment_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("respondent_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("status", response_status_enum, nullable=False),
+        sa.Column("responses", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column(
+            "started_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            nullable=False,
+        ),
+        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["assessment_id"],
+            ["assessments.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["respondent_id"],
+            ["users.id"],
+        ),
+        sa.PrimaryKeyConstraint("id"),
     )
 
     # Create assessment_assignments table
-    op.create_table('assessment_assignments',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False, server_default=sa.text('gen_random_uuid()')),
-        sa.Column('assessment_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('assigned_at', sa.DateTime(timezone=True), server_default=sa.text('NOW()'), nullable=False),
-        sa.Column('completed', sa.Boolean(), nullable=True, server_default=False),
-        sa.ForeignKeyConstraint(['assessment_id'], ['assessments.id'], ),
-        sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-        sa.PrimaryKeyConstraint('id')
+    op.create_table(
+        "assessment_assignments",
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            nullable=False,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column("assessment_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column(
+            "assigned_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            nullable=False,
+        ),
+        sa.Column("completed", sa.Boolean(), nullable=True, server_default=False),
+        sa.ForeignKeyConstraint(
+            ["assessment_id"],
+            ["assessments.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["users.id"],
+        ),
+        sa.PrimaryKeyConstraint("id"),
     )
 
     # Create indexes for performance
-    op.create_index('idx_assessments_created_by', 'assessments', ['created_by_id'])
-    op.create_index('idx_assessments_team', 'assessments', ['team_id'])
-    op.create_index('idx_assessments_organization', 'assessments', ['organization_id'])
-    op.create_index('idx_assessments_status', 'assessments', ['status'])
-    op.create_index('idx_assessments_framework', 'assessments', ['framework_code'])
+    op.create_index("idx_assessments_created_by", "assessments", ["created_by_id"])
+    op.create_index("idx_assessments_team", "assessments", ["team_id"])
+    op.create_index("idx_assessments_organization", "assessments", ["organization_id"])
+    op.create_index("idx_assessments_status", "assessments", ["status"])
+    op.create_index("idx_assessments_framework", "assessments", ["framework_code"])
 
-    op.create_index('idx_assessment_sections_assessment', 'assessment_sections', ['assessment_id'])
-    op.create_index('idx_assessment_sections_order', 'assessment_sections', ['assessment_id', 'order'])
+    op.create_index(
+        "idx_assessment_sections_assessment", "assessment_sections", ["assessment_id"]
+    )
+    op.create_index(
+        "idx_assessment_sections_order",
+        "assessment_sections",
+        ["assessment_id", "order"],
+    )
 
-    op.create_index('idx_questions_section', 'questions', ['section_id'])
-    op.create_index('idx_questions_order', 'questions', ['section_id', 'order'])
+    op.create_index("idx_questions_section", "questions", ["section_id"])
+    op.create_index("idx_questions_order", "questions", ["section_id", "order"])
 
-    op.create_index('idx_assessment_responses_assessment', 'assessment_responses', ['assessment_id'])
-    op.create_index('idx_assessment_responses_respondent', 'assessment_responses', ['respondent_id'])
-    op.create_index('idx_assessment_responses_status', 'assessment_responses', ['status'])
+    op.create_index(
+        "idx_assessment_responses_assessment", "assessment_responses", ["assessment_id"]
+    )
+    op.create_index(
+        "idx_assessment_responses_respondent", "assessment_responses", ["respondent_id"]
+    )
+    op.create_index(
+        "idx_assessment_responses_status", "assessment_responses", ["status"]
+    )
 
-    op.create_index('idx_assessment_assignments_assessment', 'assessment_assignments', ['assessment_id'])
-    op.create_index('idx_assessment_assignments_user', 'assessment_assignments', ['user_id'])
-    op.create_index('idx_assessment_assignments_completed', 'assessment_assignments', ['completed'])
+    op.create_index(
+        "idx_assessment_assignments_assessment",
+        "assessment_assignments",
+        ["assessment_id"],
+    )
+    op.create_index(
+        "idx_assessment_assignments_user", "assessment_assignments", ["user_id"]
+    )
+    op.create_index(
+        "idx_assessment_assignments_completed", "assessment_assignments", ["completed"]
+    )
 
     # ### end Alembic commands ###
 
@@ -139,41 +235,59 @@ def downgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
 
     # Drop indexes
-    op.drop_index('idx_assessment_assignments_completed', table_name='assessment_assignments')
-    op.drop_index('idx_assessment_assignments_user', table_name='assessment_assignments')
-    op.drop_index('idx_assessment_assignments_assessment', table_name='assessment_assignments')
+    op.drop_index(
+        "idx_assessment_assignments_completed", table_name="assessment_assignments"
+    )
+    op.drop_index(
+        "idx_assessment_assignments_user", table_name="assessment_assignments"
+    )
+    op.drop_index(
+        "idx_assessment_assignments_assessment", table_name="assessment_assignments"
+    )
 
-    op.drop_index('idx_assessment_responses_status', table_name='assessment_responses')
-    op.drop_index('idx_assessment_responses_respondent', table_name='assessment_responses')
-    op.drop_index('idx_assessment_responses_assessment', table_name='assessment_responses')
+    op.drop_index("idx_assessment_responses_status", table_name="assessment_responses")
+    op.drop_index(
+        "idx_assessment_responses_respondent", table_name="assessment_responses"
+    )
+    op.drop_index(
+        "idx_assessment_responses_assessment", table_name="assessment_responses"
+    )
 
-    op.drop_index('idx_questions_order', table_name='questions')
-    op.drop_index('idx_questions_section', table_name='questions')
+    op.drop_index("idx_questions_order", table_name="questions")
+    op.drop_index("idx_questions_section", table_name="questions")
 
-    op.drop_index('idx_assessment_sections_order', table_name='assessment_sections')
-    op.drop_index('idx_assessment_sections_assessment', table_name='assessment_sections')
+    op.drop_index("idx_assessment_sections_order", table_name="assessment_sections")
+    op.drop_index(
+        "idx_assessment_sections_assessment", table_name="assessment_sections"
+    )
 
-    op.drop_index('idx_assessments_framework', table_name='assessments')
-    op.drop_index('idx_assessments_status', table_name='assessments')
-    op.drop_index('idx_assessments_organization', table_name='assessments')
-    op.drop_index('idx_assessments_team', table_name='assessments')
-    op.drop_index('idx_assessments_created_by', table_name='assessments')
+    op.drop_index("idx_assessments_framework", table_name="assessments")
+    op.drop_index("idx_assessments_status", table_name="assessments")
+    op.drop_index("idx_assessments_organization", table_name="assessments")
+    op.drop_index("idx_assessments_team", table_name="assessments")
+    op.drop_index("idx_assessments_created_by", table_name="assessments")
 
     # Drop tables
-    op.drop_table('assessment_assignments')
-    op.drop_table('assessment_responses')
-    op.drop_table('questions')
-    op.drop_table('assessment_sections')
-    op.drop_table('assessments')
+    op.drop_table("assessment_assignments")
+    op.drop_table("assessment_responses")
+    op.drop_table("questions")
+    op.drop_table("assessment_sections")
+    op.drop_table("assessments")
 
     # Drop enums
-    response_status_enum = postgresql.ENUM('in_progress', 'completed', 'abandoned', name='responsestatus')
+    response_status_enum = postgresql.ENUM(
+        "in_progress", "completed", "abandoned", name="responsestatus"
+    )
     response_status_enum.drop(op.get_bind())
 
-    assessment_status_enum = postgresql.ENUM('draft', 'published', 'archived', name='assessmentstatus')
+    assessment_status_enum = postgresql.ENUM(
+        "draft", "published", "archived", name="assessmentstatus"
+    )
     assessment_status_enum.drop(op.get_bind())
 
-    assessment_category_enum = postgresql.ENUM('personality', 'skills', 'behavioral', 'cognitive', name='assessmentcategory')
+    assessment_category_enum = postgresql.ENUM(
+        "personality", "skills", "behavioral", "cognitive", name="assessmentcategory"
+    )
     assessment_category_enum.drop(op.get_bind())
 
     # ### end Alembic commands ###

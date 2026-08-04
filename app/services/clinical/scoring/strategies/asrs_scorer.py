@@ -10,11 +10,12 @@ This module demonstrates the refactored scoring approach using:
 Complexity reduced from 150+ lines to ~80 lines through better separation.
 """
 
-from typing import Dict
 import logging
-from .base import BaseScoringStrategy, ScoringResult
-from ..config import ASRS_CONFIG, SeverityLevel, RiskLevel
+from typing import Dict
+
+from ..config import ASRS_CONFIG, RiskLevel, SeverityLevel
 from ..recommendations.recommendation_engine import RecommendationEngine
+from .base import BaseScoringStrategy, ScoringResult
 
 logger = logging.getLogger(__name__)
 
@@ -173,14 +174,13 @@ class ASRSScorer(BaseScoringStrategy):
 
         # Step 3: Generate interpretation
         interpretation = self.INTERPRETATIONS.get(
-            classification["severity"],
-            self.INTERPRETATIONS["minimal_symptoms"]
+            classification["severity"], self.INTERPRETATIONS["minimal_symptoms"]
         )
 
         # Step 4: Get recommendations
         recommendations = self.recommendation_engine.generate(
             severity=classification["severity"],
-            crisis_alert=False  # ASRS doesn't have crisis indicators
+            crisis_alert=False,  # ASRS doesn't have crisis indicators
         )
 
         # Step 5: Return standardized result
@@ -190,7 +190,9 @@ class ASRSScorer(BaseScoringStrategy):
             risk_level=classification["risk"],
             subscale_scores={
                 "inattention": float(classification["inattention_score"]),
-                "hyperactivity_impulsivity": float(classification["hyperactivity_score"])
+                "hyperactivity_impulsivity": float(
+                    classification["hyperactivity_score"]
+                ),
             },
             interpretation=interpretation,
             recommendations=recommendations,
@@ -201,5 +203,5 @@ class ASRSScorer(BaseScoringStrategy):
                 "inattention_adhd": classification["inattention_adhd"],
                 "hyperactive_adhd": classification["hyperactive_adhd"],
                 "combined_adhd": classification["combined_adhd"],
-            }
+            },
         )

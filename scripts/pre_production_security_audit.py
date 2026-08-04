@@ -4,18 +4,20 @@ Pre-Production Security Audit Script for PsychSync
 Validates all critical security measures before production deployment
 """
 
-import os
-import sys
-import re
-import requests
-import subprocess
-from pathlib import Path
-import hashlib
-import secrets
-from typing import List, Dict, Any
 import asyncio
-import asyncpg
+import hashlib
 import json
+import os
+import re
+import secrets
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any, Dict, List
+
+import asyncpg
+import requests
+
 
 class SecurityAuditor:
     def __init__(self):

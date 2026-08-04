@@ -10,8 +10,8 @@ Version: 1.0
 Date: 2025-12-27
 """
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -34,8 +34,10 @@ router = APIRouter(prefix="/ai/secure", tags=["AI - Secure"])
 
 # ==================== Request/Response Models ====================
 
+
 class ChatRequest(BaseModel):
     """Chat request with security validation"""
+
     message: str = Field(..., min_length=1, max_length=5000)
     conversation_id: str | None = None
     stream: bool = False
@@ -43,6 +45,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     """Chat response with validation metadata"""
+
     response: str
     validated: bool
     validation_issues: list[str] = []
@@ -51,12 +54,14 @@ class ChatResponse(BaseModel):
 
 class AssessmentAnalysisRequest(BaseModel):
     """Assessment analysis request"""
+
     assessment_id: int
     analysis_type: str = Field(..., pattern="^(personality|team|clinical)$")
 
 
 class ToolExecutionRequest(BaseModel):
     """Tool execution request with authorization"""
+
     tool_name: str
     parameters: dict[str, Any]
     require_approval: bool = False
@@ -64,15 +69,16 @@ class ToolExecutionRequest(BaseModel):
 
 class BatchAnalysisRequest(BaseModel):
     """Batch analysis request"""
+
     assessment_ids: list[int] = Field(..., min_items=1, max_items=100)
 
 
 # ==================== Example 1: Simple Secure Chat ====================
 
+
 @router.post("/chat", response_model=ChatResponse)
 async def secure_chat(
-    request: ChatRequest,
-    current_user: User = Depends(get_current_user)
+    request: ChatRequest, current_user: User = Depends(get_current_user)
 ):
     """
     Secure AI chat endpoint with full security controls.
@@ -94,8 +100,8 @@ async def secure_chat(
                 "user_id": current_user.id,
                 "message_length": len(request.message),
                 "conversation_id": request.conversation_id,
-                "event_type": "chat_request"
-            }
+                "event_type": "chat_request",
+            },
         )
 
         # Step 2: Generate AI response (with spotlighted input)
@@ -112,8 +118,8 @@ async def secure_chat(
                     "user_id": current_user.id,
                     "issues": issues,
                     "output_preview": llm_output[:200],
-                    "event_type": "validation_failure"
-                }
+                    "event_type": "validation_failure",
+                },
             )
 
             # Return safe fallback response
@@ -121,7 +127,7 @@ async def secure_chat(
                 response="I'm sorry, I couldn't process that request. Please try rephrasing your message.",
                 validated=False,
                 validation_issues=issues,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow(),
             )
 
         # Step 4: Return validated response
@@ -131,31 +137,31 @@ async def secure_chat(
                 "user_id": current_user.id,
                 "validated": True,
                 "response_length": len(llm_output),
-                "event_type": "chat_response"
-            }
+                "event_type": "chat_response",
+            },
         )
 
         return ChatResponse(
             response=llm_output,
             validated=True,
             validation_issues=[],
-            timestamp=datetime.utcnow()
+            timestamp=datetime.utcnow(),
         )
 
     except Exception as e:
         logger.error(f"Chat endpoint error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred processing your request"
+            detail="An error occurred processing your request",
         ) from e
 
 
 # ==================== Example 2: Assessment Analysis ====================
 
+
 @router.post("/assessments/analyze")
 async def analyze_assessment_secure(
-    request: AssessmentAnalysisRequest,
-    current_user: User = Depends(get_current_user)
+    request: AssessmentAnalysisRequest, current_user: User = Depends(get_current_user)
 ):
     """
     Secure assessment analysis with AI.
@@ -177,19 +183,21 @@ async def analyze_assessment_secure(
 
         if not assessment:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Assessment not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found"
             )
 
         # Verify user owns assessment or is admin
         if assessment.user_id != current_user.id and not current_user.is_admin:
             logger.warning(
                 f"Unauthorized assessment access attempt by user {current_user.id}",
-                extra={"user_id": current_user.id, "assessment_id": request.assessment_id}
+                extra={
+                    "user_id": current_user.id,
+                    "assessment_id": request.assessment_id,
+                },
             )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You don't have permission to analyze this assessment"
+                detail="You don't have permission to analyze this assessment",
             )
 
         # Step 2: Prepare analysis prompt with spotlighted data
@@ -216,8 +224,8 @@ async def analyze_assessment_secure(
                 "user_id": current_user.id,
                 "assessment_id": request.assessment_id,
                 "analysis_type": request.analysis_type,
-                "event_type": "assessment_analysis"
-            }
+                "event_type": "assessment_analysis",
+            },
         )
 
         analysis = await _mock_ai_generate(safe_prompt)
@@ -231,12 +239,12 @@ async def analyze_assessment_secure(
                 extra={
                     "assessment_id": request.assessment_id,
                     "issues": issues,
-                    "event_type": "analysis_validation_failure"
-                }
+                    "event_type": "analysis_validation_failure",
+                },
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Analysis generation failed validation"
+                detail="Analysis generation failed validation",
             )
 
         # Step 6: Save and return analysis
@@ -248,7 +256,7 @@ async def analyze_assessment_secure(
             "assessment_id": request.assessment_id,
             "analysis": analysis,
             "validated": True,
-            "analyzed_at": datetime.utcnow()
+            "analyzed_at": datetime.utcnow(),
         }
 
     except HTTPException:
@@ -257,16 +265,16 @@ async def analyze_assessment_secure(
         logger.error(f"Assessment analysis error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to analyze assessment"
+            detail="Failed to analyze assessment",
         ) from e
 
 
 # ==================== Example 3: Tool Execution with Authorization ====================
 
+
 @router.post("/tools/execute")
 async def execute_tool_secure(
-    request: ToolExecutionRequest,
-    current_user: User = Depends(get_current_user)
+    request: ToolExecutionRequest, current_user: User = Depends(get_current_user)
 ):
     """
     Secure tool execution with authorization checks.
@@ -287,12 +295,14 @@ async def execute_tool_secure(
                 "user_id": current_user.id,
                 "tool_name": request.tool_name,
                 "require_approval": request.require_approval,
-                "event_type": "tool_execution_attempt"
-            }
+                "event_type": "tool_execution_attempt",
+            },
         )
 
         try:
-            validate_tool_use(request.tool_name, require_approval=request.require_approval)
+            validate_tool_use(
+                request.tool_name, require_approval=request.require_approval
+            )
         except HTTPException as e:
             logger.warning(
                 f"Tool execution blocked: {request.tool_name}",
@@ -300,8 +310,8 @@ async def execute_tool_secure(
                     "user_id": current_user.id,
                     "tool_name": request.tool_name,
                     "reason": str(e.detail),
-                    "event_type": "tool_blocked"
-                }
+                    "event_type": "tool_blocked",
+                },
             )
             raise
 
@@ -311,9 +321,9 @@ async def execute_tool_secure(
                 operation=request.tool_name,
                 context={
                     "parameters": request.parameters,
-                    "requested_by": current_user.id
+                    "requested_by": current_user.id,
                 },
-                user_id=current_user.id
+                user_id=current_user.id,
             )
 
             # In production, this would be an async workflow
@@ -328,12 +338,12 @@ async def execute_tool_secure(
                         "tool_name": request.tool_name,
                         "approval_id": approval_id,
                         "message": message,
-                        "event_type": "approval_pending"
-                    }
+                        "event_type": "approval_pending",
+                    },
                 )
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Tool requires approval: {message}"
+                    detail=f"Tool requires approval: {message}",
                 )
 
         # Step 3: Execute tool
@@ -344,15 +354,15 @@ async def execute_tool_secure(
             extra={
                 "user_id": current_user.id,
                 "tool_name": request.tool_name,
-                "event_type": "tool_executed"
-            }
+                "event_type": "tool_executed",
+            },
         )
 
         return {
             "tool_name": request.tool_name,
             "result": result,
             "executed_by": current_user.id,
-            "executed_at": datetime.utcnow()
+            "executed_at": datetime.utcnow(),
         }
 
     except HTTPException:
@@ -361,16 +371,16 @@ async def execute_tool_secure(
         logger.error(f"Tool execution error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Tool execution failed: {e!s}"
+            detail=f"Tool execution failed: {e!s}",
         ) from e
 
 
 # ==================== Example 4: Batch Processing with Approval ====================
 
+
 @router.post("/batch/analyze")
 async def batch_analyze_secure(
-    request: BatchAnalysisRequest,
-    current_user: User = Depends(get_current_user)
+    request: BatchAnalysisRequest, current_user: User = Depends(get_current_user)
 ):
     """
     Batch analysis with human approval for large batches.
@@ -395,8 +405,8 @@ async def batch_analyze_secure(
                 "user_id": current_user.id,
                 "batch_size": batch_size,
                 "requires_approval": requires_approval,
-                "event_type": "batch_analysis_request"
-            }
+                "event_type": "batch_analysis_request",
+            },
         )
 
         # Step 2: Request approval for large batches
@@ -406,9 +416,9 @@ async def batch_analyze_secure(
                 context={
                     "assessment_count": batch_size,
                     "assessment_ids": request.assessment_ids[:5],  # First 5 for review
-                    "requested_by": current_user.id
+                    "requested_by": current_user.id,
                 },
-                user_id=current_user.id
+                user_id=current_user.id,
             )
 
             # In production, implement async approval workflow
@@ -418,8 +428,8 @@ async def batch_analyze_secure(
                 extra={
                     "user_id": current_user.id,
                     "approval_id": approval_id,
-                    "event_type": "batch_approval_requested"
-                }
+                    "event_type": "batch_approval_requested",
+                },
             )
 
         # Step 3: Process batch with individual validation
@@ -435,29 +445,32 @@ async def batch_analyze_secure(
                 is_valid, issues = spotlighting_engine.validate_llm_output(analysis)
 
                 if not is_valid:
-                    validation_failures.append({
-                        "assessment_id": assessment_id,
-                        "issues": issues
-                    })
+                    validation_failures.append(
+                        {"assessment_id": assessment_id, "issues": issues}
+                    )
                     logger.warning(
                         f"Batch analysis validation failed for assessment {assessment_id}",
-                        extra={"assessment_id": assessment_id, "issues": issues}
+                        extra={"assessment_id": assessment_id, "issues": issues},
                     )
                     continue
 
-                results.append({
-                    "assessment_id": assessment_id,
-                    "analysis": analysis,
-                    "validated": True
-                })
+                results.append(
+                    {
+                        "assessment_id": assessment_id,
+                        "analysis": analysis,
+                        "validated": True,
+                    }
+                )
 
             except Exception as e:
                 logger.error(f"Error analyzing assessment {assessment_id}: {e}")
-                results.append({
-                    "assessment_id": assessment_id,
-                    "error": str(e),
-                    "validated": False
-                })
+                results.append(
+                    {
+                        "assessment_id": assessment_id,
+                        "error": str(e),
+                        "validated": False,
+                    }
+                )
 
         # Step 4: Return results with validation summary
         logger.info(
@@ -466,8 +479,8 @@ async def batch_analyze_secure(
                 "user_id": current_user.id,
                 "successful": len(results),
                 "failed": len(validation_failures),
-                "event_type": "batch_analysis_completed"
-            }
+                "event_type": "batch_analysis_completed",
+            },
         )
 
         return {
@@ -477,25 +490,25 @@ async def batch_analyze_secure(
             "summary": {
                 "total": batch_size,
                 "successful": len(results),
-                "failed": len(validation_failures)
+                "failed": len(validation_failures),
             },
-            "completed_at": datetime.utcnow()
+            "completed_at": datetime.utcnow(),
         }
 
     except Exception as e:
         logger.error(f"Batch analysis error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Batch analysis failed"
+            detail="Batch analysis failed",
         ) from e
 
 
 # ==================== Example 5: Streaming with Validation ====================
 
+
 @router.post("/chat/stream")
 async def secure_chat_stream(
-    request: ChatRequest,
-    current_user: User = Depends(get_current_user)
+    request: ChatRequest, current_user: User = Depends(get_current_user)
 ):
     """
     Secure streaming chat with validation.
@@ -518,8 +531,8 @@ async def secure_chat_stream(
             extra={
                 "user_id": current_user.id,
                 "stream": True,
-                "event_type": "streaming_chat_request"
-            }
+                "event_type": "streaming_chat_request",
+            },
         )
 
         # Step 2: Generate streaming response
@@ -543,8 +556,8 @@ async def secure_chat_stream(
                         "user_id": current_user.id,
                         "issues": issues,
                         "response_length": len(full_response),
-                        "event_type": "stream_validation_failure"
-                    }
+                        "event_type": "stream_validation_failure",
+                    },
                 )
             else:
                 logger.info(
@@ -553,24 +566,21 @@ async def secure_chat_stream(
                         "user_id": current_user.id,
                         "response_length": len(full_response),
                         "validated": is_valid,
-                        "event_type": "stream_validation_success"
-                    }
+                        "event_type": "stream_validation_success",
+                    },
                 )
 
-        return StreamingResponse(
-            generate(),
-            media_type="text/plain"
-        )
+        return StreamingResponse(generate(), media_type="text/plain")
 
     except Exception as e:
         logger.error(f"Streaming chat error: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Streaming failed"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Streaming failed"
         ) from e
 
 
 # ==================== Mock Functions (Replace with Real Implementations) ====================
+
 
 async def _mock_ai_generate(prompt: str) -> str:
     """Mock AI generation for demo purposes.
@@ -589,10 +599,11 @@ async def _mock_ai_generate(prompt: str) -> str:
         "Based on your assessment results, you show high openness to experience.",
         "Your analysis indicates strong conscientiousness and attention to detail.",
         "The assessment reveals excellent interpersonal skills and collaboration ability.",
-        "Your profile suggests creative problem-solving and innovative thinking patterns."
+        "Your profile suggests creative problem-solving and innovative thinking patterns.",
     ]
 
     import random
+
     return random.choice(responses)
 
 
@@ -607,16 +618,15 @@ async def _mock_tool_execute(tool_name: str, parameters: dict[str, Any]) -> Any:
         "tool": tool_name,
         "status": "success",
         "result": f"Executed {tool_name} with parameters {parameters}",
-        "executed_at": datetime.utcnow().isoformat()
+        "executed_at": datetime.utcnow().isoformat(),
     }
 
 
 # ==================== Security Monitoring Endpoints ====================
 
+
 @router.get("/security/stats")
-async def get_security_stats(
-    current_user: User = Depends(get_current_user)
-):
+async def get_security_stats(current_user: User = Depends(get_current_user)):
     """
     Get security statistics (admin only).
 
@@ -624,8 +634,7 @@ async def get_security_stats(
     """
     if not current_user.is_admin:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required"
         )
 
     # Mock stats - in production, query from database/metrics
@@ -634,21 +643,16 @@ async def get_security_stats(
             "total_requests": 1250,
             "valid_outputs": 1235,
             "validation_failures": 15,
-            "failure_rate": "1.2%"
+            "failure_rate": "1.2%",
         },
         "tools": {
             "execution_attempts": 85,
             "allowed": 78,
             "blocked": 7,
-            "approval_required": 12
+            "approval_required": 12,
         },
-        "approvals": {
-            "requested": 12,
-            "granted": 10,
-            "denied": 2,
-            "pending": 0
-        },
-        "period": "last_24_hours"
+        "approvals": {"requested": 12, "granted": 10, "denied": 2, "pending": 0},
+        "period": "last_24_hours",
     }
 
 

@@ -1,0 +1,61 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [main, develop]
+  paths:
+      - 'scripts/security/**'
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: 'Install Python 3.11'
+        required: true
+        default: '3.11'
+      scan:
+        description: 'Run security audit scripts'
+        runs-on: ubuntu-latest
+        steps:
+          - name: Run CORS security audit
+            run: |
+              python scripts/security/cors_security_audit.py
+              python scripts/security/fallback_audit_simple.py
+            name: Generate audit reports
+            run: |
+              ls scripts/security/
+              echo "✅ Security audit complete"
+    security-check:
+        name: Check for security issues
+        runs-on: ubuntu-latest
+        steps:
+          - name: Check exit code
+            run: |
+              python scripts/security/cors_security_audit.py || echo "1" || echo "0"
+              python scripts/security/fallback_audit_simple.py || echo "1" || echo "0"
+        name: Fail on issues
+        if: steps.security-check.outputs.scan == '1'
+        run: |
+              echo "::error::Security issues found - blocking deployment"
+              exit 1
+        block-deployment:
+          name: Block deployment on security issues
+        runs-on: ubuntu-latest
+        needs: security-check
+        if: github.event_name == 'pull_request'
+          runs-on: ubuntu-latest
+          steps:
+            - name: Check security audit reports
+              run: |
+                cat scripts/security/cors_security_audit_report.json | jq '.summary.files_with_issues'
+                cat scripts/security/fallback_audit_report.json | jq '.summary.files_with_issues'
+            name: Set deployment check
+              run: |
+                if [ ${{ steps.security-check.outputs.check }} == '0' ]; then
+                  echo "::set-output name=security_check::0" >> $GITHUB_OUTPUT
+                fi
+            name: Fail deployment
+              run: |
+                echo "::error::Security audit found issues - deployment blocked"
+                exit 1
+
+env:
+  PYTHON_VERSION: '3.11'

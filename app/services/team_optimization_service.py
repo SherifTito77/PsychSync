@@ -65,7 +65,9 @@ class TeamOptimizationService:
         requirements = self._build_requirements(team_requirements)
 
         # Run optimization
-        optimized_team = self.optimizer.optimize_team(candidates, requirements, existing_members)
+        optimized_team = self.optimizer.optimize_team(
+            candidates, requirements, existing_members
+        )
 
         logger.info(
             f"Team optimization complete: {len(optimized_team.members)} members "
@@ -203,7 +205,10 @@ class TeamOptimizationService:
         }
 
     async def get_candidate_pool(
-        self, db: AsyncSession, organization_id: int, filters: dict[str, Any] | None = None
+        self,
+        db: AsyncSession,
+        organization_id: int,
+        filters: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         """
         Get available candidates for team optimization
@@ -243,11 +248,16 @@ class TeamOptimizationService:
     # =====================================================================
 
     async def _build_candidate_pool(
-        self, db: AsyncSession, organization_id: int, filters: dict[str, Any] | None = None
+        self,
+        db: AsyncSession,
+        organization_id: int,
+        filters: dict[str, Any] | None = None,
     ) -> list[TeamMemberProfile]:
         """Build pool of candidate profiles - FIXED ASYNC PATTERN"""
         # FIXED: Use proper async SQLAlchemy pattern
-        query = select(User).where(User.organization_id == organization_id, User.is_active == True)
+        query = select(User).where(
+            User.organization_id == organization_id, User.is_active == True
+        )
 
         # Apply filters if provided
         if filters:
@@ -323,7 +333,9 @@ class TeamOptimizationService:
 
         return profile
 
-    async def _get_user_personality(self, db: AsyncSession, user_id: int) -> dict[str, float]:
+    async def _get_user_personality(
+        self, db: AsyncSession, user_id: int
+    ) -> dict[str, float]:
         """Get user's personality traits from latest assessment"""
 
         # FIXED: Get latest personality assessment response with async pattern
@@ -342,7 +354,9 @@ class TeamOptimizationService:
         # Get scoring data from the latest assessment
         if latest_assessment:
             try:
-                scores = await ScoringService.calculate_score(db, latest_assessment.id, user_id)
+                scores = await ScoringService.calculate_score(
+                    db, latest_assessment.id, user_id
+                )
                 return ScoringService._extract_personality_traits(scores)
             except Exception:
                 pass  # Fall back to defaults if scoring fails
@@ -356,7 +370,9 @@ class TeamOptimizationService:
             "neuroticism": 40.0,
         }
 
-    async def _get_user_skills(self, db: AsyncSession, user_id: int) -> dict[str, float]:
+    async def _get_user_skills(
+        self, db: AsyncSession, user_id: int
+    ) -> dict[str, float]:
         """Get user's skills from assessments or profile"""
 
         # Would extract from skills assessments
@@ -375,7 +391,9 @@ class TeamOptimizationService:
         result = await db.execute(query)
         return result.scalar()
 
-    def _build_requirements(self, requirements_dict: dict[str, Any]) -> TeamRequirements:
+    def _build_requirements(
+        self, requirements_dict: dict[str, Any]
+    ) -> TeamRequirements:
         """Convert requirements dict to TeamRequirements object"""
         return TeamRequirements(
             team_id=requirements_dict.get("team_id", 0),
@@ -387,15 +405,22 @@ class TeamOptimizationService:
             optional_roles=requirements_dict.get("optional_roles", {}),
             required_skills=requirements_dict.get("required_skills", {}),
             desired_skills=requirements_dict.get("desired_skills", {}),
-            min_personality_diversity=requirements_dict.get("min_personality_diversity", 0.3),
-            max_personality_similarity=requirements_dict.get("max_personality_similarity", 0.7),
+            min_personality_diversity=requirements_dict.get(
+                "min_personality_diversity", 0.3
+            ),
+            max_personality_similarity=requirements_dict.get(
+                "max_personality_similarity", 0.7
+            ),
             max_same_department=requirements_dict.get("max_same_department"),
             min_senior_members=requirements_dict.get("min_senior_members"),
             max_junior_members=requirements_dict.get("max_junior_members"),
         )
 
     def _generate_collaboration_tips(
-        self, profile1: TeamMemberProfile, profile2: TeamMemberProfile, compatibility_score: float
+        self,
+        profile1: TeamMemberProfile,
+        profile2: TeamMemberProfile,
+        compatibility_score: float,
     ) -> list[str]:
         """Generate collaboration recommendations"""
         tips = []
@@ -421,7 +446,9 @@ class TeamOptimizationService:
 
 
 # Additional utility functions for compatibility
-async def get_personality_profile_for_user(user_id: str, db: AsyncSession) -> dict[str, Any]:
+async def get_personality_profile_for_user(
+    user_id: str, db: AsyncSession
+) -> dict[str, Any]:
     """
     Get personality profile for a user
     TODO: Implement actual personality profile retrieval

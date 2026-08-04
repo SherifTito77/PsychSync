@@ -9,9 +9,10 @@ and shows the available behavioral analysis methods and psychological approaches
 import sys
 import uuid
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
-sys.path.insert(0, '.')
+sys.path.insert(0, ".")
+
 
 class AssessmentWorkflowDemo:
     """Demonstrates the complete assessment workflow"""
@@ -31,7 +32,11 @@ class AssessmentWorkflowDemo:
                 "description": "16 personality types based on 4 dimensions",
                 "questions": 80,
                 "time_estimate": "15-20 minutes",
-                "insights": ["Work style", "Communication preferences", "Team compatibility"]
+                "insights": [
+                    "Work style",
+                    "Communication preferences",
+                    "Team compatibility",
+                ],
             },
             {
                 "name": "Big Five (OCEAN Model)",
@@ -39,7 +44,11 @@ class AssessmentWorkflowDemo:
                 "description": "Five core personality dimensions",
                 "questions": 120,
                 "time_estimate": "20-25 minutes",
-                "insights": ["Personality traits", "Behavioral patterns", "Performance predictors"]
+                "insights": [
+                    "Personality traits",
+                    "Behavioral patterns",
+                    "Performance predictors",
+                ],
             },
             {
                 "name": "Enneagram",
@@ -47,7 +56,7 @@ class AssessmentWorkflowDemo:
                 "description": "9 personality types based on core motivations",
                 "questions": 90,
                 "time_estimate": "18-22 minutes",
-                "insights": ["Core motivations", "Growth paths", "Stress responses"]
+                "insights": ["Core motivations", "Growth paths", "Stress responses"],
             },
             {
                 "name": "Predictive Index (PI)",
@@ -55,7 +64,7 @@ class AssessmentWorkflowDemo:
                 "description": "Behavioral drives and workplace patterns",
                 "questions": 60,
                 "time_estimate": "10-15 minutes",
-                "insights": ["Management style", "Decision patterns", "Team fit"]
+                "insights": ["Management style", "Decision patterns", "Team fit"],
             },
             {
                 "name": "Social Styles",
@@ -63,7 +72,11 @@ class AssessmentWorkflowDemo:
                 "description": "4-quadrant behavioral style assessment",
                 "questions": 50,
                 "time_estimate": "8-12 minutes",
-                "insights": ["Interaction style", "Adaptability", "Communication approach"]
+                "insights": [
+                    "Interaction style",
+                    "Adaptability",
+                    "Communication approach",
+                ],
             },
             {
                 "name": "Clifton Strengths",
@@ -71,7 +84,11 @@ class AssessmentWorkflowDemo:
                 "description": "Identifies top 5 natural talent themes",
                 "questions": 177,
                 "time_estimate": "30-40 minutes",
-                "insights": ["Natural abilities", "Performance potential", "Team role optimization"]
+                "insights": [
+                    "Natural abilities",
+                    "Performance potential",
+                    "Team role optimization",
+                ],
             },
             {
                 "name": "DISC Assessment",
@@ -79,7 +96,7 @@ class AssessmentWorkflowDemo:
                 "description": "Behavioral styles in workplace settings",
                 "questions": 28,
                 "time_estimate": "5-10 minutes",
-                "insights": ["Work behavior", "Leadership style", "Team dynamics"]
+                "insights": ["Work behavior", "Leadership style", "Team dynamics"],
             },
             {
                 "name": "Clinical Assessments",
@@ -87,8 +104,8 @@ class AssessmentWorkflowDemo:
                 "description": "Mental health and wellness screening tools",
                 "questions": "Variable (9-42 per assessment)",
                 "time_estimate": "5-15 minutes",
-                "insights": ["Wellness indicators", "Stress levels", "Support needs"]
-            }
+                "insights": ["Wellness indicators", "Stress levels", "Support needs"],
+            },
         ]
 
         print("📋 Available Assessment Frameworks:")
@@ -97,7 +114,9 @@ class AssessmentWorkflowDemo:
             print(f"{i}. {framework['name']}")
             print(f"   📝 Type: {framework['type']}")
             print(f"   📖 Description: {framework['description']}")
-            print(f"   ⏱️  Questions: {framework['questions']} ({framework['time_estimate']})")
+            print(
+                f"   ⏱️  Questions: {framework['questions']} ({framework['time_estimate']})"
+            )
             print(f"   💡 Key Insights: {', '.join(framework['insights'])}")
             print()
 
@@ -111,7 +130,7 @@ class AssessmentWorkflowDemo:
         user_data = {
             "user_id": str(uuid.uuid4()),
             "assessment_type": "mbti",
-            "started_at": datetime.utcnow()
+            "started_at": datetime.utcnow(),
         }
         print(f"   User ID: {user_data['user_id'][:8]}...")
         print(f"   Assessment: {user_data['assessment_type']}")
@@ -121,15 +140,31 @@ class AssessmentWorkflowDemo:
         # Step 2: Sample Assessment Questions
         print("2️⃣ Sample Assessment Questions")
         sample_questions = [
-            {"id": 1, "question": "At parties, you...", "options": ["Interact with many", "Talk with a few"]},
-            {"id": 2, "question": "You prefer to...", "options": ["Focus on reality", "Imagine possibilities"]},
-            {"id": 3, "question": "When making decisions, you...", "options": ["Follow your head", "Follow your heart"]},
-            {"id": 4, "question": "You prefer a life that is...", "options": ["Planned and orderly", "Spontaneous and flexible"]}
+            {
+                "id": 1,
+                "question": "At parties, you...",
+                "options": ["Interact with many", "Talk with a few"],
+            },
+            {
+                "id": 2,
+                "question": "You prefer to...",
+                "options": ["Focus on reality", "Imagine possibilities"],
+            },
+            {
+                "id": 3,
+                "question": "When making decisions, you...",
+                "options": ["Follow your head", "Follow your heart"],
+            },
+            {
+                "id": 4,
+                "question": "You prefer a life that is...",
+                "options": ["Planned and orderly", "Spontaneous and flexible"],
+            },
         ]
 
         for q in sample_questions:
             print(f"   Q{q['id']}: {q['question']}")
-            for i, option in enumerate(q['options'], 1):
+            for i, option in enumerate(q["options"], 1):
                 print(f"     [{i}] {option}")
         print()
 
@@ -162,7 +197,7 @@ class AssessmentWorkflowDemo:
             "Optimal team roles: Strategy, Innovation, Analysis",
             "Communication approach: Direct, logical, future-focused",
             "Leadership style: Visionary, independent, efficient",
-            "Development areas: Team collaboration, emotional intelligence"
+            "Development areas: Team collaboration, emotional intelligence",
         ]
         for app in applications:
             print(f"   • {app}")
@@ -183,14 +218,14 @@ class AssessmentWorkflowDemo:
             "INTJ": "The Architect - Strategic, independent, and innovative",
             "ENTP": "The Debater - Smart, curious, and playful",
             "INFJ": "The Advocate - Creative, insightful, and principled",
-            "ENFP": "The Campaigner - Enthusiastic, creative, and sociable"
+            "ENFP": "The Campaigner - Enthusiastic, creative, and sociable",
         }
 
         preferences = {
             "energy": "Extraversion" if type_code[0] == "E" else "Introversion",
             "information": "Intuition" if type_code[1] == "N" else "Sensing",
             "decisions": "Feeling" if type_code[2] == "F" else "Thinking",
-            "lifestyle": "Perceiving" if type_code[3] == "P" else "Judging"
+            "lifestyle": "Perceiving" if type_code[3] == "P" else "Judging",
         }
 
         return {
@@ -199,7 +234,7 @@ class AssessmentWorkflowDemo:
             "description": type_descriptions.get(type_code, "Unique personality type"),
             "preferences": preferences,
             "strengths": ["Strategic thinking", "Independence", "Vision"],
-            "development_areas": ["Team collaboration", "Patience", "Flexibility"]
+            "development_areas": ["Team collaboration", "Patience", "Flexibility"],
         }
 
     def demonstrate_behavioral_analysis_methods(self):
@@ -214,9 +249,14 @@ class AssessmentWorkflowDemo:
                     "Personality Profiling (MBTI, Big Five, Enneagram)",
                     "Strengths Assessment (Clifton Strengths)",
                     "Behavioral Style Analysis (DISC, Social Styles)",
-                    "Workplace Behavior Patterns (Predictive Index)"
+                    "Workplace Behavior Patterns (Predictive Index)",
                 ],
-                "insights": ["Natural talents", "Communication style", "Decision patterns", "Team fit"]
+                "insights": [
+                    "Natural talents",
+                    "Communication style",
+                    "Decision patterns",
+                    "Team fit",
+                ],
             },
             {
                 "category": "Team Analysis",
@@ -224,9 +264,14 @@ class AssessmentWorkflowDemo:
                     "Team Composition Analysis",
                     "Team Dynamics Assessment",
                     "Communication Pattern Analysis",
-                    "Conflict Potential Analysis"
+                    "Conflict Potential Analysis",
                 ],
-                "insights": ["Role optimization", "Team compatibility", "Leadership structure", "Collaboration effectiveness"]
+                "insights": [
+                    "Role optimization",
+                    "Team compatibility",
+                    "Leadership structure",
+                    "Collaboration effectiveness",
+                ],
             },
             {
                 "category": "Organizational Analysis",
@@ -234,15 +279,20 @@ class AssessmentWorkflowDemo:
                     "Culture Assessment",
                     "Leadership Pipeline Analysis",
                     "Skill Gap Analysis",
-                    "Performance Prediction Models"
+                    "Performance Prediction Models",
                 ],
-                "insights": ["Organizational values", "Leadership potential", "Training needs", "Success metrics"]
-            }
+                "insights": [
+                    "Organizational values",
+                    "Leadership potential",
+                    "Training needs",
+                    "Success metrics",
+                ],
+            },
         ]
 
         for method in methods:
             print(f"📊 {method['category']}")
-            for approach in method['methods']:
+            for approach in method["methods"]:
                 print(f"   • {approach}")
             print(f"   💡 Key Insights: {', '.join(method['insights'])}")
             print()
@@ -255,28 +305,68 @@ class AssessmentWorkflowDemo:
         approaches = [
             {
                 "field": "Clinical Psychology",
-                "tools": ["PHQ-9 (Depression)", "GAD-7 (Anxiety)", "DASS-21 (Stress)", "PCL-5 (PTSD)"],
-                "applications": ["Mental health screening", "Employee wellness", "Early intervention", "Support programs"],
-                "location": "Clinical Assessments → Mental Health"
+                "tools": [
+                    "PHQ-9 (Depression)",
+                    "GAD-7 (Anxiety)",
+                    "DASS-21 (Stress)",
+                    "PCL-5 (PTSD)",
+                ],
+                "applications": [
+                    "Mental health screening",
+                    "Employee wellness",
+                    "Early intervention",
+                    "Support programs",
+                ],
+                "location": "Clinical Assessments → Mental Health",
             },
             {
                 "field": "Organizational Psychology",
-                "tools": ["Job Fit Analysis", "Team Optimization", "Leadership Assessment", "Culture Assessment"],
-                "applications": ["Recruitment support", "Team building", "Leadership development", "Culture alignment"],
-                "location": "Organization Dashboard → Psychology Tools"
+                "tools": [
+                    "Job Fit Analysis",
+                    "Team Optimization",
+                    "Leadership Assessment",
+                    "Culture Assessment",
+                ],
+                "applications": [
+                    "Recruitment support",
+                    "Team building",
+                    "Leadership development",
+                    "Culture alignment",
+                ],
+                "location": "Organization Dashboard → Psychology Tools",
             },
             {
                 "field": "Positive Psychology",
-                "tools": ["Strengths Assessment", "Wellness Enhancement", "Engagement Analysis", "Flavor Assessment"],
-                "applications": ["Employee engagement", "Performance optimization", "Well-being programs", "Development planning"],
-                "location": "Personal Development → Positive Psychology"
+                "tools": [
+                    "Strengths Assessment",
+                    "Wellness Enhancement",
+                    "Engagement Analysis",
+                    "Flavor Assessment",
+                ],
+                "applications": [
+                    "Employee engagement",
+                    "Performance optimization",
+                    "Well-being programs",
+                    "Development planning",
+                ],
+                "location": "Personal Development → Positive Psychology",
             },
             {
                 "field": "Behavioral Economics",
-                "tools": ["Decision Making Analysis", "Motivation Assessment", "Risk Tolerance", "Incentive Preferences"],
-                "applications": ["Decision support", "Performance management", "Retention programs", "Compensation design"],
-                "location": "Analytics → Behavioral Economics"
-            }
+                "tools": [
+                    "Decision Making Analysis",
+                    "Motivation Assessment",
+                    "Risk Tolerance",
+                    "Incentive Preferences",
+                ],
+                "applications": [
+                    "Decision support",
+                    "Performance management",
+                    "Retention programs",
+                    "Compensation design",
+                ],
+                "location": "Analytics → Behavioral Economics",
+            },
         ]
 
         for approach in approaches:
@@ -295,33 +385,54 @@ class AssessmentWorkflowDemo:
             {
                 "interface": "Frontend User Interface",
                 "path": "Main Menu → Assessments",
-                "methods": ["All personality and behavioral assessments", "Clinical screenings", "Strengths assessments"],
-                "access": "Direct user access with immediate results"
+                "methods": [
+                    "All personality and behavioral assessments",
+                    "Clinical screenings",
+                    "Strengths assessments",
+                ],
+                "access": "Direct user access with immediate results",
             },
             {
                 "interface": "Admin Dashboard",
                 "path": "Admin Panel → Assessment Management",
-                "methods": ["Assessment catalog management", "Template configuration", "Analytics", "Compliance"],
-                "access": "Administrative control and oversight"
+                "methods": [
+                    "Assessment catalog management",
+                    "Template configuration",
+                    "Analytics",
+                    "Compliance",
+                ],
+                "access": "Administrative control and oversight",
             },
             {
                 "interface": "Team Dashboard",
                 "path": "Team Management → Team Analytics",
-                "methods": ["Team composition analysis", "Dynamics assessment", "Performance predictions"],
-                "access": "Team leaders and managers"
+                "methods": [
+                    "Team composition analysis",
+                    "Dynamics assessment",
+                    "Performance predictions",
+                ],
+                "access": "Team leaders and managers",
             },
             {
                 "interface": "API Integration",
                 "path": "API v1 → Assessment Endpoints",
-                "methods": ["Programmatic access", "Integration with other systems", "Batch processing"],
-                "access": "Developers and system integrators"
+                "methods": [
+                    "Programmatic access",
+                    "Integration with other systems",
+                    "Batch processing",
+                ],
+                "access": "Developers and system integrators",
             },
             {
                 "interface": "Analytics Dashboard",
                 "path": "Analytics → Behavioral Analysis",
-                "methods": ["Individual profiles", "Team analytics", "Organizational insights"],
-                "access": "Data-driven decision making"
-            }
+                "methods": [
+                    "Individual profiles",
+                    "Team analytics",
+                    "Organizational insights",
+                ],
+                "access": "Data-driven decision making",
+            },
         ]
 
         for access in access_points:
@@ -354,7 +465,7 @@ class AssessmentWorkflowDemo:
             "methods_count": 16,
             "psychological_fields": 4,
             "access_interfaces": 5,
-            "mbti_result": mbti_result
+            "mbti_result": mbti_result,
         }
 
 

@@ -5,12 +5,13 @@ Using dataclasses for type safety, validation, and clear documentation.
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, Any
 from enum import Enum
+from typing import Any, Dict
 
 
 class SeverityLevel(Enum):
     """Standard severity levels for clinical assessments"""
+
     MINIMAL = "minimal"
     MILD = "mild"
     MODERATE = "moderate"
@@ -20,6 +21,7 @@ class SeverityLevel(Enum):
 
 class RiskLevel(Enum):
     """Risk level classifications"""
+
     LOW = "low"
     MODERATE = "moderate"
     HIGH = "high"
@@ -34,11 +36,12 @@ class ScoringThresholds:
     This encapsulates all scoring thresholds in one place,
     making them easy to test and modify.
     """
+
     minimal: int
     mild: int
     moderate: int
     moderately_severe: int
-    severe: int = float('inf')
+    severe: int = float("inf")
 
     def get_severity(self, score: int) -> SeverityLevel:
         """Map score to severity level"""
@@ -54,9 +57,7 @@ class ScoringThresholds:
 
     def validate(self) -> None:
         """Ensure thresholds are in ascending order"""
-        thresholds = [
-            self.minimal, self.mild, self.moderate, self.moderately_severe
-        ]
+        thresholds = [self.minimal, self.mild, self.moderate, self.moderately_severe]
         if thresholds != sorted(thresholds):
             raise ValueError("Thresholds must be in ascending order")
 
@@ -68,6 +69,7 @@ class CrisisThresholds:
 
     Centralizes crisis detection rules for each instrument.
     """
+
     suicide_item_number: int
     crisis_threshold: int  # Score on suicide item that triggers crisis
     severe_crisis_threshold: int  # Score that triggers immediate alert
@@ -91,6 +93,7 @@ class InstrumentConfig:
 
     This replaces multiple function parameters and scattered settings.
     """
+
     name: str
     items: int  # Total number of items
     response_range: tuple[int, int]  # Valid response values (min, max)

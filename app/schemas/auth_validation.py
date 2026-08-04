@@ -11,7 +11,8 @@ Version: 1.0
 Date: 2025-01-19
 """
 
-from email_validator import validate_email as email_validator_validate, EmailNotValidError
+from email_validator import EmailNotValidError
+from email_validator import validate_email as email_validator_validate
 from pydantic import BaseModel, Field, field_validator, validator
 
 
@@ -30,20 +31,14 @@ class LoginRequestValidator(BaseModel):
     """
 
     username: str = Field(
-        ...,
-        min_length=3,
-        max_length=255,
-        description="User email address"
+        ..., min_length=3, max_length=255, description="User email address"
     )
 
     password: str = Field(
-        ...,
-        min_length=8,
-        max_length=128,
-        description="User password"
+        ..., min_length=8, max_length=128, description="User password"
     )
 
-    @field_validator('username')
+    @field_validator("username")
     @classmethod
     def validate_email_format(cls, v: str) -> str:
         """
@@ -65,7 +60,7 @@ class LoginRequestValidator(BaseModel):
         except EmailNotValidError as e:
             raise ValueError(f"Invalid email format: {str(e)}")
 
-    @field_validator('password')
+    @field_validator("password")
     @classmethod
     def validate_password_length(cls, v: str) -> str:
         """
@@ -84,13 +79,14 @@ class LoginRequestValidator(BaseModel):
             ValueError: If password is too long
         """
         # Length check handled by Field validator, but add explicit check here
-        if len(v.encode('utf-8')) > 128:  # Check byte length, not character length
+        if len(v.encode("utf-8")) > 128:  # Check byte length, not character length
             raise ValueError("Password exceeds maximum length")
 
         return v
 
     class Config:
         """Pydantic model configuration."""
+
         str_strip_whitespace = True  # Auto-strip whitespace
         str_min_length = True  # Apply min_length after stripping
 
@@ -104,17 +100,14 @@ class MFALoginRequestValidator(BaseModel):
         ...,
         min_length=20,
         max_length=512,
-        description="MFA challenge token from initial login"
+        description="MFA challenge token from initial login",
     )
 
     totp_code: str = Field(
-        ...,
-        min_length=6,
-        max_length=8,
-        description="6-digit TOTP authentication code"
+        ..., min_length=6, max_length=8, description="6-digit TOTP authentication code"
     )
 
-    @field_validator('totp_code')
+    @field_validator("totp_code")
     @classmethod
     def validate_totp_format(cls, v: str) -> str:
         """
@@ -136,6 +129,7 @@ class MFALoginRequestValidator(BaseModel):
 
     class Config:
         """Pydantic model configuration."""
+
         str_strip_whitespace = True
 
 
@@ -145,13 +139,10 @@ class PasswordValidationRequest(BaseModel):
     """
 
     password: str = Field(
-        ...,
-        min_length=8,
-        max_length=128,
-        description="Password to validate"
+        ..., min_length=8, max_length=128, description="Password to validate"
     )
 
-    @field_validator('password')
+    @field_validator("password")
     @classmethod
     def validate_password_complexity(cls, v: str) -> str:
         """
@@ -200,10 +191,7 @@ class PasswordValidationRequest(BaseModel):
 
 
 # FastAPI dependency for login validation
-async def validate_login_request(
-    username: str,
-    password: str
-) -> LoginRequestValidator:
+async def validate_login_request(username: str, password: str) -> LoginRequestValidator:
     """
     Validate login request parameters.
 
@@ -235,7 +223,5 @@ async def validate_login_request(
         return LoginRequestValidator(username=username, password=password)
     except ValueError as e:
         from fastapi import HTTPException, status
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

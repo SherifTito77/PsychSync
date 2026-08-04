@@ -13,19 +13,20 @@ Features:
 - Error handling and retry logic
 """
 
-import logging
-import json
 import asyncio
+import json
+import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Union
+from typing import Any, Dict, List, Optional, Union
 from uuid import UUID, uuid4
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
-import httpx
 
-from app.db.models.user import User
-from app.db.models.notification import NotificationPreference, PushNotificationToken
+import httpx
+from sqlalchemy import and_, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import settings
+from app.db.models.notification import NotificationPreference, PushNotificationToken
+from app.db.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # Notification Types and Templates
 # =============================================================================
+
 
 class NotificationType(str):
     """Enumeration of notification types"""
@@ -197,6 +199,7 @@ NOTIFICATION_TEMPLATES = {
 # Main Service Class
 # =============================================================================
 
+
 class PushNotificationService:
     """
     Service for managing Firebase Cloud Messaging (FCM) push notifications.
@@ -269,7 +272,9 @@ class PushNotificationService:
                 await db.commit()
                 await db.refresh(new_token)
 
-                logger.info(f"Registered new FCM token for user {user_id}: {token[:20]}...")
+                logger.info(
+                    f"Registered new FCM token for user {user_id}: {token[:20]}..."
+                )
                 return new_token
 
         except Exception as e:
@@ -388,7 +393,9 @@ class PushNotificationService:
 
             # Check user preferences
             if not await self._check_user_preferences(db, user_id, notification_type):
-                logger.info(f"User {user_id} has disabled {notification_type} notifications")
+                logger.info(
+                    f"User {user_id} has disabled {notification_type} notifications"
+                )
                 return {
                     "success": True,
                     "skipped": True,
@@ -633,7 +640,7 @@ class PushNotificationService:
         """
 
         try:
-            from app.core.resilient_client import resilient_http_client, HTTPClientError
+            from app.core.resilient_client import HTTPClientError, resilient_http_client
 
             headers = {
                 "Content-Type": "application/json",
@@ -658,7 +665,9 @@ class PushNotificationService:
                     return [{"success": True, "message_id": result.get("message_id")}]
 
                 else:
-                    logger.error(f"FCM API error: {response.status_code} - {response.text}")
+                    logger.error(
+                        f"FCM API error: {response.status_code} - {response.text}"
+                    )
                     return [{"success": False, "error": "FCM API error"}]
 
             except HTTPClientError as e:

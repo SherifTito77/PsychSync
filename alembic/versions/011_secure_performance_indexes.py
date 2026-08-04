@@ -12,19 +12,21 @@ Security and Reliability Enhancements:
 - Progress tracking and recovery
 """
 
-from alembic import op
-import sqlalchemy as sa
-from sqlalchemy import text
 import logging
 import time
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
+
+import sqlalchemy as sa
+from sqlalchemy import text
+
+from alembic import op
 
 # Set up detailed logging
 logger = logging.getLogger(__name__)
 
 # revision identifiers, used by Alembic.
-revision = '011_secure_performance_indexes'
-down_revision = '010_add_performance_indexes'
+revision = "011_secure_performance_indexes"
+down_revision = "010_add_performance_indexes"
 branch_labels = None
 depends_on = None
 
@@ -34,9 +36,12 @@ LOCK_TIMEOUT = 60  # 1 minute
 MAX_RETRIES = 3
 RETRY_DELAY = 5  # seconds
 
+
 class IndexCreationError(Exception):
     """Custom exception for index creation failures"""
+
     pass
+
 
 class SecureIndexManager:
     """Secure index creation with comprehensive error handling"""
@@ -56,7 +61,9 @@ class SecureIndexManager:
         connection.execute(text("SET idle_in_transaction_session_timeout = '300s'"))
         logger.info("Connection security parameters set")
 
-    def execute_with_timeout(self, sql: str, timeout: int = DEFAULT_STATEMENT_TIMEOUT) -> bool:
+    def execute_with_timeout(
+        self, sql: str, timeout: int = DEFAULT_STATEMENT_TIMEOUT
+    ) -> bool:
         """Execute SQL with timeout and error handling"""
         if not self.connection:
             raise IndexCreationError("Connection not initialized")
@@ -80,9 +87,9 @@ class SecureIndexManager:
 
         except sa.exc.OperationalError as e:
             error_msg = str(e).lower()
-            if 'timeout' in error_msg:
+            if "timeout" in error_msg:
                 logger.error(f"❌ Query timeout after {timeout}s: {sql[:50]}...")
-            elif 'lock' in error_msg:
+            elif "lock" in error_msg:
                 logger.error(f"❌ Lock acquisition failed: {sql[:50]}...")
             else:
                 logger.error(f"❌ Operational error: {e}")
@@ -96,7 +103,9 @@ class SecureIndexManager:
             self.connection.execute(text("SET statement_timeout = DEFAULT"))
             return False
 
-    def create_index_safely(self, index_name: str, index_sql: str, max_retries: int = MAX_RETRIES) -> bool:
+    def create_index_safely(
+        self, index_name: str, index_sql: str, max_retries: int = MAX_RETRIES
+    ) -> bool:
         """Create index with retry logic and comprehensive error handling"""
 
         logger.info(f"🔧 Creating index: {index_name}")
@@ -122,32 +131,38 @@ class SecureIndexManager:
                     logger.info(f"✅ Successfully created index: {index_name}")
                     return True
                 else:
-                    logger.warning(f"⚠️ Attempt {attempt + 1}/{max_retries} failed for {index_name}")
+                    logger.warning(
+                        f"⚠️ Attempt {attempt + 1}/{max_retries} failed for {index_name}"
+                    )
 
             except Exception as e:
-                logger.error(f"❌ Attempt {attempt + 1}/{max_retries} failed for {index_name}: {e}")
+                logger.error(
+                    f"❌ Attempt {attempt + 1}/{max_retries} failed for {index_name}: {e}"
+                )
 
             if attempt < max_retries - 1:
                 logger.info(f"⏳ Waiting {RETRY_DELAY}s before retry...")
                 time.sleep(RETRY_DELAY)
 
         # All retries failed
-        logger.error(f"❌ Failed to create index after {max_retries} attempts: {index_name}")
+        logger.error(
+            f"❌ Failed to create index after {max_retries} attempts: {index_name}"
+        )
         self.failed_indexes.append(index_name)
         return False
 
     def _extract_tablename(self, index_sql: str) -> str:
         """Extract table name from index creation SQL"""
         # Simple parsing - could be enhanced for complex cases
-        if 'ON ' in index_sql.upper():
-            parts = index_sql.upper().split('ON ')
+        if "ON " in index_sql.upper():
+            parts = index_sql.upper().split("ON ")
             if len(parts) > 1:
-                table_part = parts[1].split('(')[0].strip()
+                table_part = parts[1].split("(")[0].strip()
                 # Remove schema if present
-                if '.' in table_part:
-                    return table_part.split('.')[-1]
+                if "." in table_part:
+                    return table_part.split(".")[-1]
                 return table_part
-        return 'unknown'
+        return "unknown"
 
     def analyze_index_usage(self) -> List[Dict]:
         """Analyze index usage statistics"""
@@ -177,12 +192,19 @@ class SecureIndexManager:
         total_time = time.time() - self.start_time
 
         return {
-            'total_time_seconds': round(total_time, 2),
-            'created_indexes': self.created_indexes,
-            'failed_indexes': self.failed_indexes,
-            'success_rate': len(self.created_indexes) / (len(self.created_indexes) + len(self.failed_indexes)) * 100 if (self.created_indexes or self.failed_indexes) else 0,
-            'total_attempts': len(self.created_indexes) + len(self.failed_indexes)
+            "total_time_seconds": round(total_time, 2),
+            "created_indexes": self.created_indexes,
+            "failed_indexes": self.failed_indexes,
+            "success_rate": (
+                len(self.created_indexes)
+                / (len(self.created_indexes) + len(self.failed_indexes))
+                * 100
+                if (self.created_indexes or self.failed_indexes)
+                else 0
+            ),
+            "total_attempts": len(self.created_indexes) + len(self.failed_indexes),
         }
+
 
 def upgrade() -> None:
     """Add performance-optimizing database indexes securely"""
@@ -198,133 +220,133 @@ def upgrade() -> None:
     # Define indexes with metadata
     indexes_to_create = [
         {
-            'name': 'idx_users_org_created_at',
-            'sql': '''
+            "name": "idx_users_org_created_at",
+            "sql": """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_org_created_at
                 ON users(organization_id, created_at DESC)
-            ''',
-            'description': 'Optimize user queries by organization and creation date',
-            'priority': 'high'
+            """,
+            "description": "Optimize user queries by organization and creation date",
+            "priority": "high",
         },
         {
-            'name': 'idx_users_email_active',
-            'sql': '''
+            "name": "idx_users_email_active",
+            "sql": """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email_active
                 ON users(email) WHERE is_active = true
-            ''',
-            'description': 'Optimize active user lookups by email',
-            'priority': 'high'
+            """,
+            "description": "Optimize active user lookups by email",
+            "priority": "high",
         },
         {
-            'name': 'idx_assessments_user_status_created',
-            'sql': '''
+            "name": "idx_assessments_user_status_created",
+            "sql": """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_assessments_user_status_created
                 ON assessments(user_id, status, created_at DESC)
-            ''',
-            'description': 'Optimize assessment queries for dashboard',
-            'priority': 'high'
+            """,
+            "description": "Optimize assessment queries for dashboard",
+            "priority": "high",
         },
         {
-            'name': 'idx_assessments_org_type',
-            'sql': '''
+            "name": "idx_assessments_org_type",
+            "sql": """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_assessments_org_type
                 ON assessments(organization_id, assessment_type)
                 WHERE status = 'active'
-            ''',
-            'description': 'Optimize active assessments by organization',
-            'priority': 'medium'
+            """,
+            "description": "Optimize active assessments by organization",
+            "priority": "medium",
         },
         {
-            'name': 'idx_responses_assessment_created',
-            'sql': '''
+            "name": "idx_responses_assessment_created",
+            "sql": """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_responses_assessment_created
                 ON responses(assessment_id, created_at DESC)
-            ''',
-            'description': 'Optimize response queries by assessment',
-            'priority': 'high'
+            """,
+            "description": "Optimize response queries by assessment",
+            "priority": "high",
         },
         {
-            'name': 'idx_responses_user_score',
-            'sql': '''
+            "name": "idx_responses_user_score",
+            "sql": """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_responses_user_score
                 ON responses(user_id, total_score)
                 WHERE total_score IS NOT NULL
-            ''',
-            'description': 'Optimize score-based queries',
-            'priority': 'medium'
+            """,
+            "description": "Optimize score-based queries",
+            "priority": "medium",
         },
         {
-            'name': 'idx_teams_org_created',
-            'sql': '''
+            "name": "idx_teams_org_created",
+            "sql": """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_teams_org_created
                 ON teams(organization_id, created_at DESC)
-            ''',
-            'description': 'Optimize team queries by organization',
-            'priority': 'medium'
+            """,
+            "description": "Optimize team queries by organization",
+            "priority": "medium",
         },
         {
-            'name': 'idx_teams_name_active',
-            'sql': '''
+            "name": "idx_teams_name_active",
+            "sql": """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_teams_name_active
                 ON teams(name) WHERE is_active = true
-            ''',
-            'description': 'Optimize active team searches by name',
-            'priority': 'medium'
+            """,
+            "description": "Optimize active team searches by name",
+            "priority": "medium",
         },
         {
-            'name': 'idx_user_teams_user_team',
-            'sql': '''
+            "name": "idx_user_teams_user_team",
+            "sql": """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_teams_user_team
                 ON user_teams(user_id, team_id)
-            ''',
-            'description': 'Optimize user-team relationship queries',
-            'priority': 'high'
+            """,
+            "description": "Optimize user-team relationship queries",
+            "priority": "high",
         },
         {
-            'name': 'idx_user_teams_role',
-            'sql': '''
+            "name": "idx_user_teams_role",
+            "sql": """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_teams_role
                 ON user_teams(role) WHERE role IN ('admin', 'manager')
-            ''',
-            'description': 'Optimize admin/manager role queries',
-            'priority': 'medium'
+            """,
+            "description": "Optimize admin/manager role queries",
+            "priority": "medium",
         },
         {
-            'name': 'idx_response_analytics_response_question',
-            'sql': '''
+            "name": "idx_response_analytics_response_question",
+            "sql": """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_response_analytics_response_question
                 ON response_analytics(response_id, question_id)
-            ''',
-            'description': 'Optimize response analytics queries',
-            'priority': 'medium'
+            """,
+            "description": "Optimize response analytics queries",
+            "priority": "medium",
         },
         {
-            'name': 'idx_response_analytics_score_value',
-            'sql': '''
+            "name": "idx_response_analytics_score_value",
+            "sql": """
                 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_response_analytics_score_value
                 ON response_analytics(score_value)
                 WHERE score_value IS NOT NULL
-            ''',
-            'description': 'Optimize analytics by score values',
-            'priority': 'low'
-        }
+            """,
+            "description": "Optimize analytics by score values",
+            "priority": "low",
+        },
     ]
 
     # Sort indexes by priority
-    priority_order = {'high': 0, 'medium': 1, 'low': 2}
-    indexes_to_create.sort(key=lambda x: priority_order.get(x['priority'], 3))
+    priority_order = {"high": 0, "medium": 1, "low": 2}
+    indexes_to_create.sort(key=lambda x: priority_order.get(x["priority"], 3))
 
     # Create indexes with comprehensive error handling
     logger.info(f"📋 Creating {len(indexes_to_create)} indexes (sorted by priority)")
 
     for index_info in indexes_to_create:
-        logger.info(f"🔧 Creating {index_info['priority']} priority index: {index_info['name']}")
+        logger.info(
+            f"🔧 Creating {index_info['priority']} priority index: {index_info['name']}"
+        )
         logger.info(f"📝 {index_info['description']}")
 
         success = index_manager.create_index_safely(
-            index_info['name'],
-            index_info['sql'],
-            max_retries=3
+            index_info["name"], index_info["sql"], max_retries=3
         )
 
         if success:
@@ -344,14 +366,14 @@ def upgrade() -> None:
     logger.info(f"❌ Failed indexes: {len(summary['failed_indexes'])}")
     logger.info(f"📈 Success rate: {summary['success_rate']:.1f}%")
 
-    if summary['created_indexes']:
+    if summary["created_indexes"]:
         logger.info("✅ Successfully created indexes:")
-        for index_name in summary['created_indexes']:
+        for index_name in summary["created_indexes"]:
             logger.info(f"  • {index_name}")
 
-    if summary['failed_indexes']:
+    if summary["failed_indexes"]:
         logger.warning("❌ Failed to create indexes:")
-        for index_name in summary['failed_indexes']:
+        for index_name in summary["failed_indexes"]:
             logger.warning(f"  • {index_name}")
 
     # Analyze index usage if possible
@@ -362,13 +384,14 @@ def upgrade() -> None:
             logger.info(f"  • {stat['indexname']}: {stat['idx_scan']} scans")
 
     # Determine overall success
-    if summary['success_rate'] >= 80:
+    if summary["success_rate"] >= 80:
         logger.info("🎉 SECURE index creation completed successfully!")
-    elif summary['success_rate'] >= 60:
+    elif summary["success_rate"] >= 60:
         logger.warning("⚠️ Index creation completed with some failures")
     else:
         logger.error("❌ Index creation failed - significant issues detected")
         raise IndexCreationError(f"Low success rate: {summary['success_rate']:.1f}%")
+
 
 def downgrade() -> None:
     """Remove performance indexes with comprehensive error handling"""
@@ -379,18 +402,18 @@ def downgrade() -> None:
 
     # Indexes to remove (in reverse order of creation)
     indexes_to_remove = [
-        'idx_response_analytics_score_value',
-        'idx_response_analytics_response_question',
-        'idx_user_teams_role',
-        'idx_user_teams_user_team',
-        'idx_teams_name_active',
-        'idx_teams_org_created',
-        'idx_responses_user_score',
-        'idx_responses_assessment_created',
-        'idx_assessments_org_type',
-        'idx_assessments_user_status_created',
-        'idx_users_email_active',
-        'idx_users_org_created_at'
+        "idx_response_analytics_score_value",
+        "idx_response_analytics_response_question",
+        "idx_user_teams_role",
+        "idx_user_teams_user_team",
+        "idx_teams_name_active",
+        "idx_teams_org_created",
+        "idx_responses_user_score",
+        "idx_responses_assessment_created",
+        "idx_assessments_org_type",
+        "idx_assessments_user_status_created",
+        "idx_users_email_active",
+        "idx_users_org_created_at",
     ]
 
     removed_count = 0
@@ -435,7 +458,9 @@ def downgrade() -> None:
     logger.info("=" * 30)
     logger.info(f"✅ Successfully removed: {removed_count}")
     logger.info(f"❌ Failed to remove: {failed_count}")
-    logger.info(f"📈 Success rate: {(removed_count/(removed_count+failed_count)*100) if (removed_count+failed_count) > 0 else 0:.1f}%")
+    logger.info(
+        f"📈 Success rate: {(removed_count/(removed_count+failed_count)*100) if (removed_count+failed_count) > 0 else 0:.1f}%"
+    )
 
     if failed_count == 0:
         logger.info("🎉 All indexes removed successfully!")

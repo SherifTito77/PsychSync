@@ -82,7 +82,9 @@ class PaginatedResponse(BaseModel, Generic[T]):
     prev_page: int | None = Field(None, description="Previous page number")
 
     @classmethod
-    def create(cls, items: list[T], total: int, page: int, size: int) -> "PaginatedResponse[T]":
+    def create(
+        cls, items: list[T], total: int, page: int, size: int
+    ) -> "PaginatedResponse[T]":
         """Create paginated response from raw data"""
         pages = ceil(total / size) if size > 0 else 0
         has_next = page < pages
@@ -304,14 +306,18 @@ def paginated_response(
                 if not pagination:
                     pagination = PaginationParams(
                         page=kwargs.get("page", 1),
-                        size=kwargs.get("size", default_size or settings.DEFAULT_PAGE_SIZE),
+                        size=kwargs.get(
+                            "size", default_size or settings.DEFAULT_PAGE_SIZE
+                        ),
                     )
             elif pagination_type == "cursor":
                 pagination = kwargs.get("cursor_pagination")
                 if not pagination:
                     pagination = CursorPaginationParams(
                         cursor=kwargs.get("cursor"),
-                        size=kwargs.get("size", default_size or settings.DEFAULT_PAGE_SIZE),
+                        size=kwargs.get(
+                            "size", default_size or settings.DEFAULT_PAGE_SIZE
+                        ),
                         direction=kwargs.get("direction", "forward"),
                     )
             else:  # offset
@@ -319,7 +325,9 @@ def paginated_response(
                 if not pagination:
                     pagination = OffsetPaginationParams(
                         offset=kwargs.get("offset", 0),
-                        size=kwargs.get("size", default_size or settings.DEFAULT_PAGE_SIZE),
+                        size=kwargs.get(
+                            "size", default_size or settings.DEFAULT_PAGE_SIZE
+                        ),
                     )
 
             # Validate size
@@ -353,7 +361,9 @@ class SearchFilterHelper:
             search_conditions = []
             for field in search_fields:
                 if hasattr(model, field):
-                    search_conditions.append(getattr(model, field).ilike(f"%{search_term}%"))
+                    search_conditions.append(
+                        getattr(model, field).ilike(f"%{search_term}%")
+                    )
 
             if search_conditions:
                 query = query.where(or_(*search_conditions))
@@ -361,7 +371,9 @@ class SearchFilterHelper:
         return query
 
     @staticmethod
-    def apply_date_filter(query, model, start_date=None, end_date=None, date_field="created_at"):
+    def apply_date_filter(
+        query, model, start_date=None, end_date=None, date_field="created_at"
+    ):
         """Apply date range filter to query"""
         if hasattr(model, date_field):
             if start_date:
@@ -372,7 +384,9 @@ class SearchFilterHelper:
         return query
 
     @staticmethod
-    def apply_status_filter(query, model, status_values: list[str], status_field="status"):
+    def apply_status_filter(
+        query, model, status_values: list[str], status_field="status"
+    ):
         """Apply status filter to query"""
         if status_values and hasattr(model, status_field):
             query = query.where(getattr(model, status_field).in_(status_values))

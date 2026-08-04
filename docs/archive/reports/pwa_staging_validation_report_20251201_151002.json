@@ -1,0 +1,80 @@
+{
+  "validation_timestamp": "2025-12-01T15:09:47.052952",
+  "environment": "development/staging",
+  "pwa_features": {
+    "service_worker": true,
+    "manifest": true,
+    "icons": true,
+    "offline_support": true,
+    "installation_prompts": false,
+    "push_notifications": false
+  },
+  "file_system_checks": {
+    "service_worker": {
+      "path": "public/service-worker.js",
+      "exists": true,
+      "size_bytes": 15257,
+      "status": "\u2705 Found"
+    },
+    "optimized_service_worker": {
+      "path": "public/service-worker-optimized.js",
+      "exists": true,
+      "size_bytes": 18679,
+      "status": "\u2705 Found"
+    },
+    "manifest": {
+      "path": "public/manifest.json",
+      "exists": true,
+      "size_bytes": 3235,
+      "status": "\u2705 Found"
+    },
+    "pwa_manager": {
+      "path": "frontend/src/utils/pwaManager.ts",
+      "exists": true,
+      "size_bytes": 13664,
+      "status": "\u2705 Found"
+    },
+    "pwa_installer": {
+      "path": "frontend/src/components/PWAInstaller.tsx",
+      "exists": true,
+      "size_bytes": 7138,
+      "status": "\u2705 Found"
+    },
+    "offline_status": {
+      "path": "frontend/src/components/OfflineStatus.tsx",
+      "exists": true,
+      "size_bytes": 7137,
+      "status": "\u2705 Found"
+    },
+    "pwa_styles": {
+      "path": "frontend/src/styles/pwa.css",
+      "exists": true,
+      "size_bytes": 10890,
+      "status": "\u2705 Found"
+    }
+  },
+  "backend_checks": {
+    "fastapi_running": false,
+    "pwa_endpoints": false,
+    "cors_configured": false,
+    "security_headers": false
+  },
+  "frontend_checks": {
+    "package_json": true,
+    "pwa_dependencies": false,
+    "build_config": true,
+    "dist_build": false
+  },
+  "overall_status": "needs_work",
+  "recommendations": [
+    "Start FastAPI server: uvicorn app.main:app --host 0.0.0.0 --port 8000",
+    "Add PWA dependencies to package.json"
+  ],
+  "scores": {
+    "file_system": 100.0,
+    "backend": 0,
+    "frontend": 66,
+    "pwa_features": 66.66666666666666,
+    "overall": 58.166666666666664
+  }
+}

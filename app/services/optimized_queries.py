@@ -56,7 +56,10 @@ class OptimizedQueryService:
         query_str += " ORDER BY u.full_name LIMIT :limit OFFSET :offset"
 
         async with query_monitor.monitor_query(
-            query_str, operation_name="get_users_with_teams_optimized", db=db, params=params
+            query_str,
+            operation_name="get_users_with_teams_optimized",
+            db=db,
+            params=params,
         ):
             # Use optimized query with eager loading
             query = (
@@ -135,7 +138,10 @@ class OptimizedQueryService:
         params = {"team_id": str(team_id), "cutoff_date": cutoff_date}
 
         async with query_monitor.monitor_query(
-            query_str, operation_name="get_team_analytics_optimized", db=db, params=params
+            query_str,
+            operation_name="get_team_analytics_optimized",
+            db=db,
+            params=params,
         ):
             # Execute optimized analytics query
             result = await db.execute(text(query_str), params)
@@ -224,19 +230,25 @@ class OptimizedQueryService:
             completion_data = []
             for row in rows:
                 completion_rate = (
-                    (row.completed_users / row.participants * 100) if row.participants > 0 else 0
+                    (row.completed_users / row.participants * 100)
+                    if row.participants > 0
+                    else 0
                 )
 
                 completion_data.append(
                     {
                         "assessment_id": str(row.id),
                         "title": row.title,
-                        "created_at": row.created_at.isoformat() if row.created_at else None,
+                        "created_at": (
+                            row.created_at.isoformat() if row.created_at else None
+                        ),
                         "participants": row.participants,
                         "total_responses": row.total_responses,
                         "completed_users": row.completed_users,
                         "completion_rate": round(completion_rate, 2),
-                        "avg_completion_minutes": round(float(row.avg_completion_minutes or 0), 2),
+                        "avg_completion_minutes": round(
+                            float(row.avg_completion_minutes or 0), 2
+                        ),
                     }
                 )
 
@@ -294,7 +306,10 @@ class OptimizedQueryService:
                 .where(
                     and_(
                         User.is_active == True,
-                        or_(User.full_name.ilike(search_pattern), User.email.ilike(search_pattern)),
+                        or_(
+                            User.full_name.ilike(search_pattern),
+                            User.email.ilike(search_pattern),
+                        ),
                     )
                 )
             )
@@ -348,7 +363,10 @@ class OptimizedQueryService:
         params = {"org_id": str(organization_id), "cutoff_date": cutoff_date}
 
         async with query_monitor.monitor_query(
-            query_str, operation_name="get_organization_metrics_optimized", db=db, params=params
+            query_str,
+            operation_name="get_organization_metrics_optimized",
+            db=db,
+            params=params,
         ):
             result = await db.execute(text(query_str), params)
             metrics_data = result.fetchone()
@@ -357,10 +375,16 @@ class OptimizedQueryService:
                 "organization_id": str(organization_id),
                 "period_days": days,
                 "total_users": metrics_data.total_users if metrics_data else 0,
-                "active_team_members": metrics_data.active_team_members if metrics_data else 0,
+                "active_team_members": (
+                    metrics_data.active_team_members if metrics_data else 0
+                ),
                 "total_teams": metrics_data.total_teams if metrics_data else 0,
-                "total_assessments": metrics_data.total_assessments if metrics_data else 0,
-                "recent_responses": metrics_data.recent_responses if metrics_data else 0,
+                "total_assessments": (
+                    metrics_data.total_assessments if metrics_data else 0
+                ),
+                "recent_responses": (
+                    metrics_data.recent_responses if metrics_data else 0
+                ),
             }
 
             # Calculate derived metrics
@@ -390,7 +414,11 @@ class OptimizedQueryService:
             return metrics
 
     async def get_popular_assessments_optimized(
-        self, db: AsyncSession, organization_id: UUID | None = None, days: int = 30, limit: int = 10
+        self,
+        db: AsyncSession,
+        organization_id: UUID | None = None,
+        days: int = 30,
+        limit: int = 10,
     ) -> list[dict[str, Any]]:
         """
         Get most popular assessments based on completion rates and participation
@@ -425,7 +453,10 @@ class OptimizedQueryService:
         """
 
         async with query_monitor.monitor_query(
-            query_str, operation_name="get_popular_assessments_optimized", db=db, params=params
+            query_str,
+            operation_name="get_popular_assessments_optimized",
+            db=db,
+            params=params,
         ):
             result = await db.execute(text(query_str), params)
             rows = result.fetchall()
@@ -436,12 +467,15 @@ class OptimizedQueryService:
                     {
                         "assessment_id": str(row.id),
                         "title": row.title,
-                        "created_at": row.created_at.isoformat() if row.created_at else None,
+                        "created_at": (
+                            row.created_at.isoformat() if row.created_at else None
+                        ),
                         "participants": row.participants,
                         "total_responses": row.total_responses,
                         "completed_users": row.completed_users,
                         "completion_rate": round(float(row.completion_rate or 0), 2),
-                        "popularity_score": row.participants * (row.completion_rate or 0),
+                        "popularity_score": row.participants
+                        * (row.completion_rate or 0),
                     }
                 )
 
@@ -470,7 +504,9 @@ class QueryOptimizationRecommender:
     def __init__(self):
         self.logger = get_logger(__name__)
 
-    def analyze_common_patterns(self, query_history: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def analyze_common_patterns(
+        self, query_history: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Analyze common query patterns and provide optimization recommendations"""
         recommendations = []
 
@@ -488,7 +524,9 @@ class QueryOptimizationRecommender:
                         "frequency": len(queries),
                         "avg_execution_time": avg_time,
                         "max_execution_time": max_time,
-                        "optimizations": self._recommend_optimizations_for_pattern(pattern),
+                        "optimizations": self._recommend_optimizations_for_pattern(
+                            pattern
+                        ),
                         "impact_score": len(queries) * avg_time,
                     }
                     recommendations.append(recommendation)
@@ -523,7 +561,9 @@ class QueryOptimizationRecommender:
         optimizations = []
 
         if "users" in pattern and "join" in pattern:
-            optimizations.append("Add composite index on (organization_id, is_active, created_at)")
+            optimizations.append(
+                "Add composite index on (organization_id, is_active, created_at)"
+            )
             optimizations.append("Use eager loading with selectinload for teams")
             optimizations.append("Consider filtering users before join operations")
 

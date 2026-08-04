@@ -15,36 +15,33 @@ Version: 1.0
 Last Updated: 2026-01-04
 """
 
-import os
-import sys
+import argparse
 import asyncio
 import logging
-import argparse
+import os
+import sys
+import tempfile
+import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple
-import uuid
-import tempfile
+from typing import Dict, List, Optional, Tuple
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 import boto3
-from botocore.exceptions import ClientError
 import pandas as pd
 import pyarrow.parquet as pq
-from sqlalchemy import text, create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from botocore.exceptions import ClientError
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session, sessionmaker
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('archive_restoration.log'),
-        logging.StreamHandler()
-    ]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("archive_restoration.log"), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
@@ -61,15 +58,12 @@ class ArchiveRestorer:
             self.engine = None
             self.Session = None
 
-        self.s3_client = boto3.client('s3')
-        self.archive_bucket = os.getenv('ARCHIVE_BUCKET', 'psychsync-data-archive')
-        self.frozen_bucket = os.getenv('FROZEN_BUCKET', 'psychsync-frozen-archive')
+        self.s3_client = boto3.client("s3")
+        self.archive_bucket = os.getenv("ARCHIVE_BUCKET", "psychsync-data-archive")
+        self.frozen_bucket = os.getenv("FROZEN_BUCKET", "psychsync-frozen-archive")
 
     async def find_archives(
-        self,
-        data_type: str,
-        start_date: datetime,
-        end_date: datetime
+        self, data_type: str, start_date: datetime, end_date: datetime
     ) -> List[Dict]:
         """Find relevant archives from catalog or S3"""
 
@@ -81,16 +75,14 @@ class ArchiveRestorer:
             return await self._find_from_s3(data_type, start_date, end_date)
 
     async def _find_from_catalog(
-        self,
-        data_type: str,
-        start_date: datetime,
-        end_date: datetime
+        self, data_type: str, start_date: datetime, end_date: datetime
     ) -> List[Dict]:
         """Find archives from database catalog"""
 
         async with self.Session() as session:
             result = await session.execute(
-                text("""
+                text(
+                    """
                     SELECT
                         archive_id,
                         data_type,
@@ -105,12 +97,13 @@ class ArchiveRestorer:
                       AND date_range_start <= :end_date
                       AND date_range_end >= :start_date
                     ORDER BY date_range_start ASC
-                """),
+                """
+                ),
                 {
                     "data_type": data_type,
                     "start_date": start_date,
-                    "end_date": end_date
-                }
+                    "end_date": end_date,
+                },
             )
 
             archives = [dict(row) for row in result.fetchall()]
@@ -118,10 +111,7 @@ class ArchiveRestorer:
             return archives
 
     async def _find_from_s3(
-        self,
-        data_type: str,
-        start_date: datetime,
-        end_date: datetime
+        self, data_type: str, start_date: datetime, end_date: datetime
     ) -> List[Dict]:
         """Find archives by scanning S3 bucket"""
 
@@ -129,17 +119,17 @@ class ArchiveRestorer:
 
         try:
             # List objects in bucket with prefix
-            paginator = self.s3_client.get_paginator('list_objects_v2')
+            paginator = self.s3_client.get_paginator("list_objects_v2")
             prefix = f"{data_type}/"
 
             for page in paginator.paginate(Bucket=self.archive_bucket, Prefix=prefix):
-                for obj in page.get('Contents', []):
-                    key = obj['Key']
+                for obj in page.get("Contents", []):
+                    key = obj["Key"]
 
                     # Try to parse date from key structure
                     # Expected: data_type/YYYY/MM/DD/data.parquet
                     try:
-                        parts = key.split('/')
+                        parts = key.split("/")
                         if len(parts) >= 4:
                             year = int(parts[1])
                             month = int(parts[2])
@@ -148,14 +138,16 @@ class ArchiveRestorer:
                             file_date = datetime(year, month, day)
 
                             if start_date <= file_date <= end_date:
-                                archives.append({
-                                    'archive_id': key.split('/')[-2],
-                                    'archive_location': f"s3://{self.archive_bucket}/{key}",
-                                    'date_range_start': file_date,
-                                    'date_range_end': file_date,
-                                    'record_count': None,
-                                    'file_size_bytes': obj['Size']
-                                })
+                                archives.append(
+                                    {
+                                        "archive_id": key.split("/")[-2],
+                                        "archive_location": f"s3://{self.archive_bucket}/{key}",
+                                        "date_range_start": file_date,
+                                        "date_range_end": file_date,
+                                        "record_count": None,
+                                        "file_size_bytes": obj["Size"],
+                                    }
+                                )
                     except (ValueError, IndexError):
                         continue
 
@@ -172,9 +164,9 @@ class ArchiveRestorer:
         try:
             # Parse S3 location
             # Expected format: s3://bucket-name/path/to/file.parquet
-            if archive_location.startswith('s3://'):
+            if archive_location.startswith("s3://"):
                 location = archive_location[5:]  # Remove 's3://'
-                bucket, key = location.split('/', 1)
+                bucket, key = location.split("/", 1)
             else:
                 logger.error(f"Invalid S3 location format: {archive_location}")
                 return False
@@ -214,28 +206,27 @@ class ArchiveRestorer:
             return pd.DataFrame()
 
     async def export_to_file(
-        self,
-        df: pd.DataFrame,
-        output_file: Path,
-        format: str = 'csv'
+        self, df: pd.DataFrame, output_file: Path, format: str = "csv"
     ) -> bool:
         """Export data to file"""
 
         try:
             logger.info(f"Exporting to {format.upper()}: {output_file}")
 
-            if format == 'csv':
+            if format == "csv":
                 df.to_csv(output_file, index=False)
-            elif format == 'json':
-                df.to_json(output_file, orient='records', indent=2)
-            elif format == 'parquet':
+            elif format == "json":
+                df.to_json(output_file, orient="records", indent=2)
+            elif format == "parquet":
                 df.to_parquet(output_file, index=False)
             else:
                 logger.error(f"Unsupported format: {format}")
                 return False
 
             file_size = output_file.stat().st_size / (1024 * 1024)  # MB
-            logger.info(f"✓ Exported {len(df)} records to {output_file} ({file_size:.2f} MB)")
+            logger.info(
+                f"✓ Exported {len(df)} records to {output_file} ({file_size:.2f} MB)"
+            )
 
             return True
 
@@ -243,15 +234,13 @@ class ArchiveRestorer:
             logger.error(f"Failed to export: {e}")
             return False
 
-    async def restore_to_database(
-        self,
-        df: pd.DataFrame,
-        data_type: str
-    ) -> int:
+    async def restore_to_database(self, df: pd.DataFrame, data_type: str) -> int:
         """Restore data to database"""
 
         if not self.engine:
-            logger.error("No database connection available. Cannot restore to database.")
+            logger.error(
+                "No database connection available. Cannot restore to database."
+            )
             return 0
 
         try:
@@ -259,12 +248,12 @@ class ArchiveRestorer:
 
             # Map data_type to table name
             table_mapping = {
-                'assessment_responses': 'assessment_responses',
-                'individual_responses': 'responses',
-                'analytics': 'analytics',
-                'audit_logs': 'audit_logs',
-                'report_views': 'report_views',
-                'wellness_assessments': 'wellness_assessments'
+                "assessment_responses": "assessment_responses",
+                "individual_responses": "responses",
+                "analytics": "analytics",
+                "audit_logs": "audit_logs",
+                "report_views": "report_views",
+                "wellness_assessments": "wellness_assessments",
             }
 
             table_name = table_mapping.get(data_type)
@@ -274,15 +263,15 @@ class ArchiveRestorer:
 
             async with self.Session() as session:
                 # Check for existing records
-                if 'id' in df.columns:
+                if "id" in df.columns:
                     existing_ids = await session.execute(
                         text(f"SELECT id FROM {table_name} WHERE id = ANY(:ids)"),
-                        {"ids": df['id'].tolist()}
+                        {"ids": df["id"].tolist()},
                     )
                     existing = set(row[0] for row in existing_ids.fetchall())
 
                     # Filter out existing records
-                    df_new = df[~df['id'].isin(existing)]
+                    df_new = df[~df["id"].isin(existing)]
                     logger.info(f"  Skipping {len(existing)} existing records")
                 else:
                     df_new = df
@@ -293,20 +282,17 @@ class ArchiveRestorer:
 
                 # Insert records
                 # Convert DataFrame to list of dicts
-                records = df_new.to_dict('records')
+                records = df_new.to_dict("records")
 
                 # Use SQLAlchemy core for bulk insert
-                from sqlalchemy import table, column
+                from sqlalchemy import column, table
                 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
                 # Create table object
                 table_obj = table(table_name)
 
                 # Insert records
-                await session.execute(
-                    table_obj.insert(),
-                    records
-                )
+                await session.execute(table_obj.insert(), records)
 
                 await session.commit()
 
@@ -323,20 +309,20 @@ class ArchiveRestorer:
         date_range: Tuple[datetime, datetime],
         target_db: bool = False,
         output_file: Optional[Path] = None,
-        output_format: str = 'csv'
+        output_format: str = "csv",
     ):
         """Main restoration process"""
 
         start_date, end_date = date_range
 
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info("ARCHIVE RESTORATION")
-        logger.info("="*60)
+        logger.info("=" * 60)
         logger.info(f"Data Type: {data_type}")
         logger.info(f"Date Range: {start_date.date()} to {end_date.date()}")
         logger.info(f"Target Database: {target_db}")
         logger.info(f"Output File: {output_file}")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         # Step 1: Find archives
         logger.info("\n[Step 1] Finding archives...")
@@ -357,12 +343,14 @@ class ArchiveRestorer:
             logger.info(f"\n[Step 2.{i}] Processing archive: {archive['archive_id']}")
 
             # Create temp file
-            with tempfile.NamedTemporaryFile(suffix='.parquet', delete=False) as tmp:
+            with tempfile.NamedTemporaryFile(suffix=".parquet", delete=False) as tmp:
                 tmp_path = Path(tmp.name)
 
             try:
                 # Download
-                if not await self.download_archive(archive['archive_location'], tmp_path):
+                if not await self.download_archive(
+                    archive["archive_location"], tmp_path
+                ):
                     continue
 
                 # Load
@@ -384,9 +372,9 @@ class ArchiveRestorer:
         logger.info(f"✓ Combined {len(combined_df)} total records")
 
         # Remove duplicates (if any)
-        if 'id' in combined_df.columns:
+        if "id" in combined_df.columns:
             before = len(combined_df)
-            combined_df = combined_df.drop_duplicates(subset=['id'], keep='first')
+            combined_df = combined_df.drop_duplicates(subset=["id"], keep="first")
             after = len(combined_df)
             if before > after:
                 logger.info(f"  Removed {before - after} duplicate records")
@@ -401,16 +389,16 @@ class ArchiveRestorer:
             count = await self.restore_to_database(combined_df, data_type)
             logger.info(f"✓ Restored {count} records to database")
 
-        logger.info("\n" + "="*60)
+        logger.info("\n" + "=" * 60)
         logger.info("RESTORATION COMPLETE")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
 
 async def main():
     """Main entry point"""
 
     parser = argparse.ArgumentParser(
-        description='PsychSync Archive Restoration',
+        description="PsychSync Archive Restoration",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -425,55 +413,47 @@ Examples:
 
   # Export without database connection
   python scripts/restore_from_archive.py assessment_responses 2023-01-01 2023-12-31 --output-file restore.csv
-        """
+        """,
     )
 
     parser.add_argument(
-        'data_type',
-        help='Type of data to restore (e.g., assessment_responses, analytics, audit_logs)'
+        "data_type",
+        help="Type of data to restore (e.g., assessment_responses, analytics, audit_logs)",
+    )
+
+    parser.add_argument("start_date", help="Start date (YYYY-MM-DD)")
+
+    parser.add_argument("end_date", help="End date (YYYY-MM-DD)")
+
+    parser.add_argument(
+        "--to-db",
+        action="store_true",
+        help="Restore to database (requires DB connection)",
     )
 
     parser.add_argument(
-        'start_date',
-        help='Start date (YYYY-MM-DD)'
+        "--output-file", type=Path, help="Export to file instead of database"
     )
 
     parser.add_argument(
-        'end_date',
-        help='End date (YYYY-MM-DD)'
+        "--format",
+        choices=["csv", "json", "parquet"],
+        default="csv",
+        help="Output format (default: csv)",
     )
 
     parser.add_argument(
-        '--to-db',
-        action='store_true',
-        help='Restore to database (requires DB connection)'
-    )
-
-    parser.add_argument(
-        '--output-file',
-        type=Path,
-        help='Export to file instead of database'
-    )
-
-    parser.add_argument(
-        '--format',
-        choices=['csv', 'json', 'parquet'],
-        default='csv',
-        help='Output format (default: csv)'
-    )
-
-    parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Download and show data without restoring'
+        "--dry-run",
+        action="store_true",
+        help="Download and show data without restoring",
     )
 
     args = parser.parse_args()
 
     # Parse dates
     try:
-        start_date = datetime.strptime(args.start_date, '%Y-%m-%d')
-        end_date = datetime.strptime(args.end_date, '%Y-%m-%d')
+        start_date = datetime.strptime(args.start_date, "%Y-%m-%d")
+        end_date = datetime.strptime(args.end_date, "%Y-%m-%d")
     except ValueError as e:
         logger.error(f"Invalid date format: {e}")
         logger.error("Use YYYY-MM-DD format")
@@ -484,10 +464,13 @@ Examples:
     if args.to_db:
         try:
             from app.core.database import engine as app_engine
+
             db_engine = app_engine
             logger.info("Database connection established")
         except ImportError:
-            logger.warning("Could not import database engine. Running without DB connection.")
+            logger.warning(
+                "Could not import database engine. Running without DB connection."
+            )
         except Exception as e:
             logger.warning(f"Could not connect to database: {e}")
 
@@ -496,7 +479,9 @@ Examples:
 
     # Set default output file if none specified and not restoring to DB
     if not args.to_db and not args.output_file:
-        args.output_file = Path(f"restore_{args.data_type}_{args.start_date}_{args.end_date}.{args.format}")
+        args.output_file = Path(
+            f"restore_{args.data_type}_{args.start_date}_{args.end_date}.{args.format}"
+        )
 
     # Run restoration
     try:
@@ -505,7 +490,7 @@ Examples:
             date_range=(start_date, end_date),
             target_db=args.to_db and not args.dry_run,
             output_file=args.output_file,
-            output_format=args.format
+            output_format=args.format,
         )
 
         if args.dry_run:
@@ -516,5 +501,5 @@ Examples:
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

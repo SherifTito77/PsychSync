@@ -2,11 +2,14 @@
 Integration tests for full user workflows
 Tests multiple API endpoints working together
 """
+
 import pytest
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
+
 
 class TestUserWorkflow:
     """Test complete user registration and authentication workflow"""
@@ -18,17 +21,14 @@ class TestUserWorkflow:
         register_data = {
             "email": "test@example.com",
             "password": "SecurePass123!",
-            "full_name": "Test User"
+            "full_name": "Test User",
         }
 
         register_response = client.post("/api/v1/auth/register", json=register_data)
         assert register_response.status_code in [200, 201]  # Accept both success codes
 
         # 2. Login with registered user
-        login_data = {
-            "email": "test@example.com",
-            "password": "SecurePass123!"
-        }
+        login_data = {"email": "test@example.com", "password": "SecurePass123!"}
 
         login_response = client.post("/api/v1/auth/login", json=login_data)
         assert login_response.status_code == 200
@@ -50,10 +50,7 @@ class TestUserWorkflow:
         """Test creating a team and running optimization"""
 
         # First login to get token
-        login_data = {
-            "email": "test@example.com",
-            "password": "SecurePass123!"
-        }
+        login_data = {"email": "test@example.com", "password": "SecurePass123!"}
 
         login_response = client.post("/api/v1/auth/login", json=login_data)
         if login_response.status_code != 200:
@@ -65,10 +62,12 @@ class TestUserWorkflow:
         # 1. Create organization
         org_data = {
             "name": "Test Organization",
-            "description": "Test organization for integration tests"
+            "description": "Test organization for integration tests",
         }
 
-        org_response = client.post("/api/v1/organizations", json=org_data, headers=headers)
+        org_response = client.post(
+            "/api/v1/organizations", json=org_data, headers=headers
+        )
         assert org_response.status_code in [200, 201]
 
         org_id = org_response.json().get("id")
@@ -77,7 +76,7 @@ class TestUserWorkflow:
         team_data = {
             "name": "Development Team",
             "organization_id": org_id,
-            "description": "Team for testing optimization"
+            "description": "Team for testing optimization",
         }
 
         team_response = client.post("/api/v1/teams", json=team_data, headers=headers)
@@ -92,22 +91,20 @@ class TestUserWorkflow:
                     "id": 1,
                     "name": "John Doe",
                     "role": "Developer",
-                    "traits": {"openness": 0.8, "conscientiousness": 0.7}
+                    "traits": {"openness": 0.8, "conscientiousness": 0.7},
                 },
                 {
                     "id": 2,
                     "name": "Jane Smith",
                     "role": "Designer",
-                    "traits": {"openness": 0.9, "conscientiousness": 0.6}
-                }
+                    "traits": {"openness": 0.9, "conscientiousness": 0.6},
+                },
             ],
-            "objective": "maximize_engagement"
+            "objective": "maximize_engagement",
         }
 
         opt_response = client.post(
-            "/api/v1/team-optimizer/optimize",
-            json=optimization_data,
-            headers=headers
+            "/api/v1/team-optimizer/optimize", json=optimization_data, headers=headers
         )
 
         assert opt_response.status_code == 200
@@ -119,10 +116,10 @@ class TestUserWorkflow:
         """Test creating an assessment and completing it"""
 
         # Login to get token
-        login_response = client.post("/api/v1/auth/login", json={
-            "email": "test@example.com",
-            "password": "SecurePass123!"
-        })
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": "test@example.com", "password": "SecurePass123!"},
+        )
 
         if login_response.status_code != 200:
             pytest.skip("Need valid authentication token")
@@ -140,21 +137,19 @@ class TestUserWorkflow:
                     "text": "I see myself as someone who is talkative",
                     "type": "scale",
                     "scale_min": 1,
-                    "scale_max": 5
+                    "scale_max": 5,
                 },
                 {
                     "text": "I see myself as someone who is critical",
                     "type": "scale",
                     "scale_min": 1,
-                    "scale_max": 5
-                }
-            ]
+                    "scale_max": 5,
+                },
+            ],
         }
 
         assessment_response = client.post(
-            "/api/v1/assessments",
-            json=assessment_data,
-            headers=headers
+            "/api/v1/assessments", json=assessment_data, headers=headers
         )
 
         assert assessment_response.status_code in [200, 201]
@@ -162,8 +157,7 @@ class TestUserWorkflow:
 
         # 2. Start assessment
         start_response = client.post(
-            f"/api/v1/assessments/{assessment_id}/start",
-            headers=headers
+            f"/api/v1/assessments/{assessment_id}/start", headers=headers
         )
 
         assert start_response.status_code == 200
@@ -174,14 +168,14 @@ class TestUserWorkflow:
             "session_id": session_id,
             "responses": [
                 {"question_id": 1, "value": 4},
-                {"question_id": 2, "value": 2}
-            ]
+                {"question_id": 2, "value": 2},
+            ],
         }
 
         submit_response = client.post(
             f"/api/v1/assessments/{assessment_id}/submit",
             json=responses_data,
-            headers=headers
+            headers=headers,
         )
 
         assert submit_response.status_code == 200
@@ -192,10 +186,10 @@ class TestUserWorkflow:
         """Test notification sending and receiving"""
 
         # Login to get token
-        login_response = client.post("/api/v1/auth/login", json={
-            "email": "test@example.com",
-            "password": "SecurePass123!"
-        })
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": "test@example.com", "password": "SecurePass123!"},
+        )
 
         if login_response.status_code != 200:
             pytest.skip("Need valid authentication token")
@@ -207,13 +201,11 @@ class TestUserWorkflow:
         notification_data = {
             "user_id": 1,
             "event": "assessment_completed",
-            "payload": {"assessment_id": 123, "score": 85}
+            "payload": {"assessment_id": 123, "score": 85},
         }
 
         event_response = client.post(
-            "/api/v1/notifications/send-event",
-            json=notification_data,
-            headers=headers
+            "/api/v1/notifications/send-event", json=notification_data, headers=headers
         )
 
         assert event_response.status_code == 200
@@ -222,13 +214,11 @@ class TestUserWorkflow:
         email_data = {
             "email": "test@example.com",
             "subject": "Assessment Completed",
-            "body": "You have successfully completed your assessment."
+            "body": "You have successfully completed your assessment.",
         }
 
         email_response = client.post(
-            "/api/v1/notifications/send-email",
-            json=email_data,
-            headers=headers
+            "/api/v1/notifications/send-email", json=email_data, headers=headers
         )
 
         assert email_response.status_code == 200
@@ -245,19 +235,20 @@ class TestErrorHandling:
         assert response.status_code == 401
 
         # Try to access team optimization without token
-        response = client.post("/api/v1/team-optimizer/optimize", json={
-            "members": [{"id": 1, "name": "Test", "role": "dev", "traits": {}}]
-        })
+        response = client.post(
+            "/api/v1/team-optimizer/optimize",
+            json={"members": [{"id": 1, "name": "Test", "role": "dev", "traits": {}}]},
+        )
         assert response.status_code == 401
 
     def test_invalid_data_handling(self):
         """Test how the system handles invalid data"""
 
         # Login to get token
-        login_response = client.post("/api/v1/auth/login", json={
-            "email": "test@example.com",
-            "password": "SecurePass123!"
-        })
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": "test@example.com", "password": "SecurePass123!"},
+        )
 
         if login_response.status_code != 200:
             pytest.skip("Need valid authentication token")
@@ -268,13 +259,11 @@ class TestErrorHandling:
         # Send invalid team optimization data
         invalid_data = {
             "members": "not_a_list",  # Should be a list
-            "objective": 123  # Should be a string
+            "objective": 123,  # Should be a string
         }
 
         response = client.post(
-            "/api/v1/team-optimizer/optimize",
-            json=invalid_data,
-            headers=headers
+            "/api/v1/team-optimizer/optimize", json=invalid_data, headers=headers
         )
 
         # Should return validation error
@@ -284,10 +273,10 @@ class TestErrorHandling:
         """Test handling of non-existent resources"""
 
         # Login to get token
-        login_response = client.post("/api/v1/auth/login", json={
-            "email": "test@example.com",
-            "password": "SecurePass123!"
-        })
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={"email": "test@example.com", "password": "SecurePass123!"},
+        )
 
         if login_response.status_code != 200:
             pytest.skip("Need valid authentication token")
@@ -319,10 +308,12 @@ class TestPerformanceWorkflow:
             response = client.get("/api/v1/health")
             end_time = time.time()
 
-            results.append({
-                "status_code": response.status_code,
-                "response_time": end_time - start_time
-            })
+            results.append(
+                {
+                    "status_code": response.status_code,
+                    "response_time": end_time - start_time,
+                }
+            )
 
         # Create 10 concurrent requests
         threads = []

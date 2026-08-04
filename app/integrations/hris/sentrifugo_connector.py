@@ -7,8 +7,8 @@ File: app/integrations/hris/sentrifugo_connector.py
 Sentrifugo: Enterprise-grade HRIS with performance appraisals and time management
 """
 
-from datetime import date, datetime
 import logging
+from datetime import date, datetime
 
 import pymysql
 
@@ -203,7 +203,9 @@ class SentrifugoConnector(HRISConnector):
                 date=row["date"],
                 clock_in=clock_in,
                 clock_out=clock_out,
-                hours_worked=float(row["hours_worked"]) if row["hours_worked"] else None,
+                hours_worked=(
+                    float(row["hours_worked"]) if row["hours_worked"] else None
+                ),
                 status=row["status"] or "present",
             )
             records.append(record)

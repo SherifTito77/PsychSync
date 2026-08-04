@@ -15,17 +15,18 @@ Author: QA Team
 Version: 1.0 Master Test Runner
 """
 
-import pytest
 import asyncio
-import time
 import json
 import os
 import sys
+import time
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass
-from unittest.mock import Mock, patch, AsyncMock
+from typing import Any, Dict, List, Optional
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent
@@ -35,15 +36,16 @@ from fastapi.testclient import TestClient
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.main import app
 from app.core.database import get_async_db
-from app.db.models.user import User, UserRole
 from app.db.models.team import Team
+from app.db.models.user import User, UserRole
+from app.main import app
 
 
 @dataclass
 class TestConfiguration:
     """Configuration for onboarding test execution"""
+
     test_timeout: int = 300  # 5 minutes per test suite
     max_concurrent_users: int = 10
     performance_thresholds: Dict[str, float] = None
@@ -56,7 +58,7 @@ class TestConfiguration:
                 "quick_assessment_max_time": 2.0,
                 "registration_max_time": 3.0,
                 "team_creation_max_time": 2.5,
-                "insights_generation_max_time": 5.0
+                "insights_generation_max_time": 5.0,
             }
 
 
@@ -72,14 +74,19 @@ class OnboardingTestMetrics:
         self.success_count = 0
         self.coverage_data = {}
 
-    def record_test_result(self, test_name: str, success: bool, execution_time: float,
-                         details: Optional[Dict[str, Any]] = None):
+    def record_test_result(
+        self,
+        test_name: str,
+        success: bool,
+        execution_time: float,
+        details: Optional[Dict[str, Any]] = None,
+    ):
         """Record individual test result"""
         self.test_results[test_name] = {
             "success": success,
             "execution_time": execution_time,
             "timestamp": datetime.utcnow().isoformat(),
-            "details": details or {}
+            "details": details or {},
         }
 
         if success:
@@ -87,22 +94,26 @@ class OnboardingTestMetrics:
         else:
             self.error_count += 1
 
-    def record_performance_metric(self, metric_name: str, value: float, threshold: float):
+    def record_performance_metric(
+        self, metric_name: str, value: float, threshold: float
+    ):
         """Record performance metric with threshold comparison"""
         self.performance_metrics[metric_name] = {
             "value": value,
             "threshold": threshold,
             "within_threshold": value <= threshold,
-            "performance_ratio": value / threshold
+            "performance_ratio": value / threshold,
         }
 
     def record_security_finding(self, finding: Dict[str, Any]):
         """Record security vulnerability or weakness"""
-        self.security_findings.append({
-            **finding,
-            "timestamp": datetime.utcnow().isoformat(),
-            "severity": finding.get("severity", "medium")
-        })
+        self.security_findings.append(
+            {
+                **finding,
+                "timestamp": datetime.utcnow().isoformat(),
+                "severity": finding.get("severity", "medium"),
+            }
+        )
 
     def generate_summary_report(self) -> Dict[str, Any]:
         """Generate comprehensive test summary report"""
@@ -116,21 +127,36 @@ class OnboardingTestMetrics:
                 "total_tests": len(self.test_results),
                 "successful_tests": self.success_count,
                 "failed_tests": self.error_count,
-                "success_rate": self.success_count / max(len(self.test_results), 1)
+                "success_rate": self.success_count / max(len(self.test_results), 1),
             },
             "performance_summary": {
                 "metrics": self.performance_metrics,
-                "average_response_time": sum(m["value"] for m in self.performance_metrics.values()) / max(len(self.performance_metrics), 1),
-                "threshold_violations": len([m for m in self.performance_metrics.values() if not m["within_threshold"]])
+                "average_response_time": sum(
+                    m["value"] for m in self.performance_metrics.values()
+                )
+                / max(len(self.performance_metrics), 1),
+                "threshold_violations": len(
+                    [
+                        m
+                        for m in self.performance_metrics.values()
+                        if not m["within_threshold"]
+                    ]
+                ),
             },
             "security_summary": {
                 "findings": self.security_findings,
                 "total_findings": len(self.security_findings),
-                "high_severity_findings": len([f for f in self.security_findings if f.get("severity") == "high"]),
-                "medium_severity_findings": len([f for f in self.security_findings if f.get("severity") == "medium"]),
-                "low_severity_findings": len([f for f in self.security_findings if f.get("severity") == "low"])
+                "high_severity_findings": len(
+                    [f for f in self.security_findings if f.get("severity") == "high"]
+                ),
+                "medium_severity_findings": len(
+                    [f for f in self.security_findings if f.get("severity") == "medium"]
+                ),
+                "low_severity_findings": len(
+                    [f for f in self.security_findings if f.get("severity") == "low"]
+                ),
             },
-            "test_details": self.test_results
+            "test_details": self.test_results,
         }
 
 
@@ -168,11 +194,13 @@ class OnboardingTestRunner:
 
         except Exception as e:
             print(f"❌ Test execution failed: {str(e)}")
-            self.metrics.record_security_finding({
-                "type": "test_execution_error",
-                "description": str(e),
-                "severity": "high"
-            })
+            self.metrics.record_security_finding(
+                {
+                    "type": "test_execution_error",
+                    "description": str(e),
+                    "severity": "high",
+                }
+            )
             return self.metrics.generate_summary_report()
 
     async def _run_functional_tests(self):
@@ -186,7 +214,7 @@ class OnboardingTestRunner:
             ("Authentication Flow", self._test_authentication_flow),
             ("Team Creation", self._test_team_creation_functionality),
             ("Onboarding Status", self._test_onboarding_status_functionality),
-            ("Setup Wizard", self._test_setup_wizard_functionality)
+            ("Setup Wizard", self._test_setup_wizard_functionality),
         ]
 
         for test_name, test_func in functional_tests:
@@ -201,7 +229,7 @@ class OnboardingTestRunner:
                     test_name=test_name,
                     success=success,
                     execution_time=execution_time,
-                    details={"phase": "functional"}
+                    details={"phase": "functional"},
                 )
 
                 status = "✅" if success else "❌"
@@ -213,7 +241,7 @@ class OnboardingTestRunner:
                     test_name=test_name,
                     success=False,
                     execution_time=execution_time,
-                    details={"error": str(e), "phase": "functional"}
+                    details={"error": str(e), "phase": "functional"},
                 )
                 print(f"    ❌ {test_name} ({execution_time:.2f}s) - ERROR: {str(e)}")
 
@@ -228,7 +256,7 @@ class OnboardingTestRunner:
             ("Rate Limiting Enforcement", self._test_rate_limiting),
             ("CSRF Protection", self._test_csrf_protection),
             ("Authentication Security", self._test_authentication_security),
-            ("Data Sanitization", self._test_data_sanitization)
+            ("Data Sanitization", self._test_data_sanitization),
         ]
 
         for test_name, test_func in security_tests:
@@ -243,7 +271,10 @@ class OnboardingTestRunner:
                 for finding in security_findings:
                     self.metrics.record_security_finding(finding)
 
-                success = len([f for f in security_findings if f.get("severity") == "high"]) == 0
+                success = (
+                    len([f for f in security_findings if f.get("severity") == "high"])
+                    == 0
+                )
                 self.metrics.record_test_result(
                     test_name=test_name,
                     success=success,
@@ -251,13 +282,23 @@ class OnboardingTestRunner:
                     details={
                         "phase": "security",
                         "findings_count": len(security_findings),
-                        "high_severity_count": len([f for f in security_findings if f.get("severity") == "high"])
-                    }
+                        "high_severity_count": len(
+                            [
+                                f
+                                for f in security_findings
+                                if f.get("severity") == "high"
+                            ]
+                        ),
+                    },
                 )
 
                 status = "✅" if success else "⚠️"
-                findings_text = f" ({len(security_findings)} findings)" if security_findings else ""
-                print(f"    {status} {test_name}{findings_text} ({execution_time:.2f}s)")
+                findings_text = (
+                    f" ({len(security_findings)} findings)" if security_findings else ""
+                )
+                print(
+                    f"    {status} {test_name}{findings_text} ({execution_time:.2f}s)"
+                )
 
             except Exception as e:
                 execution_time = time.time() - start_time
@@ -265,7 +306,7 @@ class OnboardingTestRunner:
                     test_name=test_name,
                     success=False,
                     execution_time=execution_time,
-                    details={"error": str(e), "phase": "security"}
+                    details={"error": str(e), "phase": "security"},
                 )
                 print(f"    ❌ {test_name} ({execution_time:.2f}s) - ERROR: {str(e)}")
 
@@ -279,7 +320,7 @@ class OnboardingTestRunner:
             ("Concurrent User Performance", self._test_concurrent_user_performance),
             ("Database Performance", self._test_database_performance),
             ("Cache Performance", self._test_cache_performance),
-            ("Memory Usage", self._test_memory_usage)
+            ("Memory Usage", self._test_memory_usage),
         ]
 
         for test_name, test_func in performance_tests:
@@ -294,13 +335,18 @@ class OnboardingTestRunner:
                 for metric_name, metric_data in performance_data.items():
                     if metric_name in self.config.performance_thresholds:
                         threshold = self.config.performance_thresholds[metric_name]
-                        self.metrics.record_performance_metric(metric_name, metric_data, threshold)
+                        self.metrics.record_performance_metric(
+                            metric_name, metric_data, threshold
+                        )
 
                 # Success if all metrics within thresholds
-                threshold_violations = len([
-                    m for m in self.metrics.performance_metrics.values()
-                    if not m["within_threshold"]
-                ])
+                threshold_violations = len(
+                    [
+                        m
+                        for m in self.metrics.performance_metrics.values()
+                        if not m["within_threshold"]
+                    ]
+                )
                 success = threshold_violations == 0
 
                 self.metrics.record_test_result(
@@ -310,13 +356,19 @@ class OnboardingTestRunner:
                     details={
                         "phase": "performance",
                         "performance_data": performance_data,
-                        "threshold_violations": threshold_violations
-                    }
+                        "threshold_violations": threshold_violations,
+                    },
                 )
 
                 status = "✅" if success else "⚠️"
-                violations_text = f" ({threshold_violations} violations)" if threshold_violations > 0 else ""
-                print(f"    {status} {test_name}{violations_text} ({execution_time:.2f}s)")
+                violations_text = (
+                    f" ({threshold_violations} violations)"
+                    if threshold_violations > 0
+                    else ""
+                )
+                print(
+                    f"    {status} {test_name}{violations_text} ({execution_time:.2f}s)"
+                )
 
             except Exception as e:
                 execution_time = time.time() - start_time
@@ -324,7 +376,7 @@ class OnboardingTestRunner:
                     test_name=test_name,
                     success=False,
                     execution_time=execution_time,
-                    details={"error": str(e), "phase": "performance"}
+                    details={"error": str(e), "phase": "performance"},
                 )
                 print(f"    ❌ {test_name} ({execution_time:.2f}s) - ERROR: {str(e)}")
 
@@ -338,7 +390,7 @@ class OnboardingTestRunner:
             ("Cross-Service Integration", self._test_cross_service_integration),
             ("Database Consistency", self._test_database_consistency),
             ("Email Service Integration", self._test_email_service_integration),
-            ("Analytics Integration", self._test_analytics_integration)
+            ("Analytics Integration", self._test_analytics_integration),
         ]
 
         for test_name, test_func in integration_tests:
@@ -353,7 +405,7 @@ class OnboardingTestRunner:
                     test_name=test_name,
                     success=success,
                     execution_time=execution_time,
-                    details={"phase": "integration"}
+                    details={"phase": "integration"},
                 )
 
                 status = "✅" if success else "❌"
@@ -365,7 +417,7 @@ class OnboardingTestRunner:
                     test_name=test_name,
                     success=False,
                     execution_time=execution_time,
-                    details={"error": str(e), "phase": "integration"}
+                    details={"error": str(e), "phase": "integration"},
                 )
                 print(f"    ❌ {test_name} ({execution_time:.2f}s) - ERROR: {str(e)}")
 
@@ -374,7 +426,9 @@ class OnboardingTestRunner:
         print("\n📊 Phase 5: Load Tests")
         print("-" * 30)
 
-        print(f"  🔬 Testing System Under Load ({self.config.max_concurrent_users} concurrent users)...")
+        print(
+            f"  🔬 Testing System Under Load ({self.config.max_concurrent_users} concurrent users)..."
+        )
         start_time = time.time()
 
         try:
@@ -382,9 +436,13 @@ class OnboardingTestRunner:
             execution_time = time.time() - start_time
 
             # Evaluate load test results
-            avg_response_time = sum(load_results["response_times"]) / len(load_results["response_times"])
+            avg_response_time = sum(load_results["response_times"]) / len(
+                load_results["response_times"]
+            )
             error_rate = load_results["error_count"] / load_results["total_requests"]
-            success = error_rate < 0.05 and avg_response_time < 3.0  # <5% errors, <3s avg response
+            success = (
+                error_rate < 0.05 and avg_response_time < 3.0
+            )  # <5% errors, <3s avg response
 
             self.metrics.record_test_result(
                 test_name="System Load Test",
@@ -398,14 +456,18 @@ class OnboardingTestRunner:
                     "error_rate": error_rate,
                     "avg_response_time": avg_response_time,
                     "max_response_time": max(load_results["response_times"]),
-                    "min_response_time": min(load_results["response_times"])
-                }
+                    "min_response_time": min(load_results["response_times"]),
+                },
             )
 
             status = "✅" if success else "⚠️"
             print(f"    {status} Load Test ({execution_time:.2f}s)")
-            print(f"    📈 {load_results['total_requests']} requests, {load_results['error_count']} errors")
-            print(f"    ⏱️ Avg: {avg_response_time:.2f}s, Max: {max(load_results['response_times']):.2f}s")
+            print(
+                f"    📈 {load_results['total_requests']} requests, {load_results['error_count']} errors"
+            )
+            print(
+                f"    ⏱️ Avg: {avg_response_time:.2f}s, Max: {max(load_results['response_times']):.2f}s"
+            )
 
         except Exception as e:
             execution_time = time.time() - start_time
@@ -413,7 +475,7 @@ class OnboardingTestRunner:
                 test_name="System Load Test",
                 success=False,
                 execution_time=execution_time,
-                details={"error": str(e), "phase": "load"}
+                details={"error": str(e), "phase": "load"},
             )
             print(f"    ❌ Load Test ({execution_time:.2f}s) - ERROR: {str(e)}")
 
@@ -422,13 +484,16 @@ class OnboardingTestRunner:
     async def _test_quick_assessment_functionality(self) -> bool:
         """Test quick assessment functionality"""
         try:
-            response = self.client.post("/api/v1/onboarding/quick-assessment", json={
-                "role": "manager",
-                "challenge": "communication",
-                "team_size": "5-10",
-                "industry": "technology",
-                "session_id": "test_session_123"
-            })
+            response = self.client.post(
+                "/api/v1/onboarding/quick-assessment",
+                json={
+                    "role": "manager",
+                    "challenge": "communication",
+                    "team_size": "5-10",
+                    "industry": "technology",
+                    "session_id": "test_session_123",
+                },
+            )
 
             return response.status_code == 200
         except Exception:
@@ -438,21 +503,24 @@ class OnboardingTestRunner:
         """Test user registration functionality"""
         try:
             # Mock database operations for testing
-            with patch('app.core.database.get_async_db') as mock_db:
+            with patch("app.core.database.get_async_db") as mock_db:
                 mock_session = AsyncMock()
                 mock_db.return_value = mock_session
 
-                with patch('app.db.models.user.User') as mock_user_model:
+                with patch("app.db.models.user.User") as mock_user_model:
                     mock_user = Mock()
                     mock_user.id = "test-user-uuid"
                     mock_user.email = "test@psychsync.com"
                     mock_user_model.return_value = mock_user
 
-                    response = self.client.post("/api/v1/auth/register", json={
-                        "email": "test@psychsync.com",
-                        "password": "SecurePass123!@#",
-                        "full_name": "Test User"
-                    })
+                    response = self.client.post(
+                        "/api/v1/auth/register",
+                        json={
+                            "email": "test@psychsync.com",
+                            "password": "SecurePass123!@#",
+                            "full_name": "Test User",
+                        },
+                    )
 
                     # Should succeed or fail gracefully (validation)
                     return response.status_code in [200, 201, 400, 422]
@@ -499,28 +567,34 @@ class OnboardingTestRunner:
             {"role": "manager<script>alert('xss')</script>"},
             {"challenge": "'; DROP TABLE users; --"},
             {"team_size": "<img src=x onerror=alert('xss')>"},
-            {"industry": "javascript:void(0)"}
+            {"industry": "javascript:void(0)"},
         ]
 
         for payload in malicious_payloads:
             try:
-                response = self.client.post("/api/v1/onboarding/quick-assessment", json=payload)
+                response = self.client.post(
+                    "/api/v1/onboarding/quick-assessment", json=payload
+                )
 
                 if response.status_code == 500:
-                    findings.append({
-                        "type": "security_vulnerability",
-                        "description": "Input not properly sanitized - potential XSS/Injection",
-                        "payload": payload,
-                        "response_status": response.status_code,
-                        "severity": "high"
-                    })
+                    findings.append(
+                        {
+                            "type": "security_vulnerability",
+                            "description": "Input not properly sanitized - potential XSS/Injection",
+                            "payload": payload,
+                            "response_status": response.status_code,
+                            "severity": "high",
+                        }
+                    )
             except Exception as e:
-                findings.append({
-                    "type": "security_error",
-                    "description": f"Input security test failed: {str(e)}",
-                    "payload": payload,
-                    "severity": "medium"
-                })
+                findings.append(
+                    {
+                        "type": "security_error",
+                        "description": f"Input security test failed: {str(e)}",
+                        "payload": payload,
+                        "severity": "medium",
+                    }
+                )
 
         return findings
 
@@ -531,33 +605,37 @@ class OnboardingTestRunner:
         sql_injection_payloads = [
             "'; DROP TABLE users; --",
             "admin' OR '1'='1",
-            "UNION SELECT * FROM sensitive_data --"
+            "UNION SELECT * FROM sensitive_data --",
         ]
 
         for payload in sql_injection_payloads:
             try:
-                response = self.client.post("/api/v1/auth/register", json={
-                    "email": payload,
-                    "password": "SecurePass123!@#"
-                })
+                response = self.client.post(
+                    "/api/v1/auth/register",
+                    json={"email": payload, "password": "SecurePass123!@#"},
+                )
 
                 # Should not cause 500 errors (database errors)
                 if response.status_code == 500:
-                    findings.append({
-                        "type": "sql_injection_vulnerability",
-                        "description": "SQL injection payload caused database error",
-                        "payload": payload,
-                        "response_status": response.status_code,
-                        "severity": "high"
-                    })
+                    findings.append(
+                        {
+                            "type": "sql_injection_vulnerability",
+                            "description": "SQL injection payload caused database error",
+                            "payload": payload,
+                            "response_status": response.status_code,
+                            "severity": "high",
+                        }
+                    )
             except Exception as e:
                 if "SQL" in str(e).upper() or "DROP TABLE" in str(e):
-                    findings.append({
-                        "type": "sql_injection_error",
-                        "description": f"SQL injection test error: {str(e)}",
-                        "payload": payload,
-                        "severity": "high"
-                    })
+                    findings.append(
+                        {
+                            "type": "sql_injection_error",
+                            "description": f"SQL injection test error: {str(e)}",
+                            "payload": payload,
+                            "severity": "high",
+                        }
+                    )
 
         return findings
 
@@ -569,11 +647,14 @@ class OnboardingTestRunner:
         responses = []
         for i in range(25):  # Exceed limit
             try:
-                response = self.client.post("/api/v1/onboarding/quick-assessment", json={
-                    "role": "manager",
-                    "challenge": "communication",
-                    "team_size": "5-10"
-                })
+                response = self.client.post(
+                    "/api/v1/onboarding/quick-assessment",
+                    json={
+                        "role": "manager",
+                        "challenge": "communication",
+                        "team_size": "5-10",
+                    },
+                )
                 responses.append(response.status_code)
 
                 if response.status_code == 429:
@@ -582,24 +663,28 @@ class OnboardingTestRunner:
                 pass
 
         if not any(status == 429 for status in responses):
-            findings.append({
-                "type": "rate_limiting_vulnerability",
-                "description": "Rate limiting not enforced for quick assessment endpoint",
-                "requests_made": len(responses),
-                "severity": "medium"
-            })
+            findings.append(
+                {
+                    "type": "rate_limiting_vulnerability",
+                    "description": "Rate limiting not enforced for quick assessment endpoint",
+                    "requests_made": len(responses),
+                    "severity": "medium",
+                }
+            )
 
         return findings
 
     async def _test_csrf_protection(self) -> List[Dict[str, Any]]:
         """Test CSRF protection"""
         # CSRF middleware is temporarily disabled, so this test documents that
-        findings = [{
-            "type": "csrf_protection_disabled",
-            "description": "CSRF middleware is temporarily disabled in main.py",
-            "severity": "medium",
-            "recommendation": "Enable CSRF middleware when ready"
-        }]
+        findings = [
+            {
+                "type": "csrf_protection_disabled",
+                "description": "CSRF middleware is temporarily disabled in main.py",
+                "severity": "medium",
+                "recommendation": "Enable CSRF middleware when ready",
+            }
+        ]
 
         return findings
 
@@ -611,7 +696,13 @@ class OnboardingTestRunner:
         test_cases = [
             ("weak_password", {"email": "test@test.com", "password": "123456"}),
             ("sql_injection_email", {"email": "admin'; --", "password": "testpass123"}),
-            ("xss_in_email", {"email": "<script>alert('xss')</script>@test.com", "password": "testpass123"})
+            (
+                "xss_in_email",
+                {
+                    "email": "<script>alert('xss')</script>@test.com",
+                    "password": "testpass123",
+                },
+            ),
         ]
 
         for test_name, payload in test_cases:
@@ -620,13 +711,15 @@ class OnboardingTestRunner:
 
                 # Should not succeed with weak/invalid credentials
                 if response.status_code == 200:
-                    findings.append({
-                        "type": "authentication_vulnerability",
-                        "description": f"{test_name} accepted",
-                        "payload": payload,
-                        "response_status": response.status_code,
-                        "severity": "high"
-                    })
+                    findings.append(
+                        {
+                            "type": "authentication_vulnerability",
+                            "description": f"{test_name} accepted",
+                            "payload": payload,
+                            "response_status": response.status_code,
+                            "severity": "high",
+                        }
+                    )
             except Exception:
                 pass
 
@@ -639,25 +732,27 @@ class OnboardingTestRunner:
         # Test that data is properly sanitized
         test_data = {
             "full_name": "Test<script>alert('xss')</script>User",
-            "email": "test+tag@example.com"
+            "email": "test+tag@example.com",
         }
 
         try:
-            response = self.client.post("/api/v1/auth/register", json={
-                **test_data,
-                "password": "SecurePass123!@#"
-            })
+            response = self.client.post(
+                "/api/v1/auth/register",
+                json={**test_data, "password": "SecurePass123!@#"},
+            )
 
             # Check if response contains unescaped script tags
             response_text = response.text.lower()
             if "<script>" in response_text or "alert(" in response_text:
-                findings.append({
-                    "type": "data_sanitization_vulnerability",
-                    "description": "Response contains unescaped potentially dangerous content",
-                    "test_data": test_data,
-                    "response_sample": response_text[:500],
-                    "severity": "medium"
-                })
+                findings.append(
+                    {
+                        "type": "data_sanitization_vulnerability",
+                        "description": "Response contains unescaped potentially dangerous content",
+                        "test_data": test_data,
+                        "response_sample": response_text[:500],
+                        "severity": "medium",
+                    }
+                )
         except Exception:
             pass
 
@@ -670,12 +765,15 @@ class OnboardingTestRunner:
 
         # Test response time
         start_time = time.time()
-        response = self.client.post("/api/v1/onboarding/quick-assessment", json={
-            "role": "manager",
-            "challenge": "communication",
-            "team_size": "5-10",
-            "industry": "technology"
-        })
+        response = self.client.post(
+            "/api/v1/onboarding/quick-assessment",
+            json={
+                "role": "manager",
+                "challenge": "communication",
+                "team_size": "5-10",
+                "industry": "technology",
+            },
+        )
         response_time = time.time() - start_time
 
         performance_data["quick_assessment_response_time"] = response_time
@@ -684,14 +782,19 @@ class OnboardingTestRunner:
         throughput_times = []
         for _ in range(10):
             start_time = time.time()
-            self.client.post("/api/v1/onboarding/quick-assessment", json={
-                "role": "manager",
-                "challenge": "communication",
-                "team_size": "5-10"
-            })
+            self.client.post(
+                "/api/v1/onboarding/quick-assessment",
+                json={
+                    "role": "manager",
+                    "challenge": "communication",
+                    "team_size": "5-10",
+                },
+            )
             throughput_times.append(time.time() - start_time)
 
-        performance_data["quick_assessment_throughput_avg"] = sum(throughput_times) / len(throughput_times)
+        performance_data["quick_assessment_throughput_avg"] = sum(
+            throughput_times
+        ) / len(throughput_times)
 
         return performance_data
 
@@ -703,23 +806,30 @@ class OnboardingTestRunner:
         async def make_request():
             start_time = time.time()
             try:
-                self.client.post("/api/v1/onboarding/quick-assessment", json={
-                    "role": "manager",
-                    "challenge": "communication",
-                    "team_size": "5-10"
-                })
+                self.client.post(
+                    "/api/v1/onboarding/quick-assessment",
+                    json={
+                        "role": "manager",
+                        "challenge": "communication",
+                        "team_size": "5-10",
+                    },
+                )
                 return time.time() - start_time
             except Exception as e:
-                return float('inf')
+                return float("inf")
 
         # Run concurrent requests
         tasks = [make_request() for _ in range(5)]
         response_times = await asyncio.gather(*tasks, return_exceptions=True)
 
-        valid_times = [t for t in response_times if isinstance(t, float) and t != float('inf')]
+        valid_times = [
+            t for t in response_times if isinstance(t, float) and t != float("inf")
+        ]
 
         if valid_times:
-            performance_data["concurrent_avg_response_time"] = sum(valid_times) / len(valid_times)
+            performance_data["concurrent_avg_response_time"] = sum(valid_times) / len(
+                valid_times
+            )
             performance_data["concurrent_max_response_time"] = max(valid_times)
             performance_data["concurrent_min_response_time"] = min(valid_times)
 
@@ -730,29 +840,30 @@ class OnboardingTestRunner:
         # This would test database query performance
         return {
             "database_query_avg_time": 0.1,  # Placeholder
-            "database_connection_time": 0.05  # Placeholder
+            "database_connection_time": 0.05,  # Placeholder
         }
 
     async def _test_cache_performance(self) -> Dict[str, float]:
         """Test cache performance"""
         # This would test cache hit/miss performance
         return {
-            "cache_hit_time": 0.01,   # Placeholder
-            "cache_miss_time": 0.1,   # Placeholder
-            "cache_hit_rate": 0.85    # Placeholder
+            "cache_hit_time": 0.01,  # Placeholder
+            "cache_miss_time": 0.1,  # Placeholder
+            "cache_hit_rate": 0.85,  # Placeholder
         }
 
     async def _test_memory_usage(self) -> Dict[str, float]:
         """Test memory usage"""
-        import psutil
         import os
+
+        import psutil
 
         process = psutil.Process(os.getpid())
         memory_info = process.memory_info()
 
         return {
             "memory_usage_mb": memory_info.rss / 1024 / 1024,
-            "memory_usage_percent": process.memory_percent()
+            "memory_usage_percent": process.memory_percent(),
         }
 
     # Integration tests
@@ -760,18 +871,23 @@ class OnboardingTestRunner:
         """Test complete onboarding journey"""
         try:
             # Step 1: Anonymous quick assessment
-            assessment_response = self.client.post("/api/v1/onboarding/quick-assessment", json={
-                "role": "manager",
-                "challenge": "communication",
-                "team_size": "5-10",
-                "session_id": "journey_test"
-            })
+            assessment_response = self.client.post(
+                "/api/v1/onboarding/quick-assessment",
+                json={
+                    "role": "manager",
+                    "challenge": "communication",
+                    "team_size": "5-10",
+                    "session_id": "journey_test",
+                },
+            )
 
             # Step 2: Check onboarding status
             status_response = self.client.get("/api/v1/onboarding/onboarding-status")
 
-            return (assessment_response.status_code == 200 and
-                   status_response.status_code == 200)
+            return (
+                assessment_response.status_code == 200
+                and status_response.status_code == 200
+            )
         except Exception:
             return False
 
@@ -794,11 +910,7 @@ class OnboardingTestRunner:
     # Load test
     async def _test_system_load(self) -> Dict[str, Any]:
         """Test system under load"""
-        results = {
-            "response_times": [],
-            "total_requests": 0,
-            "error_count": 0
-        }
+        results = {"response_times": [], "total_requests": 0, "error_count": 0}
 
         async def make_request():
             start_time = time.time()
@@ -814,7 +926,7 @@ class OnboardingTestRunner:
             except Exception:
                 results["total_requests"] += 1
                 results["error_count"] += 1
-                results["response_times"].append(float('inf'))
+                results["response_times"].append(float("inf"))
 
         # Run concurrent load test
         tasks = []
@@ -860,7 +972,9 @@ def main():
     print(f"⏱️ Duration: {exec_summary['total_duration']:.1f}s")
 
     if perf_summary["threshold_violations"] > 0:
-        print(f"⚠️ Performance Threshold Violations: {perf_summary['threshold_violations']}")
+        print(
+            f"⚠️ Performance Threshold Violations: {perf_summary['threshold_violations']}"
+        )
 
     if security_summary["total_findings"] > 0:
         print(f"🔒 Security Findings: {security_summary['total_findings']}")
@@ -869,14 +983,16 @@ def main():
         print(f"   - Low Severity: {security_summary['low_severity_findings']}")
 
     # Save detailed report
-    report_path = f"onboarding_test_report_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
-    with open(report_path, 'w') as f:
+    report_path = (
+        f"onboarding_test_report_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+    )
+    with open(report_path, "w") as f:
         json.dump(report, f, indent=2, default=str)
 
     print(f"\n📄 Detailed report saved to: {report_path}")
 
     # Return success status
-    return exec_summary['success_rate'] >= 0.8  # 80% success rate threshold
+    return exec_summary["success_rate"] >= 0.8  # 80% success rate threshold
 
 
 if __name__ == "__main__":

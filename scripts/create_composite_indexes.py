@@ -13,14 +13,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import asyncio
+
 from sqlalchemy import create_engine, text
+
 from app.core.config import settings
+
 
 def create_indexes():
     """Create all composite indexes for query optimization."""
 
     # Create sync engine
-    engine = create_engine(settings.DATABASE_URL.replace('+asyncpg', ''))
+    engine = create_engine(settings.DATABASE_URL.replace("+asyncpg", ""))
 
     indexes_to_create = [
         # Team members indexes
@@ -86,11 +89,16 @@ def create_indexes():
     with engine.connect() as conn:
         for idx in indexes_to_create:
             # Check if index already exists
-            result = conn.execute(text("""
+            result = conn.execute(
+                text(
+                    """
                 SELECT 1 FROM pg_indexes
                 WHERE tablename = :table_name
                 AND indexname = :index_name
-            """), {"table_name": idx["table"], "index_name": idx["name"]})
+            """
+                ),
+                {"table_name": idx["table"], "index_name": idx["name"]},
+            )
 
             exists = result.scalar() is not None
 
@@ -100,10 +108,14 @@ def create_indexes():
             else:
                 # Create index
                 columns_str = ", ".join(idx["columns"])
-                conn.execute(text(f"""
+                conn.execute(
+                    text(
+                        f"""
                     CREATE INDEX {idx['name']}
                     ON {idx['table']} ({columns_str})
-                """))
+                """
+                    )
+                )
                 conn.commit()
                 print(f"✓ Created index: {idx['name']}")
                 created_count += 1
@@ -119,7 +131,9 @@ def create_indexes():
     # Show index usage
     print("\nVerifying indexes...")
     with engine.connect() as conn:
-        result = conn.execute(text("""
+        result = conn.execute(
+            text(
+                """
             SELECT
                 schemaname || '.' || tablename as table_name,
                 indexname,
@@ -128,13 +142,16 @@ def create_indexes():
             WHERE indexname LIKE 'idx_%'
             ORDER BY idx_scan DESC
             LIMIT 10
-        """))
+        """
+            )
+        )
 
         rows = result.fetchall()
         if rows:
             print("\nTop indexes by usage:")
             for row in rows:
                 print(f"  {row[1]} on {row[0]}: {row[2]} scans")
+
 
 if __name__ == "__main__":
     create_indexes()

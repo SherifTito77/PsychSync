@@ -4,15 +4,17 @@ Penetration Testing Checklist and Automation Script
 Comprehensive security validation checklist for PsychSync authentication system
 """
 
-import sys
 import json
-import time
-import requests
 import subprocess
-from datetime import datetime
-from typing import Dict, List, Any, Tuple
+import sys
+import time
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Tuple
+
+import requests
+
 
 class VulnerabilitySeverity(Enum):
     CRITICAL = "critical"
@@ -20,6 +22,7 @@ class VulnerabilitySeverity(Enum):
     MEDIUM = "medium"
     LOW = "low"
     INFO = "info"
+
 
 @dataclass
 class VulnerabilityFinding:
@@ -31,6 +34,7 @@ class VulnerabilityFinding:
     recommendation: str
     cwe_id: str = None
     owasp_id: str = None
+
 
 class PenetrationTestingChecklist:
     """Comprehensive penetration testing checklist"""
@@ -63,7 +67,7 @@ class PenetrationTestingChecklist:
             ("Security Headers Tests", self.test_security_headers),
             ("Error Handling Tests", self.test_error_handling),
             ("Denial of Service Tests", self.test_denial_of_service),
-            ("Information Disclosure Tests", self.test_information_disclosure)
+            ("Information Disclosure Tests", self.test_information_disclosure),
         ]
 
         for category_name, test_func in test_categories:
@@ -80,7 +84,7 @@ class PenetrationTestingChecklist:
                     severity=VulnerabilitySeverity.MEDIUM,
                     description=f"Error executing security tests: {category_name}",
                     evidence=str(e),
-                    recommendation="Fix testing framework errors and re-run tests"
+                    recommendation="Fix testing framework errors and re-run tests",
                 )
 
         return self.generate_report()
@@ -96,7 +100,7 @@ class PenetrationTestingChecklist:
             ("Password Brute Force Protection", self._test_brute_force_protection),
             ("Account Lockout Persistence", self._test_account_lockout),
             ("Password Complexity Enforcement", self._test_password_complexity),
-            ("Timing Attack Resistance", self._test_timing_attacks)
+            ("Timing Attack Resistance", self._test_timing_attacks),
         ]
 
         for test_name, test_func in tests:
@@ -115,7 +119,7 @@ class PenetrationTestingChecklist:
             ("Invalid Token Rejection", self._test_invalid_token_rejection),
             ("Expired Token Handling", self._test_expired_token_handling),
             ("Token Forgery Prevention", self._test_token_forgery_prevention),
-            ("Privilege Escalation Protection", self._test_privilege_escalation)
+            ("Privilege Escalation Protection", self._test_privilege_escalation),
         ]
 
         for test_name, test_func in tests:
@@ -134,7 +138,7 @@ class PenetrationTestingChecklist:
             ("JWT Payload Manipulation", self._test_jwt_payload_manipulation),
             ("JWT Signature Forgery", self._test_jwt_signature_forgery),
             ("Token Replay Prevention", self._test_token_replay_attacks),
-            ("Token Expiration Enforcement", self._test_token_expiration)
+            ("Token Expiration Enforcement", self._test_token_expiration),
         ]
 
         for test_name, test_func in tests:
@@ -153,7 +157,7 @@ class PenetrationTestingChecklist:
             ("CSRF Token Validation", self._test_csrf_token_validation),
             ("Origin Header Validation", self._test_origin_validation),
             ("Referer Header Validation", self._test_referer_validation),
-            ("Double Submit Cookie Pattern", self._test_double_submit_pattern)
+            ("Double Submit Cookie Pattern", self._test_double_submit_pattern),
         ]
 
         for test_name, test_func in tests:
@@ -172,7 +176,7 @@ class PenetrationTestingChecklist:
             ("Boolean-Based SQL Injection", self._test_boolean_sql_injection),
             ("Time-Based SQL Injection", self._test_time_based_sql_injection),
             ("Error-Based SQL Injection", self._test_error_based_sql_injection),
-            ("Second-Order SQL Injection", self._test_second_order_sql_injection)
+            ("Second-Order SQL Injection", self._test_second_order_sql_injection),
         ]
 
         for test_name, test_func in tests:
@@ -191,7 +195,7 @@ class PenetrationTestingChecklist:
             ("Stored XSS Prevention", self._test_stored_xss),
             ("DOM-Based XSS Prevention", self._test_dom_based_xss),
             ("Content-Type Sniffing Prevention", self._test_content_type_sniffing),
-            ("XSS in Error Messages", self._test_xss_in_errors)
+            ("XSS in Error Messages", self._test_xss_in_errors),
         ]
 
         for test_name, test_func in tests:
@@ -210,7 +214,7 @@ class PenetrationTestingChecklist:
             ("Session Hijacking Protection", self._test_session_hijacking),
             ("Session Token Randomness", self._test_session_randomness),
             ("Session Expiration Handling", self._test_session_expiration),
-            ("Concurrent Session Limits", self._test_concurrent_sessions)
+            ("Concurrent Session Limits", self._test_concurrent_sessions),
         ]
 
         for test_name, test_func in tests:
@@ -229,7 +233,7 @@ class PenetrationTestingChecklist:
             ("Authentication Rate Limiting", self._test_auth_rate_limiting),
             ("Large Payload Protection", self._test_large_payload_protection),
             ("Concurrent Request Protection", self._test_concurrent_request_protection),
-            ("Memory Exhaustion Protection", self._test_memory_exhaustion_protection)
+            ("Memory Exhaustion Protection", self._test_memory_exhaustion_protection),
         ]
 
         for test_name, test_func in tests:
@@ -248,7 +252,7 @@ class PenetrationTestingChecklist:
             ("Malicious JSON Handling", self._test_malicious_json),
             ("Unicode Attack Prevention", self._test_unicode_attacks),
             ("Null Byte Injection Prevention", self._test_null_byte_injection),
-            ("File Upload Security", self._test_file_upload_security)
+            ("File Upload Security", self._test_file_upload_security),
         ]
 
         for test_name, test_func in tests:
@@ -268,7 +272,7 @@ class PenetrationTestingChecklist:
             ("X-Content-Type-Options Header", self._test_x_content_type_options),
             ("Strict-Transport-Security Header", self._test_hsts_header),
             ("Content-Security-Policy Header", self._test_csp_header),
-            ("Referrer-Policy Header", self._test_referrer_policy)
+            ("Referrer-Policy Header", self._test_referrer_policy),
         ]
 
         for test_name, test_func in tests:
@@ -286,7 +290,7 @@ class PenetrationTestingChecklist:
             ("Generic Error Messages", self._test_generic_error_messages),
             ("Stack Trace Prevention", self._test_stack_trace_prevention),
             ("Debug Information Prevention", self._test_debug_info_prevention),
-            ("Information Disclosure in Errors", self._test_info_disclosure_in_errors)
+            ("Information Disclosure in Errors", self._test_info_disclosure_in_errors),
         ]
 
         for test_name, test_func in tests:
@@ -304,7 +308,7 @@ class PenetrationTestingChecklist:
             ("Resource Exhaustion Protection", self._test_resource_exhaustion),
             ("Slowloris Attack Protection", self._test_slowloris_protection),
             ("Hash Collision Attack Protection", self._test_hash_collision_protection),
-            ("Decompression Bomb Protection", self._test_decompression_bomb_protection)
+            ("Decompression Bomb Protection", self._test_decompression_bomb_protection),
         ]
 
         for test_name, test_func in tests:
@@ -323,7 +327,7 @@ class PenetrationTestingChecklist:
             ("Directory Listing Prevention", self._test_directory_listing),
             ("Backup File Exposure", self._test_backup_file_exposure),
             ("Configuration File Exposure", self._test_config_file_exposure),
-            ("Default Credentials Exposure", self._test_default_credentials)
+            ("Default Credentials Exposure", self._test_default_credentials),
         ]
 
         for test_name, test_func in tests:
@@ -549,8 +553,10 @@ class PenetrationTestingChecklist:
 
     def _test_generic_error_messages(self) -> bool:
         """Test generic error messages"""
-        response = self.session.post(f"{self.base_url}/api/v1/token",
-                                    data={"username": "nonexistent", "password": "wrong"})
+        response = self.session.post(
+            f"{self.base_url}/api/v1/token",
+            data={"username": "nonexistent", "password": "wrong"},
+        )
         return response.status_code == 401
 
     def _test_stack_trace_prevention(self) -> bool:
@@ -615,13 +621,7 @@ class PenetrationTestingChecklist:
         failed_tests = total_tests - passed_tests
 
         # Categorize findings by severity
-        severity_counts = {
-            "critical": 0,
-            "high": 0,
-            "medium": 0,
-            "low": 0,
-            "info": 0
-        }
+        severity_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
 
         for finding in self.findings:
             severity_counts[finding.severity.value] += 1
@@ -633,7 +633,9 @@ class PenetrationTestingChecklist:
                 "total_tests": total_tests,
                 "passed": passed_tests,
                 "failed": failed_tests,
-                "pass_rate": (passed_tests / total_tests * 100) if total_tests > 0 else 0
+                "pass_rate": (
+                    (passed_tests / total_tests * 100) if total_tests > 0 else 0
+                ),
             },
             "test_results": self.test_results,
             "vulnerabilities": {
@@ -648,11 +650,11 @@ class PenetrationTestingChecklist:
                         "evidence": f.evidence,
                         "recommendation": f.recommendation,
                         "cwe_id": f.cwe_id,
-                        "owasp_id": f.owasp_id
+                        "owasp_id": f.owasp_id,
                     }
                     for f in self.findings
-                ]
-            }
+                ],
+            },
         }
 
         return report
@@ -661,7 +663,7 @@ class PenetrationTestingChecklist:
         """Save penetration testing report to file"""
         report = self.generate_report()
 
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             json.dump(report, f, indent=2, default=str)
 
         print(f"\n📄 Report saved to: {filename}")
@@ -672,9 +674,13 @@ def main():
     """Main execution function"""
     import argparse
 
-    parser = argparse.ArgumentParser(description="PsychSync Penetration Testing Checklist")
+    parser = argparse.ArgumentParser(
+        description="PsychSync Penetration Testing Checklist"
+    )
     parser.add_argument("--url", default="http://localhost:8000", help="Target URL")
-    parser.add_argument("--output", default="penetration_test_report.json", help="Output report file")
+    parser.add_argument(
+        "--output", default="penetration_test_report.json", help="Output report file"
+    )
     parser.add_argument("--run-tests", action="store_true", help="Run automated tests")
 
     args = parser.parse_args()
@@ -699,8 +705,8 @@ def main():
         print(f"Vulnerabilities Found: {report['vulnerabilities']['total']}")
 
         # Exit with appropriate code
-        critical_vulns = report['vulnerabilities']['by_severity']['critical']
-        high_vulns = report['vulnerabilities']['by_severity']['high']
+        critical_vulns = report["vulnerabilities"]["by_severity"]["critical"]
+        high_vulns = report["vulnerabilities"]["by_severity"]["high"]
 
         if critical_vulns > 0:
             print(f"\n🚨 CRITICAL: {critical_vulns} critical vulnerabilities found!")

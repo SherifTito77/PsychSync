@@ -4,12 +4,12 @@ Structured Logging System for PsychSync
 Provides consistent, searchable logs for production monitoring and debugging
 """
 
-from dataclasses import asdict, dataclass
-from datetime import datetime
-from enum import Enum
 import json
 import logging
 import traceback
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from enum import Enum
 from typing import Any
 
 
@@ -229,7 +229,9 @@ class StructuredLogger:
             **kwargs,
         )
 
-    def log_business_event(self, event_name: str, user_id: str, resource_id: str = None, **kwargs):
+    def log_business_event(
+        self, event_name: str, user_id: str, resource_id: str = None, **kwargs
+    ):
         """Log business events with structured data"""
         self.info(
             EventType.BUSINESS_EVENT,
@@ -321,7 +323,9 @@ class StructuredLogger:
             **kwargs,
         )
 
-    def log_error(self, error: Exception, operation: str = None, user_id: str = None, **kwargs):
+    def log_error(
+        self, error: Exception, operation: str = None, user_id: str = None, **kwargs
+    ):
         """Log errors with full context"""
         error_details = {
             "error_type": type(error).__name__,
@@ -442,7 +446,9 @@ class LogAnalyzer:
         self.last_alert_time[error_type] = current_time
 
         # Send alert (implementation depends on your alerting system)
-        alert_message = f"High error rate detected: {count} {error_type} errors in 5 minutes"
+        alert_message = (
+            f"High error rate detected: {count} {error_type} errors in 5 minutes"
+        )
 
         # This could integrate with:
         # - Email notifications

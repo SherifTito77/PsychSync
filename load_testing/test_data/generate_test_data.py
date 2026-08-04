@@ -5,23 +5,26 @@ Generates users, assessments, teams, and historical responses
 
 import argparse
 import asyncio
+import os
 import random
 import string
-from datetime import datetime, timedelta
-from typing import List, Dict, Any
 import sys
-import os
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
 
 # Add parent directory to path to import from app
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
 import bcrypt
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 # Database configuration
-DATABASE_URL = os.getenv("TEST_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/psychsync_test")
+DATABASE_URL = os.getenv(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/psychsync_test",
+)
 
 # Configuration defaults
 DEFAULT_CONFIG = {
@@ -80,7 +83,8 @@ class TestDataGenerator:
                     "hashed_password": self._hash_password("LoadTest123!"),
                     "is_active": True,
                     "is_verified": True,
-                    "created_at": datetime.utcnow() - timedelta(days=random.randint(1, 365)),
+                    "created_at": datetime.utcnow()
+                    - timedelta(days=random.randint(1, 365)),
                 }
                 batch_users.append(user_data)
 
@@ -119,7 +123,8 @@ class TestDataGenerator:
                 "name": f"Test Team {i}",
                 "description": f"Load testing team {i}",
                 "organization_id": f"org_{i % 100}",  # Distribute across 100 orgs
-                "created_at": datetime.utcnow() - timedelta(days=random.randint(1, 365)),
+                "created_at": datetime.utcnow()
+                - timedelta(days=random.randint(1, 365)),
             }
 
             # Note: Replace with actual ORM insert
@@ -176,7 +181,8 @@ class TestDataGenerator:
                 "is_public": random.choice([True, False]),
                 "organization_id": f"org_{i % 100}",
                 "created_by": f"user_{i % 10000}",
-                "created_at": datetime.utcnow() - timedelta(days=random.randint(1, 365)),
+                "created_at": datetime.utcnow()
+                - timedelta(days=random.randint(1, 365)),
             }
 
             # Generate questions
@@ -214,7 +220,7 @@ class TestDataGenerator:
         self,
         user_ids: List[str],
         assessment_ids: List[str],
-        responses_per_user: int = 50
+        responses_per_user: int = 50,
     ):
         """
         Generate historical assessment responses
@@ -243,9 +249,13 @@ class TestDataGenerator:
                     "user_id": user_id,
                     "assessment_id": assessment_id,
                     "status": random.choice(["completed", "in_progress", "abandoned"]),
-                    "responses": self._generate_sample_responses(random.randint(20, 100)),
-                    "started_at": datetime.utcnow() - timedelta(days=random.randint(1, 365)),
-                    "completed_at": datetime.utcnow() - timedelta(days=random.randint(0, 364)),
+                    "responses": self._generate_sample_responses(
+                        random.randint(20, 100)
+                    ),
+                    "started_at": datetime.utcnow()
+                    - timedelta(days=random.randint(1, 365)),
+                    "completed_at": datetime.utcnow()
+                    - timedelta(days=random.randint(0, 364)),
                 }
 
                 # Note: Replace with actual ORM insert
@@ -272,7 +282,7 @@ class TestDataGenerator:
     def _hash_password(self, password: str) -> str:
         """Hash password using bcrypt"""
         salt = bcrypt.gensalt()
-        return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+        return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
     async def close(self):
         """Close database connection"""
@@ -296,40 +306,45 @@ async def main():
         description="Generate test data for PsychSync load testing"
     )
     parser.add_argument(
-        "--users", type=int, default=DEFAULT_CONFIG["users"],
-        help="Number of users to generate (default: 10,000)"
+        "--users",
+        type=int,
+        default=DEFAULT_CONFIG["users"],
+        help="Number of users to generate (default: 10,000)",
     )
     parser.add_argument(
-        "--teams", type=int, default=DEFAULT_CONFIG["teams"],
-        help="Number of teams to generate (default: 500)"
+        "--teams",
+        type=int,
+        default=DEFAULT_CONFIG["teams"],
+        help="Number of teams to generate (default: 500)",
     )
     parser.add_argument(
-        "--assessments", type=int, default=DEFAULT_CONFIG["assessments"],
-        help="Number of assessments to generate (default: 100)"
+        "--assessments",
+        type=int,
+        default=DEFAULT_CONFIG["assessments"],
+        help="Number of assessments to generate (default: 100)",
     )
     parser.add_argument(
-        "--responses-per-user", type=int, default=DEFAULT_CONFIG["responses_per_user"],
-        help="Number of assessment responses per user (default: 50)"
+        "--responses-per-user",
+        type=int,
+        default=DEFAULT_CONFIG["responses_per_user"],
+        help="Number of assessment responses per user (default: 50)",
     )
     parser.add_argument(
-        "--db-url", type=str, default=DATABASE_URL,
-        help="Database connection URL"
+        "--db-url", type=str, default=DATABASE_URL, help="Database connection URL"
     )
     parser.add_argument(
-        "--skip-users", action="store_true",
-        help="Skip user generation (use existing users)"
+        "--skip-users",
+        action="store_true",
+        help="Skip user generation (use existing users)",
     )
     parser.add_argument(
-        "--skip-teams", action="store_true",
-        help="Skip team generation"
+        "--skip-teams", action="store_true", help="Skip team generation"
     )
     parser.add_argument(
-        "--skip-assessments", action="store_true",
-        help="Skip assessment generation"
+        "--skip-assessments", action="store_true", help="Skip assessment generation"
     )
     parser.add_argument(
-        "--skip-responses", action="store_true",
-        help="Skip response generation"
+        "--skip-responses", action="store_true", help="Skip response generation"
     )
 
     args = parser.parse_args()
@@ -363,13 +378,16 @@ async def main():
 
         if not args.skip_responses:
             assessment_ids = [f"assessment_{i}" for i in range(args.assessments)]
-            await generator.generate_responses(user_ids, assessment_ids, args.responses_per_user)
+            await generator.generate_responses(
+                user_ids, assessment_ids, args.responses_per_user
+            )
 
         generator.print_summary()
 
     except Exception as e:
         print(f"\n❌ Error during data generation: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
     finally:

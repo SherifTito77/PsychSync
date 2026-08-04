@@ -19,11 +19,12 @@ Compliance:
 """
 
 import logging
+from enum import Enum
 from typing import Dict, List, Optional, Set, Union
 from uuid import UUID
-from enum import Enum
+
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
 
 from app.db.models.user import User
 
@@ -33,6 +34,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # Permission Types
 # =============================================================================
+
 
 class Permission(str):
     """Resource-level permissions"""
@@ -97,6 +99,7 @@ class FieldType(str):
 # Role Definitions
 # =============================================================================
 
+
 class Role(str):
     """System roles with permission sets"""
 
@@ -127,44 +130,37 @@ class Role(str):
 
 ROLE_PERMISSIONS: Dict[str, Set[str]] = {
     # Super Admin - All permissions
-    Role.SUPER_ADMIN: {perm for perm in dir(Permission) if not perm.startswith('_')},
-
+    Role.SUPER_ADMIN: {perm for perm in dir(Permission) if not perm.startswith("_")},
     # Admin - Most permissions except some critical ones
     Role.ADMIN: {
         Permission.READ,
         Permission.CREATE,
         Permission.UPDATE,
         Permission.LIST,
-
         # User management
         Permission.CREATE_USER,
         Permission.EDIT_USER,
         Permission.MANAGE_ROLES,
         Permission.RESET_PASSWORD,
-
         # Team management
         Permission.CREATE_TEAM,
         Permission.EDIT_TEAM,
         Permission.DELETE_TEAM,
         Permission.ADD_TEAM_MEMBER,
         Permission.REMOVE_TEAM_MEMBER,
-
         # Analytics
         Permission.VIEW_ANALYTICS,
         Permission.EXPORT_ANALYTICS,
         Permission.VIEW_REPORTS,
-
         # System
         Permission.MANAGE_SYSTEM,
         Permission.VIEW_AUDIT_LOGS,
-
         # Clinical
         Permission.VIEW_PATIENT_DATA,
         Permission.EDIT_PATIENT_DATA,
         Permission.VIEW_CLINICAL_NOTES,
         Permission.EDIT_CLINICAL_NOTES,
     },
-
     # Clinician - Full clinical access
     Role.CLINICIAN: {
         # Clinical permissions
@@ -172,20 +168,16 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         Permission.EDIT_PATIENT_DATA,
         Permission.VIEW_CLINICAL_NOTES,
         Permission.EDIT_CLINICAL_NOTES,
-
         # Assessment permissions
         Permission.VIEW_ASSESSMENT_RESULTS,
         Permission.EDIT_ASSESSMENT,
-
         # Analytics
         Permission.VIEW_ANALYTICS,
         Permission.VIEW_REPORTS,
-
         # Basic CRUD
         Permission.READ,
         Permission.LIST,
     },
-
     # Therapist - Limited clinical access
     Role.THERAPIST: {
         Permission.VIEW_PATIENT_DATA,
@@ -195,7 +187,6 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         Permission.READ,
         Permission.LIST,
     },
-
     # Psychiatrist - Clinical + prescribing
     Role.PSYCHIATRIST: {
         Permission.VIEW_PATIENT_DATA,
@@ -209,7 +200,6 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         Permission.READ,
         Permission.LIST,
     },
-
     # Counselor - Basic clinical access
     Role.COUNSELOR: {
         Permission.VIEW_PATIENT_DATA,
@@ -218,7 +208,6 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         Permission.READ,
         Permission.LIST,
     },
-
     # Auditor - Read-only access for compliance
     Role.AUDITOR: {
         Permission.READ,
@@ -227,7 +216,6 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         Permission.VIEW_ANALYTICS,
         Permission.VIEW_REPORTS,
     },
-
     # Team Lead - Team management
     Role.TEAM_LEAD: {
         Permission.READ,
@@ -238,20 +226,17 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         Permission.VIEW_ANALYTICS,
         Permission.VIEW_REPORTS,
     },
-
     # Team Member - Basic access
     Role.TEAM_MEMBER: {
         Permission.READ,
         Permission.LIST,
         Permission.VIEW_ANALYTICS,
     },
-
     # Team Viewer - Read-only
     Role.TEAM_VIEWER: {
         Permission.READ,
         Permission.LIST,
     },
-
     # Regular User
     Role.USER: {
         Permission.READ,
@@ -259,7 +244,6 @@ ROLE_PERMISSIONS: Dict[str, Set[str]] = {
         Permission.TAKE_ASSESSMENT,
         Permission.VIEW_ASSESSMENT_RESULTS,
     },
-
     # Premium User - Extended access
     Role.PREMIUM_USER: {
         Permission.READ,
@@ -284,19 +268,16 @@ PROTECTED_FIELDS: Dict[str, FieldType] = {
     "users.ssn": FieldType.PII,
     "users.date_of_birth": FieldType.PII,
     "users.address": FieldType.PII,
-
     # Clinical PHI
     "clinical_screening.responses": FieldType.PHI,
     "clinical_screening.diagnosis": FieldType.PHI,
     "clinical_screening.notes": FieldType.PHI,
     "clinical_screening.treatment_plan": FieldType.PHI,
     "clinical_screening.medications": FieldType.PHI,
-
     # Assessment sensitive data
     "assessments.questions": FieldType.SENSITIVE,
     "assessments.scoring_algorithm": FieldType.ADMIN,
     "assessments.thresholds": FieldType.ADMIN,
-
     # System admin fields
     "users.password_hash": FieldType.ADMIN,
     "users.mfa_secret": FieldType.ADMIN,
@@ -308,6 +289,7 @@ PROTECTED_FIELDS: Dict[str, FieldType] = {
 # =============================================================================
 # Permission Service
 # =============================================================================
+
 
 class PermissionService:
     """
@@ -486,7 +468,9 @@ class PermissionService:
         try:
             # Check if assigner has permission
             if not await self.has_permission(db, assigned_by, Permission.MANAGE_ROLES):
-                logger.warning(f"User {assigned_by.id} attempted to assign role without permission")
+                logger.warning(
+                    f"User {assigned_by.id} attempted to assign role without permission"
+                )
                 return False
 
             # Check if role exists
@@ -498,7 +482,7 @@ class PermissionService:
             # For now, we'd need a user_roles table
 
             # Log the role assignment
-            from app.services.audit_service import audit_service, AuditEventType
+            from app.services.audit_service import AuditEventType, audit_service
 
             await audit_service.log_event(
                 db=db,
@@ -539,13 +523,15 @@ class PermissionService:
         try:
             # Check if revoker has permission
             if not await self.has_permission(db, revoked_by, Permission.MANAGE_ROLES):
-                logger.warning(f"User {revoked_by.id} attempted to revoke role without permission")
+                logger.warning(
+                    f"User {revoked_by.id} attempted to revoke role without permission"
+                )
                 return False
 
             # TODO: Remove role assignment from database
 
             # Log the role revocation
-            from app.services.audit_service import audit_service, AuditEventType
+            from app.services.audit_service import AuditEventType, audit_service
 
             await audit_service.log_event(
                 db=db,
@@ -650,6 +636,7 @@ permission_service = PermissionService()
 # Convenience Functions
 # =============================================================================
 
+
 async def has_permission(
     db: AsyncSession,
     user: User,
@@ -658,7 +645,9 @@ async def has_permission(
     resource_id: Optional[Union[str, UUID]] = None,
 ) -> bool:
     """Convenience function to check permission"""
-    return await permission_service.has_permission(db, user, permission, resource_type, resource_id)
+    return await permission_service.has_permission(
+        db, user, permission, resource_type, resource_id
+    )
 
 
 async def can_access_field(
@@ -669,4 +658,6 @@ async def can_access_field(
     action: str = Permission.READ,
 ) -> bool:
     """Convenience function to check field access"""
-    return await permission_service.can_access_field(db, user, table_name, field_name, action)
+    return await permission_service.can_access_field(
+        db, user, table_name, field_name, action
+    )

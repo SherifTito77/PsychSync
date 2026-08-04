@@ -10,18 +10,14 @@ from app.api.v1.deps import get_current_active_user
 from app.core.async_cache import async_cached
 from app.core.database import get_async_db
 from app.core.input_validation import InputValidator
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.core.security_utils import sanitize_dict
 from app.db.models.team import Team
 from app.db.models.team import TeamMember as TeamMemberModel
 from app.db.models.user import User
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
-from app.schemas.team import (
-    TeamCreate,
-    TeamWithMembers,
-)
-from app.schemas.team import (
-    TeamResponse as TeamSchema,
-)
+from app.schemas.team import TeamCreate
+from app.schemas.team import TeamResponse as TeamSchema
+from app.schemas.team import TeamWithMembers
 
 get_db = get_async_db  # Alias for consistency
 
@@ -36,7 +32,9 @@ router = APIRouter()
 @async_cached(expire=120, key_prefix="teams_list")  # ✅ ASYNC: Non-blocking cache
 async def list_teams(
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),  # ✅ OPTIMIZED: Reduced max limit from 1000 to 100
+    limit: int = Query(
+        50, ge=1, le=100
+    ),  # ✅ OPTIMIZED: Reduced max limit from 1000 to 100
     my_teams: bool = Query(False, description="Filter to only teams I'm a member of"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
@@ -68,7 +66,7 @@ async def list_teams(
         Team.created_at,
         Team.updated_at,
         Team.created_by_id,
-        member_count_subquery.label("members_count")
+        member_count_subquery.label("members_count"),
     )
 
     if my_teams:
@@ -90,11 +88,14 @@ async def list_teams(
             "id": str(team.id),
             "name": team.name,
             "description": team.description,
-            "organization_id": str(team.organization_id) if team.organization_id else None,
+            "organization_id": (
+                str(team.organization_id) if team.organization_id else None
+            ),
             "created_at": team.created_at.isoformat() if team.created_at else None,
             "updated_at": team.updated_at.isoformat() if team.updated_at else None,
             "created_by_id": str(team.created_by_id) if team.created_by_id else None,
-            "members_count": team.members_count or 0,  # ✅ OPTIMIZED: Already counted by database
+            "members_count": team.members_count
+            or 0,  # ✅ OPTIMIZED: Already counted by database
         }
         for team in teams
     ]
@@ -126,12 +127,12 @@ async def list_teams(
                         "id": 2,
                         "name": "Product Team",
                         "description": "Product management team",
-                        "organization_id": 1
+                        "organization_id": 1,
                     }
                 }
-            }
+            },
         }
-    }
+    },
 )
 async def create_team(
     team_data: TeamCreate,
@@ -150,10 +151,12 @@ async def create_team(
             # Create a default organization with explicit UUID
             default_org_id = str(uuid.uuid4())
             await db.execute(
-                text("""
+                text(
+                    """
                 INSERT INTO organizations (id, name, created_at, updated_at)
                 VALUES (:org_id, :name, NOW(), NOW())
-            """),
+            """
+                ),
                 {"org_id": default_org_id, "name": "Default Organization"},
             )
             await db.commit()
@@ -164,11 +167,13 @@ async def create_team(
         if org_row is None or len(org_row) == 0:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve or create organization"
+                detail="Failed to retrieve or create organization",
             )
 
         # Sanitize input data
-        sanitized_data = sanitize_dict(team_data.model_dump(), text_fields=["name", "description"])
+        sanitized_data = sanitize_dict(
+            team_data.model_dump(), text_fields=["name", "description"]
+        )
 
         # Create the team using the Team model with sanitized data
         new_team = Team(
@@ -206,14 +211,17 @@ async def get_team(
         # Validate the input first
         if not team_id or team_id.strip() == "" or team_id.lower() == "nan":
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Invalid team ID: {team_id}"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Invalid team ID: {team_id}",
             )
 
         team_id_str = str(team_id).strip()
 
         # Additional validation - prevent SQL injection in search
         if len(team_id_str) > 100:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Team ID too long")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Team ID too long"
+            )
 
         # Sanitize input to prevent injection
         team_id_str = InputValidator.sanitize_search_term(team_id_str)
@@ -223,7 +231,9 @@ async def get_team(
             team_uuid = uuid.UUID(team_id_str)
             # Query by exact UUID match
             result = await db.execute(
-                select(Team).options(selectinload(Team.members)).filter(Team.id == team_uuid)
+                select(Team)
+                .options(selectinload(Team.members))
+                .filter(Team.id == team_uuid)
             )
         except ValueError:
             # If not a valid UUID, try to find by prefix using cast to text
@@ -239,7 +249,8 @@ async def get_team(
 
         if not team:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail=f"Team not found with ID: {team_id}"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Team not found with ID: {team_id}",
             )
 
         return team

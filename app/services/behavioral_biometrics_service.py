@@ -11,9 +11,9 @@ Author: Security Team
 Date: 2025-12-24
 """
 
-from datetime import datetime
 import hashlib
 import json
+from datetime import datetime
 
 from fastapi import HTTPException, Request, status
 from pydantic import BaseModel
@@ -25,8 +25,10 @@ from app.core.database import get_db
 # Data Models
 # =============================================================================
 
+
 class BehavioralMetrics(BaseModel):
     """Real-time behavioral metrics"""
+
     ip_address: str
     user_agent: str
     accept_language: str
@@ -41,6 +43,7 @@ class BehavioralMetrics(BaseModel):
 
 class RiskScore(BaseModel):
     """Risk assessment result"""
+
     score: float  # 0.0 to 100.0
     level: str  # LOW, MEDIUM, HIGH, CRITICAL
     factors: list[str]
@@ -49,6 +52,7 @@ class RiskScore(BaseModel):
 
 class AnomalyEvent(BaseModel):
     """Detected anomaly event"""
+
     event_type: str
     severity: str
     description: str
@@ -60,6 +64,7 @@ class AnomalyEvent(BaseModel):
 # =============================================================================
 # Behavioral Biometrics Service
 # =============================================================================
+
 
 class BehavioralBiometricsService:
     """
@@ -77,18 +82,10 @@ class BehavioralBiometricsService:
 
     def __init__(self):
         self.redis_client = None  # For fast pattern lookup
-        self.risk_thresholds = {
-            "LOW": 20,
-            "MEDIUM": 50,
-            "HIGH": 75,
-            "CRITICAL": 90
-        }
+        self.risk_thresholds = {"LOW": 20, "MEDIUM": 50, "HIGH": 75, "CRITICAL": 90}
 
     async def analyze_request(
-        self,
-        request: Request,
-        user_id: int | None,
-        db: Session
+        self, request: Request, user_id: int | None, db: Session
     ) -> RiskScore:
         """
         Analyze incoming request for anomalous behavior
@@ -109,7 +106,9 @@ class BehavioralBiometricsService:
             risk_factors.extend(device_risk["factors"])
 
         # Check 2: Geographic location anomalies
-        location_risk = await self._check_location_anomalies(user_id, metrics.ip_address, db)
+        location_risk = await self._check_location_anomalies(
+            user_id, metrics.ip_address, db
+        )
         if location_risk["score"] > 0:
             risk_score += location_risk["score"]
             risk_factors.extend(location_risk["factors"])
@@ -156,14 +155,14 @@ class BehavioralBiometricsService:
                 event_type=f"behavioral_risk_{level.lower()}",
                 risk_score=risk_score,
                 factors=risk_factors,
-                metrics=metrics.dict()
+                metrics=metrics.dict(),
             )
 
         return RiskScore(
             score=risk_score,
             level=level,
             factors=risk_factors,
-            recommended_action=action
+            recommended_action=action,
         )
 
     def _extract_metrics(self, request: Request) -> BehavioralMetrics:
@@ -178,10 +177,7 @@ class BehavioralBiometricsService:
         )
 
     async def _check_device_fingerprint(
-        self,
-        user_id: int | None,
-        metrics: BehavioralMetrics,
-        db: Session
+        self, user_id: int | None, metrics: BehavioralMetrics, db: Session
     ) -> dict:
         """
         Check if device fingerprint matches known devices
@@ -204,14 +200,13 @@ class BehavioralBiometricsService:
         # Unknown device - moderate risk
         return {
             "score": 15,
-            "factors": [f"Access from unrecognized device (fingerprint: {fingerprint[:8]}...)"]
+            "factors": [
+                f"Access from unrecognized device (fingerprint: {fingerprint[:8]}...)"
+            ],
         }
 
     async def _check_location_anomalies(
-        self,
-        user_id: int | None,
-        ip_address: str,
-        db: Session
+        self, user_id: int | None, ip_address: str, db: Session
     ) -> dict:
         """
         Check for geographic location anomalies
@@ -242,12 +237,16 @@ class BehavioralBiometricsService:
             # Impossible: > 500km in < 30 minutes
             if distance > 500 and time_diff < 1800:
                 risk_score += 40
-                factors.append(f"Impossible travel detected: {distance:.0f}km in {int(time_diff/60)} minutes")
+                factors.append(
+                    f"Impossible travel detected: {distance:.0f}km in {int(time_diff/60)} minutes"
+                )
 
             # Suspicious: > 1000km in < 2 hours
             if distance > 1000 and time_diff < 7200:
                 risk_score += 25
-                factors.append(f"Rapid long-distance travel: {distance:.0f}km in {int(time_diff/60)} minutes")
+                factors.append(
+                    f"Rapid long-distance travel: {distance:.0f}km in {int(time_diff/60)} minutes"
+                )
 
         # Check for high-risk location
         if await self._is_high_risk_location(location):
@@ -266,11 +265,7 @@ class BehavioralBiometricsService:
 
         return {"score": risk_score, "factors": factors}
 
-    async def _check_time_patterns(
-        self,
-        user_id: int | None,
-        db: Session
-    ) -> dict:
+    async def _check_time_patterns(self, user_id: int | None, db: Session) -> dict:
         """
         Check for unusual time patterns
 
@@ -294,15 +289,14 @@ class BehavioralBiometricsService:
             # But allow some flexibility
             if current_hour not in range(typical_hours[0] - 2, typical_hours[-1] + 3):
                 risk_score += 10
-                factors.append(f"Access outside typical hours (current: {current_hour}, typical: {typical_hours})")
+                factors.append(
+                    f"Access outside typical hours (current: {current_hour}, typical: {typical_hours})"
+                )
 
         return {"score": risk_score, "factors": factors}
 
     async def _check_velocity(
-        self,
-        user_id: int | None,
-        ip_address: str,
-        db: Session
+        self, user_id: int | None, ip_address: str, db: Session
     ) -> dict:
         """
         Check velocity of requests (rapid automated activity)
@@ -323,23 +317,32 @@ class BehavioralBiometricsService:
 
         if len(recent_requests) > 30:
             risk_score += 35
-            factors.append(f"Very high request rate: {len(recent_requests)} requests/minute")
+            factors.append(
+                f"Very high request rate: {len(recent_requests)} requests/minute"
+            )
         elif len(recent_requests) > 10:
             risk_score += 15
-            factors.append(f"Elevated request rate: {len(recent_requests)} requests/minute")
+            factors.append(
+                f"Elevated request rate: {len(recent_requests)} requests/minute"
+            )
 
         # Check for multiple IPs
         unique_ips = set(r["ip_address"] for r in recent_requests)
         if len(unique_ips) > 3:
             risk_score += 20
-            factors.append(f"Multiple IPs in short time: {len(unique_ips)} different IPs")
+            factors.append(
+                f"Multiple IPs in short time: {len(unique_ips)} different IPs"
+            )
 
         # Check for actions faster than human
         if len(recent_requests) > 5:
             # Calculate minimum time between requests
             timestamps = [r["timestamp"] for r in recent_requests]
             timestamps.sort()
-            min_diff = min((timestamps[i+1] - timestamps[i]).total_seconds() for i in range(len(timestamps)-1))
+            min_diff = min(
+                (timestamps[i + 1] - timestamps[i]).total_seconds()
+                for i in range(len(timestamps) - 1)
+            )
 
             if min_diff < 0.5:  # Less than 500ms between requests
                 risk_score += 25
@@ -412,7 +415,7 @@ class BehavioralBiometricsService:
             "country": "Unknown",
             "city": "Unknown",
             "latitude": 0.0,
-            "longitude": 0.0
+            "longitude": 0.0,
         }
 
     def _calculate_distance(self, loc1: dict, loc2: dict) -> float:
@@ -427,7 +430,7 @@ class BehavioralBiometricsService:
 
         dlat = lat2 - lat1
         dlon = lon2 - lon1
-        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+        a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
         c = 2 * asin(sqrt(a))
 
         km = 6371 * c
@@ -468,19 +471,25 @@ class BehavioralBiometricsService:
         # In production, store device fingerprints in user_devices table
         return []
 
-    async def _get_recent_locations(self, user_id: int, hours: int, db: Session) -> list[dict]:
+    async def _get_recent_locations(
+        self, user_id: int, hours: int, db: Session
+    ) -> list[dict]:
         """Get recent login locations for user"""
         # Query from database
         # In production, query login_history table
         return []
 
-    async def _get_user_typical_hours(self, user_id: int, db: Session) -> list[int] | None:
+    async def _get_user_typical_hours(
+        self, user_id: int, db: Session
+    ) -> list[int] | None:
         """Get user's typical access hours"""
         # Analyze login history
         # In production, calculate from historical data
         return None
 
-    async def _get_recent_requests(self, user_id: int, minutes: int, db: Session) -> list[dict]:
+    async def _get_recent_requests(
+        self, user_id: int, minutes: int, db: Session
+    ) -> list[dict]:
         """Get recent requests for user"""
         # Query from database or Redis
         # In production, store request logs
@@ -504,10 +513,7 @@ behavioral_service = BehavioralBiometricsService()
 
 
 @router.post("/analyze")
-async def analyze_behavior(
-    request: Request,
-    db: Session = Depends(get_db)
-):
+async def analyze_behavior(request: Request, db: Session = Depends(get_db)):
     """
     Analyze request for anomalous behavior
 
@@ -523,7 +529,7 @@ async def analyze_behavior(
     if risk_score.level == "CRITICAL":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Unusual activity detected. Please verify your identity."
+            detail="Unusual activity detected. Please verify your identity.",
         )
 
     return risk_score
@@ -531,9 +537,7 @@ async def analyze_behavior(
 
 @router.post("/metrics/collect")
 async def collect_behavioral_metrics(
-    metrics: BehavioralMetrics,
-    request: Request,
-    db: Session = Depends(get_db)
+    metrics: BehavioralMetrics, request: Request, db: Session = Depends(get_db)
 ):
     """
     Collect behavioral metrics for analysis

@@ -3,16 +3,12 @@ Mixed Workload Load Test for PsychSync
 Simulates realistic traffic patterns with multiple user types
 """
 
-from locust import HttpUser, task, between, events
 import logging
 import random
 from datetime import datetime
 
-from locust_config import (
-    LoadTestConfig,
-    get_headers,
-    test_data_manager,
-)
+from locust import HttpUser, between, events, task
+from locust_config import LoadTestConfig, get_headers, test_data_manager
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +150,9 @@ class PsychSyncUser(HttpUser):
     @task(5)
     def view_assessment_results(self):
         """Task: View assessment results"""
-        assessment_id = self.current_assessment_id or test_data_manager.get_random_assessment_id()
+        assessment_id = (
+            self.current_assessment_id or test_data_manager.get_random_assessment_id()
+        )
 
         with self.client.get(
             f"/api/v1/assessments/{assessment_id}/results",
@@ -354,7 +352,9 @@ class PsychSyncUser(HttpUser):
             headers=get_headers(self.token),
             json={
                 "text": random.choice(sample_texts),
-                "analysis_type": random.choice(["sentiment", "personality", "behavioral"]),
+                "analysis_type": random.choice(
+                    ["sentiment", "personality", "behavioral"]
+                ),
             },
             catch_response=True,
             name="AI: Text Analysis",
@@ -382,6 +382,7 @@ class PsychSyncUser(HttpUser):
 
 
 # ==================== PERFORMANCE MONITORING ====================
+
 
 @events.request.add_hook
 def on_request(request_type, name, response_time, response_length, exception, **kwargs):
@@ -411,7 +412,9 @@ def on_test_stop(environment, **kwargs):
     logger.info("=" * 80)
     logger.info(f"Total Requests: {stats.total.num_requests:,}")
     logger.info(f"Failures: {stats.total.num_failures:,}")
-    logger.info(f"Failure Rate: {(stats.total.num_failures / stats.total.num_requests * 100):.2f}%")
+    logger.info(
+        f"Failure Rate: {(stats.total.num_failures / stats.total.num_requests * 100):.2f}%"
+    )
     logger.info(f"Median Response Time: {stats.total.median_response_time}ms")
     logger.info(f"Average Response Time: {stats.total.avg_response_time:.1f}ms")
     logger.info(f"Min Response Time: {stats.total.min_response_time}ms")

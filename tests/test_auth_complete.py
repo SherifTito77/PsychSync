@@ -9,68 +9,69 @@ Test Coverage:
 - Test Categories: Security, Performance, Edge Cases, Error Handling
 """
 
+import asyncio
+import json
+import time
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
+import bcrypt
 import pytest
 import pytest_asyncio
-import asyncio
-import time
-import json
-from datetime import datetime, timedelta
-from typing import Dict, Any, List
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from httpx import AsyncClient
 from fastapi import status
-from jose import jwt, JWTError
-import bcrypt
+from httpx import AsyncClient
+from jose import JWTError, jwt
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.security import (
-verify_password,
-    get_password_hash,
-    create_access_token,
-    create_refresh_token,
-    create_token_pair,
-    verify_token,
-    validate_password,
-    generate_password_requirements,
-    _contains_common_words,
-    _get_strength_rating,
-    get_current_user,
-    get_current_active_user,
-    create_password_reset_token,
-    verify_password_reset_token,
-    decode_token
-)
-from app.core.config import settings
+from app.api.v1.endpoints.auth_unified import router as auth_router
 from app.core.account_security import (
     AccountLockoutManager,
-    account_security_manager,
+    AnomalyType,
+    LockoutReason,
     SecurityEvent,
     SecurityEventRecord,
-    AnomalyType,
-    LockoutReason
+    account_security_manager,
+)
+from app.core.config import settings
+from app.core.csrf import CSRFMiddleware
+from app.core.security_monitoring import AlertSeverity
+from app.core.security_monitoring import AnomalyType as MonitorAnomalyType
+from app.core.security_monitoring import (
+    RiskLevel,
+    SecurityAlert,
+    SecurityMonitoringEngine,
+    security_monitor,
 )
 from app.core.session_management import (
-    session_manager,
-    SessionManager,
-    SessionStatus,
     DeviceFingerprint,
     DeviceType,
-    UserSession
+    SessionManager,
+    SessionStatus,
+    UserSession,
+    session_manager,
 )
-from app.core.security_monitoring import (
-    security_monitor,
-    SecurityMonitoringEngine,
-    SecurityAlert,
-    AlertSeverity,
-    RiskLevel,
-    AnomalyType as MonitorAnomalyType
-)
-from app.core.csrf import CSRFMiddleware
-from app.api.v1.endpoints.auth_unified import router as auth_router
-from app.services.security import sanitize_input
-from app.schemas.user import UserCreate, UserResponse
 from app.db.models.user import User, UserRole
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from app.schemas.user import UserCreate, UserResponse
+from app.services.security import (
+    _contains_common_words,
+    _get_strength_rating,
+    create_access_token,
+    create_password_reset_token,
+    create_refresh_token,
+    create_token_pair,
+    decode_token,
+    generate_password_requirements,
+    get_current_active_user,
+    get_current_user,
+    get_password_hash,
+    sanitize_input,
+    validate_password,
+    verify_password,
+    verify_password_reset_token,
+    verify_token,
+)
 
 
 class TestPasswordSecurity:
@@ -111,17 +112,22 @@ class TestPasswordSecurity:
         assert verify_password(password, hash3)
 
     @pytest.mark.unit
-    @pytest.mark.parametrize("password,expected_valid,expected_min_score", [
-        ("Password123!", True, 60),  # Meets minimum requirements
-        ("MyStr0ng#P@ssw0rd!", True, 90),  # Very strong
-        ("weak", False, 0),  # Too short
-        ("password", False, 20),  # Common word
-        ("12345678", False, 10),  # Numbers only
-        ("PASSWORD123", False, 30),  # No lowercase
-        ("password123", False, 40),  # No special chars
-        ("P@ssw0rd", False, 50),  # Too short but otherwise strong
-    ])
-    def test_password_validation_scenarios(self, password, expected_valid, expected_min_score):
+    @pytest.mark.parametrize(
+        "password,expected_valid,expected_min_score",
+        [
+            ("Password123!", True, 60),  # Meets minimum requirements
+            ("MyStr0ng#P@ssw0rd!", True, 90),  # Very strong
+            ("weak", False, 0),  # Too short
+            ("password", False, 20),  # Common word
+            ("12345678", False, 10),  # Numbers only
+            ("PASSWORD123", False, 30),  # No lowercase
+            ("password123", False, 40),  # No special chars
+            ("P@ssw0rd", False, 50),  # Too short but otherwise strong
+        ],
+    )
+    def test_password_validation_scenarios(
+        self, password, expected_valid, expected_min_score
+    ):
         """Test password validation with various scenarios"""
         result = validate_password(password)
 
@@ -165,8 +171,10 @@ class TestPasswordSecurity:
         for password in forbidden_passwords:
             result = validate_password(password)
             assert result["valid"] is False
-            assert any("forbidden" in error.lower() or "common" in error.lower()
-                      for error in result["errors"])
+            assert any(
+                "forbidden" in error.lower() or "common" in error.lower()
+                for error in result["errors"]
+            )
 
     @pytest.mark.unit
     def test_password_length_validation(self):
@@ -252,7 +260,7 @@ class TestPasswordSecurity:
             "require_digits",
             "require_special_chars",
             "special_characters",
-            "forbidden_patterns"
+            "forbidden_patterns",
         ]
 
         for field in required_fields:
@@ -284,7 +292,9 @@ class TestPasswordSecurity:
         avg_incorrect = sum(times_incorrect) / len(times_incorrect)
 
         # Allow some variance but should be relatively close
-        time_diff_ratio = abs(avg_correct - avg_incorrect) / max(avg_correct, avg_incorrect)
+        time_diff_ratio = abs(avg_correct - avg_incorrect) / max(
+            avg_correct, avg_incorrect
+        )
         assert time_diff_ratio < 0.5  # Less than 50% difference
 
     @pytest.mark.unit
@@ -375,16 +385,14 @@ class TestJWTTokenSecurity:
         claims = {
             "role": "admin",
             "organization_id": "org_123",
-            "permissions": ["read", "write"]
+            "permissions": ["read", "write"],
         }
 
         token = create_access_token(subject=user_id, additional_claims=claims)
 
         # Verify claims are included
         payload = jwt.decode(
-            token,
-            settings.jwt_secret,
-            algorithms=[settings.JWT_ALGORITHM]
+            token, settings.jwt_secret, algorithms=[settings.JWT_ALGORITHM]
         )
 
         assert payload["sub"] == user_id
@@ -427,8 +435,7 @@ class TestJWTTokenSecurity:
 
         # Create expired token
         expired_token = create_access_token(
-            subject=user_id,
-            expires_delta=timedelta(seconds=-1)  # Already expired
+            subject=user_id, expires_delta=timedelta(seconds=-1)  # Already expired
         )
 
         # Should return None for expired token
@@ -460,10 +467,10 @@ class TestJWTTokenSecurity:
 
         # Encode without signature
         malicious_token = (
-            jwt.encode(malicious_header, "", algorithm="none") +
-            "." +
-            jwt.encode(payload, "", algorithm="none") +
-            "."
+            jwt.encode(malicious_header, "", algorithm="none")
+            + "."
+            + jwt.encode(payload, "", algorithm="none")
+            + "."
         )
 
         # Should reject 'none' algorithm
@@ -475,10 +482,7 @@ class TestJWTTokenSecurity:
         user_id = "test_user_123"
         claims = {"role": "user", "organization_id": "org_123"}
 
-        token_pair = create_token_pair(
-            subject=user_id,
-            additional_claims=claims
-        )
+        token_pair = create_token_pair(subject=user_id, additional_claims=claims)
 
         # Verify token pair structure
         assert "access_token" in token_pair
@@ -511,7 +515,7 @@ class TestJWTTokenSecurity:
             "invalid_token",
             "header.payload",  # Missing signature
             "header.payload.signature.extra",
-            "header.not_valid_json.signature"
+            "header.not_valid_json.signature",
         ]
 
         for token in invalid_tokens:
@@ -527,11 +531,7 @@ class TestJWTTokenSecurity:
 
         # Try to decode with wrong secret
         try:
-            jwt.decode(
-                token,
-                "wrong_secret_key",
-                algorithms=[settings.JWT_ALGORITHM]
-            )
+            jwt.decode(token, "wrong_secret_key", algorithms=[settings.JWT_ALGORITHM])
             assert False, "Should have raised JWTError"
         except JWTError:
             pass  # Expected
@@ -541,7 +541,9 @@ class TestJWTTokenSecurity:
         """Test JWT token subject validation"""
         # Token without subject
         payload_no_sub = {"exp": int(time.time()) + 3600}
-        token_no_sub = jwt.encode(payload_no_sub, settings.jwt_secret, algorithm=settings.JWT_ALGORITHM)
+        token_no_sub = jwt.encode(
+            payload_no_sub, settings.jwt_secret, algorithm=settings.JWT_ALGORITHM
+        )
         assert verify_token(token_no_sub, "access") is None
 
     @pytest.mark.unit
@@ -554,9 +556,7 @@ class TestJWTTokenSecurity:
 
         # Verify it has correct type
         payload = jwt.decode(
-            refresh_token,
-            settings.jwt_secret,
-            algorithms=[settings.JWT_ALGORITHM]
+            refresh_token, settings.jwt_secret, algorithms=[settings.JWT_ALGORITHM]
         )
         assert payload["type"] == "refresh"
         assert payload["sub"] == user_id
@@ -569,7 +569,7 @@ class TestJWTTokenSecurity:
         # Create token with very large claims
         large_claims = {
             "large_data": "x" * 10000,  # 10KB of data
-            "more_data": list(range(1000))
+            "more_data": list(range(1000)),
         }
 
         # Should handle large claims (though may be inefficient)
@@ -584,7 +584,7 @@ class TestJWTTokenSecurity:
         claims = {
             "unicode_name": "Jürgen Müller",
             "emoji": "🔐🔑",
-            "chinese": "密码安全"
+            "chinese": "密码安全",
         }
 
         token = create_access_token(subject=user_id, additional_claims=claims)
@@ -637,9 +637,7 @@ class TestJWTTokenSecurity:
         # Should use secure algorithm
         token = create_access_token(subject=user_id)
         payload = jwt.decode(
-            token,
-            settings.jwt_secret,
-            algorithms=[settings.JWT_ALGORITHM]
+            token, settings.jwt_secret, algorithms=[settings.JWT_ALGORITHM]
         )
 
         # Verify algorithm is set correctly
@@ -715,7 +713,7 @@ class TestAccountSecurity:
             success=True,
             ip_address=ip_address,
             user_agent=user_agent,
-            user_id="user_123"
+            user_id="user_123",
         )
 
         assert result["locked"] is False
@@ -737,7 +735,7 @@ class TestAccountSecurity:
                 success=False,
                 ip_address=ip_address,
                 user_agent=user_agent,
-                reason=f"Invalid password attempt {i+1}"
+                reason=f"Invalid password attempt {i+1}",
             )
 
             if i < settings.MAX_LOGIN_ATTEMPTS - 1:
@@ -760,9 +758,7 @@ class TestAccountSecurity:
 
         # Lock the account
         await manager.lock_account_manually(
-            email=email,
-            duration_minutes=30,
-            reason="Manual lock for testing"
+            email=email, duration_minutes=30, reason="Manual lock for testing"
         )
 
         # Should now be locked
@@ -779,9 +775,7 @@ class TestAccountSecurity:
 
         # Lock the account
         await manager.lock_account_manually(
-            email=email,
-            duration_minutes=60,
-            reason="Test lockout"
+            email=email, duration_minutes=60, reason="Test lockout"
         )
 
         # Verify it's locked
@@ -802,7 +796,7 @@ class TestAccountSecurity:
         email = "progressive@example.com"
 
         # Enable progressive lockout
-        if hasattr(manager, 'progressive_lockout_enabled'):
+        if hasattr(manager, "progressive_lockout_enabled"):
             manager.progressive_lockout_enabled = True
 
         initial_duration = manager.lockout_duration_minutes
@@ -816,7 +810,7 @@ class TestAccountSecurity:
                     success=False,
                     ip_address=f"192.168.1.{round + 1}",
                     user_agent="Test Browser",
-                    reason="Test failure"
+                    reason="Test failure",
                 )
 
             # Check lockout status
@@ -843,7 +837,7 @@ class TestAccountSecurity:
                 success=False,
                 ip_address="192.168.1.100",
                 user_agent="Test Browser",
-                reason=f"Failed attempt {i+1}"
+                reason=f"Failed attempt {i+1}",
             )
 
         # Retrieve failed attempts
@@ -872,7 +866,7 @@ class TestAccountSecurity:
             user_id="user_123",
             ip_address="192.168.1.100",
             user_agent="Test Browser",
-            metadata={"reason": "Invalid password"}
+            metadata={"reason": "Invalid password"},
         )
 
         # Retrieve events
@@ -898,7 +892,7 @@ class TestAccountSecurity:
                 success=False,
                 ip_address=f"192.168.1.{attempt_id % 255}",
                 user_agent="Test Browser",
-                reason=f"Concurrent attempt {attempt_id}"
+                reason=f"Concurrent attempt {attempt_id}",
             )
 
         # Make concurrent login attempts
@@ -924,7 +918,7 @@ class TestAccountSecurity:
                 email=emails[0],
                 success=False,
                 ip_address="192.168.1.100",
-                user_agent="Test Browser"
+                user_agent="Test Browser",
             )
 
         # Check lockout status
@@ -951,7 +945,7 @@ class TestAccountSecurity:
                 success=False,
                 ip_address=ip,
                 user_agent="Test Browser",
-                reason="Test IP tracking"
+                reason="Test IP tracking",
             )
 
         # Get failed attempts and check IP diversity
@@ -972,7 +966,7 @@ class TestAccountSecurity:
         user_agents = [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-            "Mozilla/5.0 (X11; Linux x86_64)"
+            "Mozilla/5.0 (X11; Linux x86_64)",
         ]
 
         for ua in user_agents:
@@ -981,7 +975,7 @@ class TestAccountSecurity:
                 success=False,
                 ip_address="192.168.1.100",
                 user_agent=ua,
-                reason="Test UA tracking"
+                reason="Test UA tracking",
             )
 
         # Get failed attempts and check user agent diversity
@@ -1011,7 +1005,7 @@ class TestAccountSecurity:
                 user_id="user_123",
                 ip_address="192.168.1.100",
                 user_agent="Test Browser",
-                severity=severity
+                severity=severity,
             )
 
         # Retrieve events and check severity
@@ -1034,14 +1028,12 @@ class TestAccountSecurity:
             (LockoutReason.TOO_MANY_ATTEMPTS, "Excessive failed attempts"),
             (LockoutReason.SUSPICIOUS_ACTIVITY, "Suspicious login pattern"),
             (LockoutReason.ADMIN_ACTION, "Manual administrative lock"),
-            (LockoutReason.SECURITY_POLICY, "Security policy violation")
+            (LockoutReason.SECURITY_POLICY, "Security policy violation"),
         ]
 
         for reason, description in reasons:
             await manager.lock_account_manually(
-                email=email,
-                duration_minutes=30,
-                reason=description
+                email=email, duration_minutes=30, reason=description
             )
 
             status = await manager.is_account_locked(email)
@@ -1059,6 +1051,7 @@ class TestAccountSecurity:
 
         # Record events at different times
         import time
+
         timestamps = []
 
         for i in range(5):
@@ -1066,7 +1059,7 @@ class TestAccountSecurity:
                 event_type=SecurityEvent.LOGIN_FAILED,
                 user_id=user_id,
                 ip_address="192.168.1.100",
-                user_agent="Test Browser"
+                user_agent="Test Browser",
             )
             timestamps.append(time.time())
             if i < 4:  # Small delay between events
@@ -1078,9 +1071,7 @@ class TestAccountSecurity:
 
         # Test filtering by event type
         failed_events = await manager.get_security_events(
-            user_id=user_id,
-            event_types=[SecurityEvent.LOGIN_FAILED],
-            hours=24
+            user_id=user_id, event_types=[SecurityEvent.LOGIN_FAILED], hours=24
         )
         assert len(failed_events) == 5
 
@@ -1094,7 +1085,7 @@ class TestAccountSecurity:
             email="",  # Empty email
             success=False,
             ip_address="192.168.1.100",
-            user_agent="Test Browser"
+            user_agent="Test Browser",
         )
         assert isinstance(result, dict)
         assert "locked" in result
@@ -1104,7 +1095,7 @@ class TestAccountSecurity:
             email=None,
             success=False,
             ip_address="192.168.1.100",
-            user_agent="Test Browser"
+            user_agent="Test Browser",
         )
         assert isinstance(result, dict)
 
@@ -1117,7 +1108,10 @@ class TestAccountSecurity:
     async def test_cache_integration_error_handling(self):
         """Test cache integration error handling"""
         # Mock cache failure
-        with patch('app.core.account_security.cache_get', side_effect=Exception("Cache failure")):
+        with patch(
+            "app.core.account_security.cache_get",
+            side_effect=Exception("Cache failure"),
+        ):
             manager = AccountLockoutManager()
 
             # Operations should still work even if cache fails
@@ -1125,7 +1119,7 @@ class TestAccountSecurity:
                 email="cache_test@example.com",
                 success=True,
                 ip_address="192.168.1.100",
-                user_agent="Test Browser"
+                user_agent="Test Browser",
             )
             assert isinstance(result, dict)
 
@@ -1135,7 +1129,7 @@ class TestAccountSecurity:
         manager = AccountLockoutManager()
 
         # Mock security monitor
-        with patch('app.core.account_security.security_monitor') as mock_monitor:
+        with patch("app.core.account_security.security_monitor") as mock_monitor:
             mock_monitor.record_security_event = AsyncMock()
 
             # Record login attempt should trigger security monitoring
@@ -1144,7 +1138,7 @@ class TestAccountSecurity:
                 success=False,
                 ip_address="192.168.1.100",
                 user_agent="Test Browser",
-                reason="Test security monitoring"
+                reason="Test security monitoring",
             )
 
             # Verify security monitor was called
@@ -1181,16 +1175,16 @@ class TestSessionManagementSecurity:
             "Sec-CH-UA-Platform": '"Windows"',
             "Sec-Fetch-Dest": "empty",
             "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-origin"
+            "Sec-Fetch-Site": "same-origin",
         }
 
         # Generate device fingerprint
         fingerprint = manager.get_device_fingerprint(headers)
 
         # Verify fingerprint structure
-        assert hasattr(fingerprint, 'user_agent')
-        assert hasattr(fingerprint, 'device_type')
-        assert hasattr(fingerprint, 'is_trusted')
+        assert hasattr(fingerprint, "user_agent")
+        assert hasattr(fingerprint, "device_type")
+        assert hasattr(fingerprint, "is_trusted")
         assert fingerprint.device_type in DeviceType
 
     @pytest.mark.asyncio
@@ -1199,10 +1193,7 @@ class TestSessionManagementSecurity:
         manager = SessionManager()
         user_id = "test_user_123"
 
-        headers = {
-            "User-Agent": "Test Browser",
-            "Accept": "application/json"
-        }
+        headers = {"User-Agent": "Test Browser", "Accept": "application/json"}
 
         device_fingerprint = manager.get_device_fingerprint(headers)
 
@@ -1210,16 +1201,16 @@ class TestSessionManagementSecurity:
         session = await manager.create_session(
             user_id=user_id,
             device_fingerprint=device_fingerprint,
-            request_headers=headers
+            request_headers=headers,
         )
 
         # Verify session structure
-        assert hasattr(session, 'session_id')
-        assert hasattr(session, 'user_id')
-        assert hasattr(session, 'device_fingerprint')
-        assert hasattr(session, 'is_active')
-        assert hasattr(session, 'created_at')
-        assert hasattr(session, 'last_activity')
+        assert hasattr(session, "session_id")
+        assert hasattr(session, "user_id")
+        assert hasattr(session, "device_fingerprint")
+        assert hasattr(session, "is_active")
+        assert hasattr(session, "created_at")
+        assert hasattr(session, "last_activity")
 
         assert session.user_id == user_id
         assert session.is_active is True
@@ -1232,10 +1223,7 @@ class TestSessionManagementSecurity:
         user_id = "concurrent_test_user"
         max_sessions = manager.max_concurrent_sessions
 
-        headers = {
-            "User-Agent": "Test Browser",
-            "Accept": "application/json"
-        }
+        headers = {"User-Agent": "Test Browser", "Accept": "application/json"}
 
         sessions = []
 
@@ -1249,7 +1237,7 @@ class TestSessionManagementSecurity:
                 session = await manager.create_session(
                     user_id=user_id,
                     device_fingerprint=device_fingerprint,
-                    request_headers=headers
+                    request_headers=headers,
                 )
                 sessions.append(session)
             except Exception as e:
@@ -1272,13 +1260,12 @@ class TestSessionManagementSecurity:
         session = await manager.create_session(
             user_id=user_id,
             device_fingerprint=device_fingerprint,
-            request_headers=headers
+            request_headers=headers,
         )
 
         # Validate session
         is_valid = await manager.validate_session(
-            user_id=user_id,
-            session_id=session.session_id
+            user_id=user_id, session_id=session.session_id
         )
 
         assert is_valid is True
@@ -1296,22 +1283,21 @@ class TestSessionManagementSecurity:
         session = await manager.create_session(
             user_id=user_id,
             device_fingerprint=device_fingerprint,
-            request_headers=headers
+            request_headers=headers,
         )
 
         # Revoke session
         success = await manager.revoke_session(
             user_id=user_id,
             session_id=session.session_id,
-            reason="Security revocation test"
+            reason="Security revocation test",
         )
 
         assert success is True
 
         # Session should no longer be valid
         is_valid = await manager.validate_session(
-            user_id=user_id,
-            session_id=session.session_id
+            user_id=user_id, session_id=session.session_id
         )
         assert is_valid is False
 
@@ -1328,17 +1314,17 @@ class TestSessionManagementSecurity:
         session = await manager.create_session(
             user_id=user_id,
             device_fingerprint=device_fingerprint,
-            request_headers=headers
+            request_headers=headers,
         )
 
         # Manually set expiration time in the past
         from datetime import datetime, timedelta
+
         session.expires_at = datetime.utcnow() - timedelta(hours=1)
 
         # Session should be invalid due to expiration
         is_valid = await manager.validate_session(
-            user_id=user_id,
-            session_id=session.session_id
+            user_id=user_id, session_id=session.session_id
         )
         assert is_valid is False
 
@@ -1357,9 +1343,7 @@ class TestSessionManagementSecurity:
         # Trust the device
         device_id = manager._generate_device_id(device_fingerprint)
         await manager.trust_device(
-            user_id=user_id,
-            device_id=device_id,
-            device_fingerprint=device_fingerprint
+            user_id=user_id, device_id=device_id, device_fingerprint=device_fingerprint
         )
 
         # Verify device is now trusted
@@ -1379,7 +1363,7 @@ class TestSessionManagementSecurity:
         session = await manager.create_session(
             user_id=user_id,
             device_fingerprint=device_fingerprint,
-            request_headers=headers
+            request_headers=headers,
         )
 
         initial_activity = session.last_activity
@@ -1388,7 +1372,7 @@ class TestSessionManagementSecurity:
         await manager.update_session_activity(
             session_id=session.session_id,
             ip_address="192.168.1.100",
-            user_agent="Updated Browser"
+            user_agent="Updated Browser",
         )
 
         # Activity should be updated
@@ -1408,18 +1392,18 @@ class TestSessionManagementSecurity:
         session = await manager.create_session(
             user_id=user_id,
             device_fingerprint=device_fingerprint,
-            request_headers=headers
+            request_headers=headers,
         )
 
         # Mock security monitor
-        with patch('app.core.session_management.security_monitor') as mock_monitor:
+        with patch("app.core.session_management.security_monitor") as mock_monitor:
             mock_monitor.record_security_event = AsyncMock()
 
             # Perform suspicious activity
             await manager.record_suspicious_activity(
                 session_id=session.session_id,
                 activity_type="multiple_ip_addresses",
-                details="Session accessed from multiple IP addresses"
+                details="Session accessed from multiple IP addresses",
             )
 
             # Verify security event was recorded
@@ -1441,9 +1425,7 @@ class TestSessionManagementSecurity:
             fp = manager.get_device_fingerprint(headers)
 
             session = await manager.create_session(
-                user_id=user_id,
-                device_fingerprint=fp,
-                request_headers=headers
+                user_id=user_id, device_fingerprint=fp, request_headers=headers
             )
             sessions.append(session)
 
@@ -1456,8 +1438,7 @@ class TestSessionManagementSecurity:
         # Verify sessions are no longer valid
         for session in sessions:
             is_valid = await manager.validate_session(
-                user_id=user_id,
-                session_id=session.session_id
+                user_id=user_id, session_id=session.session_id
             )
             assert is_valid is False
 
@@ -1477,9 +1458,7 @@ class TestSessionManagementSecurity:
             fp = manager.get_device_fingerprint(headers)
 
             session = await manager.create_session(
-                user_id=user_id,
-                device_fingerprint=fp,
-                request_headers=headers
+                user_id=user_id, device_fingerprint=fp, request_headers=headers
             )
             session_ids.append(session.session_id)
 
@@ -1502,7 +1481,7 @@ class TestSessionManagementSecurity:
             session = await manager.create_session(
                 user_id=user_id,
                 device_fingerprint=device_fingerprint,
-                request_headers=headers
+                request_headers=headers,
             )
             user_sessions[user_id] = session
 
@@ -1529,15 +1508,12 @@ class TestSessionManagementSecurity:
         # Test with invalid inputs
         with pytest.raises((ValueError, AttributeError, KeyError)):
             await manager.create_session(
-                user_id="",  # Empty user ID
-                device_fingerprint=None,
-                request_headers={}
+                user_id="", device_fingerprint=None, request_headers={}  # Empty user ID
             )
 
         # Test validation with invalid session ID
         is_valid = await manager.validate_session(
-            user_id="nonexistent_user",
-            session_id="invalid_session_id"
+            user_id="nonexistent_user", session_id="invalid_session_id"
         )
         assert is_valid is False
 
@@ -1556,7 +1532,7 @@ class TestSessionManagementSecurity:
                 session = await manager.create_session(
                     user_id=user_id,
                     device_fingerprint=device_fingerprint,
-                    request_headers=headers
+                    request_headers=headers,
                 )
                 sessions.append(session)
             return sessions
@@ -1579,8 +1555,8 @@ class TestSecurityIntegration:
     @pytest.mark.asyncio
     async def test_complete_authentication_flow_security(self):
         """Test complete authentication flow with all security controls"""
-        from app.services.security import create_token_pair
         from app.core.account_security import account_security_manager
+        from app.services.security import create_token_pair
 
         user_id = "integration_test_user"
         ip_address = "192.168.1.100"
@@ -1592,7 +1568,7 @@ class TestSecurityIntegration:
             success=True,
             ip_address=ip_address,
             user_agent=user_agent,
-            user_id=user_id
+            user_id=user_id,
         )
 
         assert security_status["locked"] is False
@@ -1603,13 +1579,10 @@ class TestSecurityIntegration:
             "role": "user",
             "login_time": datetime.utcnow().isoformat(),
             "ip_address": ip_address,
-            "user_agent": user_agent
+            "user_agent": user_agent,
         }
 
-        tokens = create_token_pair(
-            subject=user_id,
-            additional_claims=security_claims
-        )
+        tokens = create_token_pair(subject=user_id, additional_claims=security_claims)
 
         # Step 3: Verify token structure
         assert "access_token" in tokens
@@ -1619,6 +1592,7 @@ class TestSecurityIntegration:
 
         # Step 4: Verify access token
         from app.services.security import verify_token
+
         decoded_user = verify_token(tokens["access_token"], "access")
         assert decoded_user == user_id
 
@@ -1640,7 +1614,7 @@ class TestSecurityIntegration:
                 ip_address=ip,
                 user_agent=f"Browser {i}",
                 success=True,
-                endpoint="/api/v1/token"
+                endpoint="/api/v1/token",
             )
 
         # Get risk assessment
@@ -1659,7 +1633,7 @@ class TestSecurityIntegration:
         user_id = "session_integration_user"
         headers = {
             "User-Agent": "Integration Test Browser",
-            "Accept": "application/json"
+            "Accept": "application/json",
         }
 
         device_fingerprint = session_manager.get_device_fingerprint(headers)
@@ -1668,7 +1642,7 @@ class TestSecurityIntegration:
         session = await session_manager.create_session(
             user_id=user_id,
             device_fingerprint=device_fingerprint,
-            request_headers=headers
+            request_headers=headers,
         )
 
         # Verify session was created with security features
@@ -1678,14 +1652,15 @@ class TestSecurityIntegration:
     @pytest.mark.integration
     def test_csrf_middleware_integration(self):
         """Test CSRF middleware integration with FastAPI"""
-        from app.core.csrf import CSRFMiddleware
         from fastapi import Request, Response
+
+        from app.core.csrf import CSRFMiddleware
 
         # Create CSRF middleware
         csrf_middleware = CSRFMiddleware(
             app,
             exclude_paths=["/api/v1/auth/token", "/health"],
-            token_expire_seconds=3600
+            token_expire_seconds=3600,
         )
 
         # Verify middleware configuration
@@ -1719,7 +1694,7 @@ class TestSecurityIntegration:
         from app.core.enhanced_cache import get_cache_manager
 
         # Mock cache manager for testing
-        with patch('app.core.enhanced_cache.get_cache_manager') as mock:
+        with patch("app.core.enhanced_cache.get_cache_manager") as mock:
             cache = AsyncMock()
             cache.get.return_value = None
             cache.set.return_value = True
@@ -1733,7 +1708,7 @@ class TestSecurityIntegration:
                 success=True,
                 ip_address="192.168.1.100",
                 user_agent="Test Browser",
-                user_id="user_123"
+                user_id="user_123",
             )
 
             # Should work even with mocked cache
@@ -1747,6 +1722,7 @@ class TestSecurityIntegration:
 
         # Test that database operations are properly handled
         from sqlalchemy.ext.asyncio import AsyncSession
+
         from app.db.models.user import User
 
         # Mock database operations
@@ -1754,10 +1730,12 @@ class TestSecurityIntegration:
             id="test_user_123",
             email="test@example.com",
             password_hash="hashed_password",
-            is_active=True
+            is_active=True,
         )
 
-        async_db.execute = AsyncMock(return_value=AsyncMock(scalar_one_or_none=AsyncMock(return_value=mock_user)))
+        async_db.execute = AsyncMock(
+            return_value=AsyncMock(scalar_one_or_none=AsyncMock(return_value=mock_user))
+        )
 
         # Test user retrieval with proper error handling
         from app.services.security import get_current_user
@@ -1786,11 +1764,14 @@ class TestSecurityIntegration:
         logger = get_logger(__name__)
 
         # Test security logging
-        logger.info("Security test log", extra={
-            "user_id": "test_user",
-            "ip_address": "192.168.1.100",
-            "security_event": "test"
-        })
+        logger.info(
+            "Security test log",
+            extra={
+                "user_id": "test_user",
+                "ip_address": "192.168.1.100",
+                "security_event": "test",
+            },
+        )
 
         # Logging should not raise exceptions
         assert True
@@ -1810,7 +1791,7 @@ class TestSecurityIntegration:
                 success=attempt_id % 2 == 0,  # Half succeed, half fail
                 ip_address=f"192.168.1.{attempt_id % 255}",
                 user_agent=f"Browser {attempt_id}",
-                user_id=f"user_{attempt_id}"
+                user_id=f"user_{attempt_id}",
             )
 
         # Run concurrent login attempts

@@ -2,17 +2,18 @@
 File Path: app/api/v1/endpoints/team_optimization.py
 API endpoints for team optimization
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
 
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
-from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional
 import logging
+from typing import List, Optional
 
-from app.api.v1.deps import get_db, get_current_active_user, get_current_user
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.v1.deps import get_current_active_user, get_current_user, get_db
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
 from app.services.team_optimization_service import TeamOptimizationService
-from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +24,10 @@ router = APIRouter()
 # REQUEST/RESPONSE MODELS
 # =================================================================
 
+
 class TeamOptimizationRequest(BaseModel):
     """Request model for team optimization"""
+
     team_name: str = Field(..., min_length=1, max_length=200)
     team_id: Optional[int] = None
 
@@ -55,13 +58,14 @@ class TeamOptimizationRequest(BaseModel):
                 "target_size": 5,
                 "required_roles": {"Developer": 2, "Designer": 1},
                 "required_skills": {"Python": 70.0, "React": 60.0},
-                "min_personality_diversity": 0.3
+                "min_personality_diversity": 0.3,
             }
         }
 
 
 class MemberProfileResponse(BaseModel):
     """Response model for team member profile"""
+
     user_id: int
     name: str
     email: str
@@ -77,6 +81,7 @@ class MemberProfileResponse(BaseModel):
 
 class OptimizedTeamResponse(BaseModel):
     """Response model for optimized team"""
+
     team_id: int
     team_name: str
     members: List[MemberProfileResponse]
@@ -103,18 +108,21 @@ class OptimizedTeamResponse(BaseModel):
 
 class TeamAnalysisRequest(BaseModel):
     """Request model for team analysis"""
+
     team_id: int
     include_recommendations: bool = True
 
 
 class CompatibilityRequest(BaseModel):
     """Request model for compatibility check"""
+
     user_id_1: int
     user_id_2: int
 
 
 class CompatibilityResponse(BaseModel):
     """Response model for compatibility check"""
+
     user_1: dict
     user_2: dict
     compatibility_score: float
@@ -129,11 +137,13 @@ class CompatibilityResponse(BaseModel):
 
 
 @rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
-@router.post("/optimize", response_model=OptimizedTeamResponse, status_code=status.HTTP_200_OK)
+@router.post(
+    "/optimize", response_model=OptimizedTeamResponse, status_code=status.HTTP_200_OK
+)
 async def optimize_team(
     request: TeamOptimizationRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Optimize team composition based on requirements
@@ -156,18 +166,18 @@ async def optimize_team(
 
         # Build requirements dict
         requirements = {
-            'team_id': request.team_id or 0,
-            'team_name': request.team_name,
-            'min_size': request.min_size,
-            'max_size': request.max_size,
-            'target_size': request.target_size,
-            'required_roles': request.required_roles,
-            'optional_roles': request.optional_roles,
-            'required_skills': request.required_skills,
-            'desired_skills': request.desired_skills,
-            'min_personality_diversity': request.min_personality_diversity,
-            'max_personality_similarity': request.max_personality_similarity,
-            'max_same_department': request.max_same_department
+            "team_id": request.team_id or 0,
+            "team_name": request.team_name,
+            "min_size": request.min_size,
+            "max_size": request.max_size,
+            "target_size": request.target_size,
+            "required_roles": request.required_roles,
+            "optional_roles": request.optional_roles,
+            "required_skills": request.required_skills,
+            "desired_skills": request.desired_skills,
+            "min_personality_diversity": request.min_personality_diversity,
+            "max_personality_similarity": request.max_personality_similarity,
+            "max_same_department": request.max_same_department,
         }
 
         # Run optimization
@@ -175,7 +185,7 @@ async def optimize_team(
             db=db,
             team_requirements=requirements,
             organization_id=current_user.organization_id,
-            existing_team_id=request.team_id
+            existing_team_id=request.team_id,
         )
 
         # Convert to response model
@@ -189,12 +199,12 @@ async def optimize_team(
                 availability=m.availability,
                 skills=m.skills,
                 personality_traits={
-                    'openness': m.openness,
-                    'conscientiousness': m.conscientiousness,
-                    'extraversion': m.extraversion,
-                    'agreeableness': m.agreeableness,
-                    'neuroticism': m.neuroticism
-                }
+                    "openness": m.openness,
+                    "conscientiousness": m.conscientiousness,
+                    "extraversion": m.extraversion,
+                    "agreeableness": m.agreeableness,
+                    "neuroticism": m.neuroticism,
+                },
             )
             for m in optimized_team.members
         ]
@@ -215,7 +225,7 @@ async def optimize_team(
             personality_profile=optimized_team.personality_profile,
             strengths=optimized_team.strengths,
             gaps=optimized_team.gaps,
-            recommendations=optimized_team.recommendations
+            recommendations=optimized_team.recommendations,
         )
 
         logger.info(
@@ -227,15 +237,12 @@ async def optimize_team(
 
     except ValueError as e:
         logger.error(f"Validation error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Error optimizing team: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to optimize team composition"
+            detail="Failed to optimize team composition",
         )
 
 
@@ -243,7 +250,7 @@ async def optimize_team(
 async def analyze_team(
     request: TeamAnalysisRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Analyze existing team composition
@@ -258,16 +265,12 @@ async def analyze_team(
     **Returns:** Comprehensive team analysis
     """
     try:
-        logger.info(
-            f"User {current_user.id} analyzing team {request.team_id}"
-        )
+        logger.info(f"User {current_user.id} analyzing team {request.team_id}")
 
         service = TeamOptimizationService()
 
         analysis = await service.analyze_team(
-            db=db,
-            team_id=request.team_id,
-            organization_id=current_user.organization_id
+            db=db, team_id=request.team_id, organization_id=current_user.organization_id
         )
 
         logger.info(
@@ -279,15 +282,12 @@ async def analyze_team(
 
     except ValueError as e:
         logger.error(f"Team not found: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         logger.error(f"Error analyzing team: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to analyze team"
+            detail="Failed to analyze team",
         )
 
 
@@ -295,7 +295,7 @@ async def analyze_team(
 async def check_compatibility(
     request: CompatibilityRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Check compatibility between two team members
@@ -316,22 +316,19 @@ async def check_compatibility(
             db=db,
             user_id_1=request.user_id_1,
             user_id_2=request.user_id_2,
-            organization_id=current_user.organization_id
+            organization_id=current_user.organization_id,
         )
 
         return CompatibilityResponse(**result)
 
     except ValueError as e:
         logger.error(f"User not found: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         logger.error(f"Error checking compatibility: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to check compatibility"
+            detail="Failed to check compatibility",
         )
 
 
@@ -342,7 +339,7 @@ async def get_candidates(
     skills: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get list of candidates available for team optimization
@@ -356,38 +353,32 @@ async def get_candidates(
     **Returns:** List of candidate profiles
     """
     try:
-        logger.info(
-            f"Fetching candidates for user {current_user.id}"
-        )
+        logger.info(f"Fetching candidates for user {current_user.id}")
 
         service = TeamOptimizationService()
 
         # Build filters
-        filters = {
-            'min_availability': min_availability
-        }
+        filters = {"min_availability": min_availability}
         if department:
-            filters['department'] = department
+            filters["department"] = department
         if skills:
-            filters['skills'] = skills.split(',')
+            filters["skills"] = skills.split(",")
 
         candidates = await service.get_candidate_pool(
-            db=db,
-            organization_id=current_user.organization_id,
-            filters=filters
+            db=db, organization_id=current_user.organization_id, filters=filters
         )
 
         # Convert to response model
         response = [
             MemberProfileResponse(
-                user_id=c['user_id'],
-                name=c['name'],
-                email=c['email'],
-                department=c['department'],
-                seniority_level=c['seniority_level'],
-                availability=c['availability'],
-                skills=c['skills'],
-                personality_traits=c['personality_traits']
+                user_id=c["user_id"],
+                name=c["name"],
+                email=c["email"],
+                department=c["department"],
+                seniority_level=c["seniority_level"],
+                availability=c["availability"],
+                skills=c["skills"],
+                personality_traits=c["personality_traits"],
             )
             for c in candidates[:limit]
         ]
@@ -400,7 +391,7 @@ async def get_candidates(
         logger.error(f"Error fetching candidates: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to fetch candidates"
+            detail="Failed to fetch candidates",
         )
 
 
@@ -408,7 +399,7 @@ async def get_candidates(
 async def get_team_recommendations(
     team_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get improvement recommendations for a team
@@ -419,29 +410,24 @@ async def get_team_recommendations(
         service = TeamOptimizationService()
 
         analysis = await service.analyze_team(
-            db=db,
-            team_id=team_id,
-            organization_id=current_user.organization_id
+            db=db, team_id=team_id, organization_id=current_user.organization_id
         )
 
         return {
-            'team_id': team_id,
-            'team_name': analysis['team_name'],
-            'recommendations': analysis['recommendations'],
-            'gaps': analysis['gaps'],
-            'priority_actions': analysis['recommendations'][:3]  # Top 3
+            "team_id": team_id,
+            "team_name": analysis["team_name"],
+            "recommendations": analysis["recommendations"],
+            "gaps": analysis["gaps"],
+            "priority_actions": analysis["recommendations"][:3],  # Top 3
         }
 
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         logger.error(f"Error getting recommendations: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get recommendations"
+            detail="Failed to get recommendations",
         )
 
 
@@ -451,7 +437,7 @@ async def simulate_team_change(
     add_user_ids: List[int] = [],
     remove_user_ids: List[int] = [],
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Simulate impact of adding/removing team members
@@ -468,14 +454,14 @@ async def simulate_team_change(
         # Implementation would fetch current team, modify it, and re-analyze
 
         return {
-            'team_id': team_id,
-            'simulation': 'not_implemented',
-            'message': 'Feature coming soon'
+            "team_id": team_id,
+            "simulation": "not_implemented",
+            "message": "Feature coming soon",
         }
 
     except Exception as e:
         logger.error(f"Error simulating team change: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to simulate team change"
+            detail="Failed to simulate team change",
         )

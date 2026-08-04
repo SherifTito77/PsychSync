@@ -11,8 +11,8 @@ HIPAA COMPLIANT: All PHI encrypted in transit, no PHI in email subjects
 
 import logging
 import os
-from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class EmailProvider:
         subject: str,
         html_body: str,
         text_body: str,
-        from_email: Optional[str] = None
+        from_email: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Send email - to be implemented by subclasses"""
         raise NotImplementedError
@@ -45,43 +45,37 @@ class SendGridProvider(EmailProvider):
         subject: str,
         html_body: str,
         text_body: str,
-        from_email: Optional[str] = None
+        from_email: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Send email via SendGrid with resilient HTTP client
 
         Uses automatic retries, timeouts, and circuit breaker for improved reliability.
         """
-        from app.core.resilient_client import resilient_http_client, HTTPClientError
+        from app.core.resilient_client import HTTPClientError, resilient_http_client
 
         if from_email is None:
             from_email = os.getenv("SENDGRID_FROM_EMAIL", "notifications@psychsync.io")
 
         payload = {
-            "personalizations": [{
-                "to": [{"email": to}],
-                "subject": subject
-            }],
+            "personalizations": [{"to": [{"email": to}], "subject": subject}],
             "from": {"email": from_email},
             "content": [
                 {"type": "text/plain", "value": text_body},
-                {"type": "text/html", "value": html_body}
+                {"type": "text/html", "value": html_body},
             ],
             "categories": ["clinical", "notifications"],
-            "custom_args": {"timestamp": datetime.utcnow().isoformat()}
+            "custom_args": {"timestamp": datetime.utcnow().isoformat()},
         }
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
         try:
             # Resilient client provides automatic retries and circuit breaker
             response = await resilient_http_client.post(
-                self.api_url,
-                json=payload,
-                headers=headers,
-                timeout=30.0
+                self.api_url, json=payload, headers=headers, timeout=30.0
             )
 
             if response.status_code in [200, 202]:
@@ -90,31 +84,25 @@ class SendGridProvider(EmailProvider):
                     "provider": "sendgrid",
                     "success": True,
                     "message_id": response.headers.get("X-Message-Id"),
-                    "status_code": response.status_code
+                    "status_code": response.status_code,
                 }
             else:
-                logger.error(f"SendGrid error: {response.status_code} - {response.text}")
+                logger.error(
+                    f"SendGrid error: {response.status_code} - {response.text}"
+                )
                 return {
                     "provider": "sendgrid",
                     "success": False,
                     "error": response.text,
-                    "status_code": response.status_code
+                    "status_code": response.status_code,
                 }
 
         except HTTPClientError as e:
             logger.error(f"SendGrid HTTP client error: {str(e)}")
-            return {
-                "provider": "sendgrid",
-                "success": False,
-                "error": str(e)
-            }
+            return {"provider": "sendgrid", "success": False, "error": str(e)}
         except Exception as e:
             logger.error(f"SendGrid exception: {str(e)}")
-            return {
-                "provider": "sendgrid",
-                "success": False,
-                "error": str(e)
-            }
+            return {"provider": "sendgrid", "success": False, "error": str(e)}
 
 
 class AWSSESProvider(EmailProvider):
@@ -129,7 +117,7 @@ class AWSSESProvider(EmailProvider):
         subject: str,
         html_body: str,
         text_body: str,
-        from_email: Optional[str] = None
+        from_email: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Send email via AWS SES"""
         try:
@@ -142,7 +130,7 @@ class AWSSESProvider(EmailProvider):
                 "ses",
                 region_name=self.region,
                 aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
-                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
             )
 
             response = ses_client.send_email(
@@ -150,34 +138,28 @@ class AWSSESProvider(EmailProvider):
                 Destination={"ToAddresses": [to]},
                 Message={
                     "Subject": {"Data": subject},
-                    "Body": {
-                        "Text": {"Data": text_body},
-                        "Html": {"Data": html_body}
-                    }
+                    "Body": {"Text": {"Data": text_body}, "Html": {"Data": html_body}},
                 },
-                ConfigurationSetName=os.getenv("SES_CONFIGURATION_SET", "PsychSync-Production"),
+                ConfigurationSetName=os.getenv(
+                    "SES_CONFIGURATION_SET", "PsychSync-Production"
+                ),
                 Tags=[
                     {"Name": "email-type", "Value": "clinical-notification"},
-                    {"Name": "environment", "Value": os.getenv("ENVIRONMENT", "production")}
-                ]
+                    {
+                        "Name": "environment",
+                        "Value": os.getenv("ENVIRONMENT", "production"),
+                    },
+                ],
             )
 
             message_id = response["MessageId"]
             logger.info(f"AWS SES email sent successfully to {to}: {message_id}")
 
-            return {
-                "provider": "aws-ses",
-                "success": True,
-                "message_id": message_id
-            }
+            return {"provider": "aws-ses", "success": True, "message_id": message_id}
 
         except Exception as e:
             logger.error(f"AWS SES exception: {str(e)}")
-            return {
-                "provider": "aws-ses",
-                "success": False,
-                "error": str(e)
-            }
+            return {"provider": "aws-ses", "success": False, "error": str(e)}
 
 
 class MailgunProvider(EmailProvider):
@@ -194,13 +176,13 @@ class MailgunProvider(EmailProvider):
         subject: str,
         html_body: str,
         text_body: str,
-        from_email: Optional[str] = None
+        from_email: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Send email via Mailgun with resilient HTTP client
 
         Uses automatic retries, timeouts, and circuit breaker for improved reliability.
         """
-        from app.core.resilient_client import resilient_http_client, HTTPClientError
+        from app.core.resilient_client import HTTPClientError, resilient_http_client
 
         if from_email is None:
             from_email = os.getenv("MAILGUN_FROM_EMAIL", f"notifications@{self.domain}")
@@ -215,16 +197,13 @@ class MailgunProvider(EmailProvider):
             "o:tracking": "yes",
             "o:tracking-clicks": "yes",
             "o:tracking-opens": "yes",
-            "o:tag": ["clinical-notification"]
+            "o:tag": ["clinical-notification"],
         }
 
         try:
             # Resilient client provides automatic retries and circuit breaker
             response = await resilient_http_client.post(
-                self.api_url,
-                auth=auth,
-                data=data,
-                timeout=30.0
+                self.api_url, auth=auth, data=data, timeout=30.0
             )
 
             if response.status_code == 200:
@@ -234,7 +213,7 @@ class MailgunProvider(EmailProvider):
                     "provider": "mailgun",
                     "success": True,
                     "message_id": result.get("id"),
-                    "status_code": response.status_code
+                    "status_code": response.status_code,
                 }
             else:
                 logger.error(f"Mailgun error: {response.status_code} - {response.text}")
@@ -242,23 +221,15 @@ class MailgunProvider(EmailProvider):
                     "provider": "mailgun",
                     "success": False,
                     "error": response.text,
-                    "status_code": response.status_code
+                    "status_code": response.status_code,
                 }
 
         except HTTPClientError as e:
             logger.error(f"Mailgun HTTP client error: {str(e)}")
-            return {
-                "provider": "mailgun",
-                "success": False,
-                "error": str(e)
-            }
+            return {"provider": "mailgun", "success": False, "error": str(e)}
         except Exception as e:
             logger.error(f"Mailgun exception: {str(e)}")
-            return {
-                "provider": "mailgun",
-                "success": False,
-                "error": str(e)
-            }
+            return {"provider": "mailgun", "success": False, "error": str(e)}
 
 
 class EmailServiceManager:
@@ -284,18 +255,24 @@ class EmailServiceManager:
 
         # Backup: AWS SES
         if os.getenv("AWS_ACCESS_KEY_ID"):
-            self.providers.append(("backup", AWSSESProvider(os.getenv("AWS_REGION", "us-east-1"))))
+            self.providers.append(
+                ("backup", AWSSESProvider(os.getenv("AWS_REGION", "us-east-1")))
+            )
             logger.info("AWS SES provider initialized as backup")
 
         # Tertiary: Mailgun
         mailgun_key = os.getenv("MAILGUN_API_KEY")
         mailgun_domain = os.getenv("MAILGUN_DOMAIN")
         if mailgun_key and mailgun_domain:
-            self.providers.append(("tertiary", MailgunProvider(mailgun_key, mailgun_domain)))
+            self.providers.append(
+                ("tertiary", MailgunProvider(mailgun_key, mailgun_domain))
+            )
             logger.info("Mailgun provider initialized as tertiary")
 
         if not self.providers:
-            logger.error("No email providers configured! Please set SENDGRID_API_KEY, AWS credentials, or MAILGUN_API_KEY")
+            logger.error(
+                "No email providers configured! Please set SENDGRID_API_KEY, AWS credentials, or MAILGUN_API_KEY"
+            )
 
     async def send_email(
         self,
@@ -303,7 +280,7 @@ class EmailServiceManager:
         subject: str,
         html_body: str,
         text_body: str,
-        from_email: Optional[str] = None
+        from_email: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Send email with automatic failover
@@ -316,23 +293,22 @@ class EmailServiceManager:
         """
 
         if not self.providers:
-            return {
-                "success": False,
-                "error": "No email providers configured"
-            }
+            return {"success": False, "error": "No email providers configured"}
 
         last_error = None
 
         for priority, provider in self.providers:
             try:
-                logger.info(f"Attempting to send email via {priority} provider: {provider.__class__.__name__}")
+                logger.info(
+                    f"Attempting to send email via {priority} provider: {provider.__class__.__name__}"
+                )
 
                 result = await provider.send_email(
                     to=to,
                     subject=subject,
                     html_body=html_body,
                     text_body=text_body,
-                    from_email=from_email
+                    from_email=from_email,
                 )
 
                 if result.get("success"):
@@ -350,7 +326,7 @@ class EmailServiceManager:
         return {
             "success": False,
             "error": f"All email providers failed. Last error: {last_error}",
-            "providers_tried": len(self.providers)
+            "providers_tried": len(self.providers),
         }
 
 

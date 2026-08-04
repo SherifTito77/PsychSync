@@ -18,13 +18,13 @@ Author: Security Team
 Version: 1.0
 """
 
-import json
-import sys
 import argparse
+import json
 import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 
 class ComplianceReportGenerator:
@@ -38,43 +38,167 @@ class ComplianceReportGenerator:
             "hipaa": self._get_hipaa_compliance(),
             "soc2": self._get_soc2_compliance(),
             "gdpr": self._get_gdpr_compliance(),
-            "cisa": self._get_cisa_compliance()
+            "cisa": self._get_cisa_compliance(),
         }
 
     def _get_nist_ssdf_compliance(self) -> Dict[str, Any]:
         """NIST SSDF v1.1 compliance"""
         practices = {
-            "PO.1.1": {"name": "Identify security objectives", "status": "implemented", "evidence": "docs/SECURITY_README.md"},
-            "PO.2.1": {"name": "Leadership involvement", "status": "implemented", "evidence": "Security team established"},
-            "PO.3.1": {"name": "Threat modeling", "status": "implemented", "evidence": "Regular threat modeling sessions"},
-            "PO.4.1": {"name": "Risk assessment", "status": "implemented", "evidence": "CVE monitoring system"},
-            "PO.5.1": {"name": "Security policies", "status": "implemented", "evidence": "docs/SUPPLY_CHAIN_SECURITY_V2.md"},
-            "PO.6.1": {"name": "Staff training", "status": "implemented", "evidence": "Security training program"},
-            "PO.7.1": {"name": "Tools selection", "status": "implemented", "evidence": "Bandit, pip-audit, cosign, etc."},
-            "PO.8.1": {"name": "Work products", "status": "implemented", "evidence": "SBOM, VEX, provenance"},
-            "PO.9.1": {"name": "Metrics", "status": "implemented", "evidence": ".github/cve-metrics.json"},
-            "PO.10.1": {"name": "Package selection", "status": "implemented", "evidence": "allowed-dependencies.txt"},
-            "PO.11.1": {"name": "Architecture review", "status": "implemented", "evidence": "Regular architecture reviews"},
-            "PS.1.1": {"name": "Build environment", "status": "implemented", "evidence": "Ephemeral runners"},
-            "PS.2.1": {"name": "Build provenance", "status": "implemented", "evidence": "SLSA Level 3"},
-            "PS.3.1": {"name": "Build infrastructure", "status": "implemented", "evidence": "Isolated CI/CD"},
-            "PS.4.1": {"name": "Access controls", "status": "implemented", "evidence": "RBAC for CI/CD"},
-            "PS.5.1": {"name": "Change management", "status": "implemented", "evidence": "PR requirements + reviews"},
-            "PS.6.1": {"name": "Configuration management", "status": "implemented", "evidence": "Infrastructure as Code"},
-            "PS.7.1": {"name": "Secrets management", "status": "implemented", "evidence": "OIDC, no long-lived tokens"},
-            "PS.8.1": {"name": "Supply chain protection", "status": "implemented", "evidence": "SBOM + VEX + signing"},
-            "PW.1.1": {"name": "Vulnerability scanning", "status": "implemented", "evidence": "Automated SCA + DAST"},
-            "PW.2.1": {"name": "Vulnerability response", "status": "implemented", "evidence": "CVE monitoring + SLAs"},
-            "PW.3.1": {"name": "Vulnerability monitoring", "status": "implemented", "evidence": "Real-time CVE monitoring"},
-            "PW.4.1": {"name": "Vulnerability coordination", "status": "implemented", "evidence": "Vendor SLA tracking"},
-            "PW.5.1": {"name": "Penetration testing", "status": "implemented", "evidence": "Regular security assessments"},
-            "PW.6.1": {"name": "Log analysis", "status": "implemented", "evidence": "Audit logging + monitoring"},
-            "PW.7.1": {"name": "Incident response", "status": "implemented", "evidence": "Automated alerting"},
-            "PW.8.1": {"name": "Recovery procedures", "status": "implemented", "evidence": "Backup + rollback procedures"},
-            "RV.1.1": {"name": "Reviews", "status": "implemented", "evidence": "Regular security reviews"},
-            "RV.2.1": {"name": "Testing", "status": "implemented", "evidence": "Comprehensive test suite"},
-            "RV.3.1": {"name": "Logging", "status": "implemented", "evidence": "Comprehensive audit logs"},
-            "RV.4.1": {"name": "Audits", "status": "implemented", "evidence": "Third-party security audits"},
+            "PO.1.1": {
+                "name": "Identify security objectives",
+                "status": "implemented",
+                "evidence": "docs/SECURITY_README.md",
+            },
+            "PO.2.1": {
+                "name": "Leadership involvement",
+                "status": "implemented",
+                "evidence": "Security team established",
+            },
+            "PO.3.1": {
+                "name": "Threat modeling",
+                "status": "implemented",
+                "evidence": "Regular threat modeling sessions",
+            },
+            "PO.4.1": {
+                "name": "Risk assessment",
+                "status": "implemented",
+                "evidence": "CVE monitoring system",
+            },
+            "PO.5.1": {
+                "name": "Security policies",
+                "status": "implemented",
+                "evidence": "docs/SUPPLY_CHAIN_SECURITY_V2.md",
+            },
+            "PO.6.1": {
+                "name": "Staff training",
+                "status": "implemented",
+                "evidence": "Security training program",
+            },
+            "PO.7.1": {
+                "name": "Tools selection",
+                "status": "implemented",
+                "evidence": "Bandit, pip-audit, cosign, etc.",
+            },
+            "PO.8.1": {
+                "name": "Work products",
+                "status": "implemented",
+                "evidence": "SBOM, VEX, provenance",
+            },
+            "PO.9.1": {
+                "name": "Metrics",
+                "status": "implemented",
+                "evidence": ".github/cve-metrics.json",
+            },
+            "PO.10.1": {
+                "name": "Package selection",
+                "status": "implemented",
+                "evidence": "allowed-dependencies.txt",
+            },
+            "PO.11.1": {
+                "name": "Architecture review",
+                "status": "implemented",
+                "evidence": "Regular architecture reviews",
+            },
+            "PS.1.1": {
+                "name": "Build environment",
+                "status": "implemented",
+                "evidence": "Ephemeral runners",
+            },
+            "PS.2.1": {
+                "name": "Build provenance",
+                "status": "implemented",
+                "evidence": "SLSA Level 3",
+            },
+            "PS.3.1": {
+                "name": "Build infrastructure",
+                "status": "implemented",
+                "evidence": "Isolated CI/CD",
+            },
+            "PS.4.1": {
+                "name": "Access controls",
+                "status": "implemented",
+                "evidence": "RBAC for CI/CD",
+            },
+            "PS.5.1": {
+                "name": "Change management",
+                "status": "implemented",
+                "evidence": "PR requirements + reviews",
+            },
+            "PS.6.1": {
+                "name": "Configuration management",
+                "status": "implemented",
+                "evidence": "Infrastructure as Code",
+            },
+            "PS.7.1": {
+                "name": "Secrets management",
+                "status": "implemented",
+                "evidence": "OIDC, no long-lived tokens",
+            },
+            "PS.8.1": {
+                "name": "Supply chain protection",
+                "status": "implemented",
+                "evidence": "SBOM + VEX + signing",
+            },
+            "PW.1.1": {
+                "name": "Vulnerability scanning",
+                "status": "implemented",
+                "evidence": "Automated SCA + DAST",
+            },
+            "PW.2.1": {
+                "name": "Vulnerability response",
+                "status": "implemented",
+                "evidence": "CVE monitoring + SLAs",
+            },
+            "PW.3.1": {
+                "name": "Vulnerability monitoring",
+                "status": "implemented",
+                "evidence": "Real-time CVE monitoring",
+            },
+            "PW.4.1": {
+                "name": "Vulnerability coordination",
+                "status": "implemented",
+                "evidence": "Vendor SLA tracking",
+            },
+            "PW.5.1": {
+                "name": "Penetration testing",
+                "status": "implemented",
+                "evidence": "Regular security assessments",
+            },
+            "PW.6.1": {
+                "name": "Log analysis",
+                "status": "implemented",
+                "evidence": "Audit logging + monitoring",
+            },
+            "PW.7.1": {
+                "name": "Incident response",
+                "status": "implemented",
+                "evidence": "Automated alerting",
+            },
+            "PW.8.1": {
+                "name": "Recovery procedures",
+                "status": "implemented",
+                "evidence": "Backup + rollback procedures",
+            },
+            "RV.1.1": {
+                "name": "Reviews",
+                "status": "implemented",
+                "evidence": "Regular security reviews",
+            },
+            "RV.2.1": {
+                "name": "Testing",
+                "status": "implemented",
+                "evidence": "Comprehensive test suite",
+            },
+            "RV.3.1": {
+                "name": "Logging",
+                "status": "implemented",
+                "evidence": "Comprehensive audit logs",
+            },
+            "RV.4.1": {
+                "name": "Audits",
+                "status": "implemented",
+                "evidence": "Third-party security audits",
+            },
         }
 
         total = len(practices)
@@ -86,7 +210,7 @@ class ComplianceReportGenerator:
             "total_practices": total,
             "implemented": implemented,
             "compliance_percentage": round((implemented / total) * 100, 1),
-            "practices": practices
+            "practices": practices,
         }
 
     def _get_slsa_compliance(self) -> Dict[str, Any]:
@@ -95,37 +219,39 @@ class ComplianceReportGenerator:
             "source_tracking": {
                 "name": "Source tracking",
                 "status": "implemented",
-                "evidence": "Git with full history"
+                "evidence": "Git with full history",
             },
             "build_artifact_tracking": {
                 "name": "Build artifact tracking",
                 "status": "implemented",
-                "evidence": "All artifacts signed"
+                "evidence": "All artifacts signed",
             },
             "build_provenance": {
                 "name": "Build provenance",
                 "status": "implemented",
-                "evidence": "SLSA generator in CI/CD"
+                "evidence": "SLSA generator in CI/CD",
             },
             "isolated_build": {
                 "name": "Isolated build",
                 "status": "implemented",
-                "evidence": "Ephemeral runners"
+                "evidence": "Ephemeral runners",
             },
             "hermetic_build": {
                 "name": "Hermetic build",
                 "status": "partial",
-                "evidence": "Pinned versions, some network deps"
+                "evidence": "Pinned versions, some network deps",
             },
             "reproducible_build": {
                 "name": "Reproducible build",
                 "status": "implemented",
-                "evidence": "Dockerfile with pinned versions"
-            }
+                "evidence": "Dockerfile with pinned versions",
+            },
         }
 
         total = len(requirements)
-        implemented = sum(1 for r in requirements.values() if r["status"] == "implemented")
+        implemented = sum(
+            1 for r in requirements.values() if r["status"] == "implemented"
+        )
 
         return {
             "framework": "SLSA (Supply-chain Levels for Software Artifacts)",
@@ -133,31 +259,67 @@ class ComplianceReportGenerator:
             "total_requirements": total,
             "implemented": implemented,
             "compliance_percentage": round((implemented / total) * 100, 1),
-            "requirements": requirements
+            "requirements": requirements,
         }
 
     def _get_hipaa_compliance(self) -> Dict[str, Any]:
         """HIPAA Security Rule compliance"""
         safeguards = {
             "administrative_safeguards": {
-                "security_management_process": {"status": "implemented", "evidence": "Security team"},
-                "risk_analysis": {"status": "implemented", "evidence": "CVE monitoring"},
-                "sanction_policy": {"status": "implemented", "evidence": "Security policy"},
-                "information_management": {"status": "implemented", "evidence": "Audit logs"},
-                "security_training": {"status": "implemented", "evidence": "Training program"},
+                "security_management_process": {
+                    "status": "implemented",
+                    "evidence": "Security team",
+                },
+                "risk_analysis": {
+                    "status": "implemented",
+                    "evidence": "CVE monitoring",
+                },
+                "sanction_policy": {
+                    "status": "implemented",
+                    "evidence": "Security policy",
+                },
+                "information_management": {
+                    "status": "implemented",
+                    "evidence": "Audit logs",
+                },
+                "security_training": {
+                    "status": "implemented",
+                    "evidence": "Training program",
+                },
             },
             "physical_safeguards": {
-                "facility_access": {"status": "implemented", "evidence": "Cloud provider controls"},
-                "workstation_security": {"status": "implemented", "evidence": "MFA, encryption"},
-                "device_disposal": {"status": "implemented", "evidence": "Ephemeral runners"},
+                "facility_access": {
+                    "status": "implemented",
+                    "evidence": "Cloud provider controls",
+                },
+                "workstation_security": {
+                    "status": "implemented",
+                    "evidence": "MFA, encryption",
+                },
+                "device_disposal": {
+                    "status": "implemented",
+                    "evidence": "Ephemeral runners",
+                },
             },
             "technical_safeguards": {
                 "access_control": {"status": "implemented", "evidence": "RBAC + ABAC"},
-                "audit_controls": {"status": "implemented", "evidence": "Comprehensive logging"},
-                "integrity": {"status": "implemented", "evidence": "Signing + checksums"},
-                "transmission_security": {"status": "implemented", "evidence": "TLS 1.2+"},
-                "encryption": {"status": "implemented", "evidence": "Field-level AES-256"},
-            }
+                "audit_controls": {
+                    "status": "implemented",
+                    "evidence": "Comprehensive logging",
+                },
+                "integrity": {
+                    "status": "implemented",
+                    "evidence": "Signing + checksums",
+                },
+                "transmission_security": {
+                    "status": "implemented",
+                    "evidence": "TLS 1.2+",
+                },
+                "encryption": {
+                    "status": "implemented",
+                    "evidence": "Field-level AES-256",
+                },
+            },
         }
 
         total = sum(len(safeguard) for safeguard in safeguards.values())
@@ -172,7 +334,7 @@ class ComplianceReportGenerator:
             "total_safeguards": total,
             "implemented": implemented,
             "compliance_percentage": round((implemented / total) * 100, 1),
-            "safeguards": safeguards
+            "safeguards": safeguards,
         }
 
     def _get_soc2_compliance(self) -> Dict[str, Any]:
@@ -195,20 +357,30 @@ class ComplianceReportGenerator:
         return {
             "framework": "SOC 2 Type II",
             "version": "2017",
-            "trust_services_criteria": ["Security", "Availability", "Processing Integrity"],
+            "trust_services_criteria": [
+                "Security",
+                "Availability",
+                "Processing Integrity",
+            ],
             "total_criteria": total,
             "implemented": implemented,
             "compliance_percentage": round((implemented / total) * 100, 1),
-            "criteria": criteria
+            "criteria": criteria,
         }
 
     def _get_gdpr_compliance(self) -> Dict[str, Any]:
         """GDPR Article 32 compliance"""
         measures = {
-            "pseudonymization": {"status": "implemented", "evidence": "Field-level encryption"},
+            "pseudonymization": {
+                "status": "implemented",
+                "evidence": "Field-level encryption",
+            },
             "encryption": {"status": "implemented", "evidence": "AES-256-GCM"},
             "confidentiality": {"status": "implemented", "evidence": "Access controls"},
-            "integrity": {"status": "implemented", "evidence": "Audit logging + signing"},
+            "integrity": {
+                "status": "implemented",
+                "evidence": "Audit logging + signing",
+            },
             "availability": {"status": "implemented", "evidence": "Backup procedures"},
             "resilience": {"status": "implemented", "evidence": "Disaster recovery"},
             "testing": {"status": "implemented", "evidence": "Security testing"},
@@ -223,18 +395,30 @@ class ComplianceReportGenerator:
             "total_measures": total,
             "implemented": implemented,
             "compliance_percentage": round((implemented / total) * 100, 1),
-            "measures": measures
+            "measures": measures,
         }
 
     def _get_cisa_compliance(self) -> Dict[str, Any]:
         """CISA Cybersecurity Performance Goals compliance"""
         goals = {
-            "SBOM": {"status": "implemented", "evidence": "CycloneDX SBOM on every build"},
+            "SBOM": {
+                "status": "implemented",
+                "evidence": "CycloneDX SBOM on every build",
+            },
             "SBOM_delivery": {"status": "implemented", "evidence": "≤30 days for CVEs"},
             "SBOM_format": {"status": "implemented", "evidence": "CycloneDX standard"},
-            "SBOM_dependencies": {"status": "implemented", "evidence": "Complete dependency tree"},
-            "vulnerability_disclosure": {"status": "implemented", "evidence": "CVE monitoring"},
-            "KEV_integration": {"status": "implemented", "evidence": "CISA KEV monitoring"},
+            "SBOM_dependencies": {
+                "status": "implemented",
+                "evidence": "Complete dependency tree",
+            },
+            "vulnerability_disclosure": {
+                "status": "implemented",
+                "evidence": "CVE monitoring",
+            },
+            "KEV_integration": {
+                "status": "implemented",
+                "evidence": "CISA KEV monitoring",
+            },
         }
 
         total = len(goals)
@@ -246,7 +430,7 @@ class ComplianceReportGenerator:
             "total_goals": total,
             "implemented": implemented,
             "compliance_percentage": round((implemented / total) * 100, 1),
-            "goals": goals
+            "goals": goals,
         }
 
     def generate_json_report(self) -> str:
@@ -256,16 +440,20 @@ class ComplianceReportGenerator:
                 "generated_at": datetime.utcnow().isoformat(),
                 "report_version": "1.0",
                 "organization": "PsychSync",
-                "reporting_period": "Q4 2024"
+                "reporting_period": "Q4 2024",
             },
             "summary": {
                 "frameworks": list(self.compliance_data.keys()),
                 "average_compliance": round(
-                    sum(f["compliance_percentage"] for f in self.compliance_data.values()) / len(self.compliance_data),
-                    1
-                )
+                    sum(
+                        f["compliance_percentage"]
+                        for f in self.compliance_data.values()
+                    )
+                    / len(self.compliance_data),
+                    1,
+                ),
             },
-            "frameworks": self.compliance_data
+            "frameworks": self.compliance_data,
         }
 
         return json.dumps(report, indent=2)
@@ -277,13 +465,16 @@ class ComplianceReportGenerator:
         # Header
         md.append("# PsychSync Security Compliance Report")
         md.append("")
-        md.append(f"**Generated**: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}")
+        md.append(
+            f"**Generated**: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}"
+        )
         md.append("")
 
         # Summary
         avg_compliance = round(
-            sum(f["compliance_percentage"] for f in self.compliance_data.values()) / len(self.compliance_data),
-            1
+            sum(f["compliance_percentage"] for f in self.compliance_data.values())
+            / len(self.compliance_data),
+            1,
         )
 
         md.append("## Executive Summary")
@@ -309,7 +500,9 @@ class ComplianceReportGenerator:
         nist = self.compliance_data["nist_ssdf"]
         md.append(f"## {nist['framework']}")
         md.append("")
-        md.append(f"**Compliance**: {nist['compliance_percentage']}% ({nist['implemented']}/{nist['total_practices']} practices)")
+        md.append(
+            f"**Compliance**: {nist['compliance_percentage']}% ({nist['implemented']}/{nist['total_practices']} practices)"
+        )
         md.append("")
         md.append("### Practice Breakdown")
         md.append("")
@@ -326,7 +519,9 @@ class ComplianceReportGenerator:
         slsa = self.compliance_data["slsa"]
         md.append(f"## {slsa['framework']} - {slsa['level']}")
         md.append("")
-        md.append(f"**Compliance**: {slsa['compliance_percentage']}% ({slsa['implemented']}/{slsa['total_requirements']} requirements)")
+        md.append(
+            f"**Compliance**: {slsa['compliance_percentage']}% ({slsa['implemented']}/{slsa['total_requirements']} requirements)"
+        )
         md.append("")
         md.append("### Requirements")
         md.append("")
@@ -350,8 +545,12 @@ class ComplianceReportGenerator:
                     md.append(f"### {safeguard_type.replace('_', ' ').title()}")
                     md.append("")
                     for safeguard_name, safeguard in safeguards.items():
-                        status_icon = "✅" if safeguard["status"] == "implemented" else "⚠️"
-                        md.append(f"- {status_icon} {safeguard_name}: {safeguard['evidence']}")
+                        status_icon = (
+                            "✅" if safeguard["status"] == "implemented" else "⚠️"
+                        )
+                        md.append(
+                            f"- {status_icon} {safeguard_name}: {safeguard['evidence']}"
+                        )
                     md.append("")
             else:
                 md.append(f"**Compliance**: {framework['compliance_percentage']}%")
@@ -367,14 +566,20 @@ class ComplianceReportGenerator:
                     md.append("### Security Measures")
                     md.append("")
                     for measure_name, measure in sorted(framework["measures"].items()):
-                        status_icon = "✅" if measure["status"] == "implemented" else "⚠️"
-                        md.append(f"- {status_icon} {measure_name.replace('_', ' ').title()}: {measure['evidence']}")
+                        status_icon = (
+                            "✅" if measure["status"] == "implemented" else "⚠️"
+                        )
+                        md.append(
+                            f"- {status_icon} {measure_name.replace('_', ' ').title()}: {measure['evidence']}"
+                        )
                 elif "goals" in framework:
                     md.append("### Goals")
                     md.append("")
                     for goal_name, goal in sorted(framework["goals"].items()):
                         status_icon = "✅" if goal["status"] == "implemented" else "⚠️"
-                        md.append(f"- {status_icon} {goal_name.upper()}: {goal['evidence']}")
+                        md.append(
+                            f"- {status_icon} {goal_name.upper()}: {goal['evidence']}"
+                        )
 
                 md.append("")
 
@@ -436,7 +641,7 @@ class ComplianceReportGenerator:
 
         filepath = self.base_dir / filename
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             f.write(content)
 
         if not quiet:
@@ -446,19 +651,14 @@ class ComplianceReportGenerator:
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(
-        description="Generate security compliance reports"
-    )
+    parser = argparse.ArgumentParser(description="Generate security compliance reports")
     parser.add_argument(
         "--format",
         choices=["json", "markdown", "both"],
         default="both",
-        help="Output format"
+        help="Output format",
     )
-    parser.add_argument(
-        "--output",
-        help="Output directory (defaults to project root)"
-    )
+    parser.add_argument("--output", help="Output directory (defaults to project root)")
 
     args = parser.parse_args()
 
@@ -471,20 +671,21 @@ def main():
 
         # Print JSON to stdout for testing
         if args.format == "json":
-            print(json_report, end='')
+            print(json_report, end="")
 
     if args.format in ["markdown", "both"]:
         md_report = generator.generate_markdown_report()
         filepath = generator.save_report(md_report, "markdown")
 
         # Print summary
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("COMPLIANCE REPORT SUMMARY")
-        print("="*60)
+        print("=" * 60)
 
         avg = round(
-            sum(f["compliance_percentage"] for f in generator.compliance_data.values()) / len(generator.compliance_data),
-            1
+            sum(f["compliance_percentage"] for f in generator.compliance_data.values())
+            / len(generator.compliance_data),
+            1,
         )
         print(f"\nOverall Compliance: {avg}%")
         print("\nFramework Breakdown:")

@@ -12,15 +12,15 @@ from typing import Dict, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.users import get_async_db, get_current_user
 from app.db.models.user import User
 from app.services.biometric_auth_service import (
-    biometric_auth_service,
-    BiometricType,
     BiometricError,
+    BiometricType,
+    biometric_auth_service,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,8 +38,12 @@ class InitiateRegistrationRequest(BaseModel):
     """Request schema for initiating biometric registration"""
 
     device_id: str = Field(..., description="Unique device identifier")
-    biometric_type: str = Field(..., description="Type of biometric (face_id, touch_id, fingerprint)")
-    device_info: Optional[Dict] = Field(default_factory=dict, description="Device information")
+    biometric_type: str = Field(
+        ..., description="Type of biometric (face_id, touch_id, fingerprint)"
+    )
+    device_info: Optional[Dict] = Field(
+        default_factory=dict, description="Device information"
+    )
 
 
 class CompleteRegistrationRequest(BaseModel):
@@ -47,8 +51,12 @@ class CompleteRegistrationRequest(BaseModel):
 
     device_id: str = Field(..., description="Unique device identifier")
     public_key: str = Field(..., description="PEM-encoded public key")
-    challenge_signature: str = Field(..., description="Signature of registration challenge")
-    key_id: Optional[str] = Field(None, description="Optional key identifier from device")
+    challenge_signature: str = Field(
+        ..., description="Signature of registration challenge"
+    )
+    key_id: Optional[str] = Field(
+        None, description="Optional key identifier from device"
+    )
 
 
 class InitiateAuthRequest(BaseModel):
@@ -120,7 +128,9 @@ async def initiate_biometric_registration(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to initiate biometric registration: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to initiate registration: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initiate registration: {str(e)}"
+        )
 
 
 @router.post("/register/complete")
@@ -162,7 +172,9 @@ async def complete_biometric_registration(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to complete biometric registration: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to complete registration: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to complete registration: {str(e)}"
+        )
 
 
 @router.post("/authenticate/initiate")
@@ -211,20 +223,22 @@ async def initiate_biometric_authentication(
         if error_msg == BiometricError.NOT_ENROLLED:
             raise HTTPException(
                 status_code=404,
-                detail="Biometric not registered on this device. Please register first."
+                detail="Biometric not registered on this device. Please register first.",
             )
 
         if error_msg == BiometricError.LOCKED_OUT:
             raise HTTPException(
                 status_code=429,
-                detail="Too many failed attempts. Please try again later."
+                detail="Too many failed attempts. Please try again later.",
             )
 
         raise HTTPException(status_code=400, detail=error_msg)
 
     except Exception as e:
         logger.error(f"Failed to initiate biometric authentication: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to initiate authentication: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initiate authentication: {str(e)}"
+        )
 
 
 @router.post("/authenticate/verify")
@@ -279,26 +293,27 @@ async def verify_biometric_authentication(
         if error_msg == BiometricError.CHALLENGE_EXPIRED:
             raise HTTPException(
                 status_code=400,
-                detail="Challenge expired. Please initiate authentication again."
+                detail="Challenge expired. Please initiate authentication again.",
             )
 
         if error_msg == BiometricError.AUTHENTICATION_FAILED:
             raise HTTPException(
                 status_code=401,
-                detail="Biometric authentication failed. Please try again."
+                detail="Biometric authentication failed. Please try again.",
             )
 
         if error_msg == BiometricError.INVALID_SIGNATURE:
             raise HTTPException(
-                status_code=401,
-                detail="Invalid signature. Authentication failed."
+                status_code=401, detail="Invalid signature. Authentication failed."
             )
 
         raise HTTPException(status_code=400, detail=error_msg)
 
     except Exception as e:
         logger.error(f"Failed to verify biometric authentication: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to verify authentication: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to verify authentication: {str(e)}"
+        )
 
 
 @router.post("/revoke")
@@ -329,11 +344,13 @@ async def revoke_biometric_authentication(
         )
 
         if not success:
-            raise HTTPException(status_code=404, detail="Biometric authentication not found")
+            raise HTTPException(
+                status_code=404, detail="Biometric authentication not found"
+            )
 
         return {
             "success": True,
-            "message": "Biometric authentication revoked successfully"
+            "message": "Biometric authentication revoked successfully",
         }
 
     except HTTPException:
@@ -380,7 +397,9 @@ async def get_registered_biometric_devices(
 
     except Exception as e:
         logger.error(f"Failed to get registered devices: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve devices: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve devices: {str(e)}"
+        )
 
 
 @router.get("/status")
@@ -407,16 +426,21 @@ async def get_biometric_status(
     """
 
     try:
-        from app.db.models.biometric import BiometricKey
-        from sqlalchemy import select, and_
+        from sqlalchemy import and_, select
 
-        query = select(BiometricKey).where(
-            and_(
-                BiometricKey.user_id == current_user.id,
-                BiometricKey.device_id == device_id,
-                BiometricKey.is_active == True,
+        from app.db.models.biometric import BiometricKey
+
+        query = (
+            select(BiometricKey)
+            .where(
+                and_(
+                    BiometricKey.user_id == current_user.id,
+                    BiometricKey.device_id == device_id,
+                    BiometricKey.is_active == True,
+                )
             )
-        ).order_by(BiometricKey.created_at.desc())
+            .order_by(BiometricKey.created_at.desc())
+        )
 
         result = await db.execute(query)
         biometric_key = result.scalar_one_or_none()
@@ -424,7 +448,7 @@ async def get_biometric_status(
         if not biometric_key:
             return {
                 "enabled": False,
-                "message": "Biometric authentication not enabled on this device"
+                "message": "Biometric authentication not enabled on this device",
             }
 
         return {
@@ -436,7 +460,9 @@ async def get_biometric_status(
 
     except Exception as e:
         logger.error(f"Failed to get biometric status: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve status: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve status: {str(e)}"
+        )
 
 
 @router.get("/types")

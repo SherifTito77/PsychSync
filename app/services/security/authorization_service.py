@@ -22,9 +22,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, List, Optional
 
-from app.db.models.user import User
 from app.db.models.team import Team
-
+from app.db.models.user import User
 
 # =============================================================================
 # Data Classes & Enums
@@ -33,6 +32,7 @@ from app.db.models.team import Team
 
 class Role(Enum):
     """Standard roles in the system"""
+
     ADMIN = "admin"
     USER = "user"
     MODERATOR = "moderator"
@@ -42,6 +42,7 @@ class Role(Enum):
 
 class Permission(Enum):
     """Granular permissions for fine-grained access control"""
+
     # User permissions
     READ_OWN_PROFILE = "read_own_profile"
     UPDATE_OWN_PROFILE = "update_own_profile"
@@ -74,6 +75,7 @@ class Permission(Enum):
 
 class AccessDecision(Enum):
     """Access control decision"""
+
     ALLOW = "allow"
     DENY = "deny"
     ABSTAIN = "abstain"  # No decision, defer to other checks
@@ -82,6 +84,7 @@ class AccessDecision(Enum):
 @dataclass
 class AuthorizationResult:
     """Result of an authorization check"""
+
     decision: AccessDecision
     reason: str | None = None
     permissions_used: List[Permission] | None = None
@@ -236,7 +239,9 @@ class AuthorizationService:
         """
         return all(self.has_permission(user, perm) for perm in permissions)
 
-    def is_owner(self, user: User, resource: Any, owner_field: str = "created_by_id") -> bool:
+    def is_owner(
+        self, user: User, resource: Any, owner_field: str = "created_by_id"
+    ) -> bool:
         """
         Check if user owns a resource.
 
@@ -357,7 +362,9 @@ class AuthorizationService:
 
         return False
 
-    def can_access_team(self, user: User, team: Team, permission: Permission = Permission.READ_TEAM) -> bool:
+    def can_access_team(
+        self, user: User, team: Team, permission: Permission = Permission.READ_TEAM
+    ) -> bool:
         """
         Check if user can access team with specified permission.
 
@@ -408,10 +415,8 @@ class AuthorizationService:
                 # User profile permissions
                 Permission.READ_OWN_PROFILE,
                 Permission.UPDATE_OWN_PROFILE,
-
                 # Team permissions (read only)
                 Permission.READ_TEAM,
-
                 # Assessment permissions (create, read, update own)
                 Permission.CREATE_ASSESSMENT,
                 Permission.READ_ASSESSMENT,
@@ -420,11 +425,9 @@ class AuthorizationService:
                 # Inherit all USER permissions
                 Permission.READ_OWN_PROFILE,
                 Permission.UPDATE_OWN_PROFILE,
-
                 # Enhanced team permissions
                 Permission.READ_TEAM,
                 Permission.UPDATE_TEAM,
-
                 # Enhanced assessment permissions
                 Permission.CREATE_ASSESSMENT,
                 Permission.READ_ASSESSMENT,
@@ -435,19 +438,16 @@ class AuthorizationService:
                 # All moderator permissions
                 Permission.READ_OWN_PROFILE,
                 Permission.UPDATE_OWN_PROFILE,
-
                 # Full team management
                 Permission.READ_TEAM,
                 Permission.UPDATE_TEAM,
                 Permission.MANAGE_TEAM_MEMBERS,
-
                 # Full assessment management
                 Permission.CREATE_ASSESSMENT,
                 Permission.READ_ASSESSMENT,
                 Permission.UPDATE_ASSESSMENT,
                 Permission.DELETE_ASSESSMENT,
                 Permission.PUBLISH_ASSESSMENT,
-
                 # Organization management
                 Permission.READ_ORGANIZATION,
                 Permission.UPDATE_ORGANIZATION,
@@ -459,25 +459,21 @@ class AuthorizationService:
                 Permission.READ_OWN_PROFILE,
                 Permission.UPDATE_OWN_PROFILE,
                 Permission.DELETE_OWN_PROFILE,
-
                 # Team permissions
                 Permission.READ_TEAM,
                 Permission.UPDATE_TEAM,
                 Permission.DELETE_TEAM,
                 Permission.MANAGE_TEAM_MEMBERS,
-
                 # Organization permissions
                 Permission.READ_ORGANIZATION,
                 Permission.UPDATE_ORGANIZATION,
                 Permission.MANAGE_ORGANIZATION_MEMBERS,
-
                 # Assessment permissions
                 Permission.CREATE_ASSESSMENT,
                 Permission.READ_ASSESSMENT,
                 Permission.UPDATE_ASSESSMENT,
                 Permission.DELETE_ASSESSMENT,
                 Permission.PUBLISH_ASSESSMENT,
-
                 # Admin permissions
                 Permission.MANAGE_USERS,
                 Permission.MANAGE_ROLES,
@@ -505,6 +501,7 @@ def get_authorization_service() -> AuthorizationService:
 # =============================================================================
 # Convenience Functions (Backward Compatibility)
 # =============================================================================
+
 
 def has_role(user: User, role: str) -> bool:
     """Check if user has role using default service."""
@@ -546,7 +543,7 @@ def require_permissions(*permissions: str):
             if not user:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Authentication required"
+                    detail="Authentication required",
                 )
 
             # For string permissions, do simple admin check
@@ -563,8 +560,9 @@ def require_permissions(*permissions: str):
 
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Insufficient permissions. Required: {', '.join(permissions)}"
+                detail=f"Insufficient permissions. Required: {', '.join(permissions)}",
             )
 
         return wrapper
+
     return decorator

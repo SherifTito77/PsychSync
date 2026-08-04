@@ -1,15 +1,28 @@
 """Auto-generated tests for auth_rate_limiter"""
 
-import pytest
-from unittest.mock import Mock, patch
 import sys
 from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.auth_rate_limiter import __post_init__ , __init__ , _init_redis , _get_attempt_type , _get_client_ip , _is_successful_auth , _create_rate_limited_response , __init__ , AuthAttemptType , AuthRateLimitConfig , AuthRateLimiter , CredentialStuffingProtection
+from app.auth_rate_limiter import (
+    AuthAttemptType,
+    AuthRateLimitConfig,
+    AuthRateLimiter,
+    CredentialStuffingProtection,
+    __init__,
+    __post_init__,
+    _create_rate_limited_response,
+    _get_attempt_type,
+    _get_client_ip,
+    _init_redis,
+    _is_successful_auth,
+)
 
 
 class TestAuth_Rate_Limiter:

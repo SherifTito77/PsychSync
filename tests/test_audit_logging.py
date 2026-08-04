@@ -9,22 +9,23 @@ This test suite verifies:
 5. Audit log security and access control
 """
 
+import asyncio
+import json
+from datetime import datetime, timedelta
+from typing import Any, AsyncGenerator, Dict, List
+from unittest.mock import MagicMock, patch
+
 import pytest
 import pytest_asyncio
-from typing import AsyncGenerator, List, Dict, Any
-from datetime import datetime, timedelta
-from unittest.mock import patch, MagicMock
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text, func
-import json
-import asyncio
 
 from app.core.database import Base
-from app.db.models.user import User, UserRole
-from app.db.models.team import Team, TeamMember, TeamRole
-from app.db.models.organization import Organization
-from app.db.models.response import Response, AssessmentResponse
 from app.db.models.assessment import Assessment
+from app.db.models.organization import Organization
+from app.db.models.response import AssessmentResponse, Response
+from app.db.models.team import Team, TeamMember, TeamRole
+from app.db.models.user import User, UserRole
 from app.services.security import get_password_hash
 
 
@@ -49,7 +50,7 @@ class TestAuditLogging:
                 "user_id": str(user_id) if user_id else None,
                 "timestamp": datetime.utcnow(),
                 "ip_address": "127.0.0.1",
-                "user_agent": "pytest-audit-test"
+                "user_agent": "pytest-audit-test",
             }
             audit_logs.append(audit_log)
             print(f"Audit Log: {action} {entity_type} {entity_id}")
@@ -58,7 +59,7 @@ class TestAuditLogging:
         user_data = {
             "email": "audituser@test.com",
             "full_name": "Audit Test User",
-            "role": UserRole.USER
+            "role": UserRole.USER,
         }
 
         user = User(
@@ -66,7 +67,7 @@ class TestAuditLogging:
             password_hash=get_password_hash("password123"),
             full_name=user_data["full_name"],
             role=user_data["role"],
-            is_active=True
+            is_active=True,
         )
         db_session.add(user)
         await db_session.flush()
@@ -77,7 +78,7 @@ class TestAuditLogging:
             entity_type="USER",
             entity_id=user.id,
             details=user_data,
-            user_id=user.id
+            user_id=user.id,
         )
         await db_session.commit()
 
@@ -107,7 +108,7 @@ class TestAuditLogging:
                 "user_id": str(user_id) if user_id else None,
                 "timestamp": datetime.utcnow(),
                 "ip_address": "127.0.0.1",
-                "user_agent": "pytest-audit-test"
+                "user_agent": "pytest-audit-test",
             }
             audit_logs.append(audit_log)
 
@@ -117,7 +118,7 @@ class TestAuditLogging:
             password_hash=get_password_hash("password123"),
             full_name="Initial Name",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
         )
         db_session.add(user)
         await db_session.commit()
@@ -128,7 +129,7 @@ class TestAuditLogging:
             entity_type="USER",
             entity_id=user.id,
             details={"full_name": "Initial Name", "role": "USER"},
-            user_id=user.id
+            user_id=user.id,
         )
 
         # Update user
@@ -145,10 +146,10 @@ class TestAuditLogging:
             details={
                 "changes": {
                     "full_name": {"from": original_name, "to": "Updated Name"},
-                    "is_active": {"from": True, "to": False}
+                    "is_active": {"from": True, "to": False},
                 }
             },
-            user_id=user.id
+            user_id=user.id,
         )
         await db_session.commit()
 
@@ -178,14 +179,14 @@ class TestAuditLogging:
                 "user_id": str(user_id) if user_id else None,
                 "timestamp": datetime.utcnow(),
                 "ip_address": "127.0.0.1",
-                "user_agent": "pytest-audit-test"
+                "user_agent": "pytest-audit-test",
             }
             audit_logs.append(audit_log)
 
         # Create test data
         org = Organization(
             name="Assessment Audit Org",
-            description="Organization for assessment audit testing"
+            description="Organization for assessment audit testing",
         )
         db_session.add(org)
         await db_session.flush()
@@ -195,7 +196,7 @@ class TestAuditLogging:
             password_hash=get_password_hash("password123"),
             full_name="Assessment Audit User",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
         )
         db_session.add(user)
         await db_session.flush()
@@ -203,7 +204,7 @@ class TestAuditLogging:
         assessment = Assessment(
             title="Assessment Audit Test",
             description="Assessment for audit testing",
-            organization_id=org.id
+            organization_id=org.id,
         )
         db_session.add(assessment)
         await db_session.commit()
@@ -214,14 +215,14 @@ class TestAuditLogging:
             entity_type="ASSESSMENT",
             entity_id=assessment.id,
             details={"title": assessment.title, "organization_id": str(org.id)},
-            user_id=user.id
+            user_id=user.id,
         )
 
         # Simulate assessment submission
         submission_data = {
             "question_1": "answer_A",
             "question_2": "answer_B",
-            "question_3": "answer_C"
+            "question_3": "answer_C",
         }
 
         response = Response(
@@ -229,7 +230,7 @@ class TestAuditLogging:
             user_id=user.id,
             responses=submission_data,
             score=75,
-            completed_at=datetime.utcnow()
+            completed_at=datetime.utcnow(),
         )
         db_session.add(response)
         await db_session.commit()
@@ -244,9 +245,9 @@ class TestAuditLogging:
                 "assessment_title": assessment.title,
                 "score": 75,
                 "question_count": len(submission_data),
-                "completed_at": response.completed_at.isoformat()
+                "completed_at": response.completed_at.isoformat(),
             },
-            user_id=user.id
+            user_id=user.id,
         )
 
         # Verify audit logs
@@ -278,7 +279,7 @@ class TestAuditLogging:
                 "user_id": str(user_id) if user_id else None,
                 "timestamp": start_time,
                 "ip_address": "127.0.0.1",
-                "user_agent": "pytest-audit-test"
+                "user_agent": "pytest-audit-test",
             }
             audit_logs.append(audit_log)
 
@@ -289,7 +290,7 @@ class TestAuditLogging:
         # Create test data
         org = Organization(
             name="Performance Test Org",
-            description="Organization for performance testing"
+            description="Organization for performance testing",
         )
         db_session.add(org)
         await db_session.flush()
@@ -304,7 +305,7 @@ class TestAuditLogging:
                 password_hash=get_password_hash("password123"),
                 full_name=f"Performance User {i}",
                 role=UserRole.USER,
-                is_active=i % 2 == 0
+                is_active=i % 2 == 0,
             )
             db_session.add(user)
             await db_session.flush()
@@ -319,9 +320,9 @@ class TestAuditLogging:
                     "email": user.email,
                     "full_name": user.full_name,
                     "role": user.role.value,
-                    "is_active": user.is_active
+                    "is_active": user.is_active,
                 },
-                user_id=user.id
+                user_id=user.id,
             )
 
         await db_session.commit()
@@ -341,8 +342,12 @@ class TestAuditLogging:
         print(f"  - Min processing time: {min_processing_time:.6f}s")
 
         # Performance assertions (adjust based on your requirements)
-        assert avg_processing_time < 0.01, f"Average processing time too high: {avg_processing_time}"
-        assert max_processing_time < 0.05, f"Max processing time too high: {max_processing_time}"
+        assert (
+            avg_processing_time < 0.01
+        ), f"Average processing time too high: {avg_processing_time}"
+        assert (
+            max_processing_time < 0.05
+        ), f"Max processing time too high: {max_processing_time}"
 
     async def test_audit_log_data_integrity(self, db_session: AsyncSession):
         """
@@ -359,14 +364,13 @@ class TestAuditLogging:
                 "user_id": str(user_id) if user_id else None,
                 "timestamp": datetime.utcnow(),
                 "ip_address": "127.0.0.1",
-                "user_agent": "pytest-audit-test"
+                "user_agent": "pytest-audit-test",
             }
             audit_logs.append(audit_log)
 
         # Create test data
         org = Organization(
-            name="Integrity Test Org",
-            description="Organization for integrity testing"
+            name="Integrity Test Org", description="Organization for integrity testing"
         )
         db_session.add(org)
         await db_session.flush()
@@ -376,7 +380,7 @@ class TestAuditLogging:
             password_hash=get_password_hash("password123"),
             full_name="Integrity Test User",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
         )
         db_session.add(user)
         await db_session.flush()
@@ -390,33 +394,24 @@ class TestAuditLogging:
                     "name": "Test Team",
                     "description": "Team for integrity testing",
                     "created_at": datetime.utcnow().isoformat(),
-                    "metadata": {"key": "value", "number": 42, "boolean": True}
-                }
+                    "metadata": {"key": "value", "number": 42, "boolean": True},
+                },
             },
             {
                 "action": "UPDATE",
                 "entity_type": "USER",
                 "details": {
                     "changes": {
-                        "full_name": {
-                            "from": "Original Name",
-                            "to": "Updated Name"
-                        },
-                        "preferences": {
-                            "theme": "dark",
-                            "notifications": True
-                        }
+                        "full_name": {"from": "Original Name", "to": "Updated Name"},
+                        "preferences": {"theme": "dark", "notifications": True},
                     }
-                }
+                },
             },
             {
                 "action": "DELETE",
                 "entity_type": "ASSESSMENT",
-                "details": {
-                    "reason": "Test deletion",
-                    "confirmation": True
-                }
-            }
+                "details": {"reason": "Test deletion", "confirmation": True},
+            },
         ]
 
         for test_case in test_cases:
@@ -425,7 +420,7 @@ class TestAuditLogging:
                 entity_type=test_case["entity_type"],
                 entity_id=user.id,
                 details=test_case["details"],
-                user_id=user.id
+                user_id=user.id,
             )
 
         # Verify data integrity
@@ -442,7 +437,9 @@ class TestAuditLogging:
             assert isinstance(audit_log["timestamp"], datetime)
             assert audit_log["ip_address"] == "127.0.0.1"
 
-    async def test_audit_log_security_and_access_control(self, db_session: AsyncSession):
+    async def test_audit_log_security_and_access_control(
+        self, db_session: AsyncSession
+    ):
         """
         Test audit log security features and access control
         """
@@ -458,7 +455,7 @@ class TestAuditLogging:
                 "timestamp": datetime.utcnow(),
                 "ip_address": "127.0.0.1",
                 "user_agent": "pytest-audit-test",
-                "session_id": "test-session-123"
+                "session_id": "test-session-123",
             }
             audit_logs.append(audit_log)
 
@@ -468,7 +465,7 @@ class TestAuditLogging:
             password_hash=get_password_hash("admin123"),
             full_name="Admin User",
             role=UserRole.ADMIN,
-            is_active=True
+            is_active=True,
         )
         db_session.add(admin_user)
         await db_session.flush()
@@ -478,7 +475,7 @@ class TestAuditLogging:
             password_hash=get_password_hash("regular123"),
             full_name="Regular User",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
         )
         db_session.add(regular_user)
         await db_session.commit()
@@ -490,9 +487,9 @@ class TestAuditLogging:
             "details": {
                 "target_user": regular_user.email,
                 "reason": "Policy violation",
-                "admin_action": True
+                "admin_action": True,
             },
-            "severity": "HIGH"
+            "severity": "HIGH",
         }
 
         regular_action = {
@@ -501,9 +498,9 @@ class TestAuditLogging:
             "details": {
                 "field": "full_name",
                 "old_value": "Old Name",
-                "new_value": "New Name"
+                "new_value": "New Name",
             },
-            "severity": "LOW"
+            "severity": "LOW",
         }
 
         # Log admin action
@@ -512,7 +509,7 @@ class TestAuditLogging:
             entity_type=admin_action["entity_type"],
             entity_id=regular_user.id,
             details=admin_action["details"],
-            user_id=admin_user.id
+            user_id=admin_user.id,
         )
 
         # Log regular user action
@@ -521,7 +518,7 @@ class TestAuditLogging:
             entity_type=regular_action["entity_type"],
             entity_id=regular_user.id,
             details=regular_action["details"],
-            user_id=regular_user.id
+            user_id=regular_user.id,
         )
 
         # Verify audit log security features
@@ -563,14 +560,13 @@ class TestAuditLogging:
                 "user_id": str(user_id) if user_id else None,
                 "timestamp": datetime.utcnow(),
                 "ip_address": "127.0.0.0.1",
-                "user_agent": "pytest-audit-test"
+                "user_agent": "pytest-audit-test",
             }
             audit_logs.append(audit_log)
 
         # Create test data
         org = Organization(
-            name="Retention Test Org",
-            description="Organization for retention testing"
+            name="Retention Test Org", description="Organization for retention testing"
         )
         db_session.add(org)
         await db_session.flush()
@@ -580,7 +576,7 @@ class TestAuditLogging:
             password_hash=get_password_hash("password123"),
             full_name="Retention Test User",
             role=UserRole.USER,
-            is_active=True
+            is_active=True,
         )
         db_session.add(user)
         await db_session.commit()
@@ -598,7 +594,7 @@ class TestAuditLogging:
                 entity_type="TEST_ENTITY",
                 entity_id=f"test-entity-{i}",
                 details={"test_data": f"test_data_{i}", "age_days": i},
-                user_id=user.id
+                user_id=user.id,
             )
 
             # Simulate timestamp adjustment
@@ -611,8 +607,12 @@ class TestAuditLogging:
 
         print(f"Audit Log Retention Results:")
         print(f"  - Total audit logs: {len(audit_logs)}")
-        print(f"  - Old logs (older than {retention_period_days} days): {len(old_logs)}")
-        print(f"  - Recent logs (within {retention_period_days} days): {len(recent_logs)}")
+        print(
+            f"  - Old logs (older than {retention_period_days} days): {len(old_logs)}"
+        )
+        print(
+            f"  - Recent logs (within {retention_period_days} days): {len(recent_logs)}"
+        )
 
         # Verify retention logic
         assert len(recent_logs) > 0, "Should have recent logs"

@@ -6,22 +6,23 @@ Run this after setting up Redis: python test_cache_setup.py
 
 import sys
 import time
+
 from app.core.cache import (
-    redis_client,
-    cache_set,
-    cache_get,
     cache_delete,
     cache_delete_pattern,
+    cache_get,
+    cache_set,
     cached,
-    redis_health_check
+    redis_client,
+    redis_health_check,
 )
 
 
 def test_redis_connection():
     """Test 1: Redis Connection"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 1: Redis Connection")
-    print("="*60)
+    print("=" * 60)
 
     if redis_client is None:
         print("❌ FAILED: Redis client is None")
@@ -45,9 +46,9 @@ def test_redis_connection():
 
 def test_basic_cache_operations():
     """Test 2: Basic Cache Operations"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 2: Basic Cache Operations")
-    print("="*60)
+    print("=" * 60)
 
     # Test SET
     key = "test:basic_operation"
@@ -91,9 +92,9 @@ def test_basic_cache_operations():
 
 def test_cached_decorator():
     """Test 3: @cached Decorator"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 3: @cached Decorator")
-    print("="*60)
+    print("=" * 60)
 
     call_count = 0
 
@@ -144,17 +145,12 @@ def test_cached_decorator():
 
 def test_pattern_deletion():
     """Test 4: Pattern-based Deletion"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 4: Pattern-based Deletion")
-    print("="*60)
+    print("=" * 60)
 
     # Set multiple keys with pattern
-    keys = [
-        "test:user:1",
-        "test:user:2",
-        "test:user:3",
-        "test:team:1"
-    ]
+    keys = ["test:user:1", "test:user:2", "test:user:3", "test:team:1"]
 
     for key in keys:
         cache_set(key, {"data": f"value for {key}"}, expire=60)
@@ -182,9 +178,9 @@ def test_pattern_deletion():
 
 def test_health_check():
     """Test 5: Health Check"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 5: Health Check")
-    print("="*60)
+    print("=" * 60)
 
     health = redis_health_check()
     print(f"Health check result: {health}")
@@ -203,9 +199,9 @@ def test_health_check():
 
 def test_expiration():
     """Test 6: Cache Expiration"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 6: Cache Expiration")
-    print("="*60)
+    print("=" * 60)
 
     key = "test:expiration"
     value = {"expires": "soon"}
@@ -236,9 +232,9 @@ def test_expiration():
 
 def main():
     """Run all tests"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("PSYCHSYNC REDIS CACHE TEST SUITE")
-    print("="*60)
+    print("=" * 60)
 
     tests = [
         ("Redis Connection", test_redis_connection),
@@ -246,7 +242,7 @@ def main():
         ("@cached Decorator", test_cached_decorator),
         ("Pattern Deletion", test_pattern_deletion),
         ("Health Check", test_health_check),
-        ("Cache Expiration", test_expiration)
+        ("Cache Expiration", test_expiration),
     ]
 
     results = []
@@ -257,13 +253,14 @@ def main():
         except Exception as e:
             print(f"\n❌ ERROR in {name}: {e}")
             import traceback
+
             traceback.print_exc()
             results.append((name, False))
 
     # Summary
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST SUMMARY")
-    print("="*60)
+    print("=" * 60)
 
     for name, passed in results:
         status = "✅ PASSED" if passed else "❌ FAILED"

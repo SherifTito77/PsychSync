@@ -55,16 +55,24 @@ class EnterpriseCORSManager:
             # Basic format validation
             if not origin.startswith(("http://", "https://")):
                 if settings.ENVIRONMENT == "production":
-                    cors_logger.critical(f"CRITICAL: Invalid CORS origin format: {origin}")
-                    raise RuntimeError(f"CORS origin must start with http:// or https://: {origin}")
-                cors_logger.warning(f"Invalid CORS origin format in development: {origin}")
+                    cors_logger.critical(
+                        f"CRITICAL: Invalid CORS origin format: {origin}"
+                    )
+                    raise RuntimeError(
+                        f"CORS origin must start with http:// or https://: {origin}"
+                    )
+                cors_logger.warning(
+                    f"Invalid CORS origin format in development: {origin}"
+                )
                 continue
 
             # Production security checks
             if settings.ENVIRONMENT == "production":
                 # Prevent wildcard origins in production
                 if origin == "*" or "*." in origin:
-                    cors_logger.critical("CRITICAL: Wildcard CORS origins detected in production")
+                    cors_logger.critical(
+                        "CRITICAL: Wildcard CORS origins detected in production"
+                    )
                     raise RuntimeError(
                         "CRITICAL SECURITY ERROR: Wildcard CORS origins not allowed in production. "
                         "Please specify exact origins for security."
@@ -72,7 +80,9 @@ class EnterpriseCORSManager:
 
                 # Prevent localhost in production
                 if "localhost" in origin.lower() or "127.0.0.1" in origin:
-                    cors_logger.critical(f"CRITICAL: Localhost CORS origin in production: {origin}")
+                    cors_logger.critical(
+                        f"CRITICAL: Localhost CORS origin in production: {origin}"
+                    )
                     raise RuntimeError(
                         "CRITICAL SECURITY ERROR: Localhost origins not allowed in production CORS configuration."
                     )
@@ -84,7 +94,9 @@ class EnterpriseCORSManager:
             cors_logger.critical("No valid CORS origins configured for production")
             raise RuntimeError("Production requires valid CORS origins")
 
-        cors_logger.info(f"CORS origins validated - {len(validated_origins)} origins configured")
+        cors_logger.info(
+            f"CORS origins validated - {len(validated_origins)} origins configured"
+        )
         return validated_origins
 
     def _get_origins(self) -> list[str]:

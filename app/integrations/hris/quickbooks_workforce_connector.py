@@ -10,8 +10,8 @@ Usage:
     attendance = connector.get_attendance(start_date, end_date)
 """
 
-from datetime import date, datetime
 import logging
+from datetime import date, datetime
 from typing import Any
 
 import requests
@@ -86,7 +86,10 @@ class QuickBooksWorkforceConnector(HRISConnector):
                     "Content-Type": "application/x-www-form-urlencoded",
                     "Authorization": f"Basic {self._get_basic_auth()}",
                 },
-                data={"grant_type": "refresh_token", "refresh_token": self.refresh_token},
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": self.refresh_token,
+                },
             )
             response.raise_for_status()
 
@@ -109,7 +112,9 @@ class QuickBooksWorkforceConnector(HRISConnector):
         auth_string = f"{self.client_id}:{self.client_secret}"
         return base64.b64encode(auth_string.encode()).decode()
 
-    def _make_api_request(self, endpoint: str, method: str = "GET", **kwargs) -> dict | None:
+    def _make_api_request(
+        self, endpoint: str, method: str = "GET", **kwargs
+    ) -> dict | None:
         """Make API request with retry logic and token refresh."""
         url = f"{self.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
@@ -176,20 +181,28 @@ class QuickBooksWorkforceConnector(HRISConnector):
                     last_name=user_data.get("last_name", "").strip(),
                     email=user_data.get("email", ""),
                     phone=user_data.get("mobile_number"),
-                    department=self._get_user_department(user_data["id"])[0]
-                    if self._get_user_department(user_data["id"])
-                    else None,
+                    department=(
+                        self._get_user_department(user_data["id"])[0]
+                        if self._get_user_department(user_data["id"])
+                        else None
+                    ),
                     position=user_data.get("job_title"),
                     hire_date=self._parse_date(user_data.get("hire_date")),
-                    employment_status="active" if user_data.get("active", False) else "inactive",
-                    manager_id=str(user_data.get("manager_id"))
-                    if user_data.get("manager_id")
-                    else None,
+                    employment_status=(
+                        "active" if user_data.get("active", False) else "inactive"
+                    ),
+                    manager_id=(
+                        str(user_data.get("manager_id"))
+                        if user_data.get("manager_id")
+                        else None
+                    ),
                     location=user_data.get("location_name"),
                 )
                 employees.append(employee)
 
-            logger.info(f"Retrieved {len(employees)} employees from QuickBooks Workforce")
+            logger.info(
+                f"Retrieved {len(employees)} employees from QuickBooks Workforce"
+            )
             return employees
 
         except Exception as e:
@@ -212,15 +225,21 @@ class QuickBooksWorkforceConnector(HRISConnector):
                 last_name=user_data.get("last_name", "").strip(),
                 email=user_data.get("email", ""),
                 phone=user_data.get("mobile_number"),
-                department=self._get_user_department(user_data["id"])[0]
-                if self._get_user_department(user_data["id"])
-                else None,
+                department=(
+                    self._get_user_department(user_data["id"])[0]
+                    if self._get_user_department(user_data["id"])
+                    else None
+                ),
                 position=user_data.get("job_title"),
                 hire_date=self._parse_date(user_data.get("hire_date")),
-                employment_status="active" if user_data.get("active", False) else "inactive",
-                manager_id=str(user_data.get("manager_id"))
-                if user_data.get("manager_id")
-                else None,
+                employment_status=(
+                    "active" if user_data.get("active", False) else "inactive"
+                ),
+                manager_id=(
+                    str(user_data.get("manager_id"))
+                    if user_data.get("manager_id")
+                    else None
+                ),
                 location=user_data.get("location_name"),
             )
 
@@ -239,9 +258,7 @@ class QuickBooksWorkforceConnector(HRISConnector):
             start_str = start_date.strftime("%Y-%m-%d")
             end_str = end_date.strftime("%Y-%m-%d")
 
-            endpoint = (
-                f"timesheets?start_date={start_str}&end_date={end_str}&company_id={self.company_id}"
-            )
+            endpoint = f"timesheets?start_date={start_str}&end_date={end_str}&company_id={self.company_id}"
             if employee_id:
                 endpoint += f"&user_ids={employee_id}"
 
@@ -265,10 +282,14 @@ class QuickBooksWorkforceConnector(HRISConnector):
                             date=self._parse_date(detail["date"]),
                             clock_in=self._parse_datetime(detail.get("clock_in")),
                             clock_out=self._parse_datetime(detail.get("clock_out")),
-                            hours_worked=float(detail.get("duration", 0)) / 3600
-                            if detail.get("duration")
-                            else None,
-                            status="present" if detail.get("duration", 0) > 0 else "absent",
+                            hours_worked=(
+                                float(detail.get("duration", 0)) / 3600
+                                if detail.get("duration")
+                                else None
+                            ),
+                            status=(
+                                "present" if detail.get("duration", 0) > 0 else "absent"
+                            ),
                         )
                         attendance_records.append(record)
 
@@ -417,12 +438,20 @@ def register_connector():
     """Register this connector with the integration manager."""
     from .integration_manager import HRISIntegrationManager
 
-    HRISIntegrationManager.CONNECTORS["quickbooks_workforce"] = QuickBooksWorkforceConnector
+    HRISIntegrationManager.CONNECTORS["quickbooks_workforce"] = (
+        QuickBooksWorkforceConnector
+    )
 
     # Add configuration template
     HRISIntegrationManager.CONFIG_TEMPLATES["quickbooks_workforce"] = {
         "required": ["client_id", "client_secret", "access_token", "company_id"],
-        "optional": ["refresh_token", "redirect_uri", "base_url", "timeout", "retry_attempts"],
+        "optional": [
+            "refresh_token",
+            "redirect_uri",
+            "base_url",
+            "timeout",
+            "retry_attempts",
+        ],
         "description": "QuickBooks Workforce (formerly TSheets) time tracking and HR management",
     }
 

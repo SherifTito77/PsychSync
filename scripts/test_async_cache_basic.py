@@ -5,8 +5,8 @@ Tests the async cache implementation without requiring Redis
 """
 
 import asyncio
-import sys
 import os
+import sys
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -19,10 +19,11 @@ async def test_imports():
         from app.core.async_cache import (
             AsyncCache,
             async_cached,
+            cache_delete,
             cache_get,
             cache_set,
-            cache_delete
         )
+
         print("✅ All async cache imports successful")
         return True
     except ImportError as e:
@@ -34,8 +35,9 @@ async def test_decorator_exists():
     """Test that the decorator is properly defined"""
     print("\n🧪 Testing async_cached decorator...")
     try:
-        from app.core.async_cache import async_cached
         import inspect
+
+        from app.core.async_cache import async_cached
 
         # Check if it's callable
         if not callable(async_cached):
@@ -46,7 +48,7 @@ async def test_decorator_exists():
         sig = inspect.signature(async_cached)
         params = list(sig.parameters.keys())
 
-        if 'expire' not in params or 'key_prefix' not in params:
+        if "expire" not in params or "key_prefix" not in params:
             print(f"❌ async_cached has wrong signature: {params}")
             return False
 
@@ -65,14 +67,14 @@ async def test_cache_methods():
         from app.core.async_cache import AsyncCache
 
         required_methods = [
-            'get',
-            'set',
-            'delete',
-            'delete_pattern',
-            'exists',
-            'expire',
-            'clear_all',
-            '_generate_key'
+            "get",
+            "set",
+            "delete",
+            "delete_pattern",
+            "exists",
+            "expire",
+            "clear_all",
+            "_generate_key",
         ]
 
         for method_name in required_methods:
@@ -97,10 +99,19 @@ async def test_async_nature():
     """Test that methods are actually async (coroutine functions)"""
     print("\n🧪 Testing async nature of cache methods...")
     try:
-        from app.core.async_cache import AsyncCache
         import inspect
 
-        async_methods = ['get', 'set', 'delete', 'delete_pattern', 'exists', 'expire', 'clear_all']
+        from app.core.async_cache import AsyncCache
+
+        async_methods = [
+            "get",
+            "set",
+            "delete",
+            "delete_pattern",
+            "exists",
+            "expire",
+            "clear_all",
+        ]
 
         for method_name in async_methods:
             method = getattr(AsyncCache, method_name)
@@ -143,8 +154,9 @@ async def test_backward_compatibility():
     """Test backward-compatible wrapper functions"""
     print("\n🧪 Testing backward compatibility...")
     try:
-        from app.core.async_cache import cache_get, cache_set, cache_delete
         import inspect
+
+        from app.core.async_cache import cache_delete, cache_get, cache_set
 
         # These should be async functions
         for func in [cache_get, cache_set, cache_delete]:
@@ -164,8 +176,9 @@ async def test_code_quality():
     """Test code quality of the implementation"""
     print("\n🧪 Testing code quality...")
     try:
-        from app.core import async_cache
         import inspect
+
+        from app.core import async_cache
 
         # Check for docstrings
         docstring = async_cache.__doc__
@@ -176,6 +189,7 @@ async def test_code_quality():
 
         # Check AsyncCache class docstring
         from app.core.async_cache import AsyncCache
+
         if not AsyncCache.__doc__:
             print("⚠️  AsyncCache class missing docstring")
         else:

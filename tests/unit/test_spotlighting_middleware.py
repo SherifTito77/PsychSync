@@ -9,29 +9,29 @@ Version: 1.0
 Date: 2025-12-27
 """
 
-import pytest
 import json
 from datetime import datetime, timedelta
+
+import pytest
 from fastapi import HTTPException
+
 from app.middleware.spotlighting import (
-    SpotlightingEngine,
-    ToolAllowList,
     ApprovalManager,
-    SpotlightedContent,
     ContentSource,
-    TrustLevel,
-    SpotlightingMode,
     HumanApprovalRequired,
-)
-from app.middleware.spotlighting import (
+    SpotlightedContent,
+    SpotlightingEngine,
+    SpotlightingMode,
+    ToolAllowList,
+    TrustLevel,
+    check_human_approval,
+    request_human_approval,
     spotlight_user_input,
     validate_tool_use,
-    request_human_approval,
-    check_human_approval,
 )
 
-
 # ==================== Fixture Helpers ====================
+
 
 @pytest.fixture
 def spotlighting_engine():
@@ -39,7 +39,7 @@ def spotlighting_engine():
     return SpotlightingEngine(
         mode=SpotlightingMode.STRICT,
         enable_hash_verification=True,
-        max_content_size=10000
+        max_content_size=10000,
     )
 
 
@@ -57,6 +57,7 @@ def approval_manager():
 
 # ==================== SpotlightingEngine Tests ====================
 
+
 class TestSpotlightingEngine:
     """Test suite for SpotlightingEngine"""
 
@@ -64,9 +65,7 @@ class TestSpotlightingEngine:
         """Test spotlighting user input"""
         content = "This is a test user input"
         spotlighted = spotlighting_engine.spotlight_content(
-            content=content,
-            source=ContentSource.USER,
-            trust_level=TrustLevel.UNTRUSTED
+            content=content, source=ContentSource.USER, trust_level=TrustLevel.UNTRUSTED
         )
 
         assert isinstance(spotlighted, SpotlightedContent)
@@ -80,8 +79,7 @@ class TestSpotlightingEngine:
         """Test wrapping content with spotlight markers"""
         content = "Test content"
         spotlighted = spotlighting_engine.spotlight_content(
-            content=content,
-            source=ContentSource.USER
+            content=content, source=ContentSource.USER
         )
         wrapped = spotlighting_engine.wrap_content(content, spotlighted)
 
@@ -96,8 +94,7 @@ class TestSpotlightingEngine:
         """Test unwrapping spotlighted content"""
         original_content = "This is the original content"
         spotlighted = spotlighting_engine.spotlight_content(
-            content=original_content,
-            source=ContentSource.USER
+            content=original_content, source=ContentSource.USER
         )
         wrapped = spotlighting_engine.wrap_content(original_content, spotlighted)
         unwrapped = spotlighting_engine.unwrap_content(wrapped)
@@ -109,8 +106,7 @@ class TestSpotlightingEngine:
         """Test that content exceeding max size is truncated"""
         large_content = "A" * 15000  # Exceeds default max of 10000
         spotlighted = spotlighting_engine.spotlight_content(
-            content=large_content,
-            source=ContentSource.USER
+            content=large_content, source=ContentSource.USER
         )
 
         # Content should be truncated
@@ -120,15 +116,16 @@ class TestSpotlightingEngine:
         """Test content hash verification"""
         content = "Test content for hashing"
         spotlighted = spotlighting_engine.spotlight_content(
-            content=content,
-            source=ContentSource.USER
+            content=content, source=ContentSource.USER
         )
 
         # Verify correct hash passes
         assert spotlighting_engine.verify_integrity(content, spotlighted.content_hash)
 
         # Verify incorrect hash fails
-        assert not spotlighting_engine.verify_integrity("different content", spotlighted.content_hash)
+        assert not spotlighting_engine.verify_integrity(
+            "different content", spotlighted.content_hash
+        )
 
     def test_validate_llm_output_safe(self, spotlighting_engine):
         """Test validating safe LLM output"""
@@ -150,22 +147,22 @@ class TestSpotlightingEngine:
 
         for output in dangerous_outputs:
             is_valid, issues = spotlighting_engine.validate_llm_output(output)
-            assert is_valid is False, f"Should detect dangerous pattern in: {output[:50]}"
+            assert (
+                is_valid is False
+            ), f"Should detect dangerous pattern in: {output[:50]}"
             assert len(issues) > 0
 
     def test_detect_input_leakage(self, spotlighting_engine):
         """Test detection of input leakage in output"""
         input_content = "My secret password is hunter123"
         spotlighted_input = spotlighting_engine.spotlight_content(
-            content=input_content,
-            source=ContentSource.USER
+            content=input_content, source=ContentSource.USER
         )
 
         # Output that contains too much of input
         output_with_leakage = "You told me: My secret password is hunter123 and more..."
         is_valid, issues = spotlighting_engine.validate_llm_output(
-            output_with_leakage,
-            spotlighted_input
+            output_with_leakage, spotlighted_input
         )
 
         assert is_valid is False
@@ -182,10 +179,13 @@ class TestSpotlightingEngine:
         for attempt in manipulation_attempts:
             is_valid, issues = spotlighting_engine.validate_llm_output(attempt)
             # Should detect potential manipulation
-            assert not is_valid or any("manipulation" in issue.lower() for issue in issues)
+            assert not is_valid or any(
+                "manipulation" in issue.lower() for issue in issues
+            )
 
 
 # ==================== ToolAllowList Tests ====================
+
 
 class TestToolAllowList:
     """Test suite for ToolAllowList"""
@@ -195,7 +195,7 @@ class TestToolAllowList:
         safe_tools = [
             "get_user_profile",
             "get_assessment_results",
-            "analyze_assessment_results"
+            "analyze_assessment_results",
         ]
 
         for tool in safe_tools:
@@ -208,7 +208,7 @@ class TestToolAllowList:
         blocked_tools = [
             "execute_arbitrary_code",
             "execute_system_command",
-            "access_passwords"
+            "access_passwords",
         ]
 
         for tool in blocked_tools:
@@ -218,20 +218,20 @@ class TestToolAllowList:
 
     def test_human_approval_required_tools(self, tool_allowlist):
         """Test that sensitive tools require human approval"""
-        sensitive_tools = [
-            "delete_user",
-            "export_all_data",
-            "modify_system_settings"
-        ]
+        sensitive_tools = ["delete_user", "export_all_data", "modify_system_settings"]
 
         for tool in sensitive_tools:
             # Without approval
-            is_allowed, reason = tool_allowlist.is_tool_allowed(tool, require_human_approval=False)
+            is_allowed, reason = tool_allowlist.is_tool_allowed(
+                tool, require_human_approval=False
+            )
             assert is_allowed is False
             assert "approval" in reason.lower()
 
             # With approval
-            is_allowed, reason = tool_allowlist.is_tool_allowed(tool, require_human_approval=True)
+            is_allowed, reason = tool_allowlist.is_tool_allowed(
+                tool, require_human_approval=True
+            )
             assert is_allowed is True
             assert "approved" in reason.lower()
 
@@ -262,15 +262,14 @@ class TestToolAllowList:
 
 # ==================== ApprovalManager Tests ====================
 
+
 class TestApprovalManager:
     """Test suite for ApprovalManager"""
 
     def test_request_approval(self, approval_manager):
         """Test requesting human approval"""
         approval_id = approval_manager.request_approval(
-            operation="delete_user",
-            context={"user_id": 123},
-            user_id="admin_456"
+            operation="delete_user", context={"user_id": 123}, user_id="admin_456"
         )
 
         assert approval_id is not None
@@ -280,13 +279,13 @@ class TestApprovalManager:
     def test_approve_operation(self, approval_manager):
         """Test approving an operation"""
         approval_id = approval_manager.request_approval(
-            operation="export_all_data",
-            context={},
-            user_id="user_123"
+            operation="export_all_data", context={}, user_id="user_123"
         )
 
         # Approve the operation
-        success = approval_manager.approve_operation(approval_id, approver_id="security_admin")
+        success = approval_manager.approve_operation(
+            approval_id, approver_id="security_admin"
+        )
 
         assert success is True
 
@@ -299,16 +298,12 @@ class TestApprovalManager:
     def test_deny_operation(self, approval_manager):
         """Test denying an operation"""
         approval_id = approval_manager.request_approval(
-            operation="delete_user",
-            context={},
-            user_id="user_123"
+            operation="delete_user", context={}, user_id="user_123"
         )
 
         # Deny the operation
         success = approval_manager.deny_operation(
-            approval_id,
-            denier_id="security_admin",
-            reason="Insufficient justification"
+            approval_id, denier_id="security_admin", reason="Insufficient justification"
         )
 
         assert success is True
@@ -322,9 +317,7 @@ class TestApprovalManager:
     def test_check_approval_status(self, approval_manager):
         """Test checking approval status"""
         approval_id = approval_manager.request_approval(
-            operation="sensitive_operation",
-            context={},
-            user_id="user_123"
+            operation="sensitive_operation", context={}, user_id="user_123"
         )
 
         # Check pending status
@@ -346,13 +339,12 @@ class TestApprovalManager:
         short_timeout_manager = ApprovalManager(approval_timeout=1)
 
         approval_id = short_timeout_manager.request_approval(
-            operation="test_operation",
-            context={},
-            user_id="user_123"
+            operation="test_operation", context={}, user_id="user_123"
         )
 
         # Wait for timeout
         import time
+
         time.sleep(2)
 
         # Check should indicate expired
@@ -369,14 +361,13 @@ class TestApprovalManager:
         approval_ids = []
         for i in range(3):
             approval_id = short_timeout_manager.request_approval(
-                operation=f"operation_{i}",
-                context={},
-                user_id=f"user_{i}"
+                operation=f"operation_{i}", context={}, user_id=f"user_{i}"
             )
             approval_ids.append(approval_id)
 
         # Wait for timeout
         import time
+
         time.sleep(2)
 
         # Cleanup
@@ -388,9 +379,7 @@ class TestApprovalManager:
     def test_duplicate_approval_attempt(self, approval_manager):
         """Test that duplicate approval/denial is prevented"""
         approval_id = approval_manager.request_approval(
-            operation="test_operation",
-            context={},
-            user_id="user_123"
+            operation="test_operation", context={}, user_id="user_123"
         )
 
         # Approve once
@@ -408,6 +397,7 @@ class TestApprovalManager:
 
 
 # ==================== Convenience Function Tests ====================
+
 
 class TestConvenienceFunctions:
     """Test suite for convenience functions"""
@@ -438,9 +428,7 @@ class TestConvenienceFunctions:
     def test_request_and_check_approval(self):
         """Test request_human_approval and check_human_approval"""
         approval_id = request_human_approval(
-            operation="test_operation",
-            context={"test": "data"},
-            user_id="user_123"
+            operation="test_operation", context={"test": "data"}, user_id="user_123"
         )
 
         assert approval_id is not None
@@ -452,6 +440,7 @@ class TestConvenienceFunctions:
 
         # Approve
         from app.middleware.spotlighting import approval_manager
+
         approval_manager.approve_operation(approval_id, "admin")
 
         # Check status after approval
@@ -461,16 +450,18 @@ class TestConvenienceFunctions:
 
 # ==================== Integration Tests ====================
 
+
 class TestSpotlightingIntegration:
     """Integration tests for spotlighting system"""
 
-    def test_full_spotlighting_workflow(self, spotlighting_engine, tool_allowlist, approval_manager):
+    def test_full_spotlighting_workflow(
+        self, spotlighting_engine, tool_allowlist, approval_manager
+    ):
         """Test complete workflow: spotlight -> validate -> approve"""
         # Step 1: Spotlight user input
         user_input = "Export all user data to CSV"
         spotlighted = spotlighting_engine.spotlight_content(
-            content=user_input,
-            source=ContentSource.USER
+            content=user_input, source=ContentSource.USER
         )
         wrapped = spotlighting_engine.wrap_content(user_input, spotlighted)
         unwrapped = spotlighting_engine.unwrap_content(wrapped)
@@ -484,9 +475,7 @@ class TestSpotlightingIntegration:
 
         # Step 3: Request approval
         approval_id = approval_manager.request_approval(
-            operation=tool_name,
-            context={"export_format": "csv"},
-            user_id="user_123"
+            operation=tool_name, context={"export_format": "csv"}, user_id="user_123"
         )
 
         # Step 4: Approve operation
@@ -516,14 +505,14 @@ class TestSpotlightingIntegration:
 
 # ==================== Edge Case Tests ====================
 
+
 class TestEdgeCases:
     """Test edge cases and boundary conditions"""
 
     def test_empty_content(self, spotlighting_engine):
         """Test handling of empty content"""
         spotlighted = spotlighting_engine.spotlight_content(
-            content="",
-            source=ContentSource.USER
+            content="", source=ContentSource.USER
         )
 
         assert spotlighted.content == ""
@@ -533,8 +522,7 @@ class TestEdgeCases:
         """Test handling of unicode content"""
         unicode_content = "Hello 世界 🌍 Привет"
         spotlighted = spotlighting_engine.spotlight_content(
-            content=unicode_content,
-            source=ContentSource.USER
+            content=unicode_content, source=ContentSource.USER
         )
 
         wrapped = spotlighting_engine.wrap_content(unicode_content, spotlighted)
@@ -548,8 +536,7 @@ class TestEdgeCases:
 
         # Should truncate to max_content_size
         spotlighted = spotlighting_engine.spotlight_content(
-            content=long_content,
-            source=ContentSource.USER
+            content=long_content, source=ContentSource.USER
         )
 
         assert len(spotlighted.content) <= 10000
@@ -558,8 +545,7 @@ class TestEdgeCases:
         """Test handling of special characters"""
         special_content = "!@#$%^&*()_+-=[]{}|;':\",./<>?`"
         spotlighted = spotlighting_engine.spotlight_content(
-            content=special_content,
-            source=ContentSource.USER
+            content=special_content, source=ContentSource.USER
         )
 
         wrapped = spotlighting_engine.wrap_content(special_content, spotlighted)

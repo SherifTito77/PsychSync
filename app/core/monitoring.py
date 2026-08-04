@@ -5,16 +5,16 @@ Includes performance metrics, request tracing, and health monitoring
 """
 
 import asyncio
+import logging
+import time
+import uuid
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-import logging
-import time
 from typing import Any
-import uuid
 
-from fastapi import Request
 import psutil
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
@@ -97,7 +97,9 @@ class MetricsCollector:
 
         # Track status codes
         status_code = str(metrics.status_code)
-        stats["status_codes"][status_code] = stats["status_codes"].get(status_code, 0) + 1
+        stats["status_codes"][status_code] = (
+            stats["status_codes"].get(status_code, 0) + 1
+        )
 
         # Track errors
         if metrics.status_code >= 400:
@@ -138,7 +140,8 @@ class MetricsCollector:
         filtered_metrics = [
             m
             for m in self.request_metrics
-            if m.timestamp >= cutoff_time and (path_filter is None or path_filter in m.path)
+            if m.timestamp >= cutoff_time
+            and (path_filter is None or path_filter in m.path)
         ]
 
         if not filtered_metrics:
@@ -164,13 +167,17 @@ class MetricsCollector:
             "total_requests": total_requests,
             "avg_duration": total_duration / total_requests,
             "requests_per_minute": total_requests / minutes,
-            "error_rate": (error_count / total_requests * 100) if total_requests > 0 else 0,
+            "error_rate": (
+                (error_count / total_requests * 100) if total_requests > 0 else 0
+            ),
             "status_codes": status_codes,
             "avg_response_time_95th": self._calculate_percentile(filtered_metrics, 95),
             "avg_response_time_99th": self._calculate_percentile(filtered_metrics, 99),
         }
 
-    def _calculate_percentile(self, metrics: list[RequestMetrics], percentile: int) -> float:
+    def _calculate_percentile(
+        self, metrics: list[RequestMetrics], percentile: int
+    ) -> float:
         """Calculate response time percentile"""
         if not metrics:
             return 0.0

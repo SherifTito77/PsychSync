@@ -171,7 +171,9 @@ class MessageQueueMonitor:
         health_report["overall_score"] = sum(scores) / len(scores) if scores else 0
 
         # Update Prometheus metric
-        queue_health_score.labels(queue_type="kafka").set(health_report["overall_score"])
+        queue_health_score.labels(queue_type="kafka").set(
+            health_report["overall_score"]
+        )
 
         # Collect alerts
         for component in health_report["components"].values():
@@ -197,21 +199,25 @@ class MessageQueueMonitor:
 
             if buffer_size > self.alert_thresholds["buffer_size_warning"]:
                 score -= 20
-                alerts.append({
-                    "severity": "warning",
-                    "message": f"Kafka buffer size elevated: {buffer_size} events",
-                    "metric": "buffer_size",
-                    "value": buffer_size,
-                })
+                alerts.append(
+                    {
+                        "severity": "warning",
+                        "message": f"Kafka buffer size elevated: {buffer_size} events",
+                        "metric": "buffer_size",
+                        "value": buffer_size,
+                    }
+                )
 
             if buffer_size > self.alert_thresholds["buffer_size_warning"] * 5:
                 score -= 30
-                alerts.append({
-                    "severity": "critical",
-                    "message": f"Kafka buffer size critical: {buffer_size} events",
-                    "metric": "buffer_size",
-                    "value": buffer_size,
-                })
+                alerts.append(
+                    {
+                        "severity": "critical",
+                        "message": f"Kafka buffer size critical: {buffer_size} events",
+                        "metric": "buffer_size",
+                        "value": buffer_size,
+                    }
+                )
 
             return {
                 "score": max(0, score),
@@ -225,10 +231,12 @@ class MessageQueueMonitor:
             return {
                 "score": 0,
                 "error": str(e),
-                "alerts": [{
-                    "severity": "critical",
-                    "message": f"Buffer health check failed: {e}",
-                }],
+                "alerts": [
+                    {
+                        "severity": "critical",
+                        "message": f"Buffer health check failed: {e}",
+                    }
+                ],
             }
 
     async def _check_consumer_lag(self, consumer) -> Dict[str, Any]:
@@ -248,21 +256,25 @@ class MessageQueueMonitor:
 
             if lag > self.alert_thresholds["consumer_lag_warning"]:
                 score -= 20
-                alerts.append({
-                    "severity": "warning",
-                    "message": f"Consumer lag elevated: {lag}",
-                    "metric": "consumer_lag",
-                    "value": lag,
-                })
+                alerts.append(
+                    {
+                        "severity": "warning",
+                        "message": f"Consumer lag elevated: {lag}",
+                        "metric": "consumer_lag",
+                        "value": lag,
+                    }
+                )
 
             if lag > self.alert_thresholds["consumer_lag_critical"]:
                 score -= 40
-                alerts.append({
-                    "severity": "critical",
-                    "message": f"Consumer lag critical: {lag}",
-                    "metric": "consumer_lag",
-                    "value": lag,
-                })
+                alerts.append(
+                    {
+                        "severity": "critical",
+                        "message": f"Consumer lag critical: {lag}",
+                        "metric": "consumer_lag",
+                        "value": lag,
+                    }
+                )
 
             return {
                 "score": max(0, score),
@@ -286,7 +298,8 @@ class MessageQueueMonitor:
             DLQ health report
         """
         try:
-            from sqlalchemy import select, func
+            from sqlalchemy import func, select
+
             from app.core.database import AsyncSessionLocal
             from app.db.models.dead_letter import DeadLetterTask
             from app.db.models.kafka_dead_letter import KafkaDeadLetterTask
@@ -312,22 +325,26 @@ class MessageQueueMonitor:
 
             if total_dlq > self.alert_thresholds["dlq_size_warning"]:
                 score -= 20
-                alerts.append({
-                    "severity": "warning",
-                    "message": f"DLQ size elevated: {total_dlq} entries "
-                              f"(Celery: {celery_dlq_size}, Kafka: {kafka_dlq_size})",
-                    "metric": "dlq_size",
-                    "value": total_dlq,
-                })
+                alerts.append(
+                    {
+                        "severity": "warning",
+                        "message": f"DLQ size elevated: {total_dlq} entries "
+                        f"(Celery: {celery_dlq_size}, Kafka: {kafka_dlq_size})",
+                        "metric": "dlq_size",
+                        "value": total_dlq,
+                    }
+                )
 
             if total_dlq > self.alert_thresholds["dlq_size_critical"]:
                 score -= 40
-                alerts.append({
-                    "severity": "critical",
-                    "message": f"DLQ size critical: {total_dlq} entries",
-                    "metric": "dlq_size",
-                    "value": total_dlq,
-                })
+                alerts.append(
+                    {
+                        "severity": "critical",
+                        "message": f"DLQ size critical: {total_dlq} entries",
+                        "metric": "dlq_size",
+                        "value": total_dlq,
+                    }
+                )
 
             return {
                 "score": max(0, score),
@@ -386,7 +403,7 @@ class SlackAlertHandler:
         Args:
             webhook_url: Slack webhook URL (default: from settings)
         """
-        self.webhook_url = webhook_url or getattr(settings, 'SLACK_WEBHOOK_URL', None)
+        self.webhook_url = webhook_url or getattr(settings, "SLACK_WEBHOOK_URL", None)
 
     async def send_alert(self, alert: Dict[str, Any]):
         """
@@ -411,17 +428,37 @@ class SlackAlertHandler:
 
         message = {
             "text": f"{emoji} Queue Monitoring Alert",
-            "attachments": [{
-                "color": "danger" if alert.get("severity") == "critical" else "warning",
-                "fields": [
-                    {"title": "Severity", "value": alert.get("severity", "unknown"), "short": True},
-                    {"title": "Metric", "value": alert.get("metric", "unknown"), "short": True},
-                    {"title": "Value", "value": str(alert.get("value", "N/A")), "short": True},
-                    {"title": "Message", "value": alert.get("message", ""), "short": False},
-                ],
-                "footer": "PsychSync Queue Monitor",
-                "ts": int(datetime.utcnow().timestamp()),
-            }],
+            "attachments": [
+                {
+                    "color": (
+                        "danger" if alert.get("severity") == "critical" else "warning"
+                    ),
+                    "fields": [
+                        {
+                            "title": "Severity",
+                            "value": alert.get("severity", "unknown"),
+                            "short": True,
+                        },
+                        {
+                            "title": "Metric",
+                            "value": alert.get("metric", "unknown"),
+                            "short": True,
+                        },
+                        {
+                            "title": "Value",
+                            "value": str(alert.get("value", "N/A")),
+                            "short": True,
+                        },
+                        {
+                            "title": "Message",
+                            "value": alert.get("message", ""),
+                            "short": False,
+                        },
+                    ],
+                    "footer": "PsychSync Queue Monitor",
+                    "ts": int(datetime.utcnow().timestamp()),
+                }
+            ],
         }
 
         try:
@@ -572,9 +609,7 @@ class MessageLossDetector:
 
         # Update Prometheus metric
         kafka_messages_consumed_total.labels(
-            topic=topic,
-            consumer_group="default",
-            status="success"
+            topic=topic, consumer_group="default", status="success"
         ).inc()
 
     def detect_loss(self) -> Dict[str, Any]:
@@ -594,7 +629,9 @@ class MessageLossDetector:
             consumed = len(self.consume_counts.get(topic, []))
             loss = published - consumed
 
-            loss_rate = loss / self.window_seconds * 60 if self.window_seconds > 0 else 0
+            loss_rate = (
+                loss / self.window_seconds * 60 if self.window_seconds > 0 else 0
+            )
 
             report["topics"][topic] = {
                 "published": published,

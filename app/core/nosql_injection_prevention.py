@@ -69,7 +69,9 @@ class NoSQLInjectionPreventer:
             # Remove dangerous operators
             for operator in cls.DANGEROUS_OPERATORS:
                 if operator in user_input:
-                    raise ValueError(f"Dangerous operator '{operator}' detected in input")
+                    raise ValueError(
+                        f"Dangerous operator '{operator}' detected in input"
+                    )
 
             # Check for injection patterns
             for pattern in cls.INJECTION_PATTERNS:
@@ -110,7 +112,9 @@ class NoSQLInjectionPreventer:
                     raise ValueError(f"Unknown operator: {key}")
                 # Known dangerous operator - only allow in specific contexts
                 if key in {"$where", "$regex", "$expr"}:
-                    raise ValueError(f"Dangerous operator '{key}' not allowed from user input")
+                    raise ValueError(
+                        f"Dangerous operator '{key}' not allowed from user input"
+                    )
 
             # Recursively sanitize values
             sanitized[key] = cls.sanitize_query_input(value)
@@ -369,7 +373,9 @@ if __name__ == "__main__":
     # Test 2: Dangerous operator detection
     print("\n⚠️  Test 2: Dangerous Operator Detection")
     try:
-        NoSQLInjectionPreventer.sanitize_query_input({"$where": 'this.password == "123"'})
+        NoSQLInjectionPreventer.sanitize_query_input(
+            {"$where": 'this.password == "123"'}
+        )
         print("❌ FAILED - Should have detected dangerous operator")
     except ValueError as e:
         print(f"✅ Detected dangerous operator: {e}")

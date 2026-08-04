@@ -9,7 +9,9 @@ class Role(Base):
     __tablename__ = "roles"
 
     id = sa.Column(
-        UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=sa.text("gen_random_uuid()"),
     )
     name = sa.Column(sa.Text, nullable=False, unique=True)
     description = sa.Column(sa.Text, nullable=True)

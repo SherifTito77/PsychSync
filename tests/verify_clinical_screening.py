@@ -15,7 +15,9 @@ def check_openapi():
     print("1. Checking OpenAPI specification...")
 
     try:
-        with urllib.request.urlopen("http://localhost:8000/openapi.json", timeout=5) as response:
+        with urllib.request.urlopen(
+            "http://localhost:8000/openapi.json", timeout=5
+        ) as response:
             spec = json.loads(response.read())
 
         paths = spec.get("paths", {})
@@ -42,7 +44,9 @@ def check_openapi():
                 print(f"  ❌ {path} not found")
 
         all_ok = all(v == "✅" for v in found.values())
-        print(f"\nResult: {'✅ All endpoints found' if all_ok else '⚠️ Some endpoints missing'}")
+        print(
+            f"\nResult: {'✅ All endpoints found' if all_ok else '⚠️ Some endpoints missing'}"
+        )
         return all_ok
 
     except Exception as e:
@@ -61,7 +65,7 @@ def check_database_tables():
             ["psql", "-d", "psychsync", "-c", "\\dt clinical_*"],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
 
         if result.returncode == 0:
@@ -70,7 +74,7 @@ def check_database_tables():
                 "clinical_alerts",
                 "clinical_referrals",
                 "clinical_audit_logs",
-                "clinical_consents"
+                "clinical_consents",
             ]
 
             output = result.stdout
@@ -83,7 +87,9 @@ def check_database_tables():
                     print(f"  ❌ {table}")
 
             all_ok = len(found) == len(tables)
-            print(f"\nResult: {f'✅ All {len(found)} tables found' if all_ok else f'⚠️ Only {len(found)}/{len(tables)} tables found'}")
+            print(
+                f"\nResult: {f'✅ All {len(found)} tables found' if all_ok else f'⚠️ Only {len(found)}/{len(tables)} tables found'}"
+            )
             return all_ok
         else:
             print(f"  ❌ Database query failed: {result.stderr}")
@@ -99,7 +105,10 @@ def check_module_imports():
     print("\n3. Checking module imports...")
 
     modules = [
-        ("app.services.clinical.scoring_algorithms", ["PHQ9Scorer", "GAD7Scorer", "CSSRSScorer"]),
+        (
+            "app.services.clinical.scoring_algorithms",
+            ["PHQ9Scorer", "GAD7Scorer", "CSSRSScorer"],
+        ),
         ("app.services.clinical.crisis_intervention", ["CrisisInterventionService"]),
         ("app.api.v1.endpoints.screening", ["router"]),
     ]
@@ -124,7 +133,9 @@ def check_module_imports():
             print(f"  ❌ Failed to import {module_name}: {e}")
             all_ok = False
 
-    print(f"\nResult: {'✅ All modules imported' if all_ok else '⚠️ Some imports failed'}")
+    print(
+        f"\nResult: {'✅ All modules imported' if all_ok else '⚠️ Some imports failed'}"
+    )
     return all_ok
 
 
@@ -149,7 +160,7 @@ def check_endpoint_responses():
                 f"http://localhost:8000{endpoint}",
                 data=b"{}",
                 headers={"Content-Type": "application/json"},
-                method="POST"
+                method="POST",
             )
 
             with urllib.request.urlopen(req, timeout=3) as response:
@@ -175,7 +186,9 @@ def check_endpoint_responses():
             print(f"  ❌ {endpoint} - Error: {e}")
 
     all_ok = accessible == len(endpoints)
-    print(f"\nResult: {f'✅ All {accessible} endpoints accessible' if all_ok else f'⚠️ Only {accessible}/{len(endpoints)} accessible'}")
+    print(
+        f"\nResult: {f'✅ All {accessible} endpoints accessible' if all_ok else f'⚠️ Only {accessible}/{len(endpoints)} accessible'}"
+    )
     return all_ok
 
 

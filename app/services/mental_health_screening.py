@@ -3,9 +3,9 @@ Mental Health Screening Service
 Provides clinical assessment processing for PHQ-9, GAD-7, and other evidence-based screenings
 """
 
+import logging
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
 
 from sqlalchemy import and_, select
@@ -352,7 +352,9 @@ class MentalHealthScreeningService:
             risk_level = self._calculate_risk_level(assessment_type, total_score)
 
             # Generate clinical interpretation
-            interpretation = self._generate_interpretation(assessment_type, total_score, risk_level)
+            interpretation = self._generate_interpretation(
+                assessment_type, total_score, risk_level
+            )
 
             # Create recommendations
             recommendations = await self._generate_recommendations(
@@ -364,7 +366,12 @@ class MentalHealthScreeningService:
 
             # Save assessment results
             assessment_result = await self._save_assessment_results(
-                user, assessment_type, responses, total_score, risk_level, additional_notes
+                user,
+                assessment_type,
+                responses,
+                total_score,
+                risk_level,
+                additional_notes,
             )
 
             # Generate AI-enhanced insights
@@ -375,7 +382,9 @@ class MentalHealthScreeningService:
             return {
                 "success": True,
                 "assessment_result": {
-                    "assessment_id": assessment_result.id if assessment_result else None,
+                    "assessment_id": (
+                        assessment_result.id if assessment_result else None
+                    ),
                     "assessment_type": assessment_type,
                     "total_score": total_score,
                     "risk_level": risk_level.value,
@@ -384,7 +393,9 @@ class MentalHealthScreeningService:
                     "crisis_alert": crisis_alert,
                     "ai_insights": ai_insights,
                     "completed_at": datetime.utcnow().isoformat(),
-                    "next_recommended_screening": self._calculate_next_screening_date(risk_level),
+                    "next_recommended_screening": self._calculate_next_screening_date(
+                        risk_level
+                    ),
                 },
             }
 
@@ -527,13 +538,15 @@ class MentalHealthScreeningService:
             user_history = await self._get_user_assessment_history(user)
 
             # Generate AI insights based on patterns
-            ai_recommendations = await self.ai_service.generate_personalized_recommendations(
-                user_id=user.id,
-                assessment_type=assessment_type,
-                current_score=score,
-                risk_level=risk_level.value,
-                response_pattern=responses,
-                historical_data=user_history,
+            ai_recommendations = (
+                await self.ai_service.generate_personalized_recommendations(
+                    user_id=user.id,
+                    assessment_type=assessment_type,
+                    current_score=score,
+                    risk_level=risk_level.value,
+                    response_pattern=responses,
+                    historical_data=user_history,
+                )
             )
 
             if ai_recommendations:
@@ -551,14 +564,19 @@ class MentalHealthScreeningService:
         # Check PHQ-9 question 9 (suicidal thoughts)
         if assessment_type == AssessmentType.PHQ9.value:
             suicidal_thoughts_score = responses.get("phq9_9", 0)
-            if suicidal_thoughts_score >= 2:  # "More than half the days" or "Nearly every day"
+            if (
+                suicidal_thoughts_score >= 2
+            ):  # "More than half the days" or "Nearly every day"
                 return {
                     "crisis_detected": True,
                     "severity": "high" if suicidal_thoughts_score == 3 else "moderate",
                     "type": "suicidal_ideation",
                     "message": "Responses indicate possible suicidal thoughts. Immediate support is available.",
                     "resources": [
-                        {"name": "National Suicide Prevention Lifeline", "phone": "988"},
+                        {
+                            "name": "National Suicide Prevention Lifeline",
+                            "phone": "988",
+                        },
                         {"name": "Crisis Text Line", "text": "HOME to 741741"},
                         {"name": "Emergency Services", "phone": "911"},
                     ],
@@ -589,7 +607,9 @@ class MentalHealthScreeningService:
             }
 
             # For now, return mock data (would integrate with actual Response model)
-            logger.info(f"Would save assessment results for user {user.id}: {response_data}")
+            logger.info(
+                f"Would save assessment results for user {user.id}: {response_data}"
+            )
             return None
 
         except Exception as e:
@@ -597,7 +617,11 @@ class MentalHealthScreeningService:
             return None
 
     async def _generate_ai_insights(
-        self, user: User, assessment_type: str, responses: dict[str, int], risk_level: RiskLevel
+        self,
+        user: User,
+        assessment_type: str,
+        responses: dict[str, int],
+        risk_level: RiskLevel,
     ) -> dict[str, Any]:
         """Generate AI-enhanced insights based on assessment data"""
         try:
@@ -627,17 +651,18 @@ class MentalHealthScreeningService:
         return {
             "average_response": sum(response_values) / len(response_values),
             "response_variance": sum(
-                (x - sum(response_values) / len(response_values)) ** 2 for x in response_values
+                (x - sum(response_values) / len(response_values)) ** 2
+                for x in response_values
             )
             / len(response_values),
-            "highest_scoring_items": sorted(responses.items(), key=lambda x: x[1], reverse=True)[
-                :3
-            ],
-            "consistency_score": "high"
-            if len(set(response_values)) <= 2
-            else "moderate"
-            if len(set(response_values)) <= 3
-            else "variable",
+            "highest_scoring_items": sorted(
+                responses.items(), key=lambda x: x[1], reverse=True
+            )[:3],
+            "consistency_score": (
+                "high"
+                if len(set(response_values)) <= 2
+                else "moderate" if len(set(response_values)) <= 3 else "variable"
+            ),
         }
 
     async def _generate_predictive_insights(
@@ -646,16 +671,20 @@ class MentalHealthScreeningService:
         """Generate predictive insights based on current assessment"""
         # This would integrate with the AI analytics service for predictive modeling
         return {
-            "predicted_trajectory": "stable"
-            if risk_level in [RiskLevel.MINIMAL, RiskLevel.MILD]
-            else "declining"
-            if risk_level == RiskLevel.SEVERE
-            else "improving_with_intervention",
-            "probability_of_improvement": 0.7
-            if risk_level in [RiskLevel.MINIMAL, RiskLevel.MILD]
-            else 0.4
-            if risk_level == RiskLevel.MODERATE
-            else 0.2,
+            "predicted_trajectory": (
+                "stable"
+                if risk_level in [RiskLevel.MINIMAL, RiskLevel.MILD]
+                else (
+                    "declining"
+                    if risk_level == RiskLevel.SEVERE
+                    else "improving_with_intervention"
+                )
+            ),
+            "probability_of_improvement": (
+                0.7
+                if risk_level in [RiskLevel.MINIMAL, RiskLevel.MILD]
+                else 0.4 if risk_level == RiskLevel.MODERATE else 0.2
+            ),
             "key_factors": [
                 "Early detection and intervention",
                 "Consistent monitoring",

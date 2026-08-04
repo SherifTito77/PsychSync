@@ -3,44 +3,70 @@ Behavioral Pattern Recognition API Endpoints
 REST API endpoints for behavioral pattern analysis, anomaly detection, and insights.
 """
 
-from typing import List, Dict, Any, Optional
-
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Query, BackgroundTasks
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncAsyncSession
 
-from app.api.v1.deps import get_db, get_current_active_user, get_current_user
+from app.api.v1.deps import get_current_active_user, get_current_user, get_db
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
-from app.services.behavioral_pattern_recognition import BehavioralPatternRecognizer, PatternType
-from app.services.anomaly_detection import AdvancedAnomalyDetector, AnomalyMethod, AnomalyCategory
-from app.services.pattern_matching_engine import PatternMatchingEngine, PatternCategory, MatchingAlgorithm
+from app.services.anomaly_detection import (
+    AdvancedAnomalyDetector,
+    AnomalyCategory,
+    AnomalyMethod,
+)
+from app.services.behavioral_pattern_recognition import (
+    BehavioralPatternRecognizer,
+    PatternType,
+)
+from app.services.pattern_matching_engine import (
+    MatchingAlgorithm,
+    PatternCategory,
+    PatternMatchingEngine,
+)
+
 
 # Helper function for permission checking
 def require_permission(permission: str):
     """Simple permission check decorator"""
+
     def decorator(func):
-        async def wrapper(current_user: User = Depends(get_current_active_user), **kwargs):
+        async def wrapper(
+            current_user: User = Depends(get_current_active_user), **kwargs
+        ):
             if not current_user.is_admin and permission == "admin":
                 raise HTTPException(status_code=403, detail="Admin access required")
             return await func(current_user=current_user, **kwargs)
+
         return wrapper
+
     return decorator
 
+
 router = APIRouter(prefix="/behavioral-patterns", tags=["behavioral-patterns"])
+
 
 # Pydantic models for request/response
 class PatternAnalysisRequest(BaseModel):
     """Request model for pattern analysis."""
+
     user_id: str = Field(..., description="User ID to analyze")
-    time_window_hours: int = Field(168, description="Time window in hours (default: 1 week)")
-    pattern_types: Optional[List[str]] = Field(None, description="Pattern types to analyze")
+    time_window_hours: int = Field(
+        168, description="Time window in hours (default: 1 week)"
+    )
+    pattern_types: Optional[List[str]] = Field(
+        None, description="Pattern types to analyze"
+    )
     include_anomalies: bool = Field(True, description="Include anomaly detection")
+
 
 class PatternAnalysisResponse(BaseModel):
     """Response model for pattern analysis."""
+
     user_id: str
     analysis_period: Dict[str, Any]
     events_analyzed: int
@@ -51,55 +77,77 @@ class PatternAnalysisResponse(BaseModel):
     behavioral_profile: Dict[str, Any]
     risk_assessment: Dict[str, Any]
 
+
 class AnomalyDetectionRequest(BaseModel):
     """Request model for anomaly detection."""
+
     user_id: str = Field(..., description="User ID to analyze")
     data: Optional[List[float]] = Field(None, description="Numeric data for analysis")
     method: str = Field("ensemble", description="Detection method")
     sensitivity: float = Field(0.1, description="Detection sensitivity")
 
+
 class AnomalyDetectionResponse(BaseModel):
     """Response model for anomaly detection results."""
+
     user_id: str
     anomalies: List[Dict[str, Any]]
     method_used: str
     data_points_analyzed: int
     confidence_threshold: float
 
+
 class PatternMatchingRequest(BaseModel):
     """Request model for pattern matching."""
+
     user_data: Dict[str, Any] = Field(..., description="User behavioral data")
-    template_ids: Optional[List[str]] = Field(None, description="Pattern templates to match")
-    algorithms: Optional[List[str]] = Field(None, description="Matching algorithms to use")
+    template_ids: Optional[List[str]] = Field(
+        None, description="Pattern templates to match"
+    )
+    algorithms: Optional[List[str]] = Field(
+        None, description="Matching algorithms to use"
+    )
     user_id: Optional[str] = Field(None, description="User ID for context")
+
 
 class PatternMatchingResponse(BaseModel):
     """Response model for pattern matching results."""
+
     matches: List[Dict[str, Any]]
     templates_used: int
     algorithms_used: List[str]
     total_matches: int
 
+
 class ComparisonRequest(BaseModel):
     """Request model for pattern comparison."""
+
     user_ids: List[str] = Field(..., description="User IDs to compare")
     time_range: str = Field("30d", description="Time range for comparison")
-    metrics: Optional[List[str]] = Field(None, description="Specific metrics to compare")
+    metrics: Optional[List[str]] = Field(
+        None, description="Specific metrics to compare"
+    )
+
 
 class ComparisonResponse(BaseModel):
     """Response model for pattern comparison results."""
+
     comparison_data: List[Dict[str, Any]]
     similarity_matrix: List[List[float]]
     insights: List[Dict[str, Any]]
     recommendations: List[str]
 
 
-@router.post("/analyze", response_model=PatternAnalysisResponse, dependencies=[Depends(get_current_user)])
+@router.post(
+    "/analyze",
+    response_model=PatternAnalysisResponse,
+    dependencies=[Depends(get_current_user)],
+)
 async def analyze_user_patterns(
     request: PatternAnalysisRequest,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Analyze behavioral patterns for a specific user.
@@ -115,10 +163,12 @@ async def analyze_user_patterns(
         # Check permissions
         if request.user_id != current_user.id and not current_user.is_admin:
             # Check if user is in same organization/team
-            if not hasattr(current_user, 'organization_id') or not hasattr(current_user, 'teams'):
+            if not hasattr(current_user, "organization_id") or not hasattr(
+                current_user, "teams"
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Not authorized to analyze this user's patterns"
+                    detail="Not authorized to analyze this user's patterns",
                 )
 
         # Initialize pattern recognizer
@@ -132,22 +182,22 @@ async def analyze_user_patterns(
             except ValueError as e:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid pattern type: {e}"
+                    detail=f"Invalid pattern type: {e}",
                 ) from e
 
         # Perform analysis
         analysis = await pattern_recognizer.analyze_user_behavior(
             user_id=request.user_id,
             time_window_hours=request.time_window_hours,
-            pattern_types=pattern_types
+            pattern_types=pattern_types,
         )
 
         # Schedule background processing for heavy computations if needed
-        if request.include_anomalies and len(analysis['events_analyzed']) > 1000:
+        if request.include_anomalies and len(analysis["events_analyzed"]) > 1000:
             background_tasks.add_task(
                 perform_detailed_anomaly_analysis,
                 request.user_id,
-                request.time_window_hours
+                request.time_window_hours,
             )
 
         return PatternAnalysisResponse(**analysis)
@@ -157,14 +207,19 @@ async def analyze_user_patterns(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error analyzing user patterns: {str(e)}"
+            detail=f"Error analyzing user patterns: {str(e)}",
         ) from e
 
-@router.post("/detect-anomalies", response_model=AnomalyDetectionResponse, dependencies=[Depends(get_current_user)])
+
+@router.post(
+    "/detect-anomalies",
+    response_model=AnomalyDetectionResponse,
+    dependencies=[Depends(get_current_user)],
+)
 async def detect_anomalies(
     request: AnomalyDetectionRequest,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Detect anomalies in user behavior data.
@@ -181,7 +236,7 @@ async def detect_anomalies(
         if request.user_id != current_user.id and not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to detect anomalies for this user"
+                detail="Not authorized to detect anomalies for this user",
             )
 
         # Initialize anomaly detector
@@ -193,7 +248,7 @@ async def detect_anomalies(
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid detection method: {request.method}"
+                detail=f"Invalid detection method: {request.method}",
             )
 
         # Get data if not provided
@@ -206,30 +261,27 @@ async def detect_anomalies(
         if len(data) < 10:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Insufficient data for anomaly detection (minimum 10 data points required)"
+                detail="Insufficient data for anomaly detection (minimum 10 data points required)",
             )
 
         # Detect anomalies
-        anomalies = await anomaly_detector.detect_anomalies(
-            data=data,
-            method=method
-        )
+        anomalies = await anomaly_detector.detect_anomalies(data=data, method=method)
 
         # Convert to response format
         anomaly_dicts = []
         for anomaly in anomalies:
             anomaly_dict = {
-                'anomaly_id': anomaly.anomaly_id,
-                'timestamp': anomaly.timestamp.isoformat(),
-                'value': anomaly.value,
-                'anomaly_score': anomaly.anomaly_score,
-                'method': anomaly.method.value,
-                'category': anomaly.category.value,
-                'severity': anomaly.severity.value,
-                'confidence': anomaly.confidence,
-                'context': anomaly.context,
-                'baseline_stats': anomaly.baseline_stats,
-                'explanation': anomaly.explanation
+                "anomaly_id": anomaly.anomaly_id,
+                "timestamp": anomaly.timestamp.isoformat(),
+                "value": anomaly.value,
+                "anomaly_score": anomaly.anomaly_score,
+                "method": anomaly.method.value,
+                "category": anomaly.category.value,
+                "severity": anomaly.severity.value,
+                "confidence": anomaly.confidence,
+                "context": anomaly.context,
+                "baseline_stats": anomaly.baseline_stats,
+                "explanation": anomaly.explanation,
             }
             anomaly_dicts.append(anomaly_dict)
 
@@ -238,7 +290,7 @@ async def detect_anomalies(
             anomalies=anomaly_dicts,
             method_used=request.method,
             data_points_analyzed=len(data),
-            confidence_threshold=0.6
+            confidence_threshold=0.6,
         )
 
     except HTTPException:
@@ -246,14 +298,15 @@ async def detect_anomalies(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error detecting anomalies: {str(e)}"
+            detail=f"Error detecting anomalies: {str(e)}",
         ) from e
+
 
 @router.post("/match-patterns", response_model=PatternMatchingResponse)
 async def match_patterns(
     request: PatternMatchingRequest,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Match user data against known pattern templates.
@@ -277,7 +330,7 @@ async def match_patterns(
             except ValueError as e:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Invalid matching algorithm: {e}"
+                    detail=f"Invalid matching algorithm: {e}",
                 ) from e
 
         # Perform pattern matching
@@ -285,31 +338,37 @@ async def match_patterns(
             user_data=request.user_data,
             template_ids=request.template_ids,
             matching_algorithms=algorithms,
-            user_id=request.user_id
+            user_id=request.user_id,
         )
 
         # Convert to response format
         match_dicts = []
         for match in matches:
             match_dict = {
-                'match_id': match.match_id,
-                'template_id': match.template_id,
-                'user_id': match.user_id,
-                'match_score': match.match_score,
-                'confidence': match.confidence,
-                'matched_data': match.matched_data,
-                'match_timestamp': match.match_timestamp.isoformat(),
-                'pattern_instances': match.pattern_instances,
-                'similarity_metrics': match.similarity_metrics,
-                'context': match.context
+                "match_id": match.match_id,
+                "template_id": match.template_id,
+                "user_id": match.user_id,
+                "match_score": match.match_score,
+                "confidence": match.confidence,
+                "matched_data": match.matched_data,
+                "match_timestamp": match.match_timestamp.isoformat(),
+                "pattern_instances": match.pattern_instances,
+                "similarity_metrics": match.similarity_metrics,
+                "context": match.context,
             }
             match_dicts.append(match_dict)
 
         return PatternMatchingResponse(
             matches=match_dicts,
-            templates_used=len(request.template_ids) if request.template_ids else 4, # Default templates
-            algorithms_used=[algo.value for algo in algorithms] if algorithms else ['sequence_match', 'temporal_match'],
-            total_matches=len(matches)
+            templates_used=(
+                len(request.template_ids) if request.template_ids else 4
+            ),  # Default templates
+            algorithms_used=(
+                [algo.value for algo in algorithms]
+                if algorithms
+                else ["sequence_match", "temporal_match"]
+            ),
+            total_matches=len(matches),
         )
 
     except HTTPException:
@@ -317,14 +376,19 @@ async def match_patterns(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error matching patterns: str(e)"
+            detail=f"Error matching patterns: str(e)",
         ) from e
 
-@router.post("/compare", response_model=ComparisonResponse, dependencies=[Depends(get_current_user)])
+
+@router.post(
+    "/compare",
+    response_model=ComparisonResponse,
+    dependencies=[Depends(get_current_user)],
+)
 async def compare_patterns(
     request: ComparisonRequest,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Compare behavioral patterns across multiple users.
@@ -341,7 +405,7 @@ async def compare_patterns(
             if user_id != current_user.id and not current_user.is_admin:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Not authorized to compare patterns for user {user_id}"
+                    detail=f"Not authorized to compare patterns for user {user_id}",
                 )
 
         # Initialize pattern recognizer
@@ -352,17 +416,16 @@ async def compare_patterns(
         for user_id in request.user_ids:
             try:
                 analysis = await pattern_recognizer.analyze_user_behavior(
-                    user_id=user_id,
-                    time_window_hours=30 * 24  # 30 days
+                    user_id=user_id, time_window_hours=30 * 24  # 30 days
                 )
 
                 # Extract relevant comparison data
                 comparison_entry = {
-                    'user_id': user_id,
-                    'patterns': analysis['patterns'],
-                    'behavioral_profile': analysis['behavioral_profile'],
-                    'risk_assessment': analysis['risk_assessment'],
-                    'events_analyzed': analysis['events_analyzed']
+                    "user_id": user_id,
+                    "patterns": analysis["patterns"],
+                    "behavioral_profile": analysis["behavioral_profile"],
+                    "risk_assessment": analysis["risk_assessment"],
+                    "events_analyzed": analysis["events_analyzed"],
                 }
                 comparison_data.append(comparison_entry)
 
@@ -373,7 +436,7 @@ async def compare_patterns(
         if len(comparison_data) < 2:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="At least 2 users required for comparison"
+                detail="At least 2 users required for comparison",
             ) from e
 
         # Calculate similarity matrix
@@ -389,7 +452,7 @@ async def compare_patterns(
             comparison_data=comparison_data,
             similarity_matrix=similarity_matrix,
             insights=insights,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
     except HTTPException:
@@ -397,13 +460,12 @@ async def compare_patterns(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error comparing patterns: {str(e)}"
+            detail=f"Error comparing patterns: {str(e)}",
         ) from e
 
+
 @router.get("/templates")
-async def get_pattern_templates(
-    current_user: User = Depends(get_current_active_user)
-):
+async def get_pattern_templates(current_user: User = Depends(get_current_active_user)):
     """
     Get available pattern templates for matching.
 
@@ -428,23 +490,21 @@ async def get_pattern_templates(
         #     }
         #     templates.append(template_dict)
 
-        return {
-            'templates': templates,
-            'total_templates': len(templates)
-        }
+        return {"templates": templates, "total_templates": len(templates)}
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving pattern templates: {str(e)}"
+            detail=f"Error retrieving pattern templates: {str(e)}",
         ) from e
+
 
 @router.get("/insights/{user_id}", dependencies=[Depends(get_current_user)])
 async def get_user_insights(
     user_id: str,
     time_range: str = Query("30d", description="Time range for insights"),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get behavioral insights for a specific user.
@@ -459,33 +519,30 @@ async def get_user_insights(
         if user_id != current_user.id and not current_user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to view insights for this user"
+                detail="Not authorized to view insights for this user",
             )
 
         # Convert time range to hours
-        time_hours = {
-            "7d": 7 * 24,
-            "30d": 30 * 24,
-            "90d": 90 * 24
-        }.get(time_range, 30 * 24)
+        time_hours = {"7d": 7 * 24, "30d": 30 * 24, "90d": 90 * 24}.get(
+            time_range, 30 * 24
+        )
 
         # Initialize pattern recognizer
         pattern_recognizer = BehavioralPatternRecognizer(db)
 
         # Get user analysis
         analysis = await pattern_recognizer.analyze_user_behavior(
-            user_id=user_id,
-            time_window_hours=time_hours
+            user_id=user_id, time_window_hours=time_hours
         )
 
         # Return only the insights portion
         return {
-            'user_id': user_id,
-            'time_range': time_range,
-            'insights': analysis['insights'],
-            'recommendations': analysis['recommendations'],
-            'risk_assessment': analysis['risk_assessment'],
-            'behavioral_profile': analysis['behavioral_profile']
+            "user_id": user_id,
+            "time_range": time_range,
+            "insights": analysis["insights"],
+            "recommendations": analysis["recommendations"],
+            "risk_assessment": analysis["risk_assessment"],
+            "behavioral_profile": analysis["behavioral_profile"],
         }
 
     except HTTPException:
@@ -493,15 +550,16 @@ async def get_user_insights(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error getting user insights: str(e)"
+            detail=f"Error getting user insights: str(e)",
         ) from e
+
 
 @router.get("/metrics/summary", dependencies=[Depends(get_current_user)])
 async def get_pattern_metrics_summary(
     organization_id: Optional[str] = Query(None, description="Organization ID filter"),
     time_range: str = Query("30d", description="Time range for summary"),
     current_user: User = Depends(require_permission("admin")),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get summary of pattern metrics across the organization.
@@ -516,36 +574,60 @@ async def get_pattern_metrics_summary(
         # For now, return mock data
 
         mock_summary = {
-            'total_users_analyzed': 1247,
-            'total_patterns_detected': 8945,
-            'total_anomalies_detected': 342,
-            'pattern_types_distribution': {
-                'temporal': 2341,
-                'sequential': 1987,
-                'social': 1654,
-                'learning': 1432,
-                'performance': 987,
-                'risk': 544
+            "total_users_analyzed": 1247,
+            "total_patterns_detected": 8945,
+            "total_anomalies_detected": 342,
+            "pattern_types_distribution": {
+                "temporal": 2341,
+                "sequential": 1987,
+                "social": 1654,
+                "learning": 1432,
+                "performance": 987,
+                "risk": 544,
             },
-            'risk_levels_distribution': {
-                'minimal': 890,
-                'low': 245,
-                'medium': 89,
-                'high': 21,
-                'critical': 2
+            "risk_levels_distribution": {
+                "minimal": 890,
+                "low": 245,
+                "medium": 89,
+                "high": 21,
+                "critical": 2,
             },
-            'average_patterns_per_user': 7.2,
-            'average_anomalies_per_user': 0.27,
-            'most_common_patterns': [
-                {'pattern_type': 'temporal', 'description': 'Morning activity peak', 'count': 567},
-                {'pattern_type': 'sequential', 'description': 'Login -> Dashboard workflow', 'count': 445},
-                {'pattern_type': 'learning', 'description': 'Skill improvement trend', 'count': 334}
+            "average_patterns_per_user": 7.2,
+            "average_anomalies_per_user": 0.27,
+            "most_common_patterns": [
+                {
+                    "pattern_type": "temporal",
+                    "description": "Morning activity peak",
+                    "count": 567,
+                },
+                {
+                    "pattern_type": "sequential",
+                    "description": "Login -> Dashboard workflow",
+                    "count": 445,
+                },
+                {
+                    "pattern_type": "learning",
+                    "description": "Skill improvement trend",
+                    "count": 334,
+                },
             ],
-            'top_anomalies': [
-                {'type': 'statistical', 'description': 'Unusual session duration', 'count': 123},
-                {'type': 'temporal', 'description': 'Activity at unusual hours', 'count': 98},
-                {'type': 'behavioral', 'description': 'Deviation from normal patterns', 'count': 76}
-            ]
+            "top_anomalies": [
+                {
+                    "type": "statistical",
+                    "description": "Unusual session duration",
+                    "count": 123,
+                },
+                {
+                    "type": "temporal",
+                    "description": "Activity at unusual hours",
+                    "count": 98,
+                },
+                {
+                    "type": "behavioral",
+                    "description": "Deviation from normal patterns",
+                    "count": 76,
+                },
+            ],
         }
 
         return mock_summary
@@ -553,8 +635,9 @@ async def get_pattern_metrics_summary(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error getting pattern metrics summary: {str(e)}"
+            detail=f"Error getting pattern metrics summary: {str(e)}",
         ) from e
+
 
 # Background task for detailed anomaly analysis
 async def perform_detailed_anomaly_analysis(user_id: str, time_window_hours: int):
@@ -576,7 +659,10 @@ async def perform_detailed_anomaly_analysis(user_id: str, time_window_hours: int
     except Exception as e:
         logger.error(f"Error in detailed anomaly analysis for user {user_id}: {e}")
 
-def calculate_similarity_matrix(comparison_data: List[Dict[str, Any]]) -> List[List[float]]:
+
+def calculate_similarity_matrix(
+    comparison_data: List[Dict[str, Any]]
+) -> List[List[float]]:
     """
     Calculate similarity matrix between users based on their patterns.
     """
@@ -592,15 +678,19 @@ def calculate_similarity_matrix(comparison_data: List[Dict[str, Any]]) -> List[L
                 similarity = 0.0
 
                 # Compare risk scores
-                risk1 = user1['risk_assessment']['risk_score']
-                risk2 = user2['risk_assessment']['risk_score']
+                risk1 = user1["risk_assessment"]["risk_score"]
+                risk2 = user2["risk_assessment"]["risk_score"]
                 risk_similarity = 1.0 - abs(risk1 - risk2)
 
                 # Compare pattern counts
-                pattern_count_similarity = min(
-                    user1['patterns'] / user2['patterns'],
-                    user2['patterns'] / user1['patterns']
-                ) if user1['patterns'] > 0 and user2['patterns'] > 0 else 0.0
+                pattern_count_similarity = (
+                    min(
+                        user1["patterns"] / user2["patterns"],
+                        user2["patterns"] / user1["patterns"],
+                    )
+                    if user1["patterns"] > 0 and user2["patterns"] > 0
+                    else 0.0
+                )
 
                 similarity = (risk_similarity + pattern_count_similarity) / 2
                 row.append(round(similarity * 100) / 100)
@@ -609,9 +699,9 @@ def calculate_similarity_matrix(comparison_data: List[Dict[str, Any]]) -> List[L
 
     return matrix
 
+
 def generate_comparison_insights(
-    comparison_data: List[Dict[str, Any]],
-    similarity_matrix: List[List[float]]
+    comparison_data: List[Dict[str, Any]], similarity_matrix: List[List[float]]
 ) -> List[Dict[str, Any]]:
     """
     Generate insights from pattern comparison.
@@ -623,31 +713,35 @@ def generate_comparison_insights(
         for j in range(i + 1, len(comparison_data)):
             similarity = similarity_matrix[i][j]
             if similarity > 0.8:
-                insights.append({
-                    'type': 'high_similarity',
-                    'description': f"Users {comparison_data[i]['user_id']} and {comparison_data[j]['user_id']} show highly similar behavioral patterns",
-                    'similarity': similarity,
-                    'impact': 'medium'
-                })
+                insights.append(
+                    {
+                        "type": "high_similarity",
+                        "description": f"Users {comparison_data[i]['user_id']} and {comparison_data[j]['user_id']} show highly similar behavioral patterns",
+                        "similarity": similarity,
+                        "impact": "medium",
+                    }
+                )
 
     # Risk outliers
-    risk_scores = [user['risk_assessment']['risk_score'] for user in comparison_data]
+    risk_scores = [user["risk_assessment"]["risk_score"] for user in comparison_data]
     avg_risk = sum(risk_scores) / len(risk_scores)
 
     for i, user in enumerate(comparison_data):
-        if user['risk_assessment']['risk_score'] > avg_risk + 0.2:
-            insights.append({
-                'type': 'risk_outlier',
-                'description': f"User {user['user_id']} shows higher than average risk patterns",
-                'risk_score': user['risk_assessment']['risk_score'],
-                'impact': 'high'
-            })
+        if user["risk_assessment"]["risk_score"] > avg_risk + 0.2:
+            insights.append(
+                {
+                    "type": "risk_outlier",
+                    "description": f"User {user['user_id']} shows higher than average risk patterns",
+                    "risk_score": user["risk_assessment"]["risk_score"],
+                    "impact": "high",
+                }
+            )
 
     return insights
 
+
 def generate_comparison_recommendations(
-    comparison_data: List[Dict[str, Any]],
-    insights: List[Dict[str, Any]]
+    comparison_data: List[Dict[str, Any]], insights: List[Dict[str, Any]]
 ) -> List[str]:
     """
     Generate recommendations based on pattern comparison.
@@ -655,19 +749,29 @@ def generate_comparison_recommendations(
     recommendations = []
 
     # High similarity recommendations
-    high_similarity_insights = [insight for insight in insights if insight['type'] == 'high_similarity']
+    high_similarity_insights = [
+        insight for insight in insights if insight["type"] == "high_similarity"
+    ]
     if high_similarity_insights:
-        recommendations.append("Consider creating user cohorts based on similar behavioral patterns")
+        recommendations.append(
+            "Consider creating user cohorts based on similar behavioral patterns"
+        )
 
     # Risk recommendations
-    risk_insights = [insight for insight in insights if insight['type'] == 'risk_outlier']
+    risk_insights = [
+        insight for insight in insights if insight["type"] == "risk_outlier"
+    ]
     if risk_insights:
-        recommendations.append("Implement targeted interventions for users with elevated risk patterns")
+        recommendations.append(
+            "Implement targeted interventions for users with elevated risk patterns"
+        )
 
     # General recommendations
-    recommendations.extend([
-        "Monitor behavioral patterns for early warning indicators",
-        "Use pattern similarities to optimize user onboarding and training"
-    ])
+    recommendations.extend(
+        [
+            "Monitor behavioral patterns for early warning indicators",
+            "Use pattern similarities to optimize user onboarding and training",
+        ]
+    )
 
     return recommendations

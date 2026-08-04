@@ -11,12 +11,13 @@ Exit codes:
 - 1: Package failed critical checks (blocked)
 """
 
-import sys
 import asyncio
-import aiohttp
 import json
+import sys
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
+
+import aiohttp
 
 
 class PackageRequestValidator:
@@ -44,7 +45,7 @@ class PackageRequestValidator:
             "findings": [],
             "warnings": [],
             "errors": [],
-            "severity": "PASS"
+            "severity": "PASS",
         }
 
         # Check 1: Package exists (prevent hallucination)
@@ -60,7 +61,9 @@ class PackageRequestValidator:
         results["findings"].append(f"✅ Package exists in {ecosystem} registry")
 
         # Check 2: Version exists
-        version_exists = await self._check_version_exists(ecosystem, package_name, version)
+        version_exists = await self._check_version_exists(
+            ecosystem, package_name, version
+        )
         if not version_exists:
             results["errors"].append(
                 f"❌ CRITICAL: Version {version} of '{package_name}' does not exist"
@@ -80,7 +83,9 @@ class PackageRequestValidator:
             results["warnings"].append(
                 "⚠️  WARNING: Package lacks signature/provenance verification"
             )
-            results["severity"] = "WARNING" if results["severity"] == "PASS" else results["severity"]
+            results["severity"] = (
+                "WARNING" if results["severity"] == "PASS" else results["severity"]
+            )
         else:
             results["findings"].append("✅ Package has verified signature/provenance")
 
@@ -90,7 +95,9 @@ class PackageRequestValidator:
             results["errors"].append(
                 f"❌ CRITICAL: Package has {cve_data['critical']} critical CVEs"
             )
-            results["errors"].extend([f"   - {cve}" for cve in cve_data["critical_cves"]])
+            results["errors"].extend(
+                [f"   - {cve}" for cve in cve_data["critical_cves"]]
+            )
             results["valid"] = False
             results["severity"] = "BLOCKING"
             return results
@@ -100,9 +107,13 @@ class PackageRequestValidator:
                 f"⚠️  WARNING: Package has {cve_data['high']} high severity CVEs"
             )
             results["warnings"].extend([f"   - {cve}" for cve in cve_data["high_cves"]])
-            results["severity"] = "WARNING" if results["severity"] == "PASS" else results["severity"]
+            results["severity"] = (
+                "WARNING" if results["severity"] == "PASS" else results["severity"]
+            )
         else:
-            results["findings"].append(f"✅ No critical CVEs ({cve_data['total']} total vulnerabilities)")
+            results["findings"].append(
+                f"✅ No critical CVEs ({cve_data['total']} total vulnerabilities)"
+            )
 
         # Check 5: Maintenance status
         maintenance = await self._check_maintenance(ecosystem, package_name)
@@ -110,9 +121,13 @@ class PackageRequestValidator:
             results["warnings"].append(
                 f"⚠️  WARNING: Package not actively maintained (last release: {maintenance['last_release']})"
             )
-            results["severity"] = "WARNING" if results["severity"] == "PASS" else results["severity"]
+            results["severity"] = (
+                "WARNING" if results["severity"] == "PASS" else results["severity"]
+            )
         else:
-            results["findings"].append(f"✅ Actively maintained (last release: {maintenance['last_release']})")
+            results["findings"].append(
+                f"✅ Actively maintained (last release: {maintenance['last_release']})"
+            )
 
         # Check 6: License compatibility
         license_info = await self._check_license(ecosystem, package_name)
@@ -139,7 +154,9 @@ class PackageRequestValidator:
             results["severity"] = "BLOCKING"
             return results
 
-        results["findings"].append(f"✅ {len(deps)} dependencies checked (none blocked)")
+        results["findings"].append(
+            f"✅ {len(deps)} dependencies checked (none blocked)"
+        )
 
         return results
 
@@ -157,12 +174,16 @@ class PackageRequestValidator:
                 return False
 
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                async with session.get(
+                    url, timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
                     return resp.status == 200
         except Exception as e:
             return False
 
-    async def _check_version_exists(self, ecosystem: str, package_name: str, version: str) -> bool:
+    async def _check_version_exists(
+        self, ecosystem: str, package_name: str, version: str
+    ) -> bool:
         """Check if specific version exists"""
 
         try:
@@ -176,12 +197,16 @@ class PackageRequestValidator:
                 return False
 
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                async with session.get(
+                    url, timeout=aiohttp.ClientTimeout(total=10)
+                ) as resp:
                     return resp.status == 200
         except Exception:
             return False
 
-    async def _get_available_versions(self, ecosystem: str, package_name: str) -> List[str]:
+    async def _get_available_versions(
+        self, ecosystem: str, package_name: str
+    ) -> List[str]:
         """Get list of available versions"""
 
         try:
@@ -200,7 +225,9 @@ class PackageRequestValidator:
 
         return []
 
-    async def _check_signature(self, ecosystem: str, package_name: str, version: str) -> bool:
+    async def _check_signature(
+        self, ecosystem: str, package_name: str, version: str
+    ) -> bool:
         """Check if package has signature/provenance"""
 
         # Simplified check - in production, use actual sigstore verification
@@ -208,42 +235,61 @@ class PackageRequestValidator:
         # TODO: Implement actual sigstore verification
         return True
 
-    async def _check_cves(self, ecosystem: str, package_name: str, version: str) -> Dict:
+    async def _check_cves(
+        self, ecosystem: str, package_name: str, version: str
+    ) -> Dict:
         """Check for CVEs using OSV API"""
 
         try:
             async with aiohttp.ClientSession() as session:
                 query = {
-                    "package": {
-                        "name": package_name,
-                        "ecosystem": ecosystem
-                    },
-                    "version": version
+                    "package": {"name": package_name, "ecosystem": ecosystem},
+                    "version": version,
                 }
 
                 async with session.post(
                     "https://api.osv.dev/v1/query",
                     json=query,
-                    timeout=aiohttp.ClientTimeout(total=10)
+                    timeout=aiohttp.ClientTimeout(total=10),
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         vulns = data.get("vulns", [])
 
-                        critical = sum(1 for v in vulns if v.get("severity", "").lower() == "critical")
-                        high = sum(1 for v in vulns if v.get("severity", "").lower() == "high")
+                        critical = sum(
+                            1
+                            for v in vulns
+                            if v.get("severity", "").lower() == "critical"
+                        )
+                        high = sum(
+                            1 for v in vulns if v.get("severity", "").lower() == "high"
+                        )
 
                         return {
                             "total": len(vulns),
                             "critical": critical,
                             "high": high,
-                            "critical_cves": [v["id"] for v in vulns if v.get("severity", "").lower() == "critical"],
-                            "high_cves": [v["id"] for v in vulns if v.get("severity", "").lower() == "high"]
+                            "critical_cves": [
+                                v["id"]
+                                for v in vulns
+                                if v.get("severity", "").lower() == "critical"
+                            ],
+                            "high_cves": [
+                                v["id"]
+                                for v in vulns
+                                if v.get("severity", "").lower() == "high"
+                            ],
                         }
         except Exception as e:
             pass
 
-        return {"total": 0, "critical": 0, "high": 0, "critical_cves": [], "high_cves": []}
+        return {
+            "total": 0,
+            "critical": 0,
+            "high": 0,
+            "critical_cves": [],
+            "high_cves": [],
+        }
 
     async def _check_maintenance(self, ecosystem: str, package_name: str) -> Dict:
         """Check if package is actively maintained"""
@@ -267,13 +313,14 @@ class PackageRequestValidator:
                             upload_time = releases[latest_version][0]["upload_time"]
 
                             # Check if released in last 6 months
-                            upload_date = datetime.fromisoformat(upload_time.replace("Z", "+00:00"))
-                            is_active = upload_date > datetime.now() - timedelta(days=180)
+                            upload_date = datetime.fromisoformat(
+                                upload_time.replace("Z", "+00:00")
+                            )
+                            is_active = upload_date > datetime.now() - timedelta(
+                                days=180
+                            )
 
-                            return {
-                                "active": is_active,
-                                "last_release": upload_time
-                            }
+                            return {"active": is_active, "last_release": upload_time}
         except Exception:
             pass
 
@@ -283,8 +330,14 @@ class PackageRequestValidator:
         """Check package license"""
 
         compatible_licenses = {
-            "MIT", "Apache-2.0", "BSD-3-Clause", "BSD-2-Clause",
-            "ISC", "Python-2.0", "LGPL-2.1", "LGPL-3.0"
+            "MIT",
+            "Apache-2.0",
+            "BSD-3-Clause",
+            "BSD-2-Clause",
+            "ISC",
+            "Python-2.0",
+            "LGPL-2.1",
+            "LGPL-3.0",
         }
 
         try:
@@ -302,14 +355,16 @@ class PackageRequestValidator:
 
                         return {
                             "type": license_type,
-                            "compatible": license_type in compatible_licenses
+                            "compatible": license_type in compatible_licenses,
                         }
         except Exception:
             pass
 
         return {"type": "Unknown", "compatible": False}
 
-    async def _get_dependencies(self, ecosystem: str, package_name: str, version: str) -> List[str]:
+    async def _get_dependencies(
+        self, ecosystem: str, package_name: str, version: str
+    ) -> List[str]:
         """Get list of dependencies"""
 
         try:
@@ -353,7 +408,9 @@ async def main():
     """Main entry point"""
 
     if len(sys.argv) < 4:
-        print("Usage: python3 scripts/validate_package_request.py <package_name> <ecosystem> <version>")
+        print(
+            "Usage: python3 scripts/validate_package_request.py <package_name> <ecosystem> <version>"
+        )
         print("\nExample:")
         print("  python3 scripts/validate_package_request.py requests python 2.31.0")
         sys.exit(1)
@@ -386,14 +443,16 @@ async def main():
             print(error)
 
     print()
-    print("="*60)
+    print("=" * 60)
 
     if result["valid"]:
         print("✅ VALIDATION PASSED")
         print(f"   Severity: {result['severity']}")
         print()
         print("Package is ready for security review.")
-        print("Create issue: gh issue create --title 'Dependency Request: {package_name}'")
+        print(
+            "Create issue: gh issue create --title 'Dependency Request: {package_name}'"
+        )
         sys.exit(0)
     else:
         print("❌ VALIDATION FAILED")

@@ -29,6 +29,7 @@ router = APIRouter(prefix="/clinical/ml-predictions", tags=["clinical-ml"])
 # Request/Response Models
 # =============================================================================
 
+
 class RiskPredictionResponse(BaseModel):
     """Response model for risk predictions"""
 
@@ -63,11 +64,14 @@ class BatchPredictionResponse(BaseModel):
 # Depression Risk Prediction Endpoints
 # =============================================================================
 
+
 @router.post("/depression-risk/{user_id}", response_model=RiskPredictionResponse)
 async def predict_depression_risk(
     user_id: str,
     prediction_days: int = Query(30, ge=7, le=90, description="Days to predict ahead"),
-    min_assessments: int = Query(3, ge=2, le=10, description="Minimum assessments required"),
+    min_assessments: int = Query(
+        3, ge=2, le=10, description="Minimum assessments required"
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -90,7 +94,10 @@ async def predict_depression_risk(
     """
     try:
         # Verify authorization (users can only access their own data, clinicians can access any)
-        if current_user.role not in ["clinician", "admin"] and current_user.id != user_id:
+        if (
+            current_user.role not in ["clinician", "admin"]
+            and current_user.id != user_id
+        ):
             raise HTTPException(
                 status_code=403, detail="Not authorized to access this user's data"
             )
@@ -139,11 +146,14 @@ async def get_depression_risk(
 # Anxiety Risk Prediction Endpoints
 # =============================================================================
 
+
 @router.post("/anxiety-risk/{user_id}", response_model=RiskPredictionResponse)
 async def predict_anxiety_risk(
     user_id: str,
     prediction_days: int = Query(30, ge=7, le=90, description="Days to predict ahead"),
-    min_assessments: int = Query(3, ge=2, le=10, description="Minimum assessments required"),
+    min_assessments: int = Query(
+        3, ge=2, le=10, description="Minimum assessments required"
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -166,7 +176,10 @@ async def predict_anxiety_risk(
     """
     try:
         # Verify authorization
-        if current_user.role not in ["clinician", "admin"] and current_user.id != user_id:
+        if (
+            current_user.role not in ["clinician", "admin"]
+            and current_user.id != user_id
+        ):
             raise HTTPException(
                 status_code=403, detail="Not authorized to access this user's data"
             )
@@ -215,11 +228,14 @@ async def get_anxiety_risk(
 # Crisis Risk Prediction Endpoints
 # =============================================================================
 
+
 @router.post("/crisis-risk/{user_id}", response_model=RiskPredictionResponse)
 async def predict_crisis_risk(
     user_id: str,
     lookback_days: int = Query(90, ge=30, le=180, description="Days to look back"),
-    min_assessments: int = Query(2, ge=1, le=5, description="Minimum assessments required"),
+    min_assessments: int = Query(
+        2, ge=1, le=5, description="Minimum assessments required"
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -242,7 +258,10 @@ async def predict_crisis_risk(
     """
     try:
         # Verify authorization (crisis risk should be accessible to clinicians)
-        if current_user.role not in ["clinician", "admin"] and current_user.id != user_id:
+        if (
+            current_user.role not in ["clinician", "admin"]
+            and current_user.id != user_id
+        ):
             raise HTTPException(
                 status_code=403, detail="Not authorized to access this user's data"
             )
@@ -275,12 +294,17 @@ async def predict_crisis_risk(
 # Treatment Response Prediction Endpoints
 # =============================================================================
 
+
 @router.post("/treatment-response/{user_id}", response_model=RiskPredictionResponse)
 async def predict_treatment_response(
     user_id: str,
     assessment_type: str = Query("BDI2", description="Assessment type to analyze"),
-    treatment_start_days: int = Query(60, ge=30, le=180, description="Days since treatment start"),
-    min_assessments: int = Query(4, ge=3, le=10, description="Minimum assessments required"),
+    treatment_start_days: int = Query(
+        60, ge=30, le=180, description="Days since treatment start"
+    ),
+    min_assessments: int = Query(
+        4, ge=3, le=10, description="Minimum assessments required"
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -302,7 +326,10 @@ async def predict_treatment_response(
     """
     try:
         # Verify authorization
-        if current_user.role not in ["clinician", "admin"] and current_user.id != user_id:
+        if (
+            current_user.role not in ["clinician", "admin"]
+            and current_user.id != user_id
+        ):
             raise HTTPException(
                 status_code=403, detail="Not authorized to access this user's data"
             )
@@ -334,13 +361,18 @@ async def predict_treatment_response(
 # Relapse Risk Prediction Endpoints
 # =============================================================================
 
+
 @router.post("/relapse-risk/{user_id}", response_model=RiskPredictionResponse)
 async def predict_relapse_risk(
     user_id: str,
     assessment_type: str = Query("BDI2", description="Assessment type to analyze"),
-    remission_threshold: int = Query(12, ge=5, le=20, description="Score threshold for remission"),
+    remission_threshold: int = Query(
+        12, ge=5, le=20, description="Score threshold for remission"
+    ),
     lookback_days: int = Query(90, ge=30, le=180, description="Days to look back"),
-    min_assessments: int = Query(4, ge=3, le=10, description="Minimum assessments required"),
+    min_assessments: int = Query(
+        4, ge=3, le=10, description="Minimum assessments required"
+    ),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_async_db),
 ):
@@ -363,7 +395,10 @@ async def predict_relapse_risk(
     """
     try:
         # Verify authorization
-        if current_user.role not in ["clinician", "admin"] and current_user.id != user_id:
+        if (
+            current_user.role not in ["clinician", "admin"]
+            and current_user.id != user_id
+        ):
             raise HTTPException(
                 status_code=403, detail="Not authorized to access this user's data"
             )
@@ -396,6 +431,7 @@ async def predict_relapse_risk(
 # Comprehensive Risk Assessment
 # =============================================================================
 
+
 @router.get("/comprehensive-risk/{user_id}")
 async def get_comprehensive_risk_assessment(
     user_id: str,
@@ -416,7 +452,10 @@ async def get_comprehensive_risk_assessment(
     """
     try:
         # Verify authorization
-        if current_user.role not in ["clinician", "admin"] and current_user.id != user_id:
+        if (
+            current_user.role not in ["clinician", "admin"]
+            and current_user.id != user_id
+        ):
             raise HTTPException(
                 status_code=403, detail="Not authorized to access this user's data"
             )
@@ -447,13 +486,20 @@ async def get_comprehensive_risk_assessment(
 
         # Treatment response
         treatment_result = await prediction_service.predict_treatment_response(
-            user_id=user_id, assessment_type="BDI2", treatment_start_days=60, min_assessments=4
+            user_id=user_id,
+            assessment_type="BDI2",
+            treatment_start_days=60,
+            min_assessments=4,
         )
         predictions["treatment_response"] = treatment_result.to_dict()
 
         # Relapse risk
         relapse_result = await prediction_service.predict_relapse_risk(
-            user_id=user_id, assessment_type="BDI2", remission_threshold=12, lookback_days=90, min_assessments=4
+            user_id=user_id,
+            assessment_type="BDI2",
+            remission_threshold=12,
+            lookback_days=90,
+            min_assessments=4,
         )
         predictions["relapse_risk"] = relapse_result.to_dict()
 
@@ -481,7 +527,8 @@ def _calculate_overall_risk_summary(predictions: Dict) -> Dict[str, any]:
     critical_count = sum(
         1
         for p in predictions.values()
-        if p.get("risk_level") in ["critical", "high"] and p.get("risk_level") != "insufficient_data"
+        if p.get("risk_level") in ["critical", "high"]
+        and p.get("risk_level") != "insufficient_data"
     )
 
     moderate_count = sum(
@@ -522,6 +569,7 @@ def _calculate_overall_risk_summary(predictions: Dict) -> Dict[str, any]:
 # Batch Prediction Endpoints (for clinicians/admins)
 # =============================================================================
 
+
 @router.post("/batch/depression-risk", response_model=BatchPredictionResponse)
 async def batch_predict_depression_risk(
     request: BatchPredictionRequest,
@@ -538,7 +586,8 @@ async def batch_predict_depression_risk(
         # Verify authorization (clinicians/admins only)
         if current_user.role not in ["clinician", "admin"]:
             raise HTTPException(
-                status_code=403, detail="Batch predictions require clinician or admin role"
+                status_code=403,
+                detail="Batch predictions require clinician or admin role",
             )
 
         # Initialize service
@@ -581,6 +630,7 @@ async def batch_predict_depression_risk(
 # =============================================================================
 # Model Information Endpoint
 # =============================================================================
+
 
 @router.get("/model-info")
 async def get_model_info():

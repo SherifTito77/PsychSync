@@ -5,22 +5,25 @@ REST API for detecting, analyzing, and preventing toxic workplace behaviors
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import and_
 from pydantic import BaseModel, Field
+from sqlalchemy import and_
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db, get_async_db, get_current_active_user
-from app.db.models.user import User
-from app.db.models.toxicity_detection import (
-    ToxicityPattern, ToxicityType, ToxicityLevel,
-    BehavioralIntervention, PsychologicalSafetyMetrics
-)
-from app.services.toxicity_detection_service import toxicity_detection_service
+from app.api.deps import get_async_db, get_current_active_user, get_current_user, get_db
 from app.core.logging_config import logger
+from app.db.models.toxicity_detection import (
+    BehavioralIntervention,
+    PsychologicalSafetyMetrics,
+    ToxicityLevel,
+    ToxicityPattern,
+    ToxicityType,
+)
+from app.db.models.user import User
+from app.services.toxicity_detection_service import toxicity_detection_service
 
 router = APIRouter()
 
@@ -29,8 +32,10 @@ router = APIRouter()
 # Pydantic Models
 # ============================================
 
+
 class ToxicityDetectionRequest(BaseModel):
     """Request model for toxicity detection analysis"""
+
     organization_id: UUID
     team_id: Optional[UUID] = None
     period_days: int = Field(default=30, ge=1, le=90)
@@ -38,6 +43,7 @@ class ToxicityDetectionRequest(BaseModel):
 
 class ToxicityIndicator(BaseModel):
     """Individual toxicity indicator"""
+
     indicator_type: str
     description: str
     severity: float
@@ -47,6 +53,7 @@ class ToxicityIndicator(BaseModel):
 
 class ToxicPattern(BaseModel):
     """Detected toxic pattern"""
+
     type: str
     frequency: int
     severity_score: float
@@ -55,6 +62,7 @@ class ToxicPattern(BaseModel):
 
 class ToxicityAnalysisResponse(BaseModel):
     """Response model for toxicity analysis"""
+
     toxicity_level: str
     risk_score: float
     patterns_detected: List[ToxicPattern]
@@ -68,6 +76,7 @@ class ToxicityAnalysisResponse(BaseModel):
 
 class AnonymousReportRequest(BaseModel):
     """Request model for anonymous toxic behavior report"""
+
     report_type: ToxicityType
     description: str = Field(..., min_length=20, max_length=2000)
     perpetrator_hint: Optional[str] = Field(None, max_length=500)
@@ -77,6 +86,7 @@ class AnonymousReportRequest(BaseModel):
 
 class AnonymousReportResponse(BaseModel):
     """Response model for anonymous report submission"""
+
     tracking_id: str
     status: str
     message: str
@@ -85,6 +95,7 @@ class AnonymousReportResponse(BaseModel):
 
 class InterventionRequest(BaseModel):
     """Request model for creating intervention"""
+
     toxicity_pattern_id: UUID
     intervention_type: str = Field(..., max_length=100)
     intervention_method: str = Field(..., max_length=100)
@@ -96,6 +107,7 @@ class InterventionRequest(BaseModel):
 
 class InterventionResponse(BaseModel):
     """Response model for intervention"""
+
     intervention_id: UUID
     status: str
     scheduled_date: Optional[datetime]
@@ -106,11 +118,12 @@ class InterventionResponse(BaseModel):
 # Endpoints
 # ============================================
 
+
 @router.post("/detect", response_model=ToxicityAnalysisResponse)
 async def detect_toxic_behavior(
     request: ToxicityDetectionRequest,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Analyze team/organization for toxic behavior patterns
@@ -128,7 +141,7 @@ async def detect_toxic_behavior(
         if current_user.organization_id != request.organization_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have access to this organization"
+                detail="You do not have access to this organization",
             )
 
         # Run toxicity detection
@@ -136,7 +149,7 @@ async def detect_toxic_behavior(
             db=db,
             organization_id=str(request.organization_id),
             team_id=str(request.team_id) if request.team_id else None,
-            period_days=request.period_days
+            period_days=request.period_days,
         )
 
         return ToxicityAnalysisResponse(**analysis)
@@ -145,7 +158,7 @@ async def detect_toxic_behavior(
         logger.error(f"Toxicity detection failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to analyze toxicity: {str(e)}"
+            detail=f"Failed to analyze toxicity: {str(e)}",
         )
 
 
@@ -158,7 +171,7 @@ async def get_toxicity_patterns(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get detected toxicity patterns for organization/team
@@ -192,7 +205,9 @@ async def get_toxicity_patterns(
 
         # Paginate
         total = await loop.run_in_executor(None, query.count)
-        patterns = await loop.run_in_executor(None, lambda: query.offset(offset).limit(limit).all())
+        patterns = await loop.run_in_executor(
+            None, lambda: query.offset(offset).limit(limit).all()
+        )
 
         return {
             "patterns": [
@@ -202,27 +217,33 @@ async def get_toxicity_patterns(
                     "severity_level": pattern.severity_level,
                     "confidence_score": float(pattern.confidence_score),
                     "detection_date": pattern.detection_date.isoformat(),
-                    "frequency_score": float(pattern.frequency_score) if pattern.frequency_score else None,
-                    "impact_score": float(pattern.impact_score) if pattern.impact_score else None,
+                    "frequency_score": (
+                        float(pattern.frequency_score)
+                        if pattern.frequency_score
+                        else None
+                    ),
+                    "impact_score": (
+                        float(pattern.impact_score) if pattern.impact_score else None
+                    ),
                     "intervention_required": pattern.intervention_required,
                     "intervention_priority": pattern.intervention_priority,
                     "status": pattern.status,
                     "behavioral_indicators": pattern.behavioral_indicators,
                     "evidence_summary": pattern.evidence_summary,
-                    "risk_score": pattern.calculate_overall_risk_score()
+                    "risk_score": pattern.calculate_overall_risk_score(),
                 }
                 for pattern in patterns
             ],
             "total": total,
             "offset": offset,
-            "limit": limit
+            "limit": limit,
         }
 
     except Exception as e:
         logger.error(f"Failed to fetch toxicity patterns: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch patterns: {str(e)}"
+            detail=f"Failed to fetch patterns: {str(e)}",
         )
 
 
@@ -232,7 +253,7 @@ async def get_toxicity_trends(
     team_id: Optional[UUID] = None,
     days_back: int = Query(default=90, ge=7, le=365),
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get toxicity trends over time
@@ -244,7 +265,7 @@ async def get_toxicity_trends(
             db=db,
             organization_id=str(organization_id),
             team_id=str(team_id) if team_id else None,
-            days_back=days_back
+            days_back=days_back,
         )
 
         return trends
@@ -253,14 +274,13 @@ async def get_toxicity_trends(
         logger.error(f"Failed to fetch toxicity trends: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch trends: {str(e)}"
+            detail=f"Failed to fetch trends: {str(e)}",
         )
 
 
 @router.post("/anonymous-report", response_model=AnonymousReportResponse)
 async def submit_anonymous_report(
-    request: AnonymousReportRequest,
-    db: AsyncSession = Depends(get_async_db)
+    request: AnonymousReportRequest, db: AsyncSession = Depends(get_async_db)
 ):
     """
     Submit anonymous toxic behavior report
@@ -284,11 +304,11 @@ async def submit_anonymous_report(
             behavioral_indicators=["anonymous_report"],
             communication_patterns={
                 "report_source": "anonymous_submission",
-                "tracking_id": tracking_id
+                "tracking_id": tracking_id,
             },
             involved_anonymous_ids={
                 "reporter": "anonymous",
-                "perpetrator_hint": request.perpetrator_hint
+                "perpetrator_hint": request.perpetrator_hint,
             },
             detection_date=datetime.utcnow().date(),
             frequency_score=1.0,
@@ -297,7 +317,7 @@ async def submit_anonymous_report(
             intervention_priority="high",
             status="reported",
             evidence_summary=request.description,
-            related_incidents=request.evidence_metadata
+            related_incidents=request.evidence_metadata,
         )
 
         db.add(pattern)
@@ -309,7 +329,7 @@ async def submit_anonymous_report(
             tracking_id=tracking_id,
             status="submitted",
             message="Your report has been submitted anonymously. HR will review it within 24-48 hours. You can check status using your tracking ID.",
-            submitted_at=datetime.utcnow()
+            submitted_at=datetime.utcnow(),
         )
 
     except Exception as e:
@@ -317,14 +337,13 @@ async def submit_anonymous_report(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to submit report: {str(e)}"
+            detail=f"Failed to submit report: {str(e)}",
         )
 
 
 @router.get("/anonymous-report/{tracking_id}")
 async def check_anonymous_report_status(
-    tracking_id: str,
-    db: AsyncSession = Depends(get_async_db)
+    tracking_id: str, db: AsyncSession = Depends(get_async_db)
 ):
     """
     Check status of anonymous report using tracking ID
@@ -335,15 +354,15 @@ async def check_anonymous_report_status(
         loop = asyncio.get_event_loop()
         pattern = await loop.run_in_executor(
             None,
-            lambda: db.query(ToxicityPattern).filter(
-                ToxicityPattern.evidence_summary.ilike(f"%{tracking_id}%")
-            ).first()
+            lambda: db.query(ToxicityPattern)
+            .filter(ToxicityPattern.evidence_summary.ilike(f"%{tracking_id}%"))
+            .first(),
         )
 
         if not pattern:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Report not found. Check your tracking ID."
+                detail="Report not found. Check your tracking ID.",
             )
 
         return {
@@ -353,7 +372,7 @@ async def check_anonymous_report_status(
             "severity_level": pattern.severity_level,
             "intervention_required": pattern.intervention_required,
             "last_updated": pattern.updated_at,
-            "message": "Your report is being reviewed. Thank you for speaking up."
+            "message": "Your report is being reviewed. Thank you for speaking up.",
         }
 
     except HTTPException:
@@ -362,7 +381,7 @@ async def check_anonymous_report_status(
         logger.error(f"Failed to check report status: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to check status: {str(e)}"
+            detail=f"Failed to check status: {str(e)}",
         )
 
 
@@ -370,7 +389,7 @@ async def check_anonymous_report_status(
 async def create_intervention(
     request: InterventionRequest,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Create behavioral intervention for toxicity pattern
@@ -383,15 +402,15 @@ async def create_intervention(
         # Get toxicity pattern
         pattern = await loop.run_in_executor(
             None,
-            lambda: db.query(ToxicityPattern).filter(
-                ToxicityPattern.id == request.toxicity_pattern_id
-            ).first()
+            lambda: db.query(ToxicityPattern)
+            .filter(ToxicityPattern.id == request.toxicity_pattern_id)
+            .first(),
         )
 
         if not pattern:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Toxicity pattern not found"
+                detail="Toxicity pattern not found",
             )
 
         # Create intervention
@@ -406,7 +425,7 @@ async def create_intervention(
             success_metrics=["reduction_in_toxicity_patterns"],
             assigned_to=current_user.id,
             status="planned",
-            monitoring_period_days=30
+            monitoring_period_days=30,
         )
 
         db.add(intervention)
@@ -422,7 +441,7 @@ async def create_intervention(
             intervention_id=intervention.id,
             status=intervention.status,
             scheduled_date=intervention.scheduled_date,
-            message="Intervention created successfully"
+            message="Intervention created successfully",
         )
 
     except HTTPException:
@@ -432,7 +451,7 @@ async def create_intervention(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create intervention: {str(e)}"
+            detail=f"Failed to create intervention: {str(e)}",
         )
 
 
@@ -443,7 +462,7 @@ async def get_interventions(
     status: Optional[str] = None,
     limit: int = Query(default=50, ge=1, le=100),
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get behavioral interventions for organization/team
@@ -465,7 +484,9 @@ async def get_interventions(
             return pattern_query
 
         pattern_query = await loop.run_in_executor(None, build_pattern_query)
-        pattern_ids = [p[0] for p in await loop.run_in_executor(None, pattern_query.all)]
+        pattern_ids = [
+            p[0] for p in await loop.run_in_executor(None, pattern_query.all)
+        ]
 
         # Get interventions
         def build_intervention_query():
@@ -478,7 +499,9 @@ async def get_interventions(
 
             return query.order_by(BehavioralIntervention.created_at.desc()).limit(limit)
 
-        interventions = await loop.run_in_executor(None, lambda: build_intervention_query().all())
+        interventions = await loop.run_in_executor(
+            None, lambda: build_intervention_query().all()
+        )
 
         return {
             "interventions": [
@@ -491,21 +514,33 @@ async def get_interventions(
                     "intervention_description": intervention.intervention_description,
                     "behavioral_goals": intervention.behavioral_goals,
                     "status": intervention.status,
-                    "scheduled_date": intervention.scheduled_date.isoformat() if intervention.scheduled_date else None,
-                    "completed_date": intervention.completed_date.isoformat() if intervention.completed_date else None,
-                    "effectiveness_rating": float(intervention.effectiveness_rating) if intervention.effectiveness_rating else None,
-                    "created_at": intervention.created_at.isoformat()
+                    "scheduled_date": (
+                        intervention.scheduled_date.isoformat()
+                        if intervention.scheduled_date
+                        else None
+                    ),
+                    "completed_date": (
+                        intervention.completed_date.isoformat()
+                        if intervention.completed_date
+                        else None
+                    ),
+                    "effectiveness_rating": (
+                        float(intervention.effectiveness_rating)
+                        if intervention.effectiveness_rating
+                        else None
+                    ),
+                    "created_at": intervention.created_at.isoformat(),
                 }
                 for intervention in interventions
             ],
-            "total": len(interventions)
+            "total": len(interventions),
         }
 
     except Exception as e:
         logger.error(f"Failed to fetch interventions: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch interventions: {str(e)}"
+            detail=f"Failed to fetch interventions: {str(e)}",
         )
 
 
@@ -515,7 +550,7 @@ async def get_psychological_safety_metrics(
     team_id: Optional[UUID] = None,
     days_back: int = Query(default=90, ge=7, le=365),
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get psychological safety metrics for team/organization
@@ -535,7 +570,7 @@ async def get_psychological_safety_metrics(
             query = db.query(PsychologicalSafetyMetrics).filter(
                 and_(
                     PsychologicalSafetyMetrics.organization_id == organization_id,
-                    PsychologicalSafetyMetrics.measurement_date >= cutoff_date
+                    PsychologicalSafetyMetrics.measurement_date >= cutoff_date,
                 )
             )
 
@@ -552,7 +587,7 @@ async def get_psychological_safety_metrics(
                 "current_score": None,
                 "trend_direction": "insufficient_data",
                 "risk_level": "unknown",
-                "message": "No psychological safety data available for this period"
+                "message": "No psychological safety data available for this period",
             }
 
         # Get most recent metric
@@ -560,8 +595,15 @@ async def get_psychological_safety_metrics(
 
         # Calculate trend
         if len(metrics) >= 2:
-            recent_avg = sum(m.calculate_overall_score() or 0 for m in metrics[:min(7, len(metrics))]) / min(7, len(metrics))
-            earlier_avg = sum(m.calculate_overall_score() or 0 for m in metrics[7:14] if len(metrics) > 7) / max(1, len(metrics) - 7)
+            recent_avg = sum(
+                m.calculate_overall_score() or 0
+                for m in metrics[: min(7, len(metrics))]
+            ) / min(7, len(metrics))
+            earlier_avg = sum(
+                m.calculate_overall_score() or 0
+                for m in metrics[7:14]
+                if len(metrics) > 7
+            ) / max(1, len(metrics) - 7)
 
             if recent_avg > earlier_avg * 1.1:
                 trend = "improving"
@@ -578,34 +620,52 @@ async def get_psychological_safety_metrics(
                     "id": str(m.id),
                     "measurement_date": m.measurement_date.isoformat(),
                     "psychological_safety_score": float(m.calculate_overall_score()),
-                    "speak_up_safety": float(m.speak_up_safety) if m.speak_up_safety else None,
-                    "mistake_tolerance": float(m.mistake_tolerance) if m.mistake_tolerance else None,
-                    "inclusion_safety": float(m.inclusion_safety) if m.inclusion_safety else None,
-                    "learning_safety": float(m.learning_safety) if m.learning_safety else None,
-                    "challenge_safety": float(m.challenge_safety) if m.challenge_safety else None,
+                    "speak_up_safety": (
+                        float(m.speak_up_safety) if m.speak_up_safety else None
+                    ),
+                    "mistake_tolerance": (
+                        float(m.mistake_tolerance) if m.mistake_tolerance else None
+                    ),
+                    "inclusion_safety": (
+                        float(m.inclusion_safety) if m.inclusion_safety else None
+                    ),
+                    "learning_safety": (
+                        float(m.learning_safety) if m.learning_safety else None
+                    ),
+                    "challenge_safety": (
+                        float(m.challenge_safety) if m.challenge_safety else None
+                    ),
                     "trust_level": float(m.trust_level) if m.trust_level else None,
-                    "respect_score": float(m.respect_score) if m.respect_level else None,
-                    "collaboration_quality": float(m.collaboration_quality) if m.collaboration_quality else None,
+                    "respect_score": (
+                        float(m.respect_score) if m.respect_level else None
+                    ),
+                    "collaboration_quality": (
+                        float(m.collaboration_quality)
+                        if m.collaboration_quality
+                        else None
+                    ),
                     "toxicity_indicators": m.toxicity_indicators,
-                    "conflict_level": float(m.conflict_level) if m.conflict_level else None,
+                    "conflict_level": (
+                        float(m.conflict_level) if m.conflict_level else None
+                    ),
                     "stress_level": float(m.stress_level) if m.stress_level else None,
                     "risk_factors": m.risk_factors,
                     "strengths": m.strengths,
-                    "improvement_recommendations": m.improvement_recommendations
+                    "improvement_recommendations": m.improvement_recommendations,
                 }
                 for m in metrics
             ],
             "current_score": current.calculate_overall_score(),
             "trend_direction": trend,
             "risk_level": current.get_risk_level(),
-            "total_measurements": len(metrics)
+            "total_measurements": len(metrics),
         }
 
     except Exception as e:
         logger.error(f"Failed to fetch psychological safety metrics: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch metrics: {str(e)}"
+            detail=f"Failed to fetch metrics: {str(e)}",
         )
 
 
@@ -614,7 +674,7 @@ async def get_toxicity_dashboard(
     organization_id: UUID,
     team_id: Optional[UUID] = None,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get comprehensive dashboard data for toxic behavior detection
@@ -630,7 +690,7 @@ async def get_toxicity_dashboard(
             pattern_query = db.query(ToxicityPattern).filter(
                 and_(
                     ToxicityPattern.organization_id == organization_id,
-                    ToxicityPattern.detection_date >= cutoff_date
+                    ToxicityPattern.detection_date >= cutoff_date,
                 )
             )
 
@@ -639,37 +699,50 @@ async def get_toxicity_dashboard(
 
             return pattern_query
 
-        recent_patterns = await loop.run_in_executor(None, lambda: build_pattern_query().all())
+        recent_patterns = await loop.run_in_executor(
+            None, lambda: build_pattern_query().all()
+        )
 
         # Calculate statistics
         total_patterns = len(recent_patterns)
-        critical_patterns = len([p for p in recent_patterns if p.severity_level == ToxicityLevel.CRITICAL])
-        high_patterns = len([p for p in recent_patterns if p.severity_level == ToxicityLevel.HIGH])
-        intervention_required = len([p for p in recent_patterns if p.intervention_required])
+        critical_patterns = len(
+            [p for p in recent_patterns if p.severity_level == ToxicityLevel.CRITICAL]
+        )
+        high_patterns = len(
+            [p for p in recent_patterns if p.severity_level == ToxicityLevel.HIGH]
+        )
+        intervention_required = len(
+            [p for p in recent_patterns if p.intervention_required]
+        )
 
         # Pattern type breakdown
         pattern_types = {}
         for pattern in recent_patterns:
-            pattern_types[pattern.pattern_type] = pattern_types.get(pattern.pattern_type, 0) + 1
+            pattern_types[pattern.pattern_type] = (
+                pattern_types.get(pattern.pattern_type, 0) + 1
+            )
 
         # Get active interventions
         pattern_ids = [p.id for p in recent_patterns]
         active_interventions = await loop.run_in_executor(
             None,
-            lambda: db.query(BehavioralIntervention).filter(
+            lambda: db.query(BehavioralIntervention)
+            .filter(
                 and_(
                     BehavioralIntervention.toxicity_pattern_id.in_(pattern_ids),
-                    BehavioralIntervention.status.in_(["planned", "in_progress"])
+                    BehavioralIntervention.status.in_(["planned", "in_progress"]),
                 )
-            ).count()
+            )
+            .count(),
         )
 
         # Get latest psychological safety score
         latest_ps = await loop.run_in_executor(
             None,
-            lambda: db.query(PsychologicalSafetyMetrics).filter(
-                PsychologicalSafetyMetrics.organization_id == organization_id
-            ).order_by(PsychologicalSafetyMetrics.measurement_date.desc()).first()
+            lambda: db.query(PsychologicalSafetyMetrics)
+            .filter(PsychologicalSafetyMetrics.organization_id == organization_id)
+            .order_by(PsychologicalSafetyMetrics.measurement_date.desc())
+            .first(),
         )
 
         ps_score = float(latest_ps.calculate_overall_score()) if latest_ps else None
@@ -683,7 +756,7 @@ async def get_toxicity_dashboard(
                 "intervention_required": intervention_required,
                 "active_interventions": active_interventions,
                 "psychological_safety_score": ps_score,
-                "psychological_safety_risk_level": ps_risk_level
+                "psychological_safety_risk_level": ps_risk_level,
             },
             "pattern_breakdown": pattern_types,
             "recent_activity": [
@@ -691,15 +764,17 @@ async def get_toxicity_dashboard(
                     "date": p.detection_date.isoformat(),
                     "type": p.pattern_type,
                     "severity": p.severity_level,
-                    "status": p.status
+                    "status": p.status,
                 }
-                for p in sorted(recent_patterns, key=lambda x: x.detection_date, reverse=True)[:10]
-            ]
+                for p in sorted(
+                    recent_patterns, key=lambda x: x.detection_date, reverse=True
+                )[:10]
+            ],
         }
 
     except Exception as e:
         logger.error(f"Failed to fetch dashboard data: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch dashboard data: {str(e)}"
+            detail=f"Failed to fetch dashboard data: {str(e)}",
         )

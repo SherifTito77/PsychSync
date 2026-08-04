@@ -10,9 +10,8 @@ Usage:
 
 import asyncio
 import logging
-from pathlib import Path
-
 import sys
+from pathlib import Path
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -31,15 +30,15 @@ logger = logging.getLogger(__name__)
 async def create_tables():
     """Create a new resource.
 
-Args:
-    db: Database session
-    **kwargs: Resource attributes
+    Args:
+        db: Database session
+        **kwargs: Resource attributes
 
-Returns:
-    Created resource object
+    Returns:
+        Created resource object
 
-Raises:
-    ValidationError: If input data is invalid
+    Raises:
+        ValidationError: If input data is invalid
     """
     """Create a new resource.
 
@@ -60,7 +59,9 @@ Raises:
 
     async with engine.begin() as conn:
         # Create jira_issues table
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS jira_issues (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 issue_key VARCHAR(50) UNIQUE NOT NULL,
@@ -92,10 +93,14 @@ Raises:
                 comment_count INTEGER NOT NULL DEFAULT 0,
                 last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-        """))
+        """
+            )
+        )
 
         # Create jira_bug_summaries table
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS jira_bug_summaries (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 summary_date TIMESTAMP NOT NULL,
@@ -124,10 +129,14 @@ Raises:
                 generated_by VARCHAR(100),
                 issue_ids JSONB
             );
-        """))
+        """
+            )
+        )
 
         # Create jira_sprint_metrics table
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS jira_sprint_metrics (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 sprint_id VARCHAR(100) UNIQUE NOT NULL,
@@ -156,7 +165,9 @@ Raises:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-        """))
+        """
+            )
+        )
 
         # Create indexes
         indexes = [
@@ -167,12 +178,10 @@ Raises:
             "CREATE INDEX IF NOT EXISTS ix_jira_issues_sprint ON jira_issues (sprint_id);",
             "CREATE INDEX IF NOT EXISTS ix_jira_issues_project ON jira_issues (project_key);",
             "CREATE INDEX IF NOT EXISTS ix_jira_issues_created ON jira_issues (created_at);",
-
             "CREATE INDEX IF NOT EXISTS ix_jira_summary_date ON jira_bug_summaries (summary_date);",
             "CREATE INDEX IF NOT EXISTS ix_jira_summary_project ON jira_bug_summaries (project_key);",
             "CREATE INDEX IF NOT EXISTS ix_jira_summary_sprint ON jira_bug_summaries (sprint_id);",
             "CREATE INDEX IF NOT EXISTS ix_jira_summary_date_project ON jira_bug_summaries (summary_date, project_key);",
-
             "CREATE INDEX IF NOT EXISTS ix_jira_sprint_id ON jira_sprint_metrics (sprint_id);",
             "CREATE INDEX IF NOT EXISTS ix_jira_sprint_project ON jira_sprint_metrics (project_key);",
             "CREATE INDEX IF NOT EXISTS ix_jira_sprint_start ON jira_sprint_metrics (start_date);",
@@ -185,12 +194,12 @@ Raises:
     logger.info("✅ Jira integration tables created successfully")
 
     # Verify tables were created
-    async_session = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session() as session:
-        result = await session.execute(text("""
+        result = await session.execute(
+            text(
+                """
             SELECT table_name
             FROM information_schema.tables
             WHERE table_schema = 'public'
@@ -200,7 +209,9 @@ Raises:
                 'jira_sprint_metrics'
             )
             ORDER BY table_name;
-        """))
+        """
+            )
+        )
 
         tables = [row[0] for row in result.fetchall()]
 

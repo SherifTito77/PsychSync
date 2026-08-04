@@ -14,19 +14,19 @@ Key Features:
 ✔ Security policy validation
 """
 
-import os
-import re
+import ast
+import hashlib
 import json
 import logging
+import os
+import re
 import subprocess
-import ast
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple, Set
+import tempfile
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from collections import defaultdict
-import hashlib
-import tempfile
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SecurityVulnerability:
     """Security vulnerability information"""
+
     id: str
     title: str
     description: str
@@ -53,6 +54,7 @@ class SecurityVulnerability:
 @dataclass
 class SecurityScanResult:
     """Result of security scanning process"""
+
     vulnerabilities_found: int
     vulnerabilities_fixed: int
     scan_duration: timedelta
@@ -102,7 +104,7 @@ class SecurityScanner:
             "authentication": "A07:2021-Identification and Authentication Failures",
             "integrity": "A08:2021-Software and Data Integrity Failures",
             "logging": "A09:2021-Security Logging and Monitoring Failures",
-            "ssrf": "A10:2021-Server-Side Request Forgery"
+            "ssrf": "A10:2021-Server-Side Request Forgery",
         }
 
         # Security severity scores
@@ -110,27 +112,41 @@ class SecurityScanner:
             "critical": 10.0,
             "high": 8.0,
             "medium": 5.0,
-            "low": 2.0
+            "low": 2.0,
         }
 
         # Vulnerability fix patterns
         self.fix_patterns = {
             "hardcoded_secrets": [
-                (r'password\s*=\s*["\'][^"\']+["\']', 'password = os.getenv("PASSWORD")'),
+                (
+                    r'password\s*=\s*["\'][^"\']+["\']',
+                    'password = os.getenv("PASSWORD")',
+                ),
                 (r'api_key\s*=\s*["\'][^"\']+["\']', 'api_key = os.getenv("API_KEY")'),
-                (r'secret\s*=\s*["\'][^"\']+["\']', 'secret = os.getenv("SECRET")')
+                (r'secret\s*=\s*["\'][^"\']+["\']', 'secret = os.getenv("SECRET")'),
             ],
             "sql_injection": [
-                (r'execute\(["\'][^"\']*["\']\s*\+\s*\w+', 'execute("SELECT * FROM table WHERE id = %s", (user_input,))'),
-                (r'execute\(["\'][^"\']*%s["\']\s*%\s*\w+', 'execute("SELECT * FROM table WHERE id = %s", (user_input,))')
+                (
+                    r'execute\(["\'][^"\']*["\']\s*\+\s*\w+',
+                    'execute("SELECT * FROM table WHERE id = %s", (user_input,))',
+                ),
+                (
+                    r'execute\(["\'][^"\']*%s["\']\s*%\s*\w+',
+                    'execute("SELECT * FROM table WHERE id = %s", (user_input,))',
+                ),
             ],
             "debug_statements": [
-                (r'print\([^)]+\)', '# print statement removed for production'),
-                (r'console\.log\([^)]+\)', '// console.log statement removed for production')
-            ]
+                (r"print\([^)]+\)", "# print statement removed for production"),
+                (
+                    r"console\.log\([^)]+\)",
+                    "// console.log statement removed for production",
+                ),
+            ],
         }
 
-    async def scan_and_fix_security(self, target_path: Optional[str] = None) -> SecurityScanResult:
+    async def scan_and_fix_security(
+        self, target_path: Optional[str] = None
+    ) -> SecurityScanResult:
         """
         Perform comprehensive security scanning and auto-fixing
 
@@ -172,7 +188,9 @@ class SecurityScanner:
 
         # Remove duplicates and prioritize by severity
         unique_vulnerabilities = self._deduplicate_vulnerabilities(all_vulnerabilities)
-        prioritized_vulnerabilities = self._prioritize_vulnerabilities(unique_vulnerabilities)
+        prioritized_vulnerabilities = self._prioritize_vulnerabilities(
+            unique_vulnerabilities
+        )
 
         # Apply automatic fixes
         fixed_vulnerabilities = []
@@ -186,21 +204,35 @@ class SecurityScanner:
                         vuln.fixed = True
                         vuln.fix_applied = fix_result["fix_applied"]
                         fixed_vulnerabilities.append(vuln)
-                        auto_fixes_applied.append(f"Fixed {vuln.title} in {vuln.file_path}")
+                        auto_fixes_applied.append(
+                            f"Fixed {vuln.title} in {vuln.file_path}"
+                        )
 
-        remaining_vulnerabilities = [v for v in prioritized_vulnerabilities if not v.fixed]
+        remaining_vulnerabilities = [
+            v for v in prioritized_vulnerabilities if not v.fixed
+        ]
 
         # Calculate security metrics
         scan_duration = datetime.now() - scan_start
-        severity_distribution = self._calculate_severity_distribution(prioritized_vulnerabilities)
-        vulnerability_categories = self._calculate_category_distribution(prioritized_vulnerabilities)
-        security_score = self._calculate_security_score(prioritized_vulnerabilities, fixed_vulnerabilities)
+        severity_distribution = self._calculate_severity_distribution(
+            prioritized_vulnerabilities
+        )
+        vulnerability_categories = self._calculate_category_distribution(
+            prioritized_vulnerabilities
+        )
+        security_score = self._calculate_security_score(
+            prioritized_vulnerabilities, fixed_vulnerabilities
+        )
 
         # Check compliance status
-        compliance_status = await self._check_security_compliance(prioritized_vulnerabilities)
+        compliance_status = await self._check_security_compliance(
+            prioritized_vulnerabilities
+        )
 
         # Generate recommendations
-        recommendations = self._generate_security_recommendations(prioritized_vulnerabilities, fixed_vulnerabilities)
+        recommendations = self._generate_security_recommendations(
+            prioritized_vulnerabilities, fixed_vulnerabilities
+        )
 
         # Generate security report
         await self._generate_security_report(
@@ -220,7 +252,7 @@ class SecurityScanner:
             security_score=security_score,
             compliance_status=compliance_status,
             recommendations=recommendations,
-            auto_fixes_applied=auto_fixes_applied
+            auto_fixes_applied=auto_fixes_applied,
         )
 
     def _discover_scan_targets(self) -> List[Path]:
@@ -233,8 +265,14 @@ class SecurityScanner:
 
         # Configuration files
         config_patterns = [
-            "*.yml", "*.yaml", "*.json", "*.toml", "*.ini",
-            "*.env*", "Dockerfile*", "docker-compose*"
+            "*.yml",
+            "*.yaml",
+            "*.json",
+            "*.toml",
+            "*.ini",
+            "*.env*",
+            "Dockerfile*",
+            "docker-compose*",
         ]
 
         for pattern in config_patterns:
@@ -250,7 +288,9 @@ class SecurityScanner:
 
         return filtered_targets
 
-    async def _run_security_tool(self, tool: str, scan_paths: List[Path]) -> List[SecurityVulnerability]:
+    async def _run_security_tool(
+        self, tool: str, scan_paths: List[Path]
+    ) -> List[SecurityVulnerability]:
         """Run a specific security scanning tool"""
         vulnerabilities = []
 
@@ -265,16 +305,20 @@ class SecurityScanner:
 
         return vulnerabilities
 
-    async def _run_bandit_scan(self, scan_paths: List[Path]) -> List[SecurityVulnerability]:
+    async def _run_bandit_scan(
+        self, scan_paths: List[Path]
+    ) -> List[SecurityVulnerability]:
         """Run Bandit security scanner for Python"""
         try:
             # Prepare bandit command
             bandit_cmd = [
                 "bandit",
-                "-r", "app",  # Recursively scan app directory
-                "-f", "json",
+                "-r",
+                "app",  # Recursively scan app directory
+                "-f",
+                "json",
                 "-q",  # Quiet mode
-                "-ll"  # Low confidence and severity
+                "-ll",  # Low confidence and severity
             ]
 
             result = subprocess.run(
@@ -282,7 +326,7 @@ class SecurityScanner:
                 cwd=self.project_root,
                 capture_output=True,
                 text=True,
-                timeout=300
+                timeout=300,
             )
 
             vulnerabilities = []
@@ -295,15 +339,23 @@ class SecurityScanner:
                             id=f"bandit_{issue.get('test_id', 'unknown')}",
                             title=issue.get("test_name", "Unknown Issue"),
                             description=issue.get("issue_text", "No description"),
-                            severity=self._map_bandit_severity(issue.get("issue_severity")),
-                            category=self._map_bandit_category(issue.get("test_name", "")),
+                            severity=self._map_bandit_severity(
+                                issue.get("issue_severity")
+                            ),
+                            category=self._map_bandit_category(
+                                issue.get("test_name", "")
+                            ),
                             file_path=issue.get("filename", ""),
                             line_number=issue.get("line_number"),
                             code_snippet=issue.get("code", ""),
                             cwe_id=issue.get("cwe_id"),
-                            cvss_score=self._calculate_cvss_from_severity(issue.get("issue_severity")),
+                            cvss_score=self._calculate_cvss_from_severity(
+                                issue.get("issue_severity")
+                            ),
                             fix_suggestion=issue.get("issue_text", "Review the code"),
-                            auto_fixable=self._is_bandit_issue_fixable(issue.get("test_name", ""))
+                            auto_fixable=self._is_bandit_issue_fixable(
+                                issue.get("test_name", "")
+                            ),
                         )
                         vulnerabilities.append(vulnerability)
 
@@ -323,23 +375,19 @@ class SecurityScanner:
             logger.error(f"Bandit scan failed: {e}")
             return []
 
-    async def _run_semgrep_scan(self, scan_paths: List[Path]) -> List[SecurityVulnerability]:
+    async def _run_semgrep_scan(
+        self, scan_paths: List[Path]
+    ) -> List[SecurityVulnerability]:
         """Run Semgrep security scanner"""
         try:
-            semgrep_cmd = [
-                "semgrep",
-                "--config=auto",
-                "--json",
-                "--quiet",
-                "app"
-            ]
+            semgrep_cmd = ["semgrep", "--config=auto", "--json", "--quiet", "app"]
 
             result = subprocess.run(
                 semgrep_cmd,
                 cwd=self.project_root,
                 capture_output=True,
                 text=True,
-                timeout=300
+                timeout=300,
             )
 
             vulnerabilities = []
@@ -353,15 +401,27 @@ class SecurityScanner:
                             id=f"semgrep_{metadata.get('rule_id', 'unknown')}",
                             title=metadata.get("name", "Unknown Issue"),
                             description=metadata.get("message", "No description"),
-                            severity=self._map_semgrep_severity(metadata.get("severity", "INFO")),
-                            category=self._map_semgrep_category(metadata.get("name", "")),
+                            severity=self._map_semgrep_severity(
+                                metadata.get("severity", "INFO")
+                            ),
+                            category=self._map_semgrep_category(
+                                metadata.get("name", "")
+                            ),
                             file_path=result.get("path", ""),
                             line_number=result.get("start", {}).get("line"),
-                            code_snippet=" ".join(result.get("extra", {}).get("lines", [])),
+                            code_snippet=" ".join(
+                                result.get("extra", {}).get("lines", [])
+                            ),
                             cwe_id=metadata.get("cwe_id"),
-                            cvss_score=self._calculate_cvss_from_severity(metadata.get("severity", "INFO")),
-                            fix_suggestion=metadata.get("fix", "Review and fix the security issue"),
-                            auto_fixable=self._is_semgrep_issue_fixable(metadata.get("name", ""))
+                            cvss_score=self._calculate_cvss_from_severity(
+                                metadata.get("severity", "INFO")
+                            ),
+                            fix_suggestion=metadata.get(
+                                "fix", "Review and fix the security issue"
+                            ),
+                            auto_fixable=self._is_semgrep_issue_fixable(
+                                metadata.get("name", "")
+                            ),
                         )
                         vulnerabilities.append(vulnerability)
 
@@ -391,7 +451,7 @@ class SecurityScanner:
                 cwd=self.project_root,
                 capture_output=True,
                 text=True,
-                timeout=300
+                timeout=300,
             )
 
             vulnerabilities = []
@@ -399,29 +459,35 @@ class SecurityScanner:
                 try:
                     safety_output = json.loads(result.stdout)
 
-                    for vuln in safety_output if isinstance(safety_output, list) else []:
+                    for vuln in (
+                        safety_output if isinstance(safety_output, list) else []
+                    ):
                         vulnerability = SecurityVulnerability(
                             id=f"safety_{vuln.get('id', 'unknown')}",
                             title=f"Dependency Vulnerability: {vuln.get('advisory', 'Unknown')}",
-                            description=vuln.get("advisory", "Security issue in dependency"),
+                            description=vuln.get(
+                                "advisory", "Security issue in dependency"
+                            ),
                             severity="high",  # Dependency vulnerabilities are usually high
                             category="vulnerabilities",
                             file_path="requirements.txt",
                             line_number=None,
                             code_snippet=f"{vuln.get('package', 'unknown')}=={vuln.get('installed_version', 'unknown')}",
                             cwe_id=vuln.get("cve"),
-                            cvss_score=self._extract_cvss_from_advisory(vuln.get("advisory", "")),
+                            cvss_score=self._extract_cvss_from_advisory(
+                                vuln.get("advisory", "")
+                            ),
                             fix_suggestion=f"Update {vuln.get('package')} to version {vuln.get('analyzed_version')}",
-                            auto_fixable=True  # Usually fixable by updating dependencies
+                            auto_fixable=True,  # Usually fixable by updating dependencies
                         )
                         vulnerabilities.append(vulnerability)
 
                 except json.JSONDecodeError:
                     # Try to parse plain text output
-                    lines = result.stdout.strip().split('\n')
+                    lines = result.stdout.strip().split("\n")
                     for line in lines:
                         if line.strip():
-                            parts = line.split('|')
+                            parts = line.split("|")
                             if len(parts) >= 4:
                                 vulnerability = SecurityVulnerability(
                                     id=f"safety_{hashlib.md5(line.encode()).hexdigest()[:8]}",
@@ -432,7 +498,7 @@ class SecurityScanner:
                                     file_path="requirements.txt",
                                     line_number=None,
                                     code_snippet=line,
-                                    auto_fixable=True
+                                    auto_fixable=True,
                                 )
                                 vulnerabilities.append(vulnerability)
 
@@ -449,114 +515,150 @@ class SecurityScanner:
             logger.error(f"Safety scan failed: {e}")
             return []
 
-    async def _run_custom_security_checks(self, scan_paths: List[Path]) -> List[SecurityVulnerability]:
+    async def _run_custom_security_checks(
+        self, scan_paths: List[Path]
+    ) -> List[SecurityVulnerability]:
         """Run custom security checks not covered by standard tools"""
         vulnerabilities = []
 
         for scan_path in scan_paths:
-            if scan_path.suffix == '.py':
-                vulnerabilities.extend(await self._scan_python_file_for_security_issues(scan_path))
-            elif scan_path.suffix in ['.yml', '.yaml', '.json']:
-                vulnerabilities.extend(await self._scan_config_file_for_security_issues(scan_path))
+            if scan_path.suffix == ".py":
+                vulnerabilities.extend(
+                    await self._scan_python_file_for_security_issues(scan_path)
+                )
+            elif scan_path.suffix in [".yml", ".yaml", ".json"]:
+                vulnerabilities.extend(
+                    await self._scan_config_file_for_security_issues(scan_path)
+                )
 
         return vulnerabilities
 
-    async def _scan_python_file_for_security_issues(self, file_path: Path) -> List[SecurityVulnerability]:
+    async def _scan_python_file_for_security_issues(
+        self, file_path: Path
+    ) -> List[SecurityVulnerability]:
         """Scan Python file for custom security issues"""
         vulnerabilities = []
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             lines = content.splitlines()
 
             # Check for hardcoded secrets
             secret_patterns = [
-                (r'password\s*=\s*["\'][^"\']+["\']', "hardcoded_password", "Hardcoded password found"),
-                (r'api_key\s*=\s*["\'][^"\']+["\']', "hardcoded_api_key", "Hardcoded API key found"),
-                (r'secret\s*=\s*["\'][^"\']+["\']', "hardcoded_secret", "Hardcoded secret found"),
-                (r'token\s*=\s*["\'][^"\']+["\']', "hardcoded_token", "Hardcoded token found"),
-                (r'private_key\s*=\s*["\'][^"\']+["\']', "hardcoded_private_key", "Hardcoded private key found")
+                (
+                    r'password\s*=\s*["\'][^"\']+["\']',
+                    "hardcoded_password",
+                    "Hardcoded password found",
+                ),
+                (
+                    r'api_key\s*=\s*["\'][^"\']+["\']',
+                    "hardcoded_api_key",
+                    "Hardcoded API key found",
+                ),
+                (
+                    r'secret\s*=\s*["\'][^"\']+["\']',
+                    "hardcoded_secret",
+                    "Hardcoded secret found",
+                ),
+                (
+                    r'token\s*=\s*["\'][^"\']+["\']',
+                    "hardcoded_token",
+                    "Hardcoded token found",
+                ),
+                (
+                    r'private_key\s*=\s*["\'][^"\']+["\']',
+                    "hardcoded_private_key",
+                    "Hardcoded private key found",
+                ),
             ]
 
             for line_num, line in enumerate(lines, 1):
                 for pattern, vuln_id, description in secret_patterns:
                     if re.search(pattern, line, re.IGNORECASE):
-                        vulnerabilities.append(SecurityVulnerability(
-                            id=f"custom_{vuln_id}_{line_num}",
-                            title=description,
-                            description=f"{description} at line {line_num}",
-                            severity="critical",
-                            category="injection",
-                            file_path=str(file_path),
-                            line_number=line_num,
-                            code_snippet=line.strip(),
-                            cvss_score=9.0,
-                            fix_suggestion="Use environment variables or secure configuration management",
-                            auto_fixable=True
-                        ))
+                        vulnerabilities.append(
+                            SecurityVulnerability(
+                                id=f"custom_{vuln_id}_{line_num}",
+                                title=description,
+                                description=f"{description} at line {line_num}",
+                                severity="critical",
+                                category="injection",
+                                file_path=str(file_path),
+                                line_number=line_num,
+                                code_snippet=line.strip(),
+                                cvss_score=9.0,
+                                fix_suggestion="Use environment variables or secure configuration management",
+                                auto_fixable=True,
+                            )
+                        )
 
             # Check for SQL injection patterns
             sql_injection_patterns = [
                 (r'execute\(["\'][^"\']*["\']\s*\+\s*\w+', "sql_injection_concat"),
                 (r'execute\(["\'][^"\']*%s["\']\s*%\s*\w+', "sql_injection_format"),
-                (r'execute\(f["\'][^"\']*{[^}]*}[^"\']*["\']', "sql_injection_fstring")
+                (r'execute\(f["\'][^"\']*{[^}]*}[^"\']*["\']', "sql_injection_fstring"),
             ]
 
             for line_num, line in enumerate(lines, 1):
                 for pattern, vuln_id in sql_injection_patterns:
                     if re.search(pattern, line):
-                        vulnerabilities.append(SecurityVulnerability(
-                            id=f"custom_{vuln_id}_{line_num}",
-                            title="Potential SQL Injection",
-                            description="SQL query construction with user input detected",
-                            severity="high",
-                            category="injection",
-                            file_path=str(file_path),
-                            line_number=line_num,
-                            code_snippet=line.strip(),
-                            cwe_id="CWE-89",
-                            cvss_score=8.0,
-                            fix_suggestion="Use parameterized queries or prepared statements",
-                            auto_fixable=True
-                        ))
+                        vulnerabilities.append(
+                            SecurityVulnerability(
+                                id=f"custom_{vuln_id}_{line_num}",
+                                title="Potential SQL Injection",
+                                description="SQL query construction with user input detected",
+                                severity="high",
+                                category="injection",
+                                file_path=str(file_path),
+                                line_number=line_num,
+                                code_snippet=line.strip(),
+                                cwe_id="CWE-89",
+                                cvss_score=8.0,
+                                fix_suggestion="Use parameterized queries or prepared statements",
+                                auto_fixable=True,
+                            )
+                        )
 
             # Check for debug statements in production
             debug_patterns = [
-                (r'print\([^)]+\)', "debug_print"),
-                (r'console\.log\([^)]+\)', "debug_console"),
-                (r'debugger\b', "debugger_statement")
+                (r"print\([^)]+\)", "debug_print"),
+                (r"console\.log\([^)]+\)", "debug_console"),
+                (r"debugger\b", "debugger_statement"),
             ]
 
             for line_num, line in enumerate(lines, 1):
                 for pattern, vuln_id in debug_patterns:
                     if re.search(pattern, line):
-                        vulnerabilities.append(SecurityVulnerability(
-                            id=f"custom_{vuln_id}_{line_num}",
-                            title="Debug statement in production code",
-                            description="Debug statements should be removed from production",
-                            severity="low",
-                            category="security_misconfiguration",
-                            file_path=str(file_path),
-                            line_number=line_num,
-                            code_snippet=line.strip(),
-                            cvss_score=2.0,
-                            fix_suggestion="Remove debug statements or use proper logging",
-                            auto_fixable=True
-                        ))
+                        vulnerabilities.append(
+                            SecurityVulnerability(
+                                id=f"custom_{vuln_id}_{line_num}",
+                                title="Debug statement in production code",
+                                description="Debug statements should be removed from production",
+                                severity="low",
+                                category="security_misconfiguration",
+                                file_path=str(file_path),
+                                line_number=line_num,
+                                code_snippet=line.strip(),
+                                cvss_score=2.0,
+                                fix_suggestion="Remove debug statements or use proper logging",
+                                auto_fixable=True,
+                            )
+                        )
 
         except Exception as e:
             logger.warning(f"Failed to scan Python file {file_path}: {e}")
 
         return vulnerabilities
 
-    async def _scan_config_file_for_security_issues(self, file_path: Path) -> List[SecurityVulnerability]:
+    async def _scan_config_file_for_security_issues(
+        self, file_path: Path
+    ) -> List[SecurityVulnerability]:
         """Scan configuration file for security issues"""
         vulnerabilities = []
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             lines = content.splitlines()
@@ -566,59 +668,68 @@ class SecurityScanner:
                 (r'password\s*:\s*["\'][^"\']+["\']', "config_password"),
                 (r'api_key\s*:\s*["\'][^"\']+["\']', "config_api_key"),
                 (r'secret\s*:\s*["\'][^"\']+["\']', "config_secret"),
-                (r'token\s*:\s*["\'][^"\']+["\']', "config_token")
+                (r'token\s*:\s*["\'][^"\']+["\']', "config_token"),
             ]
 
             for line_num, line in enumerate(lines, 1):
                 for pattern, vuln_id in credential_patterns:
                     if re.search(pattern, line, re.IGNORECASE):
                         # Skip if it's obviously a template or example
-                        if not any(keyword in line.lower() for keyword in ['example', 'template', 'your_', 'change_me']):
-                            vulnerabilities.append(SecurityVulnerability(
-                                id=f"config_{vuln_id}_{line_num}",
-                                title="Credential in configuration file",
-                                description="Sensitive information found in configuration file",
-                                severity="high",
-                                category="security_misconfiguration",
-                                file_path=str(file_path),
-                                line_number=line_num,
-                                code_snippet=line.strip(),
-                                cvss_score=7.0,
-                                fix_suggestion="Use environment variables or secure credential management",
-                                auto_fixable=True
-                            ))
+                        if not any(
+                            keyword in line.lower()
+                            for keyword in ["example", "template", "your_", "change_me"]
+                        ):
+                            vulnerabilities.append(
+                                SecurityVulnerability(
+                                    id=f"config_{vuln_id}_{line_num}",
+                                    title="Credential in configuration file",
+                                    description="Sensitive information found in configuration file",
+                                    severity="high",
+                                    category="security_misconfiguration",
+                                    file_path=str(file_path),
+                                    line_number=line_num,
+                                    code_snippet=line.strip(),
+                                    cvss_score=7.0,
+                                    fix_suggestion="Use environment variables or secure credential management",
+                                    auto_fixable=True,
+                                )
+                            )
 
             # Check for insecure defaults
             insecure_defaults = [
-                (r'debug\s*:\s*true', "debug_enabled"),
-                (r'ssl_verify\s*:\s*false', "ssl_disabled"),
-                (r'allow_all_origins\s*:\s*true', "cors_permissive"),
-                (r'authentication\s*:\s*false', "auth_disabled")
+                (r"debug\s*:\s*true", "debug_enabled"),
+                (r"ssl_verify\s*:\s*false", "ssl_disabled"),
+                (r"allow_all_origins\s*:\s*true", "cors_permissive"),
+                (r"authentication\s*:\s*false", "auth_disabled"),
             ]
 
             for line_num, line in enumerate(lines, 1):
                 for pattern, vuln_id in insecure_defaults:
                     if re.search(pattern, line, re.IGNORECASE):
-                        vulnerabilities.append(SecurityVulnerability(
-                            id=f"config_{vuln_id}_{line_num}",
-                            title="Insecure configuration setting",
-                            description="Potentially insecure configuration detected",
-                            severity="medium",
-                            category="security_misconfiguration",
-                            file_path=str(file_path),
-                            line_number=line_num,
-                            code_snippet=line.strip(),
-                            cvss_score=5.0,
-                            fix_suggestion="Review and secure the configuration setting",
-                            auto_fixable=False
-                        ))
+                        vulnerabilities.append(
+                            SecurityVulnerability(
+                                id=f"config_{vuln_id}_{line_num}",
+                                title="Insecure configuration setting",
+                                description="Potentially insecure configuration detected",
+                                severity="medium",
+                                category="security_misconfiguration",
+                                file_path=str(file_path),
+                                line_number=line_num,
+                                code_snippet=line.strip(),
+                                cvss_score=5.0,
+                                fix_suggestion="Review and secure the configuration setting",
+                                auto_fixable=False,
+                            )
+                        )
 
         except Exception as e:
             logger.warning(f"Failed to scan config file {file_path}: {e}")
 
         return vulnerabilities
 
-    def _deduplicate_vulnerabilities(self, vulnerabilities: List[SecurityVulnerability]) -> List[SecurityVulnerability]:
+    def _deduplicate_vulnerabilities(
+        self, vulnerabilities: List[SecurityVulnerability]
+    ) -> List[SecurityVulnerability]:
         """Remove duplicate vulnerabilities"""
         seen = set()
         unique_vulnerabilities = []
@@ -632,7 +743,9 @@ class SecurityScanner:
 
         return unique_vulnerabilities
 
-    def _prioritize_vulnerabilities(self, vulnerabilities: List[SecurityVulnerability]) -> List[SecurityVulnerability]:
+    def _prioritize_vulnerabilities(
+        self, vulnerabilities: List[SecurityVulnerability]
+    ) -> List[SecurityVulnerability]:
         """Prioritize vulnerabilities by severity and CVSS score"""
         severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
@@ -641,8 +754,8 @@ class SecurityScanner:
             key=lambda v: (
                 severity_order.get(v.severity, 3),
                 -(v.cvss_score or 0),
-                v.auto_fixable  # Auto-fixable vulnerabilities get priority
-            )
+                v.auto_fixable,  # Auto-fixable vulnerabilities get priority
+            ),
         )
 
     def _should_auto_fix(self, vulnerability: SecurityVulnerability) -> bool:
@@ -657,31 +770,39 @@ class SecurityScanner:
 
         return vuln_level <= threshold_level
 
-    async def _apply_auto_fix(self, vulnerability: SecurityVulnerability) -> Dict[str, Any]:
+    async def _apply_auto_fix(
+        self, vulnerability: SecurityVulnerability
+    ) -> Dict[str, Any]:
         """Apply automatic fix for a vulnerability"""
         try:
             file_path = Path(vulnerability.file_path)
             if not file_path.exists():
                 return {"success": False, "error": "File not found"}
 
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 original_content = f.read()
 
             # Apply fix based on vulnerability category
             if vulnerability.category == "injection":
-                fix_applied = await self._fix_injection_vulnerability(file_path, vulnerability)
+                fix_applied = await self._fix_injection_vulnerability(
+                    file_path, vulnerability
+                )
             elif vulnerability.category == "security_misconfiguration":
-                fix_applied = await self._fix_security_misconfiguration(file_path, vulnerability)
+                fix_applied = await self._fix_security_misconfiguration(
+                    file_path, vulnerability
+                )
             elif vulnerability.category == "vulnerabilities":
                 fix_applied = await self._fix_dependency_vulnerability(vulnerability)
             else:
-                fix_applied = await self._fix_generic_vulnerability(file_path, vulnerability)
+                fix_applied = await self._fix_generic_vulnerability(
+                    file_path, vulnerability
+                )
 
             if fix_applied:
                 return {"success": True, "fix_applied": fix_applied}
             else:
                 # Restore original content if fix failed
-                with open(file_path, 'w', encoding='utf-8') as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     f.write(original_content)
                 return {"success": False, "error": "Fix application failed"}
 
@@ -689,22 +810,29 @@ class SecurityScanner:
             logger.error(f"Failed to apply auto-fix for {vulnerability.id}: {e}")
             return {"success": False, "error": str(e)}
 
-    async def _fix_injection_vulnerability(self, file_path: Path, vulnerability: SecurityVulnerability) -> Optional[str]:
+    async def _fix_injection_vulnerability(
+        self, file_path: Path, vulnerability: SecurityVulnerability
+    ) -> Optional[str]:
         """Fix injection vulnerabilities"""
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             original_content = content
 
             # Apply fix patterns
             for category, patterns in self.fix_patterns.items():
-                if any(keyword in vulnerability.title.lower() for keyword in category.split('_')):
+                if any(
+                    keyword in vulnerability.title.lower()
+                    for keyword in category.split("_")
+                ):
                     for pattern, replacement in patterns:
-                        content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
+                        content = re.sub(
+                            pattern, replacement, content, flags=re.MULTILINE
+                        )
 
             if content != original_content:
-                with open(file_path, 'w', encoding='utf-8') as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     f.write(content)
                 return f"Applied injection fix to {file_path.name}"
 
@@ -714,24 +842,35 @@ class SecurityScanner:
             logger.error(f"Failed to fix injection vulnerability: {e}")
             return None
 
-    async def _fix_security_misconfiguration(self, file_path: Path, vulnerability: SecurityVulnerability) -> Optional[str]:
+    async def _fix_security_misconfiguration(
+        self, file_path: Path, vulnerability: SecurityVulnerability
+    ) -> Optional[str]:
         """Fix security misconfiguration vulnerabilities"""
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             original_content = content
 
             # Remove debug statements
-            content = re.sub(r'print\([^)]*\)', '# Debug statement removed', content)
-            content = re.sub(r'console\.log\([^)]*\)', '// Console log statement removed', content)
+            content = re.sub(r"print\([^)]*\)", "# Debug statement removed", content)
+            content = re.sub(
+                r"console\.log\([^)]*\)", "// Console log statement removed", content
+            )
 
             # Fix common misconfigurations
-            content = re.sub(r'debug\s*:\s*true', 'debug: false', content, flags=re.IGNORECASE)
-            content = re.sub(r'ssl_verify\s*:\s*false', 'ssl_verify: true', content, flags=re.IGNORECASE)
+            content = re.sub(
+                r"debug\s*:\s*true", "debug: false", content, flags=re.IGNORECASE
+            )
+            content = re.sub(
+                r"ssl_verify\s*:\s*false",
+                "ssl_verify: true",
+                content,
+                flags=re.IGNORECASE,
+            )
 
             if content != original_content:
-                with open(file_path, 'w', encoding='utf-8') as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     f.write(content)
                 return f"Applied security misconfiguration fix to {file_path.name}"
 
@@ -741,7 +880,9 @@ class SecurityScanner:
             logger.error(f"Failed to fix security misconfiguration: {e}")
             return None
 
-    async def _fix_dependency_vulnerability(self, vulnerability: SecurityVulnerability) -> Optional[str]:
+    async def _fix_dependency_vulnerability(
+        self, vulnerability: SecurityVulnerability
+    ) -> Optional[str]:
         """Fix dependency vulnerabilities"""
         try:
             requirements_file = self.project_root / "requirements.txt"
@@ -750,7 +891,7 @@ class SecurityScanner:
 
             # This is a simplified implementation
             # In practice, you'd parse the vulnerability and update the specific package version
-            with open(requirements_file, 'r', encoding='utf-8') as f:
+            with open(requirements_file, "r", encoding="utf-8") as f:
                 requirements = f.readlines()
 
             # Add a comment about the vulnerability
@@ -758,30 +899,38 @@ class SecurityScanner:
             for req in requirements:
                 updated_requirements.append(req)
                 if "TODO" in vulnerability.title.lower():
-                    updated_requirements.append(f"# SECURITY: Fix dependency vulnerability in {vulnerability.title}\n")
+                    updated_requirements.append(
+                        f"# SECURITY: Fix dependency vulnerability in {vulnerability.title}\n"
+                    )
 
-            with open(requirements_file, 'w', encoding='utf-8') as f:
+            with open(requirements_file, "w", encoding="utf-8") as f:
                 f.writelines(updated_requirements)
 
-            return f"Added security comment to requirements.txt for {vulnerability.title}"
+            return (
+                f"Added security comment to requirements.txt for {vulnerability.title}"
+            )
 
         except Exception as e:
             logger.error(f"Failed to fix dependency vulnerability: {e}")
             return None
 
-    async def _fix_generic_vulnerability(self, file_path: Path, vulnerability: SecurityVulnerability) -> Optional[str]:
+    async def _fix_generic_vulnerability(
+        self, file_path: Path, vulnerability: SecurityVulnerability
+    ) -> Optional[str]:
         """Apply generic fix for vulnerabilities"""
         try:
             # Add security comment at the vulnerability location
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 lines = f.readlines()
 
-            if vulnerability.line_number and 1 <= vulnerability.line_number <= len(lines):
+            if vulnerability.line_number and 1 <= vulnerability.line_number <= len(
+                lines
+            ):
                 # Insert security comment before the vulnerable line
                 comment = f"# SECURITY: {vulnerability.title}\n"
                 lines.insert(vulnerability.line_number - 1, comment)
 
-                with open(file_path, 'w', encoding='utf-8') as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     f.writelines(lines)
 
                 return f"Added security comment to {file_path.name}"
@@ -795,11 +944,7 @@ class SecurityScanner:
     # Helper methods for severity and category mapping
     def _map_bandit_severity(self, bandit_severity: str) -> str:
         """Map Bandit severity to our severity scale"""
-        mapping = {
-            "HIGH": "critical",
-            "MEDIUM": "high",
-            "LOW": "medium"
-        }
+        mapping = {"HIGH": "critical", "MEDIUM": "high", "LOW": "medium"}
         return mapping.get(bandit_severity.upper(), "medium")
 
     def _map_bandit_category(self, test_name: str) -> str:
@@ -819,11 +964,7 @@ class SecurityScanner:
 
     def _map_semgrep_severity(self, semgrep_severity: str) -> str:
         """Map Semgrep severity to our severity scale"""
-        mapping = {
-            "ERROR": "critical",
-            "WARNING": "high",
-            "INFO": "medium"
-        }
+        mapping = {"ERROR": "critical", "WARNING": "high", "INFO": "medium"}
         return mapping.get(semgrep_severity.upper(), "medium")
 
     def _map_semgrep_category(self, rule_name: str) -> str:
@@ -854,7 +995,7 @@ class SecurityScanner:
             "LOW": 2.5,
             "ERROR": 9.5,
             "WARNING": 7.5,
-            "INFO": 5.0
+            "INFO": 5.0,
         }
         return mapping.get(severity.upper(), 5.0)
 
@@ -862,9 +1003,9 @@ class SecurityScanner:
         """Extract CVSS score from security advisory"""
         # Look for CVSS patterns in advisory text
         cvss_patterns = [
-            r'CVSS[:\s]+(\d+\.?\d*)',
-            r'severity[:\s]+(\d+\.?\d*)',
-            r'score[:\s]+(\d+\.?\d*)'
+            r"CVSS[:\s]+(\d+\.?\d*)",
+            r"severity[:\s]+(\d+\.?\d*)",
+            r"score[:\s]+(\d+\.?\d*)",
         ]
 
         for pattern in cvss_patterns:
@@ -883,20 +1024,18 @@ class SecurityScanner:
             "hardcoded-password",
             "hardcoded-sql",
             "hardcoded_tmp_directory",
-            "debug-statements"
+            "debug-statements",
         ]
         return any(fixable in test_name.lower() for fixable in fixable_tests)
 
     def _is_semgrep_issue_fixable(self, rule_name: str) -> bool:
         """Determine if a Semgrep issue is auto-fixable"""
-        fixable_patterns = [
-            "hardcoded",
-            "debug",
-            "temporary"
-        ]
+        fixable_patterns = ["hardcoded", "debug", "temporary"]
         return any(pattern in rule_name.lower() for pattern in fixable_patterns)
 
-    def _calculate_severity_distribution(self, vulnerabilities: List[SecurityVulnerability]) -> Dict[str, int]:
+    def _calculate_severity_distribution(
+        self, vulnerabilities: List[SecurityVulnerability]
+    ) -> Dict[str, int]:
         """Calculate distribution of vulnerability severities"""
         distribution = {"critical": 0, "high": 0, "medium": 0, "low": 0}
 
@@ -906,7 +1045,9 @@ class SecurityScanner:
 
         return distribution
 
-    def _calculate_category_distribution(self, vulnerabilities: List[SecurityVulnerability]) -> Dict[str, int]:
+    def _calculate_category_distribution(
+        self, vulnerabilities: List[SecurityVulnerability]
+    ) -> Dict[str, int]:
         """Calculate distribution of vulnerability categories"""
         distribution = defaultdict(int)
 
@@ -915,8 +1056,11 @@ class SecurityScanner:
 
         return dict(distribution)
 
-    def _calculate_security_score(self, all_vulnerabilities: List[SecurityVulnerability],
-                                 fixed_vulnerabilities: List[SecurityVulnerability]) -> float:
+    def _calculate_security_score(
+        self,
+        all_vulnerabilities: List[SecurityVulnerability],
+        fixed_vulnerabilities: List[SecurityVulnerability],
+    ) -> float:
         """Calculate overall security score"""
         if not all_vulnerabilities:
             return 100.0
@@ -939,35 +1083,54 @@ class SecurityScanner:
         base_score = (fixed_weight / total_weight) * 100
 
         # Penalty for remaining critical vulnerabilities
-        critical_remaining = len([v for v in all_vulnerabilities if v.severity == "critical" and v not in fixed_vulnerabilities])
+        critical_remaining = len(
+            [
+                v
+                for v in all_vulnerabilities
+                if v.severity == "critical" and v not in fixed_vulnerabilities
+            ]
+        )
         penalty = critical_remaining * 10
 
         return max(0, min(100, base_score - penalty))
 
-    async def _check_security_compliance(self, vulnerabilities: List[SecurityVulnerability]) -> Dict[str, bool]:
+    async def _check_security_compliance(
+        self, vulnerabilities: List[SecurityVulnerability]
+    ) -> Dict[str, bool]:
         """Check security compliance status"""
         compliance_status = {}
 
         # OWASP Top 10 compliance
         for owasp_id, owasp_name in self.owasp_categories.items():
             category_vulns = [v for v in vulnerabilities if v.category == owasp_id]
-            critical_vulns = [v for v in category_vulns if v.severity in ["critical", "high"]]
+            critical_vulns = [
+                v for v in category_vulns if v.severity in ["critical", "high"]
+            ]
             compliance_status[owasp_name] = len(critical_vulns) == 0
 
         # General compliance checks
-        compliance_status["no_critical_vulnerabilities"] = len([v for v in vulnerabilities if v.severity == "critical"]) == 0
+        compliance_status["no_critical_vulnerabilities"] = (
+            len([v for v in vulnerabilities if v.severity == "critical"]) == 0
+        )
         compliance_status["auto_fix_enabled"] = self.auto_fix
         compliance_status["tools_configured"] = len(self.tools) > 0
 
         return compliance_status
 
-    def _generate_security_recommendations(self, all_vulnerabilities: List[SecurityVulnerability],
-                                         fixed_vulnerabilities: List[SecurityVulnerability]) -> List[str]:
+    def _generate_security_recommendations(
+        self,
+        all_vulnerabilities: List[SecurityVulnerability],
+        fixed_vulnerabilities: List[SecurityVulnerability],
+    ) -> List[str]:
         """Generate actionable security recommendations"""
         recommendations = []
 
         # Critical vulnerability recommendations
-        critical_remaining = [v for v in all_vulnerabilities if v.severity == "critical" and v not in fixed_vulnerabilities]
+        critical_remaining = [
+            v
+            for v in all_vulnerabilities
+            if v.severity == "critical" and v not in fixed_vulnerabilities
+        ]
         if critical_remaining:
             recommendations.append(
                 f"URGENT: {len(critical_remaining)} critical vulnerabilities remain unfixed. "
@@ -975,7 +1138,11 @@ class SecurityScanner:
             )
 
         # Auto-fix recommendations
-        auto_fixable_remaining = [v for v in all_vulnerabilities if v.auto_fixable and v not in fixed_vulnerabilities]
+        auto_fixable_remaining = [
+            v
+            for v in all_vulnerabilities
+            if v.auto_fixable and v not in fixed_vulnerabilities
+        ]
         if auto_fixable_remaining:
             recommendations.append(
                 f"{len(auto_fixable_remaining)} auto-fixable vulnerabilities remain. "
@@ -1009,20 +1176,25 @@ class SecurityScanner:
             )
 
         # General security recommendations
-        recommendations.extend([
-            "Set up automated security scanning in CI/CD pipeline",
-            "Implement security code review practices",
-            "Regularly conduct security assessments and penetration testing",
-            "Establish security incident response procedures",
-            "Monitor security advisories for dependencies and frameworks",
-            "Implement proper logging and monitoring for security events"
-        ])
+        recommendations.extend(
+            [
+                "Set up automated security scanning in CI/CD pipeline",
+                "Implement security code review practices",
+                "Regularly conduct security assessments and penetration testing",
+                "Establish security incident response procedures",
+                "Monitor security advisories for dependencies and frameworks",
+                "Implement proper logging and monitoring for security events",
+            ]
+        )
 
         return recommendations[:15]  # Limit to top 15 recommendations
 
-    async def _generate_security_report(self, vulnerabilities: List[SecurityVulnerability],
-                                       fixed_vulnerabilities: List[SecurityVulnerability],
-                                       scan_duration: timedelta) -> None:
+    async def _generate_security_report(
+        self,
+        vulnerabilities: List[SecurityVulnerability],
+        fixed_vulnerabilities: List[SecurityVulnerability],
+        scan_duration: timedelta,
+    ) -> None:
         """Generate comprehensive security report"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         report_file = self.security_reports_dir / f"security_report_{timestamp}.json"
@@ -1033,11 +1205,16 @@ class SecurityScanner:
             "summary": {
                 "total_vulnerabilities": len(vulnerabilities),
                 "fixed_vulnerabilities": len(fixed_vulnerabilities),
-                "remaining_vulnerabilities": len(vulnerabilities) - len(fixed_vulnerabilities),
-                "auto_fixes_applied": len(fixed_vulnerabilities)
+                "remaining_vulnerabilities": len(vulnerabilities)
+                - len(fixed_vulnerabilities),
+                "auto_fixes_applied": len(fixed_vulnerabilities),
             },
-            "severity_distribution": self._calculate_severity_distribution(vulnerabilities),
-            "category_distribution": self._calculate_category_distribution(vulnerabilities),
+            "severity_distribution": self._calculate_severity_distribution(
+                vulnerabilities
+            ),
+            "category_distribution": self._calculate_category_distribution(
+                vulnerabilities
+            ),
             "vulnerabilities": [
                 {
                     "id": v.id,
@@ -1047,14 +1224,16 @@ class SecurityScanner:
                     "file_path": v.file_path,
                     "line_number": v.line_number,
                     "fixed": v.fixed,
-                    "fix_applied": v.fix_applied
+                    "fix_applied": v.fix_applied,
                 }
                 for v in vulnerabilities
             ],
-            "recommendations": self._generate_security_recommendations(vulnerabilities, fixed_vulnerabilities)
+            "recommendations": self._generate_security_recommendations(
+                vulnerabilities, fixed_vulnerabilities
+            ),
         }
 
-        with open(report_file, 'w', encoding='utf-8') as f:
+        with open(report_file, "w", encoding="utf-8") as f:
             json.dump(report_data, f, indent=2)
 
         # Generate HTML report
@@ -1064,9 +1243,11 @@ class SecurityScanner:
         logger.info(f"📁 Security report generated: {report_file}")
         logger.info(f"🌐 HTML report available: {html_file}")
 
-    async def _generate_html_report(self, report_data: Dict[str, Any], output_file: Path) -> None:
+    async def _generate_html_report(
+        self, report_data: Dict[str, Any], output_file: Path
+    ) -> None:
         """Generate HTML security report"""
-        html_content = f'''<!DOCTYPE html>
+        html_content = f"""<!DOCTYPE html>
 <html>
 <head>
     <title>Security Scan Report - {report_data["scan_timestamp"]}</title>
@@ -1123,9 +1304,9 @@ class SecurityScanner:
         {"".join([f'<li>{rec}</li>' for rec in report_data["recommendations"]])}
     </ul>
 </body>
-</html>'''
+</html>"""
 
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(html_content)
 
     def _format_vulnerability_html(self, vulnerability: Dict[str, Any]) -> str:
@@ -1134,11 +1315,11 @@ class SecurityScanner:
         if vulnerability["fixed"]:
             css_class += " fixed"
 
-        return f'''
+        return f"""
         <div class="vulnerability {css_class}">
             <h4>{vulnerability["title"]}</h4>
             <p><strong>Severity:</strong> {vulnerability["severity"].title()}</p>
             <p><strong>Category:</strong> {vulnerability["category"]}</p>
             <p><strong>File:</strong> {vulnerability["file_path"]}:{vulnerability["line_number"]}</p>
             {f'<p><strong>Status:</strong> ✅ Fixed ({vulnerability["fix_applied"]})</p>' if vulnerability["fixed"] else ''}
-        </div>'''
+        </div>"""

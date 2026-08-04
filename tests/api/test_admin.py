@@ -1,18 +1,23 @@
-from app.core.database import get_async_db
-from app.services.security import create_access_token
-from app.db.models.user import User
-from app.main import app
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-import pytest
+
+from app.core.database import get_async_db
+from app.db.models.user import User
+from app.main import app
+from app.services.security import create_access_token
+
+
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -20,12 +25,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -39,8 +45,9 @@ def list_all_users(client, auth_headers):
     Retrieve all users. Requires superuser privileges.
     """
     # TODO: Implement test logic
-    response = client.get("/users",
-        params={'skip': 'test_value', 'limit': 'test_value', 'is_active': 'test_value'}
+    response = client.get(
+        "/users",
+        params={"skip": "test_value", "limit": "test_value", "is_active": "test_value"},
     )
 
     assert response.status_code in [200, 201]
@@ -49,16 +56,16 @@ def list_all_users(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -66,12 +73,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -85,23 +93,21 @@ def soft_delete_user(client, auth_headers):
     Soft-delete a user by deactivating them. Requires superuser privileges.
     """
     # TODO: Implement test logic
-    response = client.delete("/users/{user_id}",
-        params={'user_id': 'test_value'}
-    )
+    response = client.delete("/users/{user_id}", params={"user_id": "test_value"})
 
     assert response.status_code in [200, 204]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -109,12 +115,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -129,9 +136,7 @@ def restore_user_endpoint(client, auth_headers):
     """
     # TODO: Implement test logic
     response = client.post(
-        "/users/{user_id}/restore",
-        json={},
-        params={'user_id': 'test_value'}
+        "/users/{user_id}/restore", json={}, params={"user_id": "test_value"}
     )
 
     assert response.status_code in [200, 201, 202]

@@ -4,29 +4,45 @@ Tests all fabricated functions with edge cases and error scenarios
 Coverage target: 95%+ for all generated functions
 """
 
-import pytest
 import asyncio
 import json
 import time
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch, AsyncMock
-from typing import Dict, Any
+from typing import Any, Dict
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 import redis.asyncio as redis
+
+from app.services.api_performance_service import (
+    PerformanceMetric,
+    PerformanceMonitor,
+    SystemMetrics,
+    performance_monitor,
+)
+from app.services.api_security_service import (
+    APISecurityService,
+    SecurityEvent,
+    SecurityLevel,
+    ThreatLevel,
+    api_security_service,
+)
 
 # Import generated functions
 from app.services.rate_limiter_service import (
-    AdvancedRateLimiter, UserTier, RateLimit, advanced_rate_limiter
+    AdvancedRateLimiter,
+    RateLimit,
+    UserTier,
+    advanced_rate_limiter,
 )
 from app.services.restful_service import (
-    RESTfulEndpointBuilder, RESTfulPathBuilder, RESTfulValidator,
-    create_restful_router, validate_restful_compliance
+    RESTfulEndpointBuilder,
+    RESTfulPathBuilder,
+    RESTfulValidator,
+    create_restful_router,
+    validate_restful_compliance,
 )
-from app.services.api_performance_service import (
-    PerformanceMonitor, PerformanceMetric, SystemMetrics, performance_monitor
-)
-from app.services.api_security_service import (
-    APISecurityService, SecurityEvent, SecurityLevel, ThreatLevel, api_security_service
-)
+
 
 # Mock FastAPI objects
 class MockRequest:
@@ -39,7 +55,9 @@ class MockRequest:
         self.state = Mock()
         self.headers = {}
 
+
 # ==================== RATE LIMITER TESTS ====================
+
 
 class TestAdvancedRateLimiter:
     """Test suite for AdvancedRateLimiter"""
@@ -72,7 +90,7 @@ class TestAdvancedRateLimiter:
 
         # Test with anonymous user
         request = MockRequest(client_ip="192.168.1.1")
-        delattr(request.state, 'user_id')  # Ensure no user_id
+        delattr(request.state, "user_id")  # Ensure no user_id
         identifier = rate_limiter._get_client_identifier(request, UserTier.ANONYMOUS)
         assert "ip:192.168.1.1:anonymous" in identifier
 
@@ -89,7 +107,7 @@ class TestAdvancedRateLimiter:
 
         # Should be 50% of basic tier limits due to multiplier
         assert rate_limit.requests_per_minute == 100  # 200 * 0.5
-        assert rate_limit.requests_per_hour == 500    # 1000 * 0.5
+        assert rate_limit.requests_per_hour == 500  # 1000 * 0.5
 
     @pytest.mark.asyncio
     async def test_rate_limit_check_allowed(self, rate_limiter, mock_redis):
@@ -97,10 +115,16 @@ class TestAdvancedRateLimiter:
         rate_limiter._redis_client = mock_redis
 
         # Mock Redis responses
-        mock_redis.pipeline.return_value.execute.return_value = ["0", "0", "0"]  # No requests yet
+        mock_redis.pipeline.return_value.execute.return_value = [
+            "0",
+            "0",
+            "0",
+        ]  # No requests yet
 
         request = MockRequest()
-        is_allowed, limit_info = await rate_limiter.check_rate_limit(request, UserTier.BASIC)
+        is_allowed, limit_info = await rate_limiter.check_rate_limit(
+            request, UserTier.BASIC
+        )
 
         assert is_allowed is True
         assert limit_info["minute"]["limit"] == 200
@@ -116,7 +140,9 @@ class TestAdvancedRateLimiter:
         mock_redis.pipeline.return_value.execute.return_value = ["200", "500", "5000"]
 
         request = MockRequest()
-        is_allowed, limit_info = await rate_limiter.check_rate_limit(request, UserTier.BASIC)
+        is_allowed, limit_info = await rate_limiter.check_rate_limit(
+            request, UserTier.BASIC
+        )
 
         assert is_allowed is False
         assert limit_info["minute"]["remaining"] == 0
@@ -128,7 +154,9 @@ class TestAdvancedRateLimiter:
         mock_redis.pipeline.side_effect = Exception("Redis error")
 
         request = MockRequest()
-        is_allowed, limit_info = await rate_limiter.check_rate_limit(request, UserTier.BASIC)
+        is_allowed, limit_info = await rate_limiter.check_rate_limit(
+            request, UserTier.BASIC
+        )
 
         # Should fail open - allow request if rate limiting fails
         assert is_allowed is True
@@ -138,11 +166,17 @@ class TestAdvancedRateLimiter:
         """Test resource name validation"""
         assert rate_limiter._validate_resource_name("users") is True
         assert rate_limiter._validate_resource_name("user_profiles") is True
-        assert rate_limiter._validate_resource_name("Users") is False  # Uppercase not allowed
+        assert (
+            rate_limiter._validate_resource_name("Users") is False
+        )  # Uppercase not allowed
         assert rate_limiter._validate_resource_name("") is False
-        assert rate_limiter._validate_resource_name("users!") is False  # Special char not allowed
+        assert (
+            rate_limiter._validate_resource_name("users!") is False
+        )  # Special char not allowed
+
 
 # ==================== RESTFUL SERVICE TESTS ====================
+
 
 class TestRESTfulService:
     """Test suite for RESTful service utilities"""
@@ -162,13 +196,19 @@ class TestRESTfulService:
     def endpoint_builder(self, mock_model):
         """Create RESTful endpoint builder"""
         from fastapi import APIRouter
+
         router = APIRouter()
         return RESTfulEndpointBuilder(router, "user", mock_model)
 
     def test_pluralization(self):
         """Test noun pluralization"""
-        assert RESTfulEndpointBuilder(None, "user", None)._make_plural("user") == "users"
-        assert RESTfulEndpointBuilder(None, "company", None)._make_plural("company") == "companies"
+        assert (
+            RESTfulEndpointBuilder(None, "user", None)._make_plural("user") == "users"
+        )
+        assert (
+            RESTfulEndpointBuilder(None, "company", None)._make_plural("company")
+            == "companies"
+        )
         assert RESTfulEndpointBuilder(None, "box", None)._make_plural("box") == "boxes"
 
     def test_path_building(self):
@@ -182,7 +222,9 @@ class TestRESTfulService:
         action_path = RESTfulPathBuilder.build_action_path("users", "activate")
         assert action_path == "/api/v1/users/{id}/activate"
 
-        relationship_path = RESTfulPathBuilder.build_relationship_path("users", "assessments")
+        relationship_path = RESTfulPathBuilder.build_relationship_path(
+            "users", "assessments"
+        )
         assert relationship_path == "/api/v1/users/{id}/assessments"
 
     def test_endpoint_method_validation(self):
@@ -201,13 +243,19 @@ class TestRESTfulService:
         assert len(issues) > 0
 
         # Resource endpoints
-        is_valid, issues = RESTfulValidator.validate_endpoint_method("GET", "/users/{id}")
+        is_valid, issues = RESTfulValidator.validate_endpoint_method(
+            "GET", "/users/{id}"
+        )
         assert is_valid is True
 
-        is_valid, issues = RESTfulValidator.validate_endpoint_method("DELETE", "/users/{id}")
+        is_valid, issues = RESTfulValidator.validate_endpoint_method(
+            "DELETE", "/users/{id}"
+        )
         assert is_valid is True
 
-        is_valid, issues = RESTfulValidator.validate_endpoint_method("POST", "/users/{id}")
+        is_valid, issues = RESTfulValidator.validate_endpoint_method(
+            "POST", "/users/{id}"
+        )
         assert is_valid is False
 
     def test_collection_response_building(self):
@@ -215,10 +263,7 @@ class TestRESTfulService:
         items = [{"id": 1, "name": "User 1"}, {"id": 2, "name": "User 2"}]
 
         response = RESTfulResponseBuilder.build_collection_response(
-            items=items,
-            page=1,
-            size=20,
-            total=50
+            items=items, page=1, size=20, total=50
         )
 
         assert response["data"] == items
@@ -246,8 +291,7 @@ class TestRESTfulService:
         mock_service = Mock()
 
         endpoints = endpoint_builder.create_crud_endpoints(
-            service_class=mock_service,
-            auth_required=True
+            service_class=mock_service, auth_required=True
         )
 
         assert "list" in endpoints
@@ -259,12 +303,15 @@ class TestRESTfulService:
     def test_invalid_resource_name(self):
         """Test handling of invalid resource names"""
         from fastapi import APIRouter
+
         router = APIRouter()
 
         with pytest.raises(ValueError, match="Invalid resource name"):
             RESTfulEndpointBuilder(router, "InvalidName!", Mock())
 
+
 # ==================== PERFORMANCE MONITOR TESTS ====================
+
 
 class TestPerformanceMonitor:
     """Test suite for PerformanceMonitor"""
@@ -282,11 +329,26 @@ class TestPerformanceMonitor:
 
     def test_performance_classification(self, performance_monitor_instance):
         """Test performance level classification"""
-        assert performance_monitor_instance._classify_performance(50) == PerformanceLevel.EXCELLENT
-        assert performance_monitor_instance._classify_performance(200) == PerformanceLevel.GOOD
-        assert performance_monitor_instance._classify_performance(500) == PerformanceLevel.ACCEPTABLE
-        assert performance_monitor_instance._classify_performance(1500) == PerformanceLevel.SLOW
-        assert performance_monitor_instance._classify_performance(5000) == PerformanceLevel.CRITICAL
+        assert (
+            performance_monitor_instance._classify_performance(50)
+            == PerformanceLevel.EXCELLENT
+        )
+        assert (
+            performance_monitor_instance._classify_performance(200)
+            == PerformanceLevel.GOOD
+        )
+        assert (
+            performance_monitor_instance._classify_performance(500)
+            == PerformanceLevel.ACCEPTABLE
+        )
+        assert (
+            performance_monitor_instance._classify_performance(1500)
+            == PerformanceLevel.SLOW
+        )
+        assert (
+            performance_monitor_instance._classify_performance(5000)
+            == PerformanceLevel.CRITICAL
+        )
 
     def test_percentile_calculation(self, performance_monitor_instance):
         """Test percentile calculation"""
@@ -320,7 +382,7 @@ class TestPerformanceMonitor:
             response_size_bytes=1024,
             user_agent="test-agent",
             ip_address="127.0.0.1",
-            user_id="user123"
+            user_id="user123",
         )
 
         # Mock Redis operations
@@ -334,10 +396,14 @@ class TestPerformanceMonitor:
         assert mock_redis.expire.called
 
         # Check metric was stored in memory
-        assert len(performance_monitor_instance._metrics_history["GET:/api/v1/users"]) == 1
+        assert (
+            len(performance_monitor_instance._metrics_history["GET:/api/v1/users"]) == 1
+        )
 
     @pytest.mark.asyncio
-    async def test_metric_recording_redis_error(self, performance_monitor_instance, mock_redis):
+    async def test_metric_recording_redis_error(
+        self, performance_monitor_instance, mock_redis
+    ):
         """Test metric recording with Redis error"""
         performance_monitor_instance._redis_client = mock_redis
         mock_redis.lpush.side_effect = Exception("Redis error")
@@ -350,14 +416,16 @@ class TestPerformanceMonitor:
             status_code=200,
             response_size_bytes=1024,
             user_agent="test-agent",
-            ip_address="127.0.0.1"
+            ip_address="127.0.0.1",
         )
 
         # Should not raise exception
         await performance_monitor_instance.record_metric(metric)
 
         # Should still store in memory
-        assert len(performance_monitor_instance._metrics_history["GET:/api/v1/users"]) == 1
+        assert (
+            len(performance_monitor_instance._metrics_history["GET:/api/v1/users"]) == 1
+        )
 
     @pytest.mark.asyncio
     async def test_performance_stats_calculation(self, performance_monitor_instance):
@@ -371,8 +439,7 @@ class TestPerformanceMonitor:
         ]
 
         stats = await performance_monitor_instance._calculate_performance_stats(
-            "GET:/api/v1/users",
-            metrics_data
+            "GET:/api/v1/users", metrics_data
         )
 
         assert stats.endpoint == "GET:/api/v1/users"
@@ -385,8 +452,7 @@ class TestPerformanceMonitor:
     async def test_empty_performance_stats(self, performance_monitor_instance):
         """Test performance statistics with no data"""
         stats = await performance_monitor_instance._calculate_performance_stats(
-            "GET:/api/v1/users",
-            []
+            "GET:/api/v1/users", []
         )
 
         assert stats.endpoint == "GET:/api/v1/users"
@@ -397,10 +463,11 @@ class TestPerformanceMonitor:
     @pytest.mark.asyncio
     async def test_system_metrics_collection(self, performance_monitor_instance):
         """Test system metrics collection"""
-        with patch('psutil.cpu_percent', return_value=45.0), \
-             patch('psutil.virtual_memory') as mock_memory, \
-             patch('psutil.disk_usage') as mock_disk, \
-             patch('psutil.Process') as mock_process:
+        with patch("psutil.cpu_percent", return_value=45.0), patch(
+            "psutil.virtual_memory"
+        ) as mock_memory, patch("psutil.disk_usage") as mock_disk, patch(
+            "psutil.Process"
+        ) as mock_process:
 
             # Mock psutil returns
             mock_memory.return_value.percent = 60.0
@@ -421,7 +488,7 @@ class TestPerformanceMonitor:
     @pytest.mark.asyncio
     async def test_system_metrics_collection_error(self, performance_monitor_instance):
         """Test system metrics collection with error"""
-        with patch('psutil.Process', side_effect=Exception("psutil error")):
+        with patch("psutil.Process", side_effect=Exception("psutil error")):
             metrics = await performance_monitor_instance.collect_system_metrics()
 
             # Should return default values on error
@@ -433,7 +500,8 @@ class TestPerformanceMonitor:
         """Test current performance summary"""
         # Add some mock data
         performance_monitor_instance._metrics_history["GET:/api/v1/users"] = [
-            Mock(), Mock()
+            Mock(),
+            Mock(),
         ]
         performance_monitor_instance._alert_state["GET:/api/v1/users"] = True
 
@@ -443,7 +511,9 @@ class TestPerformanceMonitor:
         assert summary["alerts_active"] == 1
         assert summary["recent_metrics"] == 2
 
+
 # ==================== SECURITY SERVICE TESTS ====================
+
 
 class TestAPISecurityService:
     """Test suite for APISecurityService"""
@@ -459,7 +529,7 @@ class TestAPISecurityService:
             name="Test Key",
             permissions=["read", "write"],
             rate_limit_tier="premium",
-            expires_in_days=30
+            expires_in_days=30,
         )
 
         assert api_key.startswith("psync_")
@@ -477,8 +547,7 @@ class TestAPISecurityService:
         """Test API key validation"""
         # Generate a valid key
         api_key, key_id = security_service.generate_api_key(
-            name="Test Key",
-            permissions=["read"]
+            name="Test Key", permissions=["read"]
         )
 
         # Test valid key
@@ -501,7 +570,7 @@ class TestAPISecurityService:
         api_key, key_id = security_service.generate_api_key(
             name="Expired Key",
             permissions=["read"],
-            expires_in_days=-1  # Already expired
+            expires_in_days=-1,  # Already expired
         )
 
         # Should not validate expired key
@@ -513,24 +582,36 @@ class TestAPISecurityService:
         secret = "test_secret"
 
         # Generate valid signature
-        import hmac
         import hashlib
-        signature = "sha256=" + hmac.new(
-            secret.encode(),
-            payload,
-            hashlib.sha256
-        ).hexdigest()
+        import hmac
+
+        signature = (
+            "sha256=" + hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+        )
 
         # Test valid signature
-        assert security_service.verify_webhook_signature(payload, signature, secret) is True
+        assert (
+            security_service.verify_webhook_signature(payload, signature, secret)
+            is True
+        )
 
         # Test invalid signature
         invalid_signature = "sha256=invalid_signature"
-        assert security_service.verify_webhook_signature(payload, invalid_signature, secret) is False
+        assert (
+            security_service.verify_webhook_signature(
+                payload, invalid_signature, secret
+            )
+            is False
+        )
 
         # Test wrong format
         wrong_format_signature = "wrong_format"
-        assert security_service.verify_webhook_signature(payload, wrong_format_signature, secret) is False
+        assert (
+            security_service.verify_webhook_signature(
+                payload, wrong_format_signature, secret
+            )
+            is False
+        )
 
     def test_input_sanitization(self, security_service):
         """Test input sanitization"""
@@ -544,7 +625,7 @@ class TestAPISecurityService:
         dirty_dict = {
             "name": "<b>User</b>",
             "description": "<script>alert('xss')</script>Desc",
-            "metadata": {"key": "value"}
+            "metadata": {"key": "value"},
         }
         clean_dict = security_service.sanitize_input(dirty_dict)
         assert "<script>" not in clean_dict["description"]
@@ -560,10 +641,7 @@ class TestAPISecurityService:
         # Test SQL injection detection
         sql_injection = "SELECT * FROM users WHERE id = 1; DROP TABLE users;"
         threats = security_service.detect_threats(
-            sql_injection,
-            "192.168.1.1",
-            "test-agent",
-            "/api/v1/users"
+            sql_injection, "192.168.1.1", "test-agent", "/api/v1/users"
         )
         assert len(threats) > 0
         assert any("sql_injection" in threat.event_type for threat in threats)
@@ -571,10 +649,7 @@ class TestAPISecurityService:
         # Test XSS detection
         xss_payload = "<script>alert('xss')</script>"
         threats = security_service.detect_threats(
-            xss_payload,
-            "192.168.1.1",
-            "test-agent",
-            "/api/v1/users"
+            xss_payload, "192.168.1.1", "test-agent", "/api/v1/users"
         )
         assert len(threats) > 0
         assert any("xss" in threat.event_type for threat in threats)
@@ -636,10 +711,10 @@ class TestAPISecurityService:
             endpoint="/api/v1/test",
             method="GET",
             details={"test": "data"},
-            severity="low"
+            severity="low",
         )
 
-        with patch('logging.getLogger') as mock_logger:
+        with patch("logging.getLogger") as mock_logger:
             mock_logger_instance = Mock()
             mock_logger.return_value = mock_logger_instance
 
@@ -661,7 +736,7 @@ class TestAPISecurityService:
                 user_agent="test",
                 endpoint="/api/v1/users",
                 method="POST",
-                severity="high"
+                severity="high",
             ),
             SecurityEvent(
                 timestamp=now - timedelta(hours=2),
@@ -670,19 +745,23 @@ class TestAPISecurityService:
                 user_agent="test",
                 endpoint="/api/v1/users",
                 method="GET",
-                severity="medium"
-            )
+                severity="medium",
+            ),
         ]
 
         summary = security_service.get_security_summary(hours=24)
 
         assert summary["total_events"] == 2
         assert summary["unique_source_ips"] == 2
-        assert summary["threat_level"] == ThreatLevel.HIGH.value  # One high severity event
+        assert (
+            summary["threat_level"] == ThreatLevel.HIGH.value
+        )  # One high severity event
         assert "sql_injection" in summary["event_types"]
         assert "xss_attempt" in summary["event_types"]
 
+
 # ==================== INTEGRATION TESTS ====================
+
 
 class TestFunctionIntegration:
     """Integration tests for all generated functions"""
@@ -697,7 +776,7 @@ class TestFunctionIntegration:
         request.state.user_id = "user123"
 
         # Mock Redis for all services
-        with patch('redis.asyncio.from_url') as mock_redis_from_url:
+        with patch("redis.asyncio.from_url") as mock_redis_from_url:
             mock_redis = AsyncMock()
             mock_redis_from_url.return_value = mock_redis
 
@@ -708,8 +787,7 @@ class TestFunctionIntegration:
 
             # Generate API key
             api_key, key_id = security_service.generate_api_key(
-                name="Integration Test",
-                permissions=["write"]
+                name="Integration Test", permissions=["write"]
             )
             request.headers["X-API-Key"] = api_key
 
@@ -736,7 +814,7 @@ class TestFunctionIntegration:
                 response_size_bytes=500,
                 user_agent="test-agent",
                 ip_address="127.0.0.1",
-                user_id="user123"
+                user_id="user123",
             )
             await perf_monitor.record_metric(metric)
 
@@ -758,10 +836,7 @@ class TestFunctionIntegration:
         # Test threat detection with malicious payload
         malicious_payload = "'; DROP TABLE users; --"
         threats = api_security_service.detect_threats(
-            malicious_payload,
-            "192.168.1.100",
-            "evil-agent",
-            "/api/v1/users"
+            malicious_payload, "192.168.1.100", "evil-agent", "/api/v1/users"
         )
         assert len(threats) > 0
 
@@ -770,7 +845,7 @@ class TestFunctionIntegration:
         assert api_security_service._is_ip_blacklisted("192.168.1.100")
 
         # Test rate limiting failure scenario
-        with patch('redis.asyncio.from_url', side_effect=Exception("Redis down")):
+        with patch("redis.asyncio.from_url", side_effect=Exception("Redis down")):
             rate_limiter = AdvancedRateLimiter()
             is_allowed, limit_info = await rate_limiter.check_rate_limit(
                 request, UserTier.ANONYMOUS
@@ -785,7 +860,7 @@ class TestFunctionIntegration:
         perf_monitor = PerformanceMonitor()
 
         # Mock Redis with fast responses
-        with patch('redis.asyncio.from_url') as mock_redis_from_url:
+        with patch("redis.asyncio.from_url") as mock_redis_from_url:
             mock_redis = AsyncMock()
             mock_redis_from_url.return_value = mock_redis
             mock_redis.pipeline.return_value.execute.return_value = ["5", "100", "1000"]
@@ -808,7 +883,9 @@ class TestFunctionIntegration:
             # Performance assertions
             assert duration < 5.0  # Should complete within 5 seconds
             assert len(results) == 100
-            assert all(isinstance(result, tuple) and len(result) == 2 for result in results)
+            assert all(
+                isinstance(result, tuple) and len(result) == 2 for result in results
+            )
 
             # Test performance monitoring under load
             metrics = []
@@ -821,18 +898,22 @@ class TestFunctionIntegration:
                     status_code=200,
                     response_size_bytes=1000,
                     user_agent="test-agent",
-                    ip_address="127.0.0.1"
+                    ip_address="127.0.0.1",
                 )
                 metrics.append(metric)
 
             # Record metrics concurrently
             start_time = time.time()
-            await asyncio.gather(*[perf_monitor.record_metric(metric) for metric in metrics])
+            await asyncio.gather(
+                *[perf_monitor.record_metric(metric) for metric in metrics]
+            )
             end_time = time.time()
 
             assert (end_time - start_time) < 2.0  # Should complete quickly
 
+
 # ==================== PERFORMANCE BENCHMARKS ====================
+
 
 class TestPerformanceBenchmarks:
     """Performance benchmarks for generated functions"""
@@ -842,10 +923,14 @@ class TestPerformanceBenchmarks:
         """Benchmark rate limiter performance"""
         rate_limiter = AdvancedRateLimiter()
 
-        with patch('redis.asyncio.from_url') as mock_redis_from_url:
+        with patch("redis.asyncio.from_url") as mock_redis_from_url:
             mock_redis = AsyncMock()
             mock_redis_from_url.return_value = mock_redis
-            mock_redis.pipeline.return_value.execute.return_value = ["10", "200", "2000"]
+            mock_redis.pipeline.return_value.execute.return_value = [
+                "10",
+                "200",
+                "2000",
+            ]
 
             request = MockRequest()
 
@@ -877,7 +962,9 @@ class TestPerformanceBenchmarks:
         end_time = time.time()
 
         avg_time = (end_time - start_time) / iterations * 1000
-        assert avg_time < 0.5, f"Input sanitization too slow: {avg_time:.2f}ms per operation"
+        assert (
+            avg_time < 0.5
+        ), f"Input sanitization too slow: {avg_time:.2f}ms per operation"
 
         # Benchmark threat detection
         malicious_input = "SELECT * FROM users WHERE id = 1"
@@ -887,9 +974,13 @@ class TestPerformanceBenchmarks:
         end_time = time.time()
 
         avg_time = (end_time - start_time) / iterations * 1000
-        assert avg_time < 2.0, f"Threat detection too slow: {avg_time:.2f}ms per operation"
+        assert (
+            avg_time < 2.0
+        ), f"Threat detection too slow: {avg_time:.2f}ms per operation"
+
 
 # ==================== FIXTURES AND UTILITIES ====================
+
 
 @pytest.fixture(scope="session")
 def event_loop():
@@ -898,18 +989,18 @@ def event_loop():
     yield loop
     loop.close()
 
+
 # Configuration for pytest
 def pytest_configure(config):
     """Configure pytest with custom markers"""
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
     )
-    config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests"
-    )
+    config.addinivalue_line("markers", "integration: marks tests as integration tests")
     config.addinivalue_line(
         "markers", "benchmark: marks tests as performance benchmarks"
     )
+
 
 # Custom assertions for better test readability
 def assert_valid_response(response_data: Dict[str, Any]):
@@ -918,14 +1009,20 @@ def assert_valid_response(response_data: Dict[str, Any]):
     assert "success" in response_data
     assert isinstance(response_data["success"], bool)
 
+
 def assert_performance_stats(stats):
     """Assert that performance stats have required fields"""
     required_fields = [
-        "endpoint", "total_requests", "avg_response_time",
-        "p95_response_time", "error_rate", "performance_level"
+        "endpoint",
+        "total_requests",
+        "avg_response_time",
+        "p95_response_time",
+        "error_rate",
+        "performance_level",
     ]
     for field in required_fields:
         assert field in stats, f"Missing field: {field}"
+
 
 def assert_security_event(event: SecurityEvent):
     """Assert that security event has required fields"""

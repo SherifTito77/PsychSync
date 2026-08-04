@@ -146,7 +146,9 @@ class KafkaDeadLetterEntry:
             "max_retries": self.max_retries,
             "status": self.status.value,
             "created_at": self.created_at.isoformat(),
-            "next_retry_at": self.next_retry_at.isoformat() if self.next_retry_at else None,
+            "next_retry_at": (
+                self.next_retry_at.isoformat() if self.next_retry_at else None
+            ),
             "event_metadata": self.metadata,
         }
 
@@ -463,7 +465,9 @@ class KafkaDLQProcessor:
             logger.error(f"Failed to process DLQ event: {e}", exc_info=True)
             return False
 
-    async def _retry_event(self, entry: KafkaDeadLetterEntry, original_event: dict) -> bool:
+    async def _retry_event(
+        self, entry: KafkaDeadLetterEntry, original_event: dict
+    ) -> bool:
         """
         Retry processing a failed event.
 
@@ -489,7 +493,7 @@ class KafkaDLQProcessor:
             from datetime import timedelta
 
             entry.next_retry_at = datetime.utcnow() + timedelta(
-                seconds=60 * (2 ** entry.retry_count)  # Exponential backoff
+                seconds=60 * (2**entry.retry_count)  # Exponential backoff
             )
 
             return True
@@ -592,11 +596,13 @@ async def cleanup_old_dlq_entries(days_old: int = 30) -> Dict[str, int]:
             # Query old entries
             stmt = select(KafkaDeadLetterTask).where(
                 KafkaDeadLetterTask.created_at < cutoff_date,
-                KafkaDeadLetterTask.status.in_([
-                    KafkaDLQStatus.RETRIED.value,
-                    KafkaDLQStatus.DISCARDED.value,
-                    KafkaDLQStatus.PERMANENT.value,
-                ]),
+                KafkaDeadLetterTask.status.in_(
+                    [
+                        KafkaDLQStatus.RETRIED.value,
+                        KafkaDLQStatus.DISCARDED.value,
+                        KafkaDLQStatus.PERMANENT.value,
+                    ]
+                ),
             )
 
             result = await db.execute(stmt)

@@ -14,15 +14,15 @@ Author: Security Team
 Version: 3.0 OWASP-Compliant
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
 import hashlib
 import hmac
 import ipaddress as ip
 import json
 import logging
 import re
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
 from typing import Any
 from urllib.parse import urlparse
 
@@ -106,7 +106,7 @@ class SSRFProtection:
             if hostname in SSRFProtection.BLOCKED_HOSTS:
                 logger.warning(
                     "SSRF attempt blocked: Cloud metadata endpoint",
-                    extra={"security_event": "SSRF_ATTEMPT", "url": url}
+                    extra={"security_event": "SSRF_ATTEMPT", "url": url},
                 )
                 return False, "Cloud metadata endpoints are not allowed"
 
@@ -119,7 +119,11 @@ class SSRFProtection:
                     if ip_address in blocked_range:
                         logger.warning(
                             "SSRF attempt blocked: Internal IP address",
-                            extra={"security_event": "SSRF_ATTEMPT", "url": url, "ip": str(ip_address)}
+                            extra={
+                                "security_event": "SSRF_ATTEMPT",
+                                "url": url,
+                                "ip": str(ip_address),
+                            },
                         )
                         return False, "Internal IP addresses are not allowed"
 
@@ -139,12 +143,14 @@ class SSRFProtection:
                     if re.match(pattern, hostname_lower):
                         logger.warning(
                             "SSRF attempt blocked: Localhost hostname",
-                            extra={"security_event": "SSRF_ATTEMPT", "url": url}
+                            extra={"security_event": "SSRF_ATTEMPT", "url": url},
                         )
                         return False, "Localhost addresses are not allowed"
 
                 # Block private TLDs (used for internal testing)
-                if any(hostname_lower.endswith(tld) for tld in SSRFProtection.PRIVATE_TLDS):
+                if any(
+                    hostname_lower.endswith(tld) for tld in SSRFProtection.PRIVATE_TLDS
+                ):
                     return False, "Private TLDs are not allowed"
 
                 # Check for suspicious patterns
@@ -163,7 +169,18 @@ class SSRFProtection:
                 port = parsed.port
                 if port:
                     # Block common internal service ports
-                    blocked_ports = [22, 23, 25, 53, 3306, 5432, 5433, 6379, 27017, 9200]
+                    blocked_ports = [
+                        22,
+                        23,
+                        25,
+                        53,
+                        3306,
+                        5432,
+                        5433,
+                        6379,
+                        27017,
+                        9200,
+                    ]
                     if port in blocked_ports:
                         return False, f"Port {port} is not allowed for webhooks"
             except (ValueError, TypeError, json.JSONDecodeError) as e:
@@ -182,6 +199,7 @@ class SSRFProtection:
 
 class WebhookEvent(str, Enum):
     """Webhook event types for system notifications."""
+
     ASSESSMENT_COMPLETED = "assessment.completed"
     TEAM_CREATED = "team.created"
     TEAM_UPDATED = "team.updated"
@@ -202,6 +220,7 @@ class WebhookEvent(str, Enum):
 
 class WebhookStatus(str, Enum):
     """Webhook delivery status tracking."""
+
     PENDING = "pending"
     DELIVERED = "delivered"
     FAILED = "failed"
@@ -211,6 +230,7 @@ class WebhookStatus(str, Enum):
 
 class WebhookPriority(str, Enum):
     """Webhook processing priority levels."""
+
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
@@ -220,6 +240,7 @@ class WebhookPriority(str, Enum):
 @dataclass
 class WebhookSubscription:
     """Webhook subscription configuration."""
+
     id: str
     user_id: int
     organization_id: int | None = None
@@ -241,6 +262,7 @@ class WebhookSubscription:
 @dataclass
 class WebhookDelivery:
     """Individual webhook delivery attempt record."""
+
     id: str
     webhook_id: str
     event: WebhookEvent
@@ -277,7 +299,7 @@ class WebhookManager:
         headers: dict[str, str] | None = None,
         rate_limit: dict[str, int] | None = None,
         custom_secret: str | None = None,
-        client_ip: str = "unknown"
+        client_ip: str = "unknown",
     ) -> WebhookSubscription:
         """
         Create a new webhook subscription with SSRF protection
@@ -305,22 +327,28 @@ class WebhookManager:
         is_valid, error_message = SSRFProtection.validate_webhook_url(url)
         if not is_valid:
             # SECURITY: Log SSRF attempt
-            await audit_logger.log_event(AuditEvent(
-                action=AuditAction.CREATE,
-                user_id=str(user_id),
-                ip_address=client_ip,
-                resource="/webhooks",
-                details={
-                    "reason": "SSRF attempt blocked",
-                    "url": url,
-                    "error": error_message
-                },
-                severity="critical"
-            ))
+            await audit_logger.log_event(
+                AuditEvent(
+                    action=AuditAction.CREATE,
+                    user_id=str(user_id),
+                    ip_address=client_ip,
+                    resource="/webhooks",
+                    details={
+                        "reason": "SSRF attempt blocked",
+                        "url": url,
+                        "error": error_message,
+                    },
+                    severity="critical",
+                )
+            )
 
             logger.error(
                 f"SSRF attempt blocked by user {user_id}: {url}",
-                extra={"security_event": "SSRF_ATTEMPT", "user_id": user_id, "url": url}
+                extra={
+                    "security_event": "SSRF_ATTEMPT",
+                    "user_id": user_id,
+                    "url": url,
+                },
             )
 
             raise ValueError(f"Invalid webhook URL: {error_message}")
@@ -352,26 +380,28 @@ class WebhookManager:
             rate_limit=rate_limit,
             retry_config={
                 "max_retries": self.max_retries,
-                "retry_delays": self.default_retry_delays
-            }
+                "retry_delays": self.default_retry_delays,
+            },
         )
 
         # Store in database (simplified - implement actual DB storage)
         await self._store_webhook_subscription(subscription)
 
         # ✅ SECURITY: Audit log for webhook creation
-        await audit_logger.log_event(AuditEvent(
-            action=AuditAction.CREATE,
-            user_id=str(user_id),
-            ip_address=client_ip,
-            resource="/webhooks",
-            details={
-                "webhook_id": webhook_id,
-                "url": url,
-                "events": [e.value for e in webhook_events],
-                "description": description
-            }
-        ))
+        await audit_logger.log_event(
+            AuditEvent(
+                action=AuditAction.CREATE,
+                user_id=str(user_id),
+                ip_address=client_ip,
+                resource="/webhooks",
+                details={
+                    "webhook_id": webhook_id,
+                    "url": url,
+                    "events": [e.value for e in webhook_events],
+                    "description": description,
+                },
+            )
+        )
 
         logger.info(f"Created webhook subscription {webhook_id} for user {user_id}")
         return subscription
@@ -381,7 +411,7 @@ class WebhookManager:
         webhook: WebhookSubscription,
         payload: dict[str, Any],
         attempt_number: int = 1,
-        delivery_id: str = None
+        delivery_id: str = None,
     ) -> dict[str, Any]:
         """
         Send webhook HTTP request with SSRF protection
@@ -421,28 +451,30 @@ class WebhookManager:
                 "X-Webhook-Event": payload.get("event", "unknown"),
                 "X-Webhook-ID": delivery_id,
                 "X-Webhook-Signature": signature,
-                **webhook.headers
+                **webhook.headers,
             }
 
             # ✅ SECURITY: Log webhook delivery attempt
-            await audit_logger.log_event(AuditEvent(
-                action=AuditAction.CREATE,
-                user_id=str(webhook.user_id),
-                resource=f"/webhooks/{webhook.id}/deliver",
-                details={
-                    "webhook_id": webhook.id,
-                    "event": payload.get("event"),
-                    "url": webhook.url,
-                    "attempt": attempt_number
-                }
-            ))
+            await audit_logger.log_event(
+                AuditEvent(
+                    action=AuditAction.CREATE,
+                    user_id=str(webhook.user_id),
+                    resource=f"/webhooks/{webhook.id}/deliver",
+                    details={
+                        "webhook_id": webhook.id,
+                        "event": payload.get("event"),
+                        "url": webhook.url,
+                        "attempt": attempt_number,
+                    },
+                )
+            )
 
             # Make HTTP request
             async with aiohttp.ClientSession() as session, session.post(
                 webhook.url,
                 json=payload,
                 headers=headers,
-                timeout=aiohttp.ClientTimeout(total=self.timeout)
+                timeout=aiohttp.ClientTimeout(total=self.timeout),
             ) as response:
                 response_text = await response.text()
                 status_code = response.status
@@ -475,7 +507,7 @@ class WebhookManager:
                     status_code=status_code,
                     response_body=response_text[:1000],  # Truncate long responses
                     attempt_number=attempt_number,
-                    delivered_at=delivered_at
+                    delivered_at=delivered_at,
                 )
 
                 await self._store_delivery_record(delivery)
@@ -487,7 +519,7 @@ class WebhookManager:
                     "status": status,
                     "status_code": status_code,
                     "attempt_number": attempt_number,
-                    "delivered_at": delivered_at.isoformat() if delivered_at else None
+                    "delivered_at": delivered_at.isoformat() if delivered_at else None,
                 }
 
         except TimeoutError:
@@ -503,7 +535,7 @@ class WebhookManager:
             # SECURITY: Log unexpected errors
             logger.error(
                 f"Webhook delivery error: {error_message}",
-                extra={"webhook_id": webhook.id, "url": webhook.url}
+                extra={"webhook_id": webhook.id, "url": webhook.url},
             )
 
         # Create failed delivery record
@@ -516,7 +548,7 @@ class WebhookManager:
                 status=status,
                 attempt_number=attempt_number,
                 error_message=error_message,
-                next_retry_at=next_retry_at
+                next_retry_at=next_retry_at,
             )
 
             await self._store_delivery_record(delivery)
@@ -528,7 +560,7 @@ class WebhookManager:
                 "status": status,
                 "error_message": error_message,
                 "attempt_number": attempt_number,
-                "next_retry_at": next_retry_at.isoformat() if next_retry_at else None
+                "next_retry_at": next_retry_at.isoformat() if next_retry_at else None,
             }
 
     # ... rest of implementation would go here ...
@@ -536,15 +568,14 @@ class WebhookManager:
     def _generate_webhook_secret(self) -> str:
         """Generate secure webhook secret"""
         import secrets
+
         return secrets.token_urlsafe(32)
 
     def _generate_signature(self, payload: dict[str, Any], secret: str) -> str:
         """Generate HMAC signature for webhook payload"""
         payload_str = json.dumps(payload, sort_keys=True)
         signature = hmac.new(
-            secret.encode(),
-            payload_str.encode(),
-            hashlib.sha256
+            secret.encode(), payload_str.encode(), hashlib.sha256
         ).hexdigest()
         return f"sha256={signature}"
 
@@ -556,7 +587,9 @@ class WebhookManager:
         """Store delivery record (placeholder)"""
         # In production: Store in database
 
-    async def _log_webhook_delivery(self, delivery_id, webhook, event, status, response):
+    async def _log_webhook_delivery(
+        self, delivery_id, webhook, event, status, response
+    ):
         """Log webhook delivery (placeholder)"""
         # In production: Store in logging system
 

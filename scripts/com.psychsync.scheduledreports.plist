@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.psychsync.scheduledreports</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/sheriftito/Downloads/psychsync/.venv/bin/python3</string>
+        <string>/Users/sheriftito/Downloads/psychsync/scripts/scheduled_reports.py</string>
+        <string>weekly</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <integer>604800</integer>  <!-- Every 7 days (604800 seconds) -->
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/psychsync_scheduled_reports.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/tmp/psychsync_scheduled_reports_errors.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/sheriftito/Downloads/psychsync</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONPATH</key>
+        <string>/Users/sheriftito/Downloads/psychsync</string>
+    </dict>
+</dict>
+</plist>

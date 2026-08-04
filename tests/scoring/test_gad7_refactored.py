@@ -6,8 +6,9 @@ with proper separation of concerns.
 """
 
 import pytest
-from app.services.clinical.scoring.strategies.gad7_scorer import GAD7Scorer
+
 from app.services.clinical.scoring.config import GAD7_CONFIG
+from app.services.clinical.scoring.strategies.gad7_scorer import GAD7Scorer
 
 
 class TestGAD7Config:
@@ -342,7 +343,13 @@ class TestGAD7Properties:
 
         # Verify result structure
         assert isinstance(result.total_score, float)
-        assert result.severity_level in ["minimal", "mild", "moderate", "moderately_severe", "severe"]
+        assert result.severity_level in [
+            "minimal",
+            "mild",
+            "moderate",
+            "moderately_severe",
+            "severe",
+        ]
         assert result.risk_level in ["low", "moderate", "high", "critical"]
         assert isinstance(result.recommendations, list)
         assert len(result.recommendations) > 0
@@ -370,4 +377,3 @@ class TestGAD7Properties:
         assert "anxiety" in recommendations_text or "stress" in recommendations_text
         # Should NOT mention depression
         assert "depression" not in recommendations_text
-

@@ -6,12 +6,12 @@ instrument-specific scoring logic using the refactored architecture.
 """
 
 from .base import BaseScoringStrategy, ScoringResult
-from .phq9_scorer import PHQ9Scorer
 from .gad7_scorer import GAD7Scorer
+from .phq9_scorer import PHQ9Scorer
 
 __all__ = [
-    'BaseScoringStrategy',
-    'ScoringResult',
-    'PHQ9Scorer',
-    'GAD7Scorer',
+    "BaseScoringStrategy",
+    "ScoringResult",
+    "PHQ9Scorer",
+    "GAD7Scorer",
 ]

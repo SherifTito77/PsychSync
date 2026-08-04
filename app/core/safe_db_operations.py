@@ -18,10 +18,12 @@ Usage:
 """
 
 import logging
-from typing import TypeVar, Type, Any, Optional
+from typing import Any, Optional, Type, TypeVar
 from uuid import UUID
 
-from sqlalchemy import select, update as sql_update, delete as sql_delete
+from sqlalchemy import delete as sql_delete
+from sqlalchemy import select
+from sqlalchemy import update as sql_update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,9 +35,7 @@ ModelType = TypeVar("ModelType", bound=Base)
 
 
 async def safe_create(
-    db: AsyncSession,
-    model: Type[ModelType],
-    **kwargs: Any
+    db: AsyncSession, model: Type[ModelType], **kwargs: Any
 ) -> ModelType:
     """
     Safely create a database record with proper error handling and rollback.
@@ -85,7 +85,7 @@ async def safe_update(
     model: Type[ModelType],
     record_id: UUID,
     update_data: dict[str, Any],
-    lock_for_update: bool = True
+    lock_for_update: bool = True,
 ) -> Optional[ModelType]:
     """
     Safely update a database record with row-level locking to prevent race conditions.
@@ -137,19 +137,22 @@ async def safe_update(
 
     except SQLAlchemyError as e:
         await db.rollback()
-        logger.error(f"Database error updating {model.__name__} {record_id}: {e}", exc_info=True)
+        logger.error(
+            f"Database error updating {model.__name__} {record_id}: {e}", exc_info=True
+        )
         raise
 
     except Exception as e:
         await db.rollback()
-        logger.error(f"Unexpected error updating {model.__name__} {record_id}: {e}", exc_info=True)
+        logger.error(
+            f"Unexpected error updating {model.__name__} {record_id}: {e}",
+            exc_info=True,
+        )
         raise
 
 
 async def safe_delete(
-    db: AsyncSession,
-    model: Type[ModelType],
-    record_id: UUID
+    db: AsyncSession, model: Type[ModelType], record_id: UUID
 ) -> bool:
     """
     Safely delete a database record with proper error handling and rollback.
@@ -185,19 +188,22 @@ async def safe_delete(
 
     except SQLAlchemyError as e:
         await db.rollback()
-        logger.error(f"Database error deleting {model.__name__} {record_id}: {e}", exc_info=True)
+        logger.error(
+            f"Database error deleting {model.__name__} {record_id}: {e}", exc_info=True
+        )
         raise
 
     except Exception as e:
         await db.rollback()
-        logger.error(f"Unexpected error deleting {model.__name__} {record_id}: {e}", exc_info=True)
+        logger.error(
+            f"Unexpected error deleting {model.__name__} {record_id}: {e}",
+            exc_info=True,
+        )
         raise
 
 
 async def safe_get_with_lock(
-    db: AsyncSession,
-    model: Type[ModelType],
-    record_id: UUID
+    db: AsyncSession, model: Type[ModelType], record_id: UUID
 ) -> Optional[ModelType]:
     """
     Get a record with row-level locking (SELECT FOR UPDATE).
@@ -220,21 +226,20 @@ async def safe_get_with_lock(
     """
     try:
         result = await db.execute(
-            select(model)
-            .where(model.id == record_id)
-            .with_for_update()
+            select(model).where(model.id == record_id).with_for_update()
         )
         return result.scalar_one_or_none()
 
     except SQLAlchemyError as e:
-        logger.error(f"Database error fetching {model.__name__} {record_id} with lock: {e}", exc_info=True)
+        logger.error(
+            f"Database error fetching {model.__name__} {record_id} with lock: {e}",
+            exc_info=True,
+        )
         raise
 
 
 async def safe_bulk_create(
-    db: AsyncSession,
-    model: Type[ModelType],
-    items: list[dict[str, Any]]
+    db: AsyncSession, model: Type[ModelType], items: list[dict[str, Any]]
 ) -> list[ModelType]:
     """
     Safely create multiple records in a single transaction.
@@ -279,24 +284,28 @@ async def safe_bulk_create(
 
     except IntegrityError as e:
         await db.rollback()
-        logger.error(f"Integrity error in bulk create of {model.__name__}: {e}", exc_info=True)
+        logger.error(
+            f"Integrity error in bulk create of {model.__name__}: {e}", exc_info=True
+        )
         raise
 
     except SQLAlchemyError as e:
         await db.rollback()
-        logger.error(f"Database error in bulk create of {model.__name__}: {e}", exc_info=True)
+        logger.error(
+            f"Database error in bulk create of {model.__name__}: {e}", exc_info=True
+        )
         raise
 
     except Exception as e:
         await db.rollback()
-        logger.error(f"Unexpected error in bulk create of {model.__name__}: {e}", exc_info=True)
+        logger.error(
+            f"Unexpected error in bulk create of {model.__name__}: {e}", exc_info=True
+        )
         raise
 
 
 async def handle_integrity_error(
-    db: AsyncSession,
-    error: IntegrityError,
-    context: str
+    db: AsyncSession, error: IntegrityError, context: str
 ) -> str:
     """
     Handle IntegrityError with user-friendly messages.

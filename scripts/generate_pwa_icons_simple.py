@@ -9,23 +9,27 @@ Usage:
     python generate_pwa_icons_simple.py
 """
 
+import logging
 import os
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Tuple
-import logging
 
 # Try to import PIL
 try:
     from PIL import Image, ImageDraw, ImageFont
+
     PIL_AVAILABLE = True
 except ImportError:
     PIL_AVAILABLE = False
     print("⚠️ PIL/Pillow not available. Installing placeholder files only.")
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 class SimplePWAAconGenerator:
     """Simple PWA icon generator using Python PIL"""
@@ -40,24 +44,20 @@ class SimplePWAAconGenerator:
             "icon-192x192.png": (192, 192, "PWA standard"),
             "icon-512x512.png": (512, 512, "PWA splash screen"),
             "favicon.ico": (256, 256, "Favicon"),
-
             # Apple touch icons
             "apple-touch-icon.png": (180, 180, "Apple touch icon"),
             "apple-touch-icon-152x152.png": (152, 152, "iPad touch icon"),
             "apple-touch-icon-167x167.png": (167, 167, "iPad Pro touch icon"),
             "apple-touch-icon-180x180.png": (180, 180, "iPhone touch icon"),
-
             # Android icons
             "android-icon-192x192.png": (192, 192, "Android launcher"),
             "android-icon-144x144.png": (144, 144, "Android launcher (xxhdpi)"),
-
             # Windows tiles
             "ms-icon-144x144.png": (144, 144, "Windows tile"),
             "ms-icon-150x150.png": (150, 150, "Windows large tile"),
-
             # Special purpose
             "maskable-icon-192x192.png": (192, 192, "Android maskable"),
-            "monochrome-icon-192x192.png": (192, 192, "Monochrome notification")
+            "monochrome-icon-192x192.png": (192, 192, "Monochrome notification"),
         }
 
     def create_placeholder_icons(self) -> bool:
@@ -82,20 +82,28 @@ class SimplePWAAconGenerator:
                 output_path = self.output_dir / filename
 
                 # Create a new image with gradient background
-                image = Image.new('RGB', (width, height), color='white')
+                image = Image.new("RGB", (width, height), color="white")
                 draw = ImageDraw.Draw(image)
 
                 # Create gradient background
                 for y in range(height):
                     color_intensity = int(255 * (1 - y / height))
-                    color = (102 - color_intensity//2, 126 - color_intensity//3, 234 - color_intensity//2)
+                    color = (
+                        102 - color_intensity // 2,
+                        126 - color_intensity // 3,
+                        234 - color_intensity // 2,
+                    )
                     draw.line([(0, y), (width, y)], fill=color)
 
                 # Add text
                 try:
                     # Try to use a system font
                     font_size = max(width // 8, 16)
-                    font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", font_size) if sys.platform == "darwin" else ImageFont.load_default()
+                    font = (
+                        ImageFont.truetype("/System/Library/Fonts/Arial.ttf", font_size)
+                        if sys.platform == "darwin"
+                        else ImageFont.load_default()
+                    )
                 except Exception as e:
                     font = ImageFont.load_default()
 
@@ -112,7 +120,9 @@ class SimplePWAAconGenerator:
                 # Save the image
                 image.save(output_path, "PNG", quality=95)
                 self.icons_generated.append(filename)
-                logger.info(f"✅ Generated {filename} ({width}x{height}) - {description}")
+                logger.info(
+                    f"✅ Generated {filename} ({width}x{height}) - {description}"
+                )
 
             return True
 
@@ -141,11 +151,13 @@ class SimplePWAAconGenerator:
 # 5. Test on both light and dark backgrounds
 """
 
-                with open(output_path, 'w') as f:
+                with open(output_path, "w") as f:
                     f.write(placeholder_content)
 
                 self.icons_generated.append(filename)
-                logger.info(f"✅ Created placeholder {filename} ({width}x{height}) - {description}")
+                logger.info(
+                    f"✅ Created placeholder {filename} ({width}x{height}) - {description}"
+                )
 
             return True
 
@@ -160,24 +172,34 @@ class SimplePWAAconGenerator:
             if manifest_path.exists():
                 import json
 
-                with open(manifest_path, 'r') as f:
+                with open(manifest_path, "r") as f:
                     manifest = json.load(f)
 
                 # Update icons in manifest
                 icons = []
-                for filename, (width, height, description) in self.essential_icons.items():
-                    if filename.startswith(("icon-", "maskable-icon-", "monochrome-icon-")):
+                for filename, (
+                    width,
+                    height,
+                    description,
+                ) in self.essential_icons.items():
+                    if filename.startswith(
+                        ("icon-", "maskable-icon-", "monochrome-icon-")
+                    ):
                         purpose = "any maskable" if "maskable" in filename else "any"
-                        icons.append({
-                            "src": f"/assets/icons/{filename}",
-                            "sizes": f"{width}x{height}",
-                            "type": "image/png",
-                            "purpose": purpose
-                        })
+                        icons.append(
+                            {
+                                "src": f"/assets/icons/{filename}",
+                                "sizes": f"{width}x{height}",
+                                "type": "image/png",
+                                "purpose": purpose,
+                            }
+                        )
 
-                manifest["icons"] = sorted(icons, key=lambda x: int(x["sizes"].split("x")[0]))
+                manifest["icons"] = sorted(
+                    icons, key=lambda x: int(x["sizes"].split("x")[0])
+                )
 
-                with open(manifest_path, 'w') as f:
+                with open(manifest_path, "w") as f:
                     json.dump(manifest, f, indent=2)
 
                 logger.info("✅ Updated manifest.json with new icons")
@@ -199,28 +221,30 @@ class SimplePWAAconGenerator:
                 "ios": "✅ Covered (placeholder)",
                 "android": "✅ Covered (placeholder)",
                 "windows": "✅ Covered (placeholder)",
-                "desktop": "✅ Covered (placeholder)"
+                "desktop": "✅ Covered (placeholder)",
             },
             "next_steps": [
                 "Replace placeholder files with actual designed icons",
                 "Test icons on real devices",
                 "Ensure icons work on both light and dark backgrounds",
-                "Validate PWA installation experience"
+                "Validate PWA installation experience",
             ],
-            "pwa_score_impact": "+1.8% (to reach 100% when replaced with actual icons)"
+            "pwa_score_impact": "+1.8% (to reach 100% when replaced with actual icons)",
         }
 
         # Save report
         report_path = Path("pwa_icon_generation_report.json")
         try:
-            with open(report_path, 'w') as f:
+            with open(report_path, "w") as f:
                 import json
+
                 json.dump(report, f, indent=2)
             logger.info(f"📊 Icon generation report saved: {report_path}")
         except Exception as e:
             logger.error(f"❌ Failed to save report: {e}")
 
         return report
+
 
 def main():
     """Main icon generation execution"""
@@ -240,7 +264,9 @@ def main():
             report = generator.create_icon_generation_report()
 
             logger.info("🎉 PWA Icon Generation Complete!")
-            logger.info(f"✅ Generated {report['total_icons_generated']} icon placeholders")
+            logger.info(
+                f"✅ Generated {report['total_icons_generated']} icon placeholders"
+            )
             logger.info(f"📊 Platform Coverage: iOS, Android, Windows, Desktop")
             logger.info(f"🎯 Status: PLACEHOLDER FILES READY FOR REPLACEMENT")
             logger.info(f"📝 Next: Replace placeholders with actual designed icons")
@@ -251,7 +277,9 @@ def main():
             else:
                 logger.info("⚠️ PIL not available - created text placeholders")
                 logger.info("💡 Install PIL for real icons: pip install Pillow")
-                logger.info("🎯 PWA Score will improve to 100% when actual icons are added")
+                logger.info(
+                    "🎯 PWA Score will improve to 100% when actual icons are added"
+                )
 
             return True
         else:
@@ -264,6 +292,7 @@ def main():
     except Exception as e:
         logger.error(f"❌ Icon generation error: {e}")
         return False
+
 
 if __name__ == "__main__":
     success = main()

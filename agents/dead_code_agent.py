@@ -21,14 +21,14 @@ Usage:
 
 import argparse
 import ast
+import json
 import os
 import re
 import sys
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
-from collections import defaultdict
-import json
 
 
 class FunctionCallCollector(ast.NodeVisitor):
@@ -59,7 +59,7 @@ class ImportCollector(ast.NodeVisitor):
     def visit_Import(self, node):
         for alias in node.names:
             module = alias.name
-            name = alias.asname if alias.asname else alias.name.split('.')[0]
+            name = alias.asname if alias.asname else alias.name.split(".")[0]
             if module not in self.imports:
                 self.imports[module] = set()
             self.imports[module].add(name)
@@ -172,7 +172,7 @@ class DeadCodeDetector:
 
     def __init__(self, code_path: str, exclude_patterns: List[str] = None):
         self.code_path = code_path
-        self.exclude_patterns = exclude_patterns or ['migrations', 'alembic']
+        self.exclude_patterns = exclude_patterns or ["migrations", "alembic"]
         self.files_scanned = 0
         self.unused_functions = []
         self.unused_imports = []
@@ -193,7 +193,7 @@ class DeadCodeDetector:
             return None
 
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 source_code = f.read()
 
             tree = ast.parse(source_code, filename=file_path)
@@ -216,36 +216,38 @@ class DeadCodeDetector:
 
             # Find unused functions
             file_issues = {
-                'file': file_path,
-                'unused_functions': [],
-                'unused_classes': [],
-                'unused_imports': [],
-                'unused_variables': [],
-                'unreachable_code': []
+                "file": file_path,
+                "unused_functions": [],
+                "unused_classes": [],
+                "unused_imports": [],
+                "unused_variables": [],
+                "unreachable_code": [],
             }
 
             # Check for unused functions
             for func_name, func_node in def_collector.functions.items():
-                if func_name.startswith('_'):
+                if func_name.startswith("_"):
                     continue  # Skip private functions
 
                 # Check if function is called anywhere
                 if func_name not in call_collector.function_calls:
                     # Check if it's a special method (called by framework)
-                    if not func_name.startswith('__'):
+                    if not func_name.startswith("__"):
                         # Check if it's exported (used in __all__)
                         is_exported = self._is_exported(source_code, func_name)
 
                         if not is_exported:
-                            file_issues['unused_functions'].append({
-                                'name': func_name,
-                                'line': func_node.lineno,
-                                'reason': 'Never called'
-                            })
+                            file_issues["unused_functions"].append(
+                                {
+                                    "name": func_name,
+                                    "line": func_node.lineno,
+                                    "reason": "Never called",
+                                }
+                            )
 
             # Check for unused classes
             for class_name, class_node in def_collector.classes.items():
-                if class_name.startswith('_'):
+                if class_name.startswith("_"):
                     continue  # Skip private classes
 
                 if class_name not in call_collector.class_references:
@@ -253,38 +255,51 @@ class DeadCodeDetector:
                     is_exported = self._is_exported(source_code, class_name)
 
                     if not is_exported:
-                        file_issues['unused_classes'].append({
-                            'name': class_name,
-                            'line': class_node.lineno,
-                            'reason': 'Never instantiated'
-                        })
+                        file_issues["unused_classes"].append(
+                            {
+                                "name": class_name,
+                                "line": class_node.lineno,
+                                "reason": "Never instantiated",
+                            }
+                        )
 
             # Check for unused imports (including type annotations and decorators)
             all_used_names = (
-                call_collector.function_calls |
-                call_collector.method_calls |
-                type_collector.used_names  # Now includes type hints and decorators!
+                call_collector.function_calls
+                | call_collector.method_calls
+                | type_collector.used_names  # Now includes type hints and decorators!
             )
 
             # Check regular imports
             for module, names in import_collector.imports.items():
                 for name in names:
-                    if name not in all_used_names and name not in def_collector.global_vars:
-                        file_issues['unused_imports'].append({
-                            'module': module,
-                            'name': name,
-                            'reason': 'Imported but never used'
-                        })
+                    if (
+                        name not in all_used_names
+                        and name not in def_collector.global_vars
+                    ):
+                        file_issues["unused_imports"].append(
+                            {
+                                "module": module,
+                                "name": name,
+                                "reason": "Imported but never used",
+                            }
+                        )
 
             # Check from imports
             for module, names in import_collector.from_imports.items():
                 for name in names:
-                    if name != '*' and name not in all_used_names and name not in def_collector.global_vars:
-                        file_issues['unused_imports'].append({
-                            'module': module,
-                            'name': name,
-                            'reason': 'Imported but never used'
-                        })
+                    if (
+                        name != "*"
+                        and name not in all_used_names
+                        and name not in def_collector.global_vars
+                    ):
+                        file_issues["unused_imports"].append(
+                            {
+                                "module": module,
+                                "name": name,
+                                "reason": "Imported but never used",
+                            }
+                        )
 
             # Check for unreachable code (code after return/break/continue)
             for node in ast.walk(tree):
@@ -292,41 +307,46 @@ class DeadCodeDetector:
                     self._check_unreachable_code(node, file_issues)
 
             # Collect issues
-            self.unused_functions.extend([
-                {**issue, 'file': file_path}
-                for issue in file_issues['unused_functions']
-            ])
+            self.unused_functions.extend(
+                [
+                    {**issue, "file": file_path}
+                    for issue in file_issues["unused_functions"]
+                ]
+            )
 
-            self.unused_classes.extend([
-                {**issue, 'file': file_path}
-                for issue in file_issues['unused_classes']
-            ])
+            self.unused_classes.extend(
+                [
+                    {**issue, "file": file_path}
+                    for issue in file_issues["unused_classes"]
+                ]
+            )
 
-            self.unused_imports.extend([
-                {**issue, 'file': file_path}
-                for issue in file_issues['unused_imports']
-            ])
+            self.unused_imports.extend(
+                [
+                    {**issue, "file": file_path}
+                    for issue in file_issues["unused_imports"]
+                ]
+            )
 
-            self.unused_variables.extend([
-                {**issue, 'file': file_path}
-                for issue in file_issues['unused_variables']
-            ])
+            self.unused_variables.extend(
+                [
+                    {**issue, "file": file_path}
+                    for issue in file_issues["unused_variables"]
+                ]
+            )
 
             return file_issues
 
         except Exception as e:
-            return {
-                'file': file_path,
-                'error': str(e)
-            }
+            return {"file": file_path, "error": str(e)}
 
     def _is_exported(self, source_code: str, name: str) -> bool:
         """Check if symbol is exported via __all__"""
-        match = re.search(r'__all__\s*=\s*\[(.*?)\]', source_code)
+        match = re.search(r"__all__\s*=\s*\[(.*?)\]", source_code)
         if match:
             exports_str = match.group(1)
             # Parse simple string names
-            exports = [e.strip().strip('"\'') for e in exports_str.split(',')]
+            exports = [e.strip().strip("\"'") for e in exports_str.split(",")]
             return name in exports
         return False
 
@@ -341,10 +361,12 @@ class DeadCodeDetector:
                 if i < len(statements) - 1:
                     # There are unreachable statements
                     next_stmt = statements[i + 1]
-                    issues['unreachable_code'].append({
-                        'line': next_stmt.lineno,
-                        'reason': f'Code after {stmt.__class__.__name__} on line {stmt.lineno}'
-                    })
+                    issues["unreachable_code"].append(
+                        {
+                            "line": next_stmt.lineno,
+                            "reason": f"Code after {stmt.__class__.__name__} on line {stmt.lineno}",
+                        }
+                    )
                 has_return = True
 
     def scan_directory(self):
@@ -358,15 +380,19 @@ class DeadCodeDetector:
 
         for root, dirs, files in os.walk(self.code_path):
             # Skip excluded directories
-            dirs[:] = [d for d in dirs if not any(pattern in d for pattern in self.exclude_patterns)]
+            dirs[:] = [
+                d
+                for d in dirs
+                if not any(pattern in d for pattern in self.exclude_patterns)
+            ]
 
             for file in files:
-                if file.endswith('.py'):
+                if file.endswith(".py"):
                     file_path = os.path.join(root, file)
 
                     try:
                         issues = self.scan_file(file_path)
-                        if issues and 'error' not in issues:
+                        if issues and "error" not in issues:
                             file_issues.append(issues)
                             self.files_scanned += 1
                     except Exception as e:
@@ -385,65 +411,68 @@ class DeadCodeDetector:
         imported_files = set()
 
         for issues in file_issues:
-            if 'unused_imports' not in issues:
+            if "unused_imports" not in issues:
                 continue
 
-            for imp in issues['unused_imports']:
+            for imp in issues["unused_imports"]:
                 # Check if it's a relative import from this project
-                module = imp['module'].replace('.', '/')
-                if module.startswith('app/') or module.startswith('tests/'):
-                    imported_files.add(imp['module'])
+                module = imp["module"].replace(".", "/")
+                if module.startswith("app/") or module.startswith("tests/"):
+                    imported_files.add(imp["module"])
 
         # Check all Python files
         all_files = set()
 
         for root, dirs, files in os.walk(self.code_path):
-            dirs[:] = [d for d in dirs if not d.startswith('.')]
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
 
             for file in files:
-                if file.endswith('.py'):
+                if file.endswith(".py"):
                     file_path = os.path.join(root, file)
-                    rel_path = file_path.replace(self.code_path, '').lstrip('/')
+                    rel_path = file_path.replace(self.code_path, "").lstrip("/")
                     all_files.add(rel_path)
 
         # Find files that are never imported
         for file_path in all_files:
             # Skip __init__.py, main files, etc.
-            if any(file_path.endswith(p) for p in ['__init__.py', '__main__.py', 'main.py']):
+            if any(
+                file_path.endswith(p) for p in ["__init__.py", "__main__.py", "main.py"]
+            ):
                 continue
 
             # Convert file path to module path
-            module_path = file_path.replace('/', '.').replace('.py', '')
+            module_path = file_path.replace("/", ".").replace(".py", "")
 
             if module_path not in imported_files:
                 # Check if it's a test file or executable
-                if not (module_path.startswith('test_') or module_path.endswith('_test')):
-                    self.dead_files.append({
-                        'file': file_path,
-                        'reason': 'Never imported'
-                    })
+                if not (
+                    module_path.startswith("test_") or module_path.endswith("_test")
+                ):
+                    self.dead_files.append(
+                        {"file": file_path, "reason": "Never imported"}
+                    )
 
-    def generate_report(self, output_path: str = 'reports/dead_code.json') -> Dict:
+    def generate_report(self, output_path: str = "reports/dead_code.json") -> Dict:
         """Generate comprehensive dead code report"""
         report = {
-            'timestamp': datetime.now().isoformat(),
-            'files_scanned': self.files_scanned,
-            'total_unused_functions': len(self.unused_functions),
-            'total_unused_classes': len(self.unused_classes),
-            'total_unused_imports': len(self.unused_imports),
-            'total_unused_variables': len(self.unused_variables),
-            'total_dead_files': len(self.dead_files),
-            'unused_functions': self.unused_functions[:50],  # First 50
-            'unused_classes': self.unused_classes[:20],
-            'unused_imports': self.unused_imports[:50],
-            'unused_variables': self.unused_variables[:50],
-            'dead_files': self.dead_files[:20],
-            'recommendations': self._generate_recommendations()
+            "timestamp": datetime.now().isoformat(),
+            "files_scanned": self.files_scanned,
+            "total_unused_functions": len(self.unused_functions),
+            "total_unused_classes": len(self.unused_classes),
+            "total_unused_imports": len(self.unused_imports),
+            "total_unused_variables": len(self.unused_variables),
+            "total_dead_files": len(self.dead_files),
+            "unused_functions": self.unused_functions[:50],  # First 50
+            "unused_classes": self.unused_classes[:20],
+            "unused_imports": self.unused_imports[:50],
+            "unused_variables": self.unused_variables[:50],
+            "dead_files": self.dead_files[:20],
+            "recommendations": self._generate_recommendations(),
         }
 
         # Save report
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(report, f, indent=2)
 
         return report
@@ -453,13 +482,19 @@ class DeadCodeDetector:
         recommendations = []
 
         if len(self.unused_functions) > 20:
-            recommendations.append(f"Remove {len(self.unused_functions)} unused functions to reduce codebase size")
+            recommendations.append(
+                f"Remove {len(self.unused_functions)} unused functions to reduce codebase size"
+            )
 
         if len(self.unused_imports) > 50:
-            recommendations.append(f"Clean up {len(self.unused_imports)} unused imports to improve load time")
+            recommendations.append(
+                f"Clean up {len(self.unused_imports)} unused imports to improve load time"
+            )
 
         if len(self.dead_files) > 10:
-            recommendations.append(f"Review {len(self.dead_files)} potentially unused files")
+            recommendations.append(
+                f"Review {len(self.dead_files)} potentially unused files"
+            )
 
         if len(self.unused_classes) > 5:
             recommendations.append(f"Remove {len(self.unused_classes)} unused classes")
@@ -515,24 +550,27 @@ def auto_fix_dead_code(code_path: str, dry_run: bool = True):
     removed_items = 0
 
     for issues in file_issues:
-        if not issues or 'error' in issues:
+        if not issues or "error" in issues:
             continue
 
-        file_path = issues['file']
+        file_path = issues["file"]
         print(f"\n📝 Processing: {file_path}")
 
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 original_code = f.read()
 
-            lines = original_code.split('\n')
+            lines = original_code.split("\n")
             lines_to_remove = set()
 
             # Mark lines to remove
-            for imp in issues.get('unused_imports', []):
+            for imp in issues.get("unused_imports", []):
                 # Find the import statement
                 for i, line in enumerate(lines):
-                    if f"import {imp['name']}" in line or f"from {imp['module']}" in line:
+                    if (
+                        f"import {imp['name']}" in line
+                        or f"from {imp['module']}" in line
+                    ):
                         lines_to_remove.add(i)
 
             # Remove lines (in reverse order to preserve line numbers)
@@ -542,8 +580,8 @@ def auto_fix_dead_code(code_path: str, dry_run: bool = True):
                     removed_items += 1
 
                 # Write back
-                with open(file_path, 'w') as f:
-                    f.write('\n'.join(lines))
+                with open(file_path, "w") as f:
+                    f.write("\n".join(lines))
 
                 print(f"   ✓ Removed {len(lines_to_remove)} unused imports")
 
@@ -559,7 +597,7 @@ def auto_fix_dead_code(code_path: str, dry_run: bool = True):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Dead Code Identification Agent',
+        description="Dead Code Identification Agent",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -572,14 +610,27 @@ Examples:
   # Auto-fix dead code (dry-run first to preview)
   python agents/dead_code_agent.py --code-path app/ --auto-fix --dry-run
   python agents/dead_code_agent.py --code-path app/ --auto-fix
-        """
+        """,
     )
 
-    parser.add_argument('--code-path', required=True, help='Path to code directory')
-    parser.add_argument('--exclude', nargs='*', default=['migrations', 'alembic'], help='Patterns to exclude')
-    parser.add_argument('--auto-fix', action='store_true', help='Automatically remove dead code')
-    parser.add_argument('--dry-run', action='store_true', help='Preview auto-fix changes without writing files')
-    parser.add_argument('--output', default='reports/dead_code.json', help='Output report path')
+    parser.add_argument("--code-path", required=True, help="Path to code directory")
+    parser.add_argument(
+        "--exclude",
+        nargs="*",
+        default=["migrations", "alembic"],
+        help="Patterns to exclude",
+    )
+    parser.add_argument(
+        "--auto-fix", action="store_true", help="Automatically remove dead code"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview auto-fix changes without writing files",
+    )
+    parser.add_argument(
+        "--output", default="reports/dead_code.json", help="Output report path"
+    )
 
     args = parser.parse_args()
 
@@ -592,5 +643,5 @@ Examples:
         detector.print_summary()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

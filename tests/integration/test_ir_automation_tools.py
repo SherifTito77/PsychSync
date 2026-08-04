@@ -20,9 +20,9 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-import pytest
 import numpy as np
 import pandas as pd
+import pytest
 
 
 class TestDataPoisoningDetector:
@@ -33,10 +33,11 @@ class TestDataPoisoningDetector:
         try:
             from ml.security.poisoning_detector import (
                 DataPoisoningDetector,
-                PoisoningSignal,
                 PoisoningReport,
-                PoisoningType
+                PoisoningSignal,
+                PoisoningType,
             )
+
             assert True
         except ImportError as e:
             pytest.fail(f"Failed to import poisoning_detector: {e}")
@@ -47,7 +48,7 @@ class TestDataPoisoningDetector:
 
         detector = DataPoisoningDetector()
         assert detector is not None
-        assert hasattr(detector, 'Z_SCORE_THRESHOLD')
+        assert hasattr(detector, "Z_SCORE_THRESHOLD")
         assert detector.Z_SCORE_THRESHOLD == 3.0
 
     def test_detect_label_flipping(self):
@@ -57,24 +58,26 @@ class TestDataPoisoningDetector:
         detector = DataPoisoningDetector()
 
         # Create test data with potential label flipping
-        df = pd.DataFrame({
-            'text': ['sample ' + str(i) for i in range(100)],
-            'label': ['positive'] * 90 + ['negative'] * 10
-        })
+        df = pd.DataFrame(
+            {
+                "text": ["sample " + str(i) for i in range(100)],
+                "label": ["positive"] * 90 + ["negative"] * 10,
+            }
+        )
 
         # Flip some labels
-        df.loc[95:99, 'label'] = 'positive'
+        df.loc[95:99, "label"] = "positive"
 
         result = detector.detect_poisoning(
             corpus_data=df,
-            corpus_id='test-corpus-1',
-            label_column='label',
-            text_column='text'
+            corpus_id="test-corpus-1",
+            label_column="label",
+            text_column="text",
         )
 
         assert result is not None
-        assert hasattr(result, 'poisoning_detected')
-        assert hasattr(result, 'signals')
+        assert hasattr(result, "poisoning_detected")
+        assert hasattr(result, "signals")
 
     def test_detect_statistical_anomalies(self):
         """Test statistical anomaly detection."""
@@ -86,15 +89,12 @@ class TestDataPoisoningDetector:
         normal_data = np.random.normal(0, 1, 1000)
         anomalous_data = np.concatenate([normal_data, np.array([10, -10, 15, -15])])
 
-        df = pd.DataFrame({
-            'feature': anomalous_data,
-            'label': ['class'] * len(anomalous_data)
-        })
+        df = pd.DataFrame(
+            {"feature": anomalous_data, "label": ["class"] * len(anomalous_data)}
+        )
 
         result = detector.detect_poisoning(
-            corpus_data=df,
-            corpus_id='test-corpus-2',
-            label_column='label'
+            corpus_data=df, corpus_id="test-corpus-2", label_column="label"
         )
 
         assert result is not None
@@ -107,12 +107,13 @@ class TestSBOMAnalyzer:
         """Test that the module can be imported."""
         try:
             from supply_chain.sbom_analyzer import (
-                SBOMAnalyzer,
                 Dependency,
-                VulnerabilityInfo,
                 ImpactAssessment,
-                SBOMAnalysisReport
+                SBOMAnalysisReport,
+                SBOMAnalyzer,
+                VulnerabilityInfo,
             )
+
             assert True
         except ImportError as e:
             pytest.fail(f"Failed to import sbom_analyzer: {e}")
@@ -134,25 +135,20 @@ class TestSBOMAnalyzer:
         sbom_data = {
             "bomFormat": "CycloneDX",
             "specVersion": "1.4",
-            "metadata": {
-                "component": {
-                    "name": "test-component",
-                    "version": "1.0.0"
-                }
-            },
+            "metadata": {"component": {"name": "test-component", "version": "1.0.0"}},
             "components": [
                 {
                     "name": "numpy",
                     "version": "1.21.0",
                     "purl": "pkg:pypi/numpy@1.21.0",
                     "licenses": [{"license": {"id": "MIT"}}],
-                    "hashes": [{"alg": "SHA-256", "content": "abc123"}]
+                    "hashes": [{"alg": "SHA-256", "content": "abc123"}],
                 }
-            ]
+            ],
         }
 
         # Test parsing
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(sbom_data, f)
             temp_path = f.name
 
@@ -164,7 +160,7 @@ class TestSBOMAnalyzer:
 
     def test_check_licenses(self):
         """Test license compliance checking."""
-        from supply_chain.sbom_analyzer import SBOMAnalyzer, Dependency
+        from supply_chain.sbom_analyzer import Dependency, SBOMAnalyzer
 
         analyzer = SBOMAnalyzer()
 
@@ -175,23 +171,23 @@ class TestSBOMAnalyzer:
                 version="1.0.0",
                 purl="pkg:pypi/mit-package@1.0.0",
                 licenses=["MIT"],
-                hashes={"sha256": "abc123"}
+                hashes={"sha256": "abc123"},
             ),
             Dependency(
                 name="gpl-package",
                 version="1.0.0",
                 purl="pkg:pypi/gpl-package@1.0.0",
                 licenses=["GPL-3.0"],
-                hashes={"sha256": "def456"}
-            )
+                hashes={"sha256": "def456"},
+            ),
         ]
 
         result = analyzer._check_licenses(dependencies)
 
         assert result is not None
-        assert 'compliant' in result
-        assert 'violations' in result
-        assert result['violations'] == 1  # GPL-3.0 is prohibited
+        assert "compliant" in result
+        assert "violations" in result
+        assert result["violations"] == 1  # GPL-3.0 is prohibited
 
 
 class TestCredentialRotator:
@@ -201,11 +197,12 @@ class TestCredentialRotator:
         """Test that the module can be imported."""
         try:
             from security.credential_rotator import (
-                CredentialRotator,
                 Credential,
+                CredentialRotator,
                 CredentialType,
-                RotationReport
+                RotationReport,
             )
+
             assert True
         except ImportError as e:
             pytest.fail(f"Failed to import credential_rotator: {e}")
@@ -221,9 +218,9 @@ class TestCredentialRotator:
     def test_rotate_database_password(self):
         """Test database password rotation in dry-run mode."""
         from security.credential_rotator import (
-            CredentialRotator,
             Credential,
-            CredentialType
+            CredentialRotator,
+            CredentialType,
         )
 
         rotator = CredentialRotator(dry_run=True)
@@ -234,25 +231,24 @@ class TestCredentialRotator:
             type=CredentialType.DATABASE_PASSWORD,
             location="postgresql://localhost/db",
             current_value_hash="abc123",
-            services_affected=["api", "worker"]
+            services_affected=["api", "worker"],
         )
 
         report = rotator.rotate_credentials(
-            credentials=[credential],
-            incident_id="test-incident-1"
+            credentials=[credential], incident_id="test-incident-1"
         )
 
         assert report is not None
-        assert hasattr(report, 'incident_id')
+        assert hasattr(report, "incident_id")
         assert report.incident_id == "test-incident-1"
         assert len(report.credentials_rotated) == 1
 
     def test_rotate_api_key(self):
         """Test API key rotation in dry-run mode."""
         from security.credential_rotator import (
-            CredentialRotator,
             Credential,
-            CredentialType
+            CredentialRotator,
+            CredentialType,
         )
 
         rotator = CredentialRotator(dry_run=True)
@@ -263,12 +259,11 @@ class TestCredentialRotator:
             type=CredentialType.API_KEY,
             location="header",
             current_value_hash="xyz789",
-            services_affected=["external-api"]
+            services_affected=["external-api"],
         )
 
         report = rotator.rotate_credentials(
-            credentials=[credential],
-            incident_id="test-incident-2"
+            credentials=[credential], incident_id="test-incident-2"
         )
 
         assert report is not None
@@ -282,16 +277,17 @@ class TestSecureModelTrainer:
         """Test that the module can be imported."""
         try:
             from ml.training.secure_trainer import (
-                SecureModelTrainer,
-                TrainingMetrics,
+                AnomalySeverity,
                 AnomalySignal,
                 AnomalyType,
-                AnomalySeverity,
-                TrainingPhase,
                 CheckpointMetadata,
+                SecureModelTrainer,
+                TrainingMetrics,
+                TrainingPhase,
+                TrainingReport,
                 ValidationReport,
-                TrainingReport
             )
+
             assert True
         except ImportError as e:
             pytest.fail(f"Failed to import secure_trainer: {e}")
@@ -302,8 +298,8 @@ class TestSecureModelTrainer:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             trainer = SecureModelTrainer(
-                checkpoint_dir=os.path.join(tmpdir, 'checkpoints'),
-                audit_log_dir=os.path.join(tmpdir, 'audit_logs')
+                checkpoint_dir=os.path.join(tmpdir, "checkpoints"),
+                audit_log_dir=os.path.join(tmpdir, "audit_logs"),
             )
             assert trainer is not None
             assert trainer.enable_gradient_monitoring == True
@@ -314,38 +310,38 @@ class TestSecureModelTrainer:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             trainer = SecureModelTrainer(
-                checkpoint_dir=os.path.join(tmpdir, 'checkpoints'),
-                audit_log_dir=os.path.join(tmpdir, 'audit_logs')
+                checkpoint_dir=os.path.join(tmpdir, "checkpoints"),
+                audit_log_dir=os.path.join(tmpdir, "audit_logs"),
             )
 
             # Create test data
-            train_data = pd.DataFrame({
-                'feature1': np.random.randn(1000),
-                'feature2': np.random.randn(1000),
-                'label': np.random.randint(0, 2, 1000)
-            })
+            train_data = pd.DataFrame(
+                {
+                    "feature1": np.random.randn(1000),
+                    "feature2": np.random.randn(1000),
+                    "label": np.random.randint(0, 2, 1000),
+                }
+            )
 
             report = trainer._validate_training_data(
-                train_data=train_data,
-                val_data=None,
-                corpus_id='test-corpus'
+                train_data=train_data, val_data=None, corpus_id="test-corpus"
             )
 
             assert report is not None
-            assert 'passed' in report
+            assert "passed" in report
 
     def test_anomaly_detection(self):
         """Test training anomaly detection."""
         from ml.training.secure_trainer import (
             SecureModelTrainer,
             TrainingMetrics,
-            TrainingPhase
+            TrainingPhase,
         )
 
         with tempfile.TemporaryDirectory() as tmpdir:
             trainer = SecureModelTrainer(
-                checkpoint_dir=os.path.join(tmpdir, 'checkpoints'),
-                audit_log_dir=os.path.join(tmpdir, 'audit_logs')
+                checkpoint_dir=os.path.join(tmpdir, "checkpoints"),
+                audit_log_dir=os.path.join(tmpdir, "audit_logs"),
             )
 
             trainer.current_phase = TrainingPhase.TRAINING
@@ -353,18 +349,13 @@ class TestSecureModelTrainer:
 
             # Create metrics with potential anomaly
             metrics = TrainingMetrics(
-                epoch=0,
-                step=0,
-                train_loss=100.0,  # Very high loss
-                val_loss=95.0
+                epoch=0, step=0, train_loss=100.0, val_loss=95.0  # Very high loss
             )
 
             gradients = np.random.randn(1000) * 1000  # Large gradients
 
             anomalies = trainer._monitor_training_step(
-                metrics=metrics,
-                gradients=gradients,
-                epoch=0
+                metrics=metrics, gradients=gradients, epoch=0
             )
 
             assert anomalies is not None
@@ -372,41 +363,34 @@ class TestSecureModelTrainer:
 
     def test_checkpoint_creation(self):
         """Test checkpoint creation with provenance."""
-        from ml.training.secure_trainer import (
-            SecureModelTrainer,
-            TrainingMetrics
-        )
+        from ml.training.secure_trainer import SecureModelTrainer, TrainingMetrics
 
         with tempfile.TemporaryDirectory() as tmpdir:
             trainer = SecureModelTrainer(
-                checkpoint_dir=os.path.join(tmpdir, 'checkpoints'),
-                audit_log_dir=os.path.join(tmpdir, 'audit_logs')
+                checkpoint_dir=os.path.join(tmpdir, "checkpoints"),
+                audit_log_dir=os.path.join(tmpdir, "audit_logs"),
             )
 
             metrics = TrainingMetrics(
-                epoch=0,
-                step=100,
-                train_loss=0.5,
-                val_loss=0.6,
-                val_accuracy=0.85
+                epoch=0, step=100, train_loss=0.5, val_loss=0.6, val_accuracy=0.85
             )
 
             # Use a simple dict as mock model (picklable)
-            model = {'type': 'mock', 'params': [1, 2, 3]}
-            config = {'learning_rate': 0.001, 'batch_size': 32}
+            model = {"type": "mock", "params": [1, 2, 3]}
+            config = {"learning_rate": 0.001, "batch_size": 32}
 
             checkpoint = trainer._create_checkpoint(
                 model=model,
                 metrics=metrics,
                 config=config,
-                model_id='test-model-1',
-                corpus_id='test-corpus-1'
+                model_id="test-model-1",
+                corpus_id="test-corpus-1",
             )
 
             assert checkpoint is not None
-            assert hasattr(checkpoint, 'checkpoint_id')
-            assert hasattr(checkpoint, 'model_hash')
-            assert hasattr(checkpoint, 'file_hash')
+            assert hasattr(checkpoint, "checkpoint_id")
+            assert hasattr(checkpoint, "model_hash")
+            assert hasattr(checkpoint, "file_hash")
             assert os.path.exists(checkpoint.file_path)
 
 
@@ -430,25 +414,27 @@ class TestIntegratedWorkflow:
 
         poisoning_detector = DataPoisoningDetector()
 
-        test_data = pd.DataFrame({
-            'text': ['sample ' + str(i) for i in range(100)],
-            'label': ['positive'] * 90 + ['negative'] * 10
-        })
+        test_data = pd.DataFrame(
+            {
+                "text": ["sample " + str(i) for i in range(100)],
+                "label": ["positive"] * 90 + ["negative"] * 10,
+            }
+        )
 
         report = poisoning_detector.detect_poisoning(
             corpus_data=test_data,
-            corpus_id='test-workflow-corpus',
-            label_column='label',
-            text_column='text'
+            corpus_id="test-workflow-corpus",
+            label_column="label",
+            text_column="text",
         )
         print("✓ Data poisoning check completed")
 
         # Step 3: Rotate credentials if needed
         print("\nStep 3: Testing credential rotation...")
         from security.credential_rotator import (
-            CredentialRotator,
             Credential,
-            CredentialType
+            CredentialRotator,
+            CredentialType,
         )
 
         credential_rotator = CredentialRotator(dry_run=True)
@@ -459,12 +445,11 @@ class TestIntegratedWorkflow:
             type=CredentialType.API_KEY,
             location="environment",
             current_value_hash="test123",
-            services_affected=["test-service"]
+            services_affected=["test-service"],
         )
 
         rotation_report = credential_rotator.rotate_credentials(
-            credentials=[test_credential],
-            incident_id="workflow-test-incident"
+            credentials=[test_credential], incident_id="workflow-test-incident"
         )
         print("✓ Credential rotation test completed")
 
@@ -474,8 +459,8 @@ class TestIntegratedWorkflow:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             trainer = SecureModelTrainer(
-                checkpoint_dir=os.path.join(tmpdir, 'checkpoints'),
-                audit_log_dir=os.path.join(tmpdir, 'audit_logs')
+                checkpoint_dir=os.path.join(tmpdir, "checkpoints"),
+                audit_log_dir=os.path.join(tmpdir, "audit_logs"),
             )
             print("✓ Secure trainer initialized")
 
@@ -486,10 +471,10 @@ class TestIntegratedWorkflow:
         print("\n=== Testing Tool Integration ===\n")
 
         # Test that all tools can be imported and used together
-        from supply_chain.sbom_analyzer import SBOMAnalyzer
         from ml.security.poisoning_detector import DataPoisoningDetector
-        from security.credential_rotator import CredentialRotator
         from ml.training.secure_trainer import SecureModelTrainer
+        from security.credential_rotator import CredentialRotator
+        from supply_chain.sbom_analyzer import SBOMAnalyzer
 
         # Initialize all tools
         sbom_analyzer = SBOMAnalyzer()
@@ -498,8 +483,8 @@ class TestIntegratedWorkflow:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             trainer = SecureModelTrainer(
-                checkpoint_dir=os.path.join(tmpdir, 'checkpoints'),
-                audit_log_dir=os.path.join(tmpdir, 'audit_logs')
+                checkpoint_dir=os.path.join(tmpdir, "checkpoints"),
+                audit_log_dir=os.path.join(tmpdir, "audit_logs"),
             )
 
         print("✓ All tools successfully initialized")
@@ -509,9 +494,9 @@ class TestIntegratedWorkflow:
 
 def run_tests():
     """Run all tests."""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("IR Automation Tools - Integration Test Suite")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     # Test classes
     test_classes = [
@@ -519,21 +504,17 @@ def run_tests():
         ("SBOM Analyzer", TestSBOMAnalyzer()),
         ("Credential Rotator", TestCredentialRotator()),
         ("Secure Model Trainer", TestSecureModelTrainer()),
-        ("Integrated Workflow", TestIntegratedWorkflow())
+        ("Integrated Workflow", TestIntegratedWorkflow()),
     ]
 
-    results = {
-        'passed': 0,
-        'failed': 0,
-        'errors': []
-    }
+    results = {"passed": 0, "failed": 0, "errors": []}
 
     for test_name, test_class in test_classes:
         print(f"\n{'─'*60}")
         print(f"Testing: {test_name}")
         print(f"{'─'*60}\n")
 
-        test_methods = [m for m in dir(test_class) if m.startswith('test_')]
+        test_methods = [m for m in dir(test_class) if m.startswith("test_")]
 
         for test_method in test_methods:
             try:
@@ -541,37 +522,37 @@ def run_tests():
                 method = getattr(test_class, test_method)
                 method()
                 print("✓ PASSED")
-                results['passed'] += 1
+                results["passed"] += 1
             except AssertionError as e:
                 print(f"✗ FAILED")
                 print(f"    Error: {str(e)}")
-                results['failed'] += 1
-                results['errors'].append((test_name, test_method, str(e)))
+                results["failed"] += 1
+                results["errors"].append((test_name, test_method, str(e)))
             except Exception as e:
                 print(f"✗ ERROR")
                 print(f"    Error: {str(e)}")
-                results['failed'] += 1
-                results['errors'].append((test_name, test_method, str(e)))
+                results["failed"] += 1
+                results["errors"].append((test_name, test_method, str(e)))
 
     # Print summary
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Test Summary")
-    print("="*60)
+    print("=" * 60)
     print(f"Total Tests: {results['passed'] + results['failed']}")
     print(f"Passed: {results['passed']}")
     print(f"Failed: {results['failed']}")
 
-    if results['errors']:
+    if results["errors"]:
         print("\nFailed Tests:")
-        for test_name, test_method, error in results['errors']:
+        for test_name, test_method, error in results["errors"]:
             print(f"  - {test_name}.{test_method}")
             print(f"    {error}")
 
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
-    return results['failed'] == 0
+    return results["failed"] == 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     success = run_tests()
     sys.exit(0 if success else 1)

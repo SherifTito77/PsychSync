@@ -946,7 +946,7 @@
  946.  ./app/assessments/README.md
  947.  ./app/assessments/__pycache__
  948.  ./app/assessments/open_cognitive_battery.py
- 949.  ./app/assessments/open_personality_inventory.py 
+ 949.  ./app/assessments/open_personality_inventory.py
  950.  ./app/assessments/scoring_engine.py
  951.  ./app/backup.py
  952.  ./app/core
@@ -2395,7 +2395,7 @@
 2395.  ./frontend/disabled-tests/utils/testSuiteRunner.ts
 2396.  ./frontend/dist
 2397.  ./frontend/docs
-2398.  ./frontend/docs-frontend 
+2398.  ./frontend/docs-frontend
 2399.  ./frontend/docs-frontend /frontend_setup.md
 2400.  ./frontend/docs/CROSS_PLATFORM_MOBILE_GUIDE.md
 2401.  ./frontend/docs/DEPLOYMENT_GUIDE.md
@@ -2541,7 +2541,7 @@
 2541.  ./frontend/src/components/assessments
 2542.  ./frontend/src/components/assessments/AddQuestionModal.tsx
 2543.  ./frontend/src/components/assessments/AddSectionModal.tsx
-2544.  ./frontend/src/components/assessments/CreateAssessmentModal.tsx 
+2544.  ./frontend/src/components/assessments/CreateAssessmentModal.tsx
 2545.  ./frontend/src/components/assessments/EditAssessmentModal.tsx
 2546.  ./frontend/src/components/assessments/LSASForm.tsx
 2547.  ./frontend/src/components/assessments/QuestionRenderer.tsx

@@ -7,21 +7,22 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from uuid import UUID
-from sqlalchemy import and_, or_, desc, func
+
+from sqlalchemy import and_, desc, func, or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.logging_config import logger
 from app.db.models.legal_rights import (
-    LaborLaw,
-    EmployeeRightsResource,
     ContractViolation,
-    RightsKnowledgeCheck,
+    EmployeeRightsResource,
+    LaborLaw,
     LegalAidResource,
     RightsCategory,
+    RightsKnowledgeCheck,
     ViolationSeverity,
 )
-from app.db.models.user import User
 from app.db.models.organization import Organization
-from app.core.logging_config import logger
+from app.db.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ class LegalRightsService:
         self,
         country_code: str,
         category: Optional[str] = None,
-        state_region: Optional[str] = None
+        state_region: Optional[str] = None,
     ) -> List[LaborLaw]:
         """
         Get labor laws for a specific country
@@ -58,7 +59,7 @@ class LegalRightsService:
         try:
             query = self.db.query(LaborLaw).filter(
                 LaborLaw.country_code == country_code.upper(),
-                LaborLaw.is_active == True
+                LaborLaw.is_active == True,
             )
 
             if category:
@@ -68,7 +69,7 @@ class LegalRightsService:
                 query = query.filter(
                     or_(
                         LaborLaw.state_region == state_region,
-                        LaborLaw.state_region.is_(None)
+                        LaborLaw.state_region.is_(None),
                     )
                 )
 
@@ -81,9 +82,7 @@ class LegalRightsService:
             raise
 
     async def get_rights_summary(
-        self,
-        country_code: str,
-        state_region: Optional[str] = None
+        self, country_code: str, state_region: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Get a comprehensive summary of employee rights for a country
@@ -96,12 +95,16 @@ class LegalRightsService:
             Summary of rights by category
         """
         try:
-            laws = await self.get_labor_laws_by_country(country_code, state_region=state_region)
+            laws = await self.get_labor_laws_by_country(
+                country_code, state_region=state_region
+            )
 
             # ✅ FIX: Proper empty check (prevent IndexError on empty list)
             summary = {
                 "country_code": country_code,
-                "country_name": laws[0].country_name if laws and len(laws) > 0 else country_code,
+                "country_name": (
+                    laws[0].country_name if laws and len(laws) > 0 else country_code
+                ),
                 "total_laws": len(laws),
                 "categories": {},
                 "key_protections": {
@@ -115,52 +118,60 @@ class LegalRightsService:
                     "safety": 0,
                     "privacy": 0,
                     "termination": 0,
-                }
+                },
             }
 
             for law in laws:
                 if law.category not in summary["categories"]:
                     summary["categories"][law.category] = []
 
-                summary["categories"][law.category].append({
-                    "law_name": law.law_name,
-                    "description": law.description,
-                    "law_code": law.law_code,
-                })
+                summary["categories"][law.category].append(
+                    {
+                        "law_name": law.law_name,
+                        "description": law.description,
+                        "law_code": law.law_code,
+                    }
+                )
 
                 # Extract key protections
                 if law.min_wage:
                     summary["key_protections"]["min_wage"] = max(
-                        summary["key_protections"]["min_wage"] or 0,
-                        law.min_wage
+                        summary["key_protections"]["min_wage"] or 0, law.min_wage
                     )
                 if law.max_weekly_hours:
                     summary["key_protections"]["max_weekly_hours"] = min(
-                        summary["key_protections"]["max_weekly_hours"] or float('inf'),
-                        law.max_weekly_hours
+                        summary["key_protections"]["max_weekly_hours"] or float("inf"),
+                        law.max_weekly_hours,
                     )
                 if law.min_vacation_days:
                     summary["key_protections"]["min_vacation_days"] = max(
                         summary["key_protections"]["min_vacation_days"] or 0,
-                        law.min_vacation_days
+                        law.min_vacation_days,
                     )
 
                 # Average protection levels
                 if law.discrimination_protection_level:
-                    summary["protection_levels"]["discrimination"] += law.discrimination_protection_level
+                    summary["protection_levels"][
+                        "discrimination"
+                    ] += law.discrimination_protection_level
                 if law.safety_protection_level:
-                    summary["protection_levels"]["safety"] += law.safety_protection_level
+                    summary["protection_levels"][
+                        "safety"
+                    ] += law.safety_protection_level
                 if law.privacy_protection_level:
-                    summary["protection_levels"]["privacy"] += law.privacy_protection_level
+                    summary["protection_levels"][
+                        "privacy"
+                    ] += law.privacy_protection_level
                 if law.termination_protection_level:
-                    summary["protection_levels"]["termination"] += law.termination_protection_level
+                    summary["protection_levels"][
+                        "termination"
+                    ] += law.termination_protection_level
 
             # Calculate average protection levels
             for protection_type in summary["protection_levels"]:
                 if summary["protection_levels"][protection_type] > 0:
                     summary["protection_levels"][protection_type] = round(
-                        summary["protection_levels"][protection_type] / len(laws),
-                        1
+                        summary["protection_levels"][protection_type] / len(laws), 1
                     )
 
             return summary
@@ -179,7 +190,7 @@ class LegalRightsService:
         category: Optional[str] = None,
         resource_type: Optional[str] = None,
         featured_only: bool = False,
-        limit: int = 50
+        limit: int = 50,
     ) -> List[EmployeeRightsResource]:
         """
         Get educational resources about employee rights
@@ -197,22 +208,28 @@ class LegalRightsService:
         try:
             query = self.db.query(EmployeeRightsResource).filter(
                 EmployeeRightsResource.organization_id == organization_id,
-                EmployeeRightsResource.is_published == True
+                EmployeeRightsResource.is_published == True,
             )
 
             if category:
                 query = query.filter(EmployeeRightsResource.category == category)
 
             if resource_type:
-                query = query.filter(EmployeeRightsResource.resource_type == resource_type)
+                query = query.filter(
+                    EmployeeRightsResource.resource_type == resource_type
+                )
 
             if featured_only:
                 query = query.filter(EmployeeRightsResource.is_featured == True)
 
-            resources = query.order_by(
-                EmployeeRightsResource.display_order,
-                desc(EmployeeRightsResource.view_count)
-            ).limit(limit).all()
+            resources = (
+                query.order_by(
+                    EmployeeRightsResource.display_order,
+                    desc(EmployeeRightsResource.view_count),
+                )
+                .limit(limit)
+                .all()
+            )
 
             # Increment view counts
             for resource in resources:
@@ -225,11 +242,7 @@ class LegalRightsService:
             logger.error(f"Error retrieving rights resources: {e}")
             raise
 
-    async def mark_resource_helpful(
-        self,
-        resource_id: UUID,
-        helpful: bool
-    ) -> bool:
+    async def mark_resource_helpful(self, resource_id: UUID, helpful: bool) -> bool:
         """
         Mark a resource as helpful or not helpful
 
@@ -241,9 +254,11 @@ class LegalRightsService:
             Success status
         """
         try:
-            resource = self.db.query(EmployeeRightsResource).filter(
-                EmployeeRightsResource.id == resource_id
-            ).first()
+            resource = (
+                self.db.query(EmployeeRightsResource)
+                .filter(EmployeeRightsResource.id == resource_id)
+                .first()
+            )
 
             if not resource:
                 return False
@@ -266,9 +281,7 @@ class LegalRightsService:
     # ============================================
 
     async def detect_contract_violations(
-        self,
-        organization_id: UUID,
-        employee_id: Optional[UUID] = None
+        self, organization_id: UUID, employee_id: Optional[UUID] = None
     ) -> List[ContractViolation]:
         """
         Automatically detect potential contract violations
@@ -306,10 +319,7 @@ class LegalRightsService:
             raise
 
     async def create_violation_report(
-        self,
-        organization_id: UUID,
-        violation_data: Dict[str, Any],
-        reported_by: UUID
+        self, organization_id: UUID, violation_data: Dict[str, Any], reported_by: UUID
     ) -> ContractViolation:
         """
         Create a new contract violation report
@@ -356,7 +366,7 @@ class LegalRightsService:
         organization_id: UUID,
         status: Optional[str] = None,
         severity: Optional[str] = None,
-        limit: int = 100
+        limit: int = 100,
     ) -> List[ContractViolation]:
         """
         Get contract violations for an organization
@@ -381,9 +391,9 @@ class LegalRightsService:
             if severity:
                 query = query.filter(ContractViolation.severity == severity)
 
-            violations = query.order_by(
-                desc(ContractViolation.detected_at)
-            ).limit(limit).all()
+            violations = (
+                query.order_by(desc(ContractViolation.detected_at)).limit(limit).all()
+            )
 
             return violations
 
@@ -400,7 +410,7 @@ class LegalRightsService:
         user_id: UUID,
         organization_id: UUID,
         check_type: str,
-        responses: List[Dict[str, Any]]
+        responses: List[Dict[str, Any]],
     ) -> RightsKnowledgeCheck:
         """
         Create and score a rights knowledge check
@@ -445,14 +455,16 @@ class LegalRightsService:
                 score_percentage=score_percentage,
                 passed=passed,
                 knowledge_gaps=list(set(knowledge_gaps)),
-                recommended_resources=questions_data.get("recommended_resources", [])
+                recommended_resources=questions_data.get("recommended_resources", []),
             )
 
             self.db.add(knowledge_check)
             self.db.commit()
             self.db.refresh(knowledge_check)
 
-            logger.info(f"Created knowledge check for user {user_id}: score {score_percentage}%")
+            logger.info(
+                f"Created knowledge check for user {user_id}: score {score_percentage}%"
+            )
             return knowledge_check
 
         except Exception as e:
@@ -474,48 +486,68 @@ class LegalRightsService:
                 "questions": [
                     {
                         "question": "What is the minimum wage in your country?",
-                        "options": ["Varies by region", "Federal minimum", "No minimum wage", "Set by employer"],
+                        "options": [
+                            "Varies by region",
+                            "Federal minimum",
+                            "No minimum wage",
+                            "Set by employer",
+                        ],
                         "correct_answer": "Varies by region",
-                        "topic": "wages"
+                        "topic": "wages",
                     },
                     {
                         "question": "How many hours can you be required to work before overtime pay?",
-                        "options": ["35 hours", "40 hours", "48 hours", "No overtime required"],
+                        "options": [
+                            "35 hours",
+                            "40 hours",
+                            "48 hours",
+                            "No overtime required",
+                        ],
                         "correct_answer": "40 hours",
-                        "topic": "working_hours"
+                        "topic": "working_hours",
                     },
                     {
                         "question": "Are you protected from workplace discrimination?",
-                        "options": ["Yes, by law", "Only in large companies", "No protection", "Depends on state"],
+                        "options": [
+                            "Yes, by law",
+                            "Only in large companies",
+                            "No protection",
+                            "Depends on state",
+                        ],
                         "correct_answer": "Yes, by law",
-                        "topic": "discrimination"
+                        "topic": "discrimination",
                     },
                     {
                         "question": "Can you be fired for reporting safety violations?",
-                        "options": ["Yes, at-will employment", "No, protected by whistleblower laws", "Only with warning", "Depends on tenure"],
+                        "options": [
+                            "Yes, at-will employment",
+                            "No, protected by whistleblower laws",
+                            "Only with warning",
+                            "Depends on tenure",
+                        ],
                         "correct_answer": "No, protected by whistleblower laws",
-                        "topic": "safety"
+                        "topic": "safety",
                     },
                     {
                         "question": "Are you entitled to breaks during your work shift?",
-                        "options": ["No legal requirement", "Yes, meal and rest breaks", "Only meal breaks", "Depends on employer"],
+                        "options": [
+                            "No legal requirement",
+                            "Yes, meal and rest breaks",
+                            "Only meal breaks",
+                            "Depends on employer",
+                        ],
                         "correct_answer": "Yes, meal and rest breaks",
-                        "topic": "breaks"
-                    }
+                        "topic": "breaks",
+                    },
                 ],
-                "recommended_resources": [
-                    "resource-uuid-1",
-                    "resource-uuid-2"
-                ]
+                "recommended_resources": ["resource-uuid-1", "resource-uuid-2"],
             }
         }
 
         return questions.get(check_type, questions["general"])
 
     async def get_user_knowledge_history(
-        self,
-        user_id: UUID,
-        limit: int = 20
+        self, user_id: UUID, limit: int = 20
     ) -> List[RightsKnowledgeCheck]:
         """
         Get a user's knowledge check history
@@ -528,11 +560,13 @@ class LegalRightsService:
             List of knowledge checks
         """
         try:
-            checks = self.db.query(RightsKnowledgeCheck).filter(
-                RightsKnowledgeCheck.user_id == user_id
-            ).order_by(
-                desc(RightsKnowledgeCheck.completed_at)
-            ).limit(limit).all()
+            checks = (
+                self.db.query(RightsKnowledgeCheck)
+                .filter(RightsKnowledgeCheck.user_id == user_id)
+                .order_by(desc(RightsKnowledgeCheck.completed_at))
+                .limit(limit)
+                .all()
+            )
 
             return checks
 
@@ -550,7 +584,7 @@ class LegalRightsService:
         state_region: Optional[str] = None,
         city: Optional[str] = None,
         specialization: Optional[str] = None,
-        free_only: bool = False
+        free_only: bool = False,
     ) -> List[LegalAidResource]:
         """
         Find legal aid resources
@@ -568,7 +602,7 @@ class LegalRightsService:
         try:
             query = self.db.query(LegalAidResource).filter(
                 LegalAidResource.country_code == country_code.upper(),
-                LegalAidResource.verified == True
+                LegalAidResource.verified == True,
             )
 
             if state_region:
@@ -581,19 +615,19 @@ class LegalRightsService:
                 query = query.filter(
                     or_(
                         LegalAidResource.free_consultation == True,
-                        LegalAidResource.pro_bono == True
+                        LegalAidResource.pro_bono == True,
                     )
                 )
 
             resources = query.order_by(
-                desc(LegalAidResource.rating),
-                LegalAidResource.response_time_hours
+                desc(LegalAidResource.rating), LegalAidResource.response_time_hours
             ).all()
 
             # Filter by specialization if provided (JSONB field)
             if specialization:
                 resources = [
-                    r for r in resources
+                    r
+                    for r in resources
                     if r.specializations and specialization in r.specializations
                 ]
 
@@ -614,8 +648,7 @@ class LegalRightsAnalyzer:
         self.db = db
 
     async def analyze_organization_compliance(
-        self,
-        organization_id: UUID
+        self, organization_id: UUID
     ) -> Dict[str, Any]:
         """
         Analyze organization's compliance with labor laws
@@ -624,14 +657,26 @@ class LegalRightsAnalyzer:
         """
         try:
             # Get all open violations
-            violations = self.db.query(ContractViolation).filter(
-                ContractViolation.organization_id == organization_id,
-                ContractViolation.status.in_(["open", "investigating"])
-            ).all()
+            violations = (
+                self.db.query(ContractViolation)
+                .filter(
+                    ContractViolation.organization_id == organization_id,
+                    ContractViolation.status.in_(["open", "investigating"]),
+                )
+                .all()
+            )
 
             # Calculate risk scores
-            critical_count = len([v for v in violations if v.severity == ViolationSeverity.CRITICAL.value])
-            high_count = len([v for v in violations if v.severity == ViolationSeverity.HIGH.value])
+            critical_count = len(
+                [
+                    v
+                    for v in violations
+                    if v.severity == ViolationSeverity.CRITICAL.value
+                ]
+            )
+            high_count = len(
+                [v for v in violations if v.severity == ViolationSeverity.HIGH.value]
+            )
 
             legal_risk_score = min(100, (critical_count * 25) + (high_count * 10))
 
@@ -640,12 +685,14 @@ class LegalRightsAnalyzer:
             for violation in violations:
                 if violation.category not in violations_by_category:
                     violations_by_category[violation.category] = []
-                violations_by_category[violation.category].append({
-                    "id": str(violation.id),
-                    "title": violation.title,
-                    "severity": violation.severity,
-                    "detected_at": violation.detected_at.isoformat()
-                })
+                violations_by_category[violation.category].append(
+                    {
+                        "id": str(violation.id),
+                        "title": violation.title,
+                        "severity": violation.severity,
+                        "detected_at": violation.detected_at.isoformat(),
+                    }
+                )
 
             return {
                 "organization_id": str(organization_id),
@@ -655,8 +702,10 @@ class LegalRightsAnalyzer:
                 "high_severity_violations": high_count,
                 "violations_by_category": violations_by_category,
                 "compliance_percentage": max(0, 100 - legal_risk_score),
-                "recommendations": await self._generate_compliance_recommendations(violations),
-                "analyzed_at": datetime.utcnow().isoformat()
+                "recommendations": await self._generate_compliance_recommendations(
+                    violations
+                ),
+                "analyzed_at": datetime.utcnow().isoformat(),
             }
 
         except Exception as e:
@@ -664,13 +713,14 @@ class LegalRightsAnalyzer:
             raise
 
     async def _generate_compliance_recommendations(
-        self,
-        violations: List[ContractViolation]
+        self, violations: List[ContractViolation]
     ) -> List[str]:
         """Generate recommendations based on violations"""
         recommendations = []
 
-        critical_violations = [v for v in violations if v.severity == ViolationSeverity.CRITICAL.value]
+        critical_violations = [
+            v for v in violations if v.severity == ViolationSeverity.CRITICAL.value
+        ]
         if critical_violations:
             recommendations.append(
                 "URGENT: Address critical violations immediately to avoid legal action"
@@ -692,6 +742,8 @@ class LegalRightsAnalyzer:
             )
 
         if not recommendations:
-            recommendations.append("Continue monitoring compliance, no immediate actions required")
+            recommendations.append(
+                "Continue monitoring compliance, no immediate actions required"
+            )
 
         return recommendations

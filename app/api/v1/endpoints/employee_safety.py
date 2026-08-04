@@ -4,32 +4,39 @@ REST API for safety incident reporting, wellness monitoring, and safety manageme
 """
 
 from datetime import datetime, timedelta
-
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field, validator
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db, get_async_db, get_current_active_user
-from app.db.models.user import User
-from app.db.models.employee_safety import (
-    SafetyIncidentType, IncidentSeverity, IncidentStatus, WellnessMetricType, AlertLevel
-)
-from app.services.employee_safety_service import (
-    EmployeeSafetyService, IncidentReportData, WellnessAssessmentData
-)
+from app.api.deps import get_async_db, get_current_active_user, get_current_user, get_db
 from app.core.config import settings
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
+from app.db.models.employee_safety import (
+    AlertLevel,
+    IncidentSeverity,
+    IncidentStatus,
+    SafetyIncidentType,
+    WellnessMetricType,
+)
+from app.db.models.user import User
+from app.services.employee_safety_service import (
+    EmployeeSafetyService,
+    IncidentReportData,
+    WellnessAssessmentData,
+)
 
 router = APIRouter()
 
 
 # Pydantic Models for API
 
+
 class IncidentReportRequest(BaseModel):
     """Request model for incident reporting"""
+
     incident_type: SafetyIncidentType
     severity: IncidentSeverity
     title: str = Field(..., min_length=5, max_length=200)
@@ -41,15 +48,16 @@ class IncidentReportRequest(BaseModel):
     immediate_actions: Optional[List[str]] = None
     affected_user_id: Optional[UUID] = None
 
-    @validator('date_occurred')
+    @validator("date_occurred")
     def validate_date_occurred(cls, v):
         if v and v > datetime.utcnow():
-            raise ValueError('Date occurred cannot be in the future')
+            raise ValueError("Date occurred cannot be in the future")
         return v
 
 
 class IncidentUpdateRequest(BaseModel):
     """Request model for incident updates"""
+
     status: IncidentStatus
     investigation_notes: Optional[str] = None
     root_cause: Optional[str] = None
@@ -60,9 +68,12 @@ class IncidentUpdateRequest(BaseModel):
 
 class WellnessAssessmentRequest(BaseModel):
     """Request model for wellness assessment"""
+
     user_id: UUID
     team_id: Optional[UUID] = None
-    assessment_type: str = Field(default="scheduled", regex="^(scheduled|incident_triggered|self_reported)$")
+    assessment_type: str = Field(
+        default="scheduled", regex="^(scheduled|incident_triggered|self_reported)$"
+    )
     stress_level: Optional[float] = Field(None, ge=1, le=10)
     burnout_risk: Optional[float] = Field(None, ge=0, le=1)
     work_life_balance: Optional[float] = Field(None, ge=1, le=10)
@@ -78,6 +89,7 @@ class WellnessAssessmentRequest(BaseModel):
 
 class SafetyResourceRequest(BaseModel):
     """Request model for safety resources"""
+
     title: str = Field(..., min_length=5, max_length=200)
     description: Optional[str] = None
     resource_type: str = Field(..., regex="^(policy|guide|training|contact|emergency)$")
@@ -98,7 +110,7 @@ class SafetyResourceRequest(BaseModel):
 async def report_incident(
     incident_data: IncidentReportRequest,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Report a new safety incident
@@ -128,14 +140,14 @@ async def report_incident(
             witnesses=incident_data.witnesses,
             evidence_files=incident_data.evidence_files,
             immediate_actions=incident_data.immediate_actions,
-            affected_user_id=incident_data.affected_user_id
+            affected_user_id=incident_data.affected_user_id,
         )
 
         result = await safety_service.report_incident(
             incident_data=incident_report_data,
             reporter_id=current_user.id,
             organization_id=current_user.organization_id,
-            team_id=current_user.team_id
+            team_id=current_user.team_id,
         )
 
         if result["success"]:
@@ -144,17 +156,17 @@ async def report_incident(
                 "message": result["message"],
                 "incident_id": str(result["incident_id"]),
                 "severity": result["severity"],
-                "status": result["status"]
+                "status": result["status"],
             }
         else:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result["error"]
+                status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"]
             )
 
     except Exception as e:
-        raise HTTPException(            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to report incident: {str(e)}"
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to report incident: {str(e)}",
         ) from e
 
 
@@ -169,7 +181,7 @@ async def get_incidents(
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get list of safety incidents with filtering options
@@ -189,19 +201,20 @@ async def get_incidents(
         # Get date range
         date_range = None
         if start_date or end_date:
-            date_range = (start_date or datetime.utcnow() - timedelta(days=30),
-                          end_date or datetime.utcnow())
+            date_range = (
+                start_date or datetime.utcnow() - timedelta(days=30),
+                end_date or datetime.utcnow(),
+            )
 
         dashboard_data = await safety_service.get_incidents_dashboard(
             organization_id=current_user.organization_id,
             team_id=team_id,
-            date_range=date_range
+            date_range=date_range,
         )
 
         if "error" in dashboard_data:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=dashboard_data["error"]
+                status_code=status.HTTP_400_BAD_REQUEST, detail=dashboard_data["error"]
             )
 
         incidents = dashboard_data.get("incidents", [])
@@ -212,11 +225,13 @@ async def get_incidents(
         if status:
             incidents = [inc for inc in incidents if inc["status"] == status.value]
         if incident_type:
-            incidents = [inc for inc in incidents if inc["incident_type"] == incident_type.value]
+            incidents = [
+                inc for inc in incidents if inc["incident_type"] == incident_type.value
+            ]
 
         # Apply pagination
         total_count = len(incidents)
-        paginated_incidents = incidents[offset:offset + limit]
+        paginated_incidents = incidents[offset : offset + limit]
 
         return {
             "incidents": paginated_incidents,
@@ -229,17 +244,16 @@ async def get_incidents(
                 "critical_incidents": dashboard_data.get("critical_incidents", 0),
                 "severity_breakdown": dashboard_data.get("severity_breakdown", {}),
                 "type_breakdown": dashboard_data.get("type_breakdown", {}),
-                "status_breakdown": dashboard_data.get("status_breakdown", {})
-            }
+                "status_breakdown": dashboard_data.get("status_breakdown", {}),
+            },
         }
 
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
-
-status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get incidents: {str(e)}"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get incidents: {str(e)}",
         ) from e
 
 
@@ -247,7 +261,7 @@ status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 async def get_incident(
     incident_id: UUID,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get details of a specific safety incident
@@ -262,7 +276,7 @@ async def get_incident(
         if not incident:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Incident not found or access denied"
+                detail="Incident not found or access denied",
             )
 
         return incident
@@ -272,7 +286,7 @@ async def get_incident(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get incident: {str(e)}"
+            detail=f"Failed to get incident: {str(e)}",
         ) from e
 
 
@@ -281,7 +295,7 @@ async def update_incident(
     incident_id: UUID,
     update_data: IncidentUpdateRequest,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Update incident status and investigation details
@@ -301,19 +315,18 @@ async def update_incident(
             incident_id=incident_id,
             new_status=update_data.status,
             investigator_id=current_user.id,
-            notes=update_data.investigation_notes
+            notes=update_data.investigation_notes,
         )
 
         if result["success"]:
             return {
                 "success": True,
                 "message": result["message"],
-                "status": result["status"]
+                "status": result["status"],
             }
         else:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result["error"]
+                status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"]
             )
 
     except HTTPException:
@@ -321,7 +334,7 @@ async def update_incident(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update incident: {str(e)}"
+            detail=f"Failed to update incident: {str(e)}",
         ) from e
 
 
@@ -330,7 +343,7 @@ async def get_incidents_dashboard(
     team_id: Optional[UUID] = None,
     days: int = Query(30, ge=1, le=365),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get safety incidents dashboard with statistics and trends
@@ -349,13 +362,12 @@ async def get_incidents_dashboard(
         dashboard_data = await safety_service.get_incidents_dashboard(
             organization_id=current_user.organization_id,
             team_id=team_id,
-            date_range=date_range
+            date_range=date_range,
         )
 
         if "error" in dashboard_data:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=dashboard_data["error"]
+                status_code=status.HTTP_400_BAD_REQUEST, detail=dashboard_data["error"]
             )
 
         return dashboard_data
@@ -365,17 +377,18 @@ async def get_incidents_dashboard(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get incidents dashboard: {str(e)}"
+            detail=f"Failed to get incidents dashboard: {str(e)}",
         ) from e
 
 
 # Wellness Monitoring Endpoints
 
+
 @router.post("/wellness/assessments", response_model=Dict[str, Any])
 async def create_wellness_assessment(
     assessment_data: WellnessAssessmentRequest,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Create a new wellness assessment
@@ -397,12 +410,14 @@ async def create_wellness_assessment(
     """
     try:
         # Validate permissions - can only assess self or admin can assess others
-        if (assessment_data.user_id != current_user.id and
-            not current_user.is_admin and
-            not current_user.is_superuser):
+        if (
+            assessment_data.user_id != current_user.id
+            and not current_user.is_admin
+            and not current_user.is_superuser
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to assess this user"
+                detail="Not authorized to assess this user",
             )
 
         safety_service = EmployeeSafetyService(db)
@@ -422,7 +437,7 @@ async def create_wellness_assessment(
             job_satisfaction=assessment_data.job_satisfaction,
             engagement_level=assessment_data.engagement_level,
             work_hours_per_week=assessment_data.work_hours_per_week,
-            overtime_hours=assessment_data.overtime_hours
+            overtime_hours=assessment_data.overtime_hours,
         )
 
         result = await safety_service.create_wellness_assessment(wellness_data)
@@ -434,12 +449,11 @@ async def create_wellness_assessment(
                 "assessment_id": str(result["assessment_id"]),
                 "overall_score": result["overall_score"],
                 "alert_level": result["alert_level"],
-                "risk_factors_count": result["risk_factors_count"]
+                "risk_factors_count": result["risk_factors_count"],
             }
         else:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result["error"]
+                status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"]
             )
 
     except HTTPException:
@@ -447,7 +461,7 @@ async def create_wellness_assessment(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create wellness assessment: {str(e)}"
+            detail=f"Failed to create wellness assessment: {str(e)}",
         ) from e
 
 
@@ -456,7 +470,7 @@ async def get_wellness_dashboard(
     team_id: Optional[UUID] = None,
     days: int = Query(30, ge=1, le=365),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get wellness dashboard with organizational/team metrics
@@ -468,14 +482,12 @@ async def get_wellness_dashboard(
         safety_service = EmployeeSafetyService(db)
 
         dashboard_data = await safety_service.get_wellness_dashboard(
-            organization_id=current_user.organization_id,
-            team_id=team_id
+            organization_id=current_user.organization_id, team_id=team_id
         )
 
         if "error" in dashboard_data:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=dashboard_data["error"]
+                status_code=status.HTTP_400_BAD_REQUEST, detail=dashboard_data["error"]
             )
 
         return dashboard_data
@@ -485,7 +497,7 @@ async def get_wellness_dashboard(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get wellness dashboard: {str(e)}"
+            detail=f"Failed to get wellness dashboard: {str(e)}",
         ) from e
 
 
@@ -494,7 +506,7 @@ async def get_employee_wellness_history(
     user_id: UUID,
     days: int = Query(90, ge=1, le=365),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get wellness assessment history for a specific employee
@@ -504,12 +516,14 @@ async def get_employee_wellness_history(
     """
     try:
         # Validate permissions - can only view own history or admin can view others
-        if (user_id != current_user.id and
-            not current_user.is_admin and
-            not current_user.is_superuser):
+        if (
+            user_id != current_user.id
+            and not current_user.is_admin
+            and not current_user.is_superuser
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized to view this user's wellness data"
+                detail="Not authorized to view this user's wellness data",
             )
 
         safety_service = EmployeeSafetyService(db)
@@ -520,8 +534,7 @@ async def get_employee_wellness_history(
         date_range = (start_date, end_date)
 
         history = await safety_service.get_employee_wellness_history(
-            user_id=user_id,
-            date_range=date_range
+            user_id=user_id, date_range=date_range
         )
 
         return history
@@ -531,17 +544,18 @@ async def get_employee_wellness_history(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get wellness history: {str(e)}"
+            detail=f"Failed to get wellness history: {str(e)}",
         ) from e
 
 
 # Safety Resources Endpoints
 
+
 @router.post("/resources", response_model=Dict[str, Any])
 async def create_safety_resource(
     resource_data: SafetyResourceRequest,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Create a new safety resource
@@ -562,7 +576,7 @@ async def create_safety_resource(
         if not current_user.is_admin and not current_user.is_superuser:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only administrators can create safety resources"
+                detail="Only administrators can create safety resources",
             )
 
         safety_service = EmployeeSafetyService(db)
@@ -576,19 +590,18 @@ async def create_safety_resource(
             file_url=resource_data.file_url,
             category=resource_data.category,
             is_public=resource_data.is_public,
-            tags=resource_data.tags
+            tags=resource_data.tags,
         )
 
         if result["success"]:
             return {
                 "success": True,
                 "message": result["message"],
-                "resource_id": str(result["resource_id"])
+                "resource_id": str(result["resource_id"]),
             }
         else:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result["error"]
+                status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"]
             )
 
     except HTTPException:
@@ -596,7 +609,7 @@ async def create_safety_resource(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create safety resource: {str(e)}"
+            detail=f"Failed to create safety resource: {str(e)}",
         ) from e
 
 
@@ -606,7 +619,7 @@ async def get_safety_resources(
     category: Optional[str] = None,
     search: Optional[str] = Query(None),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get safety resources with filtering options
@@ -622,33 +635,37 @@ async def get_safety_resources(
             organization_id=current_user.organization_id,
             resource_type=resource_type,
             category=category,
-            user_role=current_user.role.value if current_user.role else None
+            user_role=current_user.role.value if current_user.role else None,
         )
 
         # Apply search filter if provided
         if search:
             search_lower = search.lower()
-            resources = [r for r in resources
-                        if search_lower in r["title"].lower()
-                        or search_lower in r["description"].lower()]
+            resources = [
+                r
+                for r in resources
+                if search_lower in r["title"].lower()
+                or search_lower in r["description"].lower()
+            ]
 
         return resources
 
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get safety resources: {str(e)}"
+            detail=f"Failed to get safety resources: {str(e)}",
         ) from e
 
 
 # File Upload Endpoint for Evidence
+
 
 @router.post("/incidents/{incident_id}/evidence")
 async def upload_evidence(
     incident_id: UUID,
     files: List[UploadFile] = File(...),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Upload evidence files for a safety incident
@@ -664,7 +681,7 @@ async def upload_evidence(
         if not incident:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Incident not found or access denied"
+                detail="Incident not found or access denied",
             )
 
         # Implementation would include file upload logic
@@ -672,17 +689,19 @@ async def upload_evidence(
         uploaded_files = []
         for file in files:
             # TODO: Implement actual file upload to secure storage
-            uploaded_files.append({
-                "filename": file.filename,
-                "content_type": file.content_type,
-                "size": file.size,
-                "url": f"/api/v1/safety/evidence/{incident_id}/{file.filename}"
-            })
+            uploaded_files.append(
+                {
+                    "filename": file.filename,
+                    "content_type": file.content_type,
+                    "size": file.size,
+                    "url": f"/api/v1/safety/evidence/{incident_id}/{file.filename}",
+                }
+            )
 
         return {
             "success": True,
             "message": f"Uploaded {len(uploaded_files)} evidence files",
-            "files": uploaded_files
+            "files": uploaded_files,
         }
 
     except HTTPException:
@@ -690,11 +709,12 @@ async def upload_evidence(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to upload evidence: {str(e)}"
+            detail=f"Failed to upload evidence: {str(e)}",
         ) from e
 
 
 # Health Check Endpoint
+
 
 @router.get("/health")
 async def health_check():
@@ -703,5 +723,5 @@ async def health_check():
         "status": "healthy",
         "service": "employee_safety",
         "version": "1.0.0",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
     }

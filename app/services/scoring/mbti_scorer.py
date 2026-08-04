@@ -160,10 +160,14 @@ class MBTIScorer:
             dim_info = MBTIScorer.DIMENSIONS.get(dimension, {})
             if score >= 50:
                 pref = f"{dim_info['positive']} ({dim_info['name'].split('-')[0]})"
-                strength = "Strong" if score >= 70 else "Moderate" if score >= 55 else "Slight"
+                strength = (
+                    "Strong" if score >= 70 else "Moderate" if score >= 55 else "Slight"
+                )
             else:
                 pref = f"{dim_info['negative']} ({dim_info['name'].split('-')[1]})"
-                strength = "Strong" if score <= 30 else "Moderate" if score <= 45 else "Slight"
+                strength = (
+                    "Strong" if score <= 30 else "Moderate" if score <= 45 else "Slight"
+                )
 
             interpretation.append(f"- {pref}: {strength} preference ({score:.1f}%)")
 

@@ -4,12 +4,12 @@ Comprehensive implementation of IRT models for advanced psychometric analysis
 including 1PL, 2PL, and 3PL models with parameter estimation and calibration.
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
 import json
 import logging
 import math
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
 from typing import Any
 
 import numpy as np
@@ -217,7 +217,9 @@ class IRTService:
         """Calculate total test information at given ability"""
         return sum(self.information_function(ability, item) for item in items)
 
-    def standard_error_of_measurement(self, ability: float, items: list[IRTItem]) -> float:
+    def standard_error_of_measurement(
+        self, ability: float, items: list[IRTItem]
+    ) -> float:
         """Calculate standard error of measurement at given ability"""
         info = self.test_information_function(ability, items)
         return 1.0 / math.sqrt(info) if info > 0 else float("inf")
@@ -238,7 +240,9 @@ class IRTService:
             item_ids = list(set(r.item_id for r in responses))
 
             # Create response matrix
-            response_matrix = self._create_response_matrix(responses, person_ids, item_ids)
+            response_matrix = self._create_response_matrix(
+                responses, person_ids, item_ids
+            )
 
             # Initialize item parameters
             items = self._initialize_items(item_ids, model, initial_item_params)
@@ -257,8 +261,12 @@ class IRTService:
             persons = await self._estimate_abilities(response_matrix, result.items)
 
             # Calculate model fit statistics
-            log_likelihood = self._calculate_log_likelihood(response_matrix, result.items, persons)
-            aic, bic = self._calculate_information_criteria(log_likelihood, result.items, persons)
+            log_likelihood = self._calculate_log_likelihood(
+                response_matrix, result.items, persons
+            )
+            aic, bic = self._calculate_information_criteria(
+                log_likelihood, result.items, persons
+            )
 
             # Calculate quality metrics
             quality_metrics = await self._calculate_quality_metrics(
@@ -332,7 +340,9 @@ class IRTService:
                     guessing = params.get("guessing")
                 else:
                     difficulty = 0.0
-                    discrimination = 1.0 if model in [IRTModel.TWO_PL, IRTModel.THREE_PL] else None
+                    discrimination = (
+                        1.0 if model in [IRTModel.TWO_PL, IRTModel.THREE_PL] else None
+                    )
                     guessing = 0.0 if model == IRTModel.THREE_PL else None
 
                 item = IRTItem(
@@ -375,13 +385,17 @@ class IRTService:
                         log_likelihood = 0.0
                         for i in range(n_items):
                             if not np.isnan(response_matrix[p, i]):
-                                p_correct = self.probability_of_correct_response(theta, items[i])
+                                p_correct = self.probability_of_correct_response(
+                                    theta, items[i]
+                                )
                                 if response_matrix[p, i] == 1:
                                     log_likelihood += np.log(p_correct)
                                 else:
                                     log_likelihood += np.log(1.0 - p_correct)
 
-                        posterior_probs[p, t] = np.exp(log_likelihood) * theta_weights[t]
+                        posterior_probs[p, t] = (
+                            np.exp(log_likelihood) * theta_weights[t]
+                        )
 
                     # Normalize
                     posterior_probs[p, :] /= posterior_probs[p, :].sum() + 1e-10
@@ -415,9 +429,13 @@ class IRTService:
                             min(self.config["max_discrimination"], a),
                         )
                         b = max(
-                            self.config["min_difficulty"], min(self.config["max_difficulty"], b)
+                            self.config["min_difficulty"],
+                            min(self.config["max_difficulty"], b),
                         )
-                        c = max(self.config["min_guessing"], min(self.config["max_guessing"], c))
+                        c = max(
+                            self.config["min_guessing"],
+                            min(self.config["max_guessing"], c),
+                        )
 
                         temp_item = IRTItem(
                             item_id=items[i].item_id,
@@ -430,9 +448,13 @@ class IRTService:
                         nll = 0.0
                         for p_idx in range(len(valid_responses)):
                             for t_idx, theta in enumerate(theta_points):
-                                p_correct = self.probability_of_correct_response(theta, temp_item)
+                                p_correct = self.probability_of_correct_response(
+                                    theta, temp_item
+                                )
                                 response_prob = (
-                                    p_correct if valid_responses[p_idx] == 1 else (1.0 - p_correct)
+                                    p_correct
+                                    if valid_responses[p_idx] == 1
+                                    else (1.0 - p_correct)
                                 )
                                 nll -= valid_posteriors[p_idx, t_idx] * np.log(
                                     response_prob + 1e-10
@@ -443,12 +465,26 @@ class IRTService:
                     # Initial parameter guess
                     if model == IRTModel.ONE_PL:
                         initial_params = [items[i].difficulty]
-                        bounds = [(self.config["min_difficulty"], self.config["max_difficulty"])]
-                    elif model == IRTModel.TWO_PL:
-                        initial_params = [items[i].discrimination or 1.0, items[i].difficulty]
                         bounds = [
-                            (self.config["min_discrimination"], self.config["max_discrimination"]),
-                            (self.config["min_difficulty"], self.config["max_difficulty"]),
+                            (
+                                self.config["min_difficulty"],
+                                self.config["max_difficulty"],
+                            )
+                        ]
+                    elif model == IRTModel.TWO_PL:
+                        initial_params = [
+                            items[i].discrimination or 1.0,
+                            items[i].difficulty,
+                        ]
+                        bounds = [
+                            (
+                                self.config["min_discrimination"],
+                                self.config["max_discrimination"],
+                            ),
+                            (
+                                self.config["min_difficulty"],
+                                self.config["max_difficulty"],
+                            ),
                         ]
                     else:  # THREE_PL
                         initial_params = [
@@ -457,14 +493,23 @@ class IRTService:
                             items[i].guessing or 0.0,
                         ]
                         bounds = [
-                            (self.config["min_discrimination"], self.config["max_discrimination"]),
-                            (self.config["min_difficulty"], self.config["max_difficulty"]),
+                            (
+                                self.config["min_discrimination"],
+                                self.config["max_discrimination"],
+                            ),
+                            (
+                                self.config["min_difficulty"],
+                                self.config["max_difficulty"],
+                            ),
                             (self.config["min_guessing"], self.config["max_guessing"]),
                         ]
 
                     # Optimize parameters
                     result = optimize.minimize(
-                        negative_log_likelihood, initial_params, method="L-BFGS-B", bounds=bounds
+                        negative_log_likelihood,
+                        initial_params,
+                        method="L-BFGS-B",
+                        bounds=bounds,
                     )
 
                     # Update item parameters
@@ -483,7 +528,10 @@ class IRTService:
                     response_matrix, items, theta_points, theta_weights
                 )
 
-                if abs(current_log_likelihood - prev_log_likelihood) < self.config["tolerance"]:
+                if (
+                    abs(current_log_likelihood - prev_log_likelihood)
+                    < self.config["tolerance"]
+                ):
                     convergence = True
 
                 prev_log_likelihood = current_log_likelihood
@@ -494,7 +542,11 @@ class IRTService:
                         f"MML iteration {iterations}: log_likelihood = {current_log_likelihood:.4f}"
                     )
 
-            return {"items": items, "convergence": convergence, "iterations": iterations}
+            return {
+                "items": items,
+                "convergence": convergence,
+                "iterations": iterations,
+            }
 
         except Exception as e:
             logger.error(f"MML estimation failed: {e!s}")
@@ -523,7 +575,9 @@ class IRTService:
                         nll = 0.0
                         for i in range(n_items):
                             if not np.isnan(response_matrix[p, i]):
-                                p_correct = self.probability_of_correct_response(theta[0], items[i])
+                                p_correct = self.probability_of_correct_response(
+                                    theta[0], items[i]
+                                )
                                 if response_matrix[p, i] == 1:
                                     nll -= np.log(p_correct)
                                 else:
@@ -565,9 +619,13 @@ class IRTService:
                             min(self.config["max_discrimination"], a),
                         )
                         b = max(
-                            self.config["min_difficulty"], min(self.config["max_difficulty"], b)
+                            self.config["min_difficulty"],
+                            min(self.config["max_difficulty"], b),
                         )
-                        c = max(self.config["min_guessing"], min(self.config["max_guessing"], c))
+                        c = max(
+                            self.config["min_guessing"],
+                            min(self.config["max_guessing"], c),
+                        )
 
                         temp_item = IRTItem(
                             item_id=items[i].item_id,
@@ -580,8 +638,12 @@ class IRTService:
                         nll = 0.0
                         for j, response in enumerate(valid_responses):
                             theta = valid_abilities[j]
-                            p_correct = self.probability_of_correct_response(theta, temp_item)
-                            response_prob = p_correct if response == 1 else (1.0 - p_correct)
+                            p_correct = self.probability_of_correct_response(
+                                theta, temp_item
+                            )
+                            response_prob = (
+                                p_correct if response == 1 else (1.0 - p_correct)
+                            )
                             nll -= np.log(response_prob + 1e-10)
 
                         return nll
@@ -589,12 +651,26 @@ class IRTService:
                     # Initial parameter guess and bounds
                     if model == IRTModel.ONE_PL:
                         initial_params = [items[i].difficulty]
-                        bounds = [(self.config["min_difficulty"], self.config["max_difficulty"])]
-                    elif model == IRTModel.TWO_PL:
-                        initial_params = [items[i].discrimination or 1.0, items[i].difficulty]
                         bounds = [
-                            (self.config["min_discrimination"], self.config["max_discrimination"]),
-                            (self.config["min_difficulty"], self.config["max_difficulty"]),
+                            (
+                                self.config["min_difficulty"],
+                                self.config["max_difficulty"],
+                            )
+                        ]
+                    elif model == IRTModel.TWO_PL:
+                        initial_params = [
+                            items[i].discrimination or 1.0,
+                            items[i].difficulty,
+                        ]
+                        bounds = [
+                            (
+                                self.config["min_discrimination"],
+                                self.config["max_discrimination"],
+                            ),
+                            (
+                                self.config["min_difficulty"],
+                                self.config["max_difficulty"],
+                            ),
                         ]
                     else:  # THREE_PL
                         initial_params = [
@@ -603,13 +679,22 @@ class IRTService:
                             items[i].guessing or 0.0,
                         ]
                         bounds = [
-                            (self.config["min_discrimination"], self.config["max_discrimination"]),
-                            (self.config["min_difficulty"], self.config["max_difficulty"]),
+                            (
+                                self.config["min_discrimination"],
+                                self.config["max_discrimination"],
+                            ),
+                            (
+                                self.config["min_difficulty"],
+                                self.config["max_difficulty"],
+                            ),
                             (self.config["min_guessing"], self.config["max_guessing"]),
                         ]
 
                     result = optimize.minimize(
-                        negative_log_likelihood, initial_params, method="L-BFGS-B", bounds=bounds
+                        negative_log_likelihood,
+                        initial_params,
+                        method="L-BFGS-B",
+                        bounds=bounds,
                     )
 
                     # Update item parameters
@@ -643,7 +728,11 @@ class IRTService:
                         f"JML iteration {iterations}: parameter change = {param_change:.6f}"
                     )
 
-            return {"items": items, "convergence": convergence, "iterations": iterations}
+            return {
+                "items": items,
+                "convergence": convergence,
+                "iterations": iterations,
+            }
 
         except Exception as e:
             logger.error(f"JML estimation failed: {e!s}")
@@ -665,7 +754,9 @@ class IRTService:
             elif item.model == IRTModel.TWO_PL:
                 params.append([item.discrimination or 1.0, item.difficulty])
             else:  # THREE_PL
-                params.append([item.discrimination or 1.0, item.difficulty, item.guessing or 0.0])
+                params.append(
+                    [item.discrimination or 1.0, item.difficulty, item.guessing or 0.0]
+                )
         return params
 
     async def _estimate_abilities(
@@ -693,7 +784,9 @@ class IRTService:
                     def negative_log_likelihood(theta):
                         nll = 0.0
                         for i in valid_indices:
-                            p_correct = self.probability_of_correct_response(theta[0], items[i])
+                            p_correct = self.probability_of_correct_response(
+                                theta[0], items[i]
+                            )
                             if person_responses[i] == 1:
                                 nll -= np.log(p_correct)
                             else:
@@ -713,7 +806,11 @@ class IRTService:
                     information = self.test_information_function(
                         ability, [items[i] for i in valid_indices]
                     )
-                    se = 1.0 / math.sqrt(information) if information > 0 else float("inf")
+                    se = (
+                        1.0 / math.sqrt(information)
+                        if information > 0
+                        else float("inf")
+                    )
 
                     # Calculate pattern score
                     pattern_score = int(np.nansum(person_responses))
@@ -724,7 +821,8 @@ class IRTService:
                         standard_error=se,
                         pattern_score=pattern_score,
                         response_pattern=[
-                            int(r) if not np.isnan(r) else None for r in person_responses
+                            int(r) if not np.isnan(r) else None
+                            for r in person_responses
                         ],
                     )
 
@@ -754,7 +852,9 @@ class IRTService:
                     log_likelihood = 0.0
                     for i in range(response_matrix.shape[1]):
                         if not np.isnan(response_matrix[p, i]):
-                            p_correct = self.probability_of_correct_response(theta, items[i])
+                            p_correct = self.probability_of_correct_response(
+                                theta, items[i]
+                            )
                             if response_matrix[p, i] == 1:
                                 log_likelihood += np.log(p_correct)
                             else:
@@ -771,7 +871,10 @@ class IRTService:
             return -float("inf")
 
     def _calculate_log_likelihood(
-        self, response_matrix: np.ndarray, items: list[IRTItem], persons: list[IRTPerson]
+        self,
+        response_matrix: np.ndarray,
+        items: list[IRTItem],
+        persons: list[IRTPerson],
     ) -> float:
         """Calculate joint log likelihood"""
         try:
@@ -780,7 +883,9 @@ class IRTService:
             for p, person in enumerate(persons):
                 for i, item in enumerate(items):
                     if not np.isnan(response_matrix[p, i]):
-                        p_correct = self.probability_of_correct_response(person.ability, item)
+                        p_correct = self.probability_of_correct_response(
+                            person.ability, item
+                        )
                         if response_matrix[p, i] == 1:
                             total_log_likelihood += np.log(p_correct)
                         else:
@@ -822,7 +927,10 @@ class IRTService:
             return float("inf"), float("inf")
 
     async def _calculate_quality_metrics(
-        self, response_matrix: np.ndarray, items: list[IRTItem], persons: list[IRTPerson]
+        self,
+        response_matrix: np.ndarray,
+        items: list[IRTItem],
+        persons: list[IRTPerson],
     ) -> dict[str, float]:
         """Calculate model quality metrics"""
         try:
@@ -863,7 +971,8 @@ class IRTService:
             # Information metrics
             abilities_range = np.linspace(-2, 2, 21)
             information_values = [
-                self.test_information_function(theta, items) for theta in abilities_range
+                self.test_information_function(theta, items)
+                for theta in abilities_range
             ]
             metrics["max_information"] = max(information_values)
             metrics["min_information"] = min(information_values)
@@ -897,7 +1006,8 @@ class IRTService:
             if selection_method == "closest_difficulty":
                 # Select item with difficulty closest to current ability
                 difficulty_diffs = [
-                    (item, abs(item.difficulty - current_ability)) for item in remaining_items
+                    (item, abs(item.difficulty - current_ability))
+                    for item in remaining_items
                 ]
                 return min(difficulty_diffs, key=lambda x: x[1])[0]
 

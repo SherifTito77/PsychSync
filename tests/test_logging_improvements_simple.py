@@ -16,17 +16,17 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def test_correlation_module_exists():
     """Test that correlation module exists and has required functions"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 1: Correlation Module Exists")
-    print("="*60)
+    print("=" * 60)
 
     try:
         from app.core.correlation import (
-            set_correlation_id,
-            get_correlation_id,
             clear_correlation_id,
-            log_with_context,
+            get_correlation_id,
             log_performance,
+            log_with_context,
+            set_correlation_id,
         )
 
         # Test basic functionality
@@ -52,9 +52,9 @@ def test_correlation_module_exists():
 
 def test_authentication_logging_improved():
     """Test that authentication endpoint uses structured logging"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 2: Authentication Logging Improved")
-    print("="*60)
+    print("=" * 60)
 
     try:
         # Read the simple_auth.py file
@@ -92,8 +92,8 @@ def test_authentication_logging_improved():
             'event="auth_failure"',
             'event="auth_success"',
             'event="auth_error"',
-            'SecurityEventType.AUTHENTICATION_FAILURE',
-            'SecurityEventType.AUTHENTICATION_SUCCESS',
+            "SecurityEventType.AUTHENTICATION_FAILURE",
+            "SecurityEventType.AUTHENTICATION_SUCCESS",
         ]
 
         for pattern in logging_patterns:
@@ -112,9 +112,9 @@ def test_authentication_logging_improved():
 
 def test_middleware_integration():
     """Test that middleware has correlation context integration"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 3: Middleware Integration")
-    print("="*60)
+    print("=" * 60)
 
     try:
         # Read the logging middleware file
@@ -158,9 +158,9 @@ def test_middleware_integration():
 
 def test_correlation_module_features():
     """Test that correlation module has all required features"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 4: Correlation Module Features")
-    print("="*60)
+    print("=" * 60)
 
     try:
         # Read the correlation module
@@ -203,9 +203,9 @@ def test_correlation_module_features():
 
 def test_implementation_documentation():
     """Test that implementation documentation exists"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 5: Implementation Documentation")
-    print("="*60)
+    print("=" * 60)
 
     try:
         # Check for documentation files
@@ -238,9 +238,9 @@ def test_implementation_documentation():
 
 def main():
     """Run all validation tests"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("LOGGING IMPROVEMENTS - VALIDATION SUITE")
-    print("="*80)
+    print("=" * 80)
 
     tests = [
         ("Correlation Module Exists", test_correlation_module_exists),
@@ -267,11 +267,14 @@ def main():
             failed += 1
             print(f"\n❌ FAILED: {test_name} - {str(e)}")
             import traceback
+
             traceback.print_exc()
 
-    print("\n" + "="*80)
-    print(f"VALIDATION RESULTS: {passed} passed, {failed} failed out of {passed + failed} total")
-    print("="*80)
+    print("\n" + "=" * 80)
+    print(
+        f"VALIDATION RESULTS: {passed} passed, {failed} failed out of {passed + failed} total"
+    )
+    print("=" * 80)
 
     if failed == 0:
         print("\n🎉 ALL VALIDATION TESTS PASSED!")

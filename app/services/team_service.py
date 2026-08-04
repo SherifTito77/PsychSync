@@ -24,21 +24,29 @@ class TeamService:
     @staticmethod
     @handle_database_errors("team_creation")
     @transaction_manager.transaction
-    async def create(db: AsyncSession, *, team_in: TeamCreate, creator_id: UUID) -> Team:
+    async def create(
+        db: AsyncSession, *, team_in: TeamCreate, creator_id: UUID
+    ) -> Team:
         """
         Create a new team, assign creator as owner.
         Uses transaction management and standardized error handling.
         """
         # Validate team name
         if not team_in.name or len(team_in.name.strip()) < 2:
-            raise ValidationException("Team name must be at least 2 characters long", field="name")
+            raise ValidationException(
+                "Team name must be at least 2 characters long", field="name"
+            )
 
         if len(team_in.name) > 100:
-            raise ValidationException("Team name cannot exceed 100 characters", field="name")
+            raise ValidationException(
+                "Team name cannot exceed 100 characters", field="name"
+            )
 
         # Validate and get creator
         result = await db.execute(
-            select(User).options(selectinload(User.organization)).where(User.id == creator_id)
+            select(User)
+            .options(selectinload(User.organization))
+            .where(User.id == creator_id)
         )
         creator = result.scalar_one_or_none()
 
@@ -62,15 +70,18 @@ class TeamService:
         )
         if existing_team.scalar_one_or_none():
             raise ValidationException(
-                f"Team '{team_in.name}' already exists in your organization", field="name"
+                f"Team '{team_in.name}' already exists in your organization",
+                field="name",
             )
 
         # Create team with sanitized data
         team = Team(
             name=team_in.name.strip(),
-            description=team_in.description.strip()
-            if getattr(team_in, "description", None)
-            else None,
+            description=(
+                team_in.description.strip()
+                if getattr(team_in, "description", None)
+                else None
+            ),
             organization_id=creator.organization_id,
             created_by_id=creator_id,
             created_at=datetime.utcnow(),
@@ -217,7 +228,9 @@ class TeamService:
         existing = existing_result.scalar_one_or_none()
 
         if existing:
-            raise ValidationException("User is already a member of this team", field="user_id")
+            raise ValidationException(
+                "User is already a member of this team", field="user_id"
+            )
 
         # Validate user can be added to this team (same organization)
         if user.organization_id != team.organization_id:
@@ -296,7 +309,9 @@ class TeamService:
         return team_member
 
     @staticmethod
-    async def update(db: AsyncSession, *, team_id: UUID, team_in: TeamUpdate) -> Team | None:
+    async def update(
+        db: AsyncSession, *, team_id: UUID, team_in: TeamUpdate
+    ) -> Team | None:
         """Update team information."""
         result = await db.execute(select(Team).where(Team.id == team_id))
         team = result.scalar_one_or_none()
@@ -338,7 +353,9 @@ class TeamService:
         return result.scalar_one_or_none() is not None
 
     @staticmethod
-    async def get_user_role(db: AsyncSession, *, team_id: UUID, user_id: UUID) -> TeamRole | None:
+    async def get_user_role(
+        db: AsyncSession, *, team_id: UUID, user_id: UUID
+    ) -> TeamRole | None:
         """Get user's role in the team."""
         result = await db.execute(
             select(TeamMember).where(

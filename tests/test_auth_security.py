@@ -4,35 +4,36 @@ Comprehensive Authentication Security Tests
 Tests all security controls in the authentication system
 """
 
-import pytest
 import asyncio
+import hashlib
+import json
+import secrets
 import time
 from datetime import datetime, timedelta
-from typing import Dict, Any
-from fastapi.testclient import TestClient
-from fastapi import status
-from jose import jwt, JWTError
-import hashlib
-import secrets
-import json
+from typing import Any, Dict
 
+import pytest
+from fastapi import status
+from fastapi.testclient import TestClient
+from jose import JWTError, jwt
+
+from app.core.account_security import account_security_manager
+from app.core.config import settings
+from app.core.csrf import CSRFMiddleware
+from app.core.security_monitoring import security_monitor
+from app.core.session_management import session_manager
 from app.main import app
 from app.services.security import (
-verify_password,
-    get_password_hash,
-    create_token_pair,
-    verify_token,
-    validate_password,
     create_access_token,
     create_refresh_token,
+    create_token_pair,
+    get_password_hash,
+    invalidate_refresh_token,
+    validate_password,
+    verify_password,
     verify_refresh_token_secure,
-    invalidate_refresh_token
+    verify_token,
 )
-from app.core.config import settings
-from app.core.account_security import account_security_manager
-from app.core.session_management import session_manager
-from app.core.security_monitoring import security_monitor
-from app.core.csrf import CSRFMiddleware
 
 # Test client
 client = TestClient(app)
@@ -67,12 +68,12 @@ class TestPasswordSecurity:
         """Test comprehensive password validation"""
         # Test weak passwords
         weak_passwords = [
-            "password",           # Common word
-            "12345678",           # Numbers only
-            "abcdefgh",           # Letters only
-            "Abc123",            # Too short
-            "password123",       # Common pattern
-            "qwerty123",         # Keyboard pattern
+            "password",  # Common word
+            "12345678",  # Numbers only
+            "abcdefgh",  # Letters only
+            "Abc123",  # Too short
+            "password123",  # Common pattern
+            "qwerty123",  # Keyboard pattern
         ]
 
         for weak_pass in weak_passwords:
@@ -83,10 +84,10 @@ class TestPasswordSecurity:
 
         # Test strong passwords
         strong_passwords = [
-            "Tr0ub4dor&3",       # Good mix, length 12
+            "Tr0ub4dor&3",  # Good mix, length 12
             "Correct-Horse-Battery-Staple",  # Diceware style
-            "MyS3cur3P@ssw0rd!2024",          # Complex
-            "B@tterySt@ple!C0rrectH0rs3",     # Strong
+            "MyS3cur3P@ssw0rd!2024",  # Complex
+            "B@tterySt@ple!C0rrectH0rs3",  # Strong
         ]
 
         for strong_pass in strong_passwords:
@@ -120,7 +121,9 @@ class TestPasswordSecurity:
         avg_incorrect = sum(times_incorrect) / len(times_incorrect)
 
         # Allow for some variance but should be relatively close
-        time_diff_ratio = abs(avg_correct - avg_incorrect) / max(avg_correct, avg_incorrect)
+        time_diff_ratio = abs(avg_correct - avg_incorrect) / max(
+            avg_correct, avg_incorrect
+        )
         assert time_diff_ratio < 0.5  # Less than 50% difference
 
     def test_password_hash_length_validation(self):
@@ -174,8 +177,7 @@ class TestJWTTokenSecurity:
 
         # Test expired token
         expired_token = create_access_token(
-            subject=user_id,
-            expires_delta=timedelta(seconds=-1)
+            subject=user_id, expires_delta=timedelta(seconds=-1)
         )
         assert verify_token(expired_token, "access") is None
 
@@ -232,19 +234,16 @@ class TestJWTTokenSecurity:
         additional_claims = {
             "role": "user",
             "organization_id": "org_123",
-            "session_id": "session_456"
+            "session_id": "session_456",
         }
 
         token = create_access_token(
-            subject=user_id,
-            additional_claims=additional_claims
+            subject=user_id, additional_claims=additional_claims
         )
 
         # Decode and verify claims
         payload = jwt.decode(
-            token,
-            settings.jwt_secret,
-            algorithms=[settings.JWT_ALGORITHM]
+            token, settings.jwt_secret, algorithms=[settings.JWT_ALGORITHM]
         )
 
         assert payload["sub"] == user_id
@@ -258,13 +257,14 @@ class TestCSRFProtection:
 
     def test_csrf_token_generation(self):
         """Test CSRF token generation and validation"""
+
         # Mock request for testing
         class MockRequest:
             def __init__(self):
-                self.url = type('obj', (object,), {'path': '/test'})()
-                self.method = 'POST'
+                self.url = type("obj", (object,), {"path": "/test"})()
+                self.method = "POST"
                 self.headers = {}
-                self.client = type('obj', (object,), {'host': '127.0.0.1'})()
+                self.client = type("obj", (object,), {"host": "127.0.0.1"})()
 
         request = MockRequest()
 
@@ -273,7 +273,7 @@ class TestCSRFProtection:
 
         # CSRF tokens should be generated for authenticated requests
         # (This is a basic test - full integration testing would require more setup)
-        assert hasattr(csrf_middleware, 'token_expire_seconds')
+        assert hasattr(csrf_middleware, "token_expire_seconds")
         assert csrf_middleware.token_expire_seconds > 0
 
     def test_csrf_exclude_paths(self):
@@ -281,8 +281,13 @@ class TestCSRFProtection:
         csrf_middleware = CSRFMiddleware(app)
 
         exclude_paths = [
-            "/health", "/docs", "/redoc", "/openapi.json",
-            "/api/v1/auth/token", "/api/v1/auth/register", "/api/v1/auth/refresh"
+            "/health",
+            "/docs",
+            "/redoc",
+            "/openapi.json",
+            "/api/v1/auth/token",
+            "/api/v1/auth/register",
+            "/api/v1/auth/refresh",
         ]
 
         # Test exclude paths configuration
@@ -308,7 +313,7 @@ class TestAccountSecurity:
                 ip_address=ip_address,
                 user_agent=user_agent,
                 reason="Invalid password",
-                user_id=None
+                user_id=None,
             )
 
             if attempt < settings.MAX_LOGIN_ATTEMPTS - 1:
@@ -330,7 +335,7 @@ class TestAccountSecurity:
             success=True,
             ip_address=ip_address,
             user_agent=user_agent,
-            user_id="user_123"
+            user_id="user_123",
         )
 
         assert result["locked"] is False
@@ -349,7 +354,7 @@ class TestAccountSecurity:
             user_agent="Test Browser",
             success=True,
             endpoint="/api/v1/token",
-            metadata={"test": True}
+            metadata={"test": True},
         )
 
         # Security monitoring should not produce alerts for normal activity
@@ -382,7 +387,7 @@ class TestSessionSecurity:
         headers = {
             "User-Agent": "Test Browser 1.0",
             "Accept": "application/json",
-            "Accept-Language": "en-US"
+            "Accept-Language": "en-US",
         }
 
         device_fingerprint = session_manager.get_device_fingerprint(headers)
@@ -391,7 +396,7 @@ class TestSessionSecurity:
         session = await session_manager.create_session(
             user_id=user_id,
             device_fingerprint=device_fingerprint,
-            request_headers=headers
+            request_headers=headers,
         )
 
         # Verify session properties
@@ -404,13 +409,10 @@ class TestSessionSecurity:
     async def test_concurrent_session_limits(self):
         """Test concurrent session limit enforcement"""
         user_id = "test_user_123"
-        max_sessions = getattr(settings, 'MAX_CONCURRENT_SESSIONS', 3)
+        max_sessions = getattr(settings, "MAX_CONCURRENT_SESSIONS", 3)
 
         # Mock device fingerprints
-        headers = {
-            "User-Agent": "Test Browser",
-            "Accept": "application/json"
-        }
+        headers = {"User-Agent": "Test Browser", "Accept": "application/json"}
 
         device_fingerprint = session_manager.get_device_fingerprint(headers)
 
@@ -423,9 +425,7 @@ class TestSessionSecurity:
 
             try:
                 session = await session_manager.create_session(
-                    user_id=user_id,
-                    device_fingerprint=fp,
-                    request_headers=headers
+                    user_id=user_id, device_fingerprint=fp, request_headers=headers
                 )
                 sessions.append(session)
             except Exception as e:
@@ -452,7 +452,7 @@ class TestRateLimitingSecurity:
         """Test protection against brute force attacks"""
         login_data = {
             "username": "nonexistent@example.com",
-            "password": "wrongpassword"
+            "password": "wrongpassword",
         }
 
         # Make multiple failed login attempts
@@ -475,14 +475,11 @@ class TestInputValidationSecurity:
             "admin'; DROP TABLE users; --",
             "admin' OR '1'='1",
             "admin'; INSERT INTO users VALUES ('hacker', 'password'); --",
-            "admin' UNION SELECT * FROM users --"
+            "admin' UNION SELECT * FROM users --",
         ]
 
         for malicious_input in malicious_inputs:
-            login_data = {
-                "username": malicious_input,
-                "password": "password123"
-            }
+            login_data = {"username": malicious_input, "password": "password123"}
 
             # Should not cause server errors
             response = client.post("/api/v1/token", data=login_data)
@@ -494,15 +491,12 @@ class TestInputValidationSecurity:
             "<script>alert('xss')</script>",
             "javascript:alert('xss')",
             "<img src=x onerror=alert('xss')>",
-            "';alert('xss');//"
+            "';alert('xss');//",
         ]
 
         for xss_payload in xss_payloads:
             # Test in username field
-            login_data = {
-                "username": xss_payload,
-                "password": "password123"
-            }
+            login_data = {"username": xss_payload, "password": "password123"}
 
             response = client.post("/api/v1/token", data=login_data)
 
@@ -517,7 +511,7 @@ class TestInputValidationSecurity:
         login_data = {
             "username": "user1",
             "password": "password123",
-            "username": "user2"  # This should override, not create multiple
+            "username": "user2",  # This should override, not create multiple
         }
 
         response = client.post("/api/v1/token", data=login_data)
@@ -544,7 +538,7 @@ class TestAuthenticationEndpointsSecurity:
         weak_registration = {
             "email": "test@example.com",
             "password": "password",  # Weak password
-            "full_name": "Test User"
+            "full_name": "Test User",
         }
 
         response = client.post("/api/v1/register", json=weak_registration)
@@ -577,7 +571,7 @@ class TestSecurityHeaders:
         expected_headers = [
             "x-content-type-options",
             "x-frame-options",
-            "x-xss-protection"
+            "x-xss-protection",
         ]
 
         for header in expected_headers:
@@ -599,8 +593,8 @@ class TestSecurityHeaders:
             headers={
                 "Origin": "http://localhost:3000",
                 "Access-Control-Request-Method": "POST",
-                "Access-Control-Request-Headers": "Content-Type"
-            }
+                "Access-Control-Request-Headers": "Content-Type",
+            },
         )
 
         # Should handle CORS preflight
@@ -613,10 +607,10 @@ class TestErrorHandlingSecurity:
     def test_information_disclosure_prevention(self):
         """Test that errors don't disclose sensitive information"""
         # Test with invalid credentials
-        response = client.post("/api/v1/token", data={
-            "username": "nonexistent@example.com",
-            "password": "wrongpassword"
-        })
+        response = client.post(
+            "/api/v1/token",
+            data={"username": "nonexistent@example.com", "password": "wrongpassword"},
+        )
 
         # Error message should be generic
         response_data = response.json()
@@ -627,10 +621,13 @@ class TestErrorHandlingSecurity:
     def test_stack_trace_prevention(self):
         """Test that stack traces are not exposed"""
         # Test with malformed request that might cause exceptions
-        response = client.post("/api/v1/token", data={
-            "username": "test@example.com",
-            "password": "password" * 1000  # Very long password
-        })
+        response = client.post(
+            "/api/v1/token",
+            data={
+                "username": "test@example.com",
+                "password": "password" * 1000,  # Very long password
+            },
+        )
 
         # Should handle gracefully
         assert response.status_code not in [500]

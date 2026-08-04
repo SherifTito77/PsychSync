@@ -27,7 +27,6 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
-
 # =============================================================================
 # Data Classes & Enums
 # =============================================================================
@@ -35,6 +34,7 @@ from app.core.config import settings
 
 class PasswordStrength(Enum):
     """Password strength rating"""
+
     VERY_WEAK = 0
     WEAK = 1
     FAIR = 2
@@ -46,6 +46,7 @@ class PasswordStrength(Enum):
 @dataclass
 class ValidationResult:
     """Password validation result"""
+
     is_valid: bool
     errors: list[str]
     warnings: list[str]
@@ -57,6 +58,7 @@ class ValidationResult:
 @dataclass
 class VerificationResult:
     """Password verification result"""
+
     is_valid: bool
     verification_time: float
     timestamp: datetime
@@ -135,23 +137,77 @@ class PasswordService:
 
         # Common weak patterns for validation
         self._weak_patterns = [
-            "password", "123456", "qwerty", "admin", "letmein",
-            "welcome", "changeme", "default", "login", "user", "test",
+            "password",
+            "123456",
+            "qwerty",
+            "admin",
+            "letmein",
+            "welcome",
+            "changeme",
+            "default",
+            "login",
+            "user",
+            "test",
         ]
 
         # Common dictionary words
         self._common_words = [
-            "the", "and", "for", "are", "but", "not", "you", "all",
-            "can", "had", "her", "was", "one", "our", "out", "day",
-            "get", "has", "him", "his", "how", "man", "new", "now",
-            "old", "see", "two", "way", "who", "boy", "did", "its",
-            "let", "put", "say", "she", "too", "use",
+            "the",
+            "and",
+            "for",
+            "are",
+            "but",
+            "not",
+            "you",
+            "all",
+            "can",
+            "had",
+            "her",
+            "was",
+            "one",
+            "our",
+            "out",
+            "day",
+            "get",
+            "has",
+            "him",
+            "his",
+            "how",
+            "man",
+            "new",
+            "now",
+            "old",
+            "see",
+            "two",
+            "way",
+            "who",
+            "boy",
+            "did",
+            "its",
+            "let",
+            "put",
+            "say",
+            "she",
+            "too",
+            "use",
         ]
 
         # Keyboard patterns to detect
         self._keyboard_patterns = [
-            "qwerty", "asdf", "zxcv", "qwe", "asd", "zxc",
-            "123", "234", "345", "456", "567", "678", "789", "890",
+            "qwerty",
+            "asdf",
+            "zxcv",
+            "qwe",
+            "asd",
+            "zxc",
+            "123",
+            "234",
+            "345",
+            "456",
+            "567",
+            "678",
+            "789",
+            "890",
         ]
 
     # =========================================================================
@@ -229,9 +285,7 @@ class PasswordService:
                 },
             )
             return VerificationResult(
-                is_valid=False,
-                verification_time=0.0,
-                timestamp=datetime.utcnow()
+                is_valid=False, verification_time=0.0, timestamp=datetime.utcnow()
             )
 
         start_time = time.time()
@@ -266,7 +320,7 @@ class PasswordService:
             return VerificationResult(
                 is_valid=result,
                 verification_time=verification_time,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow(),
             )
 
         except Exception as e:
@@ -287,7 +341,7 @@ class PasswordService:
             return VerificationResult(
                 is_valid=False,
                 verification_time=verification_time,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow(),
             )
 
     # =========================================================================
@@ -319,9 +373,13 @@ class PasswordService:
 
         # Check minimum length
         if len(password) < self.min_length:
-            errors.append(f"Password must be at least {self.min_length} characters long")
+            errors.append(
+                f"Password must be at least {self.min_length} characters long"
+            )
         elif len(password) < 16:
-            warnings.append("Consider using a password of at least 16 characters for better security")
+            warnings.append(
+                "Consider using a password of at least 16 characters for better security"
+            )
 
         # Check for uppercase letter
         if self.require_uppercase and not any(c.isupper() for c in password):
@@ -338,13 +396,17 @@ class PasswordService:
         # Check for special characters
         if self.require_special:
             if not any(c in self.special_chars for c in password):
-                errors.append(f"Password must contain at least one special character: {self.special_chars}")
+                errors.append(
+                    f"Password must contain at least one special character: {self.special_chars}"
+                )
 
         # Prevent common weak patterns
         password_lower = password.lower()
         for pattern in self._weak_patterns:
             if pattern in password_lower:
-                errors.append(f"Password cannot contain common patterns like '{pattern}'")
+                errors.append(
+                    f"Password cannot contain common patterns like '{pattern}'"
+                )
                 break
 
         # Check for sequential characters
@@ -352,19 +414,25 @@ class PasswordService:
         if sequential_count > len(password) * 0.1:  # More than 10% sequential
             errors.append("Password contains too many sequential characters")
         elif sequential_count > 0:
-            warnings.append("Password contains sequential characters, consider changing them")
+            warnings.append(
+                "Password contains sequential characters, consider changing them"
+            )
 
         # Check for repeated characters
         repeated_count = self._count_repeated_chars(password)
         if repeated_count > len(password) * 0.1:  # More than 10% repeated
             errors.append("Password contains too many repeated characters")
         elif repeated_count > 0:
-            warnings.append("Password contains repeated characters, consider diversifying")
+            warnings.append(
+                "Password contains repeated characters, consider diversifying"
+            )
 
         # Check for keyboard patterns
         for pattern in self._keyboard_patterns:
             if pattern in password_lower:
-                warnings.append(f"Password contains keyboard pattern '{pattern}', consider changing it")
+                warnings.append(
+                    f"Password contains keyboard pattern '{pattern}', consider changing it"
+                )
 
         # Calculate password strength score
         strength_score = self._calculate_strength(password)
@@ -422,8 +490,9 @@ class PasswordService:
         sequential_count = 0
         for i in range(len(password) - 2):
             if (
-                (ord(password[i]) + 1 == ord(password[i + 1]) == ord(password[i + 2]) - 1)
-                or (ord(password[i]) - 1 == ord(password[i + 1]) == ord(password[i + 2]) + 1)
+                ord(password[i]) + 1 == ord(password[i + 1]) == ord(password[i + 2]) - 1
+            ) or (
+                ord(password[i]) - 1 == ord(password[i + 1]) == ord(password[i + 2]) + 1
             ):
                 sequential_count += 1
         return sequential_count
@@ -514,6 +583,7 @@ def get_password_service() -> PasswordService:
 # =============================================================================
 # Convenience Functions (Backward Compatibility)
 # =============================================================================
+
 
 def get_password_hash(password: str) -> str:
     """Hash password using default service."""

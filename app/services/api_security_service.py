@@ -4,9 +4,6 @@ Comprehensive security utilities for API protection
 Security improvement: 85% reduction in security vulnerabilities
 """
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta
-from enum import Enum
 import hashlib
 import hmac
 import ipaddress
@@ -14,29 +11,38 @@ import json
 import logging
 import re
 import secrets
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from enum import Enum
 from typing import Any
 
 import bleach
 
 logger = logging.getLogger(__name__)
 
+
 class SecurityLevel(str, Enum):
     """Security classification levels"""
+
     PUBLIC = "public"
     INTERNAL = "internal"
     CONFIDENTIAL = "confidential"
     RESTRICTED = "restricted"
 
+
 class ThreatLevel(str, Enum):
     """Current threat level"""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
 
+
 @dataclass
 class SecurityEvent:
     """Security event data"""
+
     timestamp: datetime
     event_type: str
     source_ip: str
@@ -47,9 +53,11 @@ class SecurityEvent:
     details: dict[str, Any] = None
     severity: str = "medium"
 
+
 @dataclass
 class APIKey:
     """API key data"""
+
     key_id: str
     key_hash: str
     name: str
@@ -59,6 +67,7 @@ class APIKey:
     expires_at: datetime | None = None
     is_active: bool = True
     last_used_at: datetime | None = None
+
 
 class APISecurityService:
     """
@@ -82,7 +91,7 @@ class APISecurityService:
         self.allowed_origins = [
             "http://localhost:3000",
             "http://localhost:5173",
-            "https://app.psychsync.com"
+            "https://app.psychsync.com",
         ]
 
         # IP blacklist and whitelist
@@ -100,7 +109,7 @@ class APISecurityService:
                 r"(\bexec\b|\bexecute\b)",
                 r"(\'\s*;\s*\w+)",
                 r"(--|\#)",
-                r"(/\*.*\*/)"
+                r"(/\*.*\*/)",
             ],
             "xss": [
                 r"(<script[^>]*>.*?</script>)",
@@ -108,22 +117,22 @@ class APISecurityService:
                 r"(on\w+\s*=)",
                 r"(eval\s*\()",
                 r"(document\.(cookie|location|write))",
-                r"(window\.(location|open))"
+                r"(window\.(location|open))",
             ],
             "path_traversal": [
                 r"(\.\./|\.\.\\)",
                 r"(%2e%2e%2f|%2e%2e%5c)",
                 r"(/etc/passwd|/etc/shadow)",
                 r"(c:\\windows\\system32)",
-                r"(\.\.\/\.\.\/)"
+                r"(\.\.\/\.\.\/)",
             ],
             "command_injection": [
                 r"(\|\||&&)",
                 r"(;|\|&)",
                 r"(wget\s|curl\s|nc\s)",
                 r"(/bin/|/usr/bin/)",
-                r"(\${.*})"
-            ]
+                r"(\${.*})",
+            ],
         }
 
         # API key storage (in production, use database)
@@ -140,7 +149,7 @@ class APISecurityService:
         name: str,
         permissions: list[str],
         rate_limit_tier: str = "basic",
-        expires_in_days: int | None = None
+        expires_in_days: int | None = None,
     ) -> tuple[str, str]:
         """
         Generate a new API key
@@ -174,12 +183,14 @@ class APISecurityService:
             permissions=permissions,
             rate_limit_tier=rate_limit_tier,
             created_at=datetime.utcnow(),
-            expires_at=expires_at
+            expires_at=expires_at,
         )
 
         self._api_keys[key_id] = api_key_obj
 
-        logger.info(f"Generated new API key: {key_id} with {len(permissions)} permissions")
+        logger.info(
+            f"Generated new API key: {key_id} with {len(permissions)} permissions"
+        )
         return api_key, key_id
 
     def validate_api_key(self, api_key: str) -> APIKey | None:
@@ -233,11 +244,7 @@ class APISecurityService:
             return None
 
     def verify_webhook_signature(
-        self,
-        payload: bytes,
-        signature: str,
-        secret: str,
-        algorithm: str = "sha256"
+        self, payload: bytes, signature: str, secret: str, algorithm: str = "sha256"
     ) -> bool:
         """
         Verify webhook signature
@@ -261,9 +268,7 @@ class APISecurityService:
             # Calculate expected signature
             if algorithm == "sha256":
                 calculated_signature = hmac.new(
-                    secret.encode(),
-                    payload,
-                    hashlib.sha256
+                    secret.encode(), payload, hashlib.sha256
                 ).hexdigest()
             else:
                 logger.error(f"Unsupported signature algorithm: {algorithm}")
@@ -280,7 +285,7 @@ class APISecurityService:
         self,
         input_data: str | dict[str, Any] | list[Any],
         allowed_tags: list[str] = None,
-        allowed_attributes: dict[str, list[str]] = None
+        allowed_attributes: dict[str, list[str]] = None,
     ) -> str | dict[str, Any] | list[Any]:
         """
         Comprehensive input sanitization
@@ -298,7 +303,9 @@ class APISecurityService:
 
         try:
             if isinstance(input_data, str):
-                return self._sanitize_string(input_data, allowed_tags, allowed_attributes)
+                return self._sanitize_string(
+                    input_data, allowed_tags, allowed_attributes
+                )
             if isinstance(input_data, dict):
                 return {
                     self._sanitize_key(str(key)): self.sanitize_input(
@@ -335,7 +342,7 @@ class APISecurityService:
         self,
         input_string: str,
         allowed_tags: list[str] = None,
-        allowed_attributes: dict[str, list[str]] = None
+        allowed_attributes: dict[str, list[str]] = None,
     ) -> str:
         """
         Sanitize string input
@@ -357,10 +364,7 @@ class APISecurityService:
 
         # Use bleach for HTML sanitization
         sanitized = bleach.clean(
-            input_string,
-            tags=allowed_tags,
-            attributes=allowed_attributes,
-            strip=True
+            input_string, tags=allowed_tags, attributes=allowed_attributes, strip=True
         )
 
         # Additional security measures
@@ -375,11 +379,7 @@ class APISecurityService:
         return sanitized
 
     def detect_threats(
-        self,
-        request_data: str,
-        source_ip: str,
-        user_agent: str,
-        endpoint: str
+        self, request_data: str, source_ip: str, user_agent: str, endpoint: str
     ) -> list[SecurityEvent]:
         """
         Detect potential security threats in request data
@@ -409,41 +409,59 @@ class APISecurityService:
                             method="unknown",
                             details={
                                 "pattern": pattern,
-                                "match": re.search(pattern, request_data, re.IGNORECASE).group(0) if re.search(pattern, request_data, re.IGNORECASE) else None,
-                                "threat_type": threat_type
+                                "match": (
+                                    re.search(
+                                        pattern, request_data, re.IGNORECASE
+                                    ).group(0)
+                                    if re.search(pattern, request_data, re.IGNORECASE)
+                                    else None
+                                ),
+                                "threat_type": threat_type,
                             },
-                            severity="high" if threat_type in ["command_injection", "sql_injection"] else "medium"
+                            severity=(
+                                "high"
+                                if threat_type in ["command_injection", "sql_injection"]
+                                else "medium"
+                            ),
                         )
                         threats.append(event)
 
             # Check for rate limiting abuse
             event_key = f"{source_ip}:{datetime.utcnow().strftime('%Y-%m-%d-%H-%M')}"
-            self._security_event_counts[event_key] = self._security_event_counts.get(event_key, 0) + 1
+            self._security_event_counts[event_key] = (
+                self._security_event_counts.get(event_key, 0) + 1
+            )
 
-            if self._security_event_counts[event_key] > 100:  # More than 100 events in a minute
-                threats.append(SecurityEvent(
-                    timestamp=datetime.utcnow(),
-                    event_type="rate_limit_abuse",
-                    source_ip=source_ip,
-                    user_agent=user_agent,
-                    endpoint=endpoint,
-                    method="unknown",
-                    details={"event_count": self._security_event_counts[event_key]},
-                    severity="medium"
-                ))
+            if (
+                self._security_event_counts[event_key] > 100
+            ):  # More than 100 events in a minute
+                threats.append(
+                    SecurityEvent(
+                        timestamp=datetime.utcnow(),
+                        event_type="rate_limit_abuse",
+                        source_ip=source_ip,
+                        user_agent=user_agent,
+                        endpoint=endpoint,
+                        method="unknown",
+                        details={"event_count": self._security_event_counts[event_key]},
+                        severity="medium",
+                    )
+                )
 
             # Check IP blacklist
             if self._is_ip_blacklisted(source_ip):
-                threats.append(SecurityEvent(
-                    timestamp=datetime.utcnow(),
-                    event_type="blacklisted_ip_access",
-                    source_ip=source_ip,
-                    user_agent=user_agent,
-                    endpoint=endpoint,
-                    method="unknown",
-                    details={"reason": "IP is in blacklist"},
-                    severity="critical"
-                ))
+                threats.append(
+                    SecurityEvent(
+                        timestamp=datetime.utcnow(),
+                        event_type="blacklisted_ip_access",
+                        source_ip=source_ip,
+                        user_agent=user_agent,
+                        endpoint=endpoint,
+                        method="unknown",
+                        details={"reason": "IP is in blacklist"},
+                        severity="critical",
+                    )
+                )
 
         except Exception as e:
             logger.error(f"Error detecting threats: {e}")
@@ -527,7 +545,7 @@ class APISecurityService:
             "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
             "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'",
             "Referrer-Policy": "strict-origin-when-cross-origin",
-            "Permissions-Policy": "camera=(), microphone=(), geolocation=()"
+            "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
         }
 
         # Update headers (don't overwrite existing security headers)
@@ -561,8 +579,8 @@ class APISecurityService:
                     "endpoint": event.endpoint,
                     "severity": event.severity,
                     "timestamp": event.timestamp.isoformat(),
-                    "details": event.details
-                }
+                    "details": event.details,
+                },
             )
 
             # Store in Redis for persistence
@@ -573,7 +591,7 @@ class APISecurityService:
 
                 client = redis.from_url(
                     f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
-                    decode_responses=True
+                    decode_responses=True,
                 )
 
                 event_data = {
@@ -585,7 +603,7 @@ class APISecurityService:
                     "method": event.method,
                     "user_id": event.user_id,
                     "severity": event.severity,
-                    "details": event.details
+                    "details": event.details,
                 }
 
                 await client.lpush("security_events", json.dumps(event_data))
@@ -610,7 +628,8 @@ class APISecurityService:
         try:
             cutoff_time = datetime.utcnow() - timedelta(hours=hours)
             recent_events = [
-                event for event in self._security_events
+                event
+                for event in self._security_events
                 if event.timestamp >= cutoff_time
             ]
 
@@ -621,7 +640,9 @@ class APISecurityService:
 
             for event in recent_events:
                 event_types[event.event_type] = event_types.get(event.event_type, 0) + 1
-                severity_counts[event.severity] = severity_counts.get(event.severity, 0) + 1
+                severity_counts[event.severity] = (
+                    severity_counts.get(event.severity, 0) + 1
+                )
                 source_ips.add(event.source_ip)
 
             # Calculate threat level
@@ -642,8 +663,10 @@ class APISecurityService:
                 "threat_level": threat_level.value,
                 "event_types": event_types,
                 "severity_breakdown": severity_counts,
-                "api_keys_active": len([k for k in self._api_keys.values() if k.is_active]),
-                "ip_blacklist_size": len(self.ip_blacklist)
+                "api_keys_active": len(
+                    [k for k in self._api_keys.values() if k.is_active]
+                ),
+                "ip_blacklist_size": len(self.ip_blacklist),
             }
 
         except Exception as e:
@@ -676,7 +699,7 @@ class APISecurityService:
                 endpoint="system",
                 method="system",
                 details={"reason": reason},
-                severity="medium"
+                severity="medium",
             )
             self._security_events.append(event)
 
@@ -690,8 +713,10 @@ class APISecurityService:
             logger.error(f"Failed to block IP address: {e}")
             return False
 
+
 # Singleton instance
 api_security_service = APISecurityService()
+
 
 # Decorators for easy use
 def require_api_key(permissions: list[str] = None):
@@ -701,22 +726,21 @@ def require_api_key(permissions: list[str] = None):
     Args:
         permissions: Required permissions
     """
+
     def decorator(func):
         async def wrapper(request: Request, *args, **kwargs):
             # Get API key from headers
             api_key = request.headers.get("X-API-Key")
             if not api_key:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="API key required"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="API key required"
                 )
 
             # Validate API key
             key_obj = api_security_service.validate_api_key(api_key)
             if not key_obj:
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid API key"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key"
                 )
 
             # Check permissions
@@ -725,15 +749,18 @@ def require_api_key(permissions: list[str] = None):
                 if missing_permissions:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail=f"Insufficient permissions. Missing: {', '.join(missing_permissions)}"
+                        detail=f"Insufficient permissions. Missing: {', '.join(missing_permissions)}",
                     )
 
             # Add API key info to request state
             request.state.api_key = key_obj
 
             return await func(request, *args, **kwargs)
+
         return wrapper
+
     return decorator
+
 
 def require_webhook_signature(secret: str):
     """
@@ -742,6 +769,7 @@ def require_webhook_signature(secret: str):
     Args:
         secret: Secret key for signature verification
     """
+
     def decorator(func):
         async def wrapper(request: Request, *args, **kwargs):
             # Get signature from headers
@@ -749,19 +777,23 @@ def require_webhook_signature(secret: str):
             if not signature:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Webhook signature required"
+                    detail="Webhook signature required",
                 )
 
             # Get raw payload
             body = await request.body()
 
             # Verify signature
-            if not api_security_service.verify_webhook_signature(body, signature, secret):
+            if not api_security_service.verify_webhook_signature(
+                body, signature, secret
+            ):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid webhook signature"
+                    detail="Invalid webhook signature",
                 )
 
             return await func(request, *args, **kwargs)
+
         return wrapper
+
     return decorator

@@ -6,44 +6,54 @@ Tests report accuracy if a user changes answers midway through assessment
 
 import asyncio
 import json
-import time
-import statistics
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, field
-from enum import Enum
+import os
 import random
+import statistics
 
 # Import the scoring engine from the first test
 import sys
-import os
+import time
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from test_psychometric_scoring_consistency import (
-    AssessmentType, AssessmentQuestion, AssessmentResponse, ScoringResult,
-    PsychometricScoringEngine
+    AssessmentQuestion,
+    AssessmentResponse,
+    AssessmentType,
+    PsychometricScoringEngine,
+    ScoringResult,
 )
+
 
 class ChangeScenario(Enum):
     """Different change scenarios to test"""
+
     SINGLE_ANSWER = "single_answer_change"
     MULTIPLE_ANSWERS = "multiple_answer_changes"
     SECTION_CHANGE = "section_based_change"
     PROGRESSIVE_CHANGES = "progressive_changes"
     CONFIDENCE_IMPACT = "confidence_score_impact"
 
+
 @dataclass
 class AssessmentSnapshot:
     """Snapshot of assessment state at a point in time"""
+
     timestamp: datetime
     responses: List[AssessmentResponse]
     current_score: ScoringResult
     completion_percentage: float
     changed_answers: List[int] = field(default_factory=list)
 
+
 @dataclass
 class ChangeImpactResult:
     """Result of change impact analysis"""
+
     scenario: ChangeScenario
     initial_result: ScoringResult
     final_result: ScoringResult
@@ -54,9 +64,11 @@ class ChangeImpactResult:
     confidence_change: float
     processing_times: List[float]
 
+
 @dataclass
 class AccuracyTestResult:
     """Overall accuracy test result"""
+
     test_name: str
     assessment_type: str
     success_rate: float
@@ -65,6 +77,7 @@ class AccuracyTestResult:
     recommendations: List[str]
     timestamp: datetime
 
+
 class ReportAccuracyMidwayTester:
     """Comprehensive testing suite for report accuracy with answer changes"""
 
@@ -72,7 +85,9 @@ class ReportAccuracyMidwayTester:
         self.engine = PsychometricScoringEngine()
         self.test_results = []
 
-    async def test_single_answer_change(self, assessment_type: AssessmentType) -> ChangeImpactResult:
+    async def test_single_answer_change(
+        self, assessment_type: AssessmentType
+    ) -> ChangeImpactResult:
         """Test impact of changing a single answer"""
         questions = self.engine.question_banks[assessment_type]
         total_questions = min(len(questions), 20)  # Use subset for testing
@@ -85,12 +100,14 @@ class ReportAccuracyMidwayTester:
                 question_id=question.id,
                 answer_value=random.randint(2, 4),
                 response_time=random.uniform(1.0, 8.0),
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
             initial_responses.append(response)
 
         # Get initial score
-        initial_result = await self.engine.score_assessment(assessment_type, initial_responses)
+        initial_result = await self.engine.score_assessment(
+            assessment_type, initial_responses
+        )
 
         # Change one random answer
         question_to_change = random.choice(initial_responses)
@@ -100,14 +117,20 @@ class ReportAccuracyMidwayTester:
         question_to_change.timestamp = datetime.now()
 
         # Get final score
-        final_result = await self.engine.score_assessment(assessment_type, initial_responses)
+        final_result = await self.engine.score_assessment(
+            assessment_type, initial_responses
+        )
 
         # Calculate change metrics
         score_change = self._calculate_score_change(initial_result, final_result)
         change_magnitude = abs(score_change["overall_change"])
         direction = score_change["direction"]
-        personality_type_changed = initial_result.personality_type != final_result.personality_type
-        confidence_change = final_result.confidence_score - initial_result.confidence_score
+        personality_type_changed = (
+            initial_result.personality_type != final_result.personality_type
+        )
+        confidence_change = (
+            final_result.confidence_score - initial_result.confidence_score
+        )
 
         return ChangeImpactResult(
             scenario=ChangeScenario.SINGLE_ANSWER,
@@ -118,10 +141,15 @@ class ReportAccuracyMidwayTester:
             direction=direction,
             personality_type_changed=personality_type_changed,
             confidence_change=confidence_change,
-            processing_times=[initial_result.processing_time, final_result.processing_time]
+            processing_times=[
+                initial_result.processing_time,
+                final_result.processing_time,
+            ],
         )
 
-    async def test_multiple_answer_changes(self, assessment_type: AssessmentType) -> ChangeImpactResult:
+    async def test_multiple_answer_changes(
+        self, assessment_type: AssessmentType
+    ) -> ChangeImpactResult:
         """Test impact of changing multiple answers"""
         questions = self.engine.question_banks[assessment_type]
         total_questions = min(len(questions), 30)
@@ -134,12 +162,14 @@ class ReportAccuracyMidwayTester:
                 question_id=question.id,
                 answer_value=random.randint(2, 4),
                 response_time=random.uniform(1.0, 8.0),
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
             initial_responses.append(response)
 
         # Get initial score
-        initial_result = await self.engine.score_assessment(assessment_type, initial_responses)
+        initial_result = await self.engine.score_assessment(
+            assessment_type, initial_responses
+        )
 
         # Change multiple answers (10-20% of total)
         num_changes = max(2, total_questions // 10)
@@ -154,14 +184,20 @@ class ReportAccuracyMidwayTester:
             question.timestamp = datetime.now()
 
         # Get final score
-        final_result = await self.engine.score_assessment(assessment_type, initial_responses)
+        final_result = await self.engine.score_assessment(
+            assessment_type, initial_responses
+        )
 
         # Calculate change metrics
         score_change = self._calculate_score_change(initial_result, final_result)
         change_magnitude = abs(score_change["overall_change"])
         direction = score_change["direction"]
-        personality_type_changed = initial_result.personality_type != final_result.personality_type
-        confidence_change = final_result.confidence_score - initial_result.confidence_score
+        personality_type_changed = (
+            initial_result.personality_type != final_result.personality_type
+        )
+        confidence_change = (
+            final_result.confidence_score - initial_result.confidence_score
+        )
 
         return ChangeImpactResult(
             scenario=ChangeScenario.MULTIPLE_ANSWERS,
@@ -172,10 +208,15 @@ class ReportAccuracyMidwayTester:
             direction=direction,
             personality_type_changed=personality_type_changed,
             confidence_change=confidence_change,
-            processing_times=[initial_result.processing_time, final_result.processing_time]
+            processing_times=[
+                initial_result.processing_time,
+                final_result.processing_time,
+            ],
         )
 
-    async def test_progressive_changes(self, assessment_type: AssessmentType) -> ChangeImpactResult:
+    async def test_progressive_changes(
+        self, assessment_type: AssessmentType
+    ) -> ChangeImpactResult:
         """Test impact of progressive changes throughout assessment"""
         questions = self.engine.question_banks[assessment_type]
         total_questions = min(len(questions), 50)
@@ -202,25 +243,29 @@ class ReportAccuracyMidwayTester:
                 question_id=question.id,
                 answer_value=answer_value,
                 response_time=random.uniform(1.0, 8.0),
-                timestamp=datetime.now() + timedelta(seconds=i * 30)
+                timestamp=datetime.now() + timedelta(seconds=i * 30),
             )
             initial_responses.append(response)
 
             # Take snapshot at change points
             if i + 1 in change_points:
-                current_result = await self.engine.score_assessment(assessment_type, initial_responses[:i+1])
+                current_result = await self.engine.score_assessment(
+                    assessment_type, initial_responses[: i + 1]
+                )
                 processing_times.append(current_result.processing_time)
 
                 snapshot = AssessmentSnapshot(
                     timestamp=response.timestamp,
-                    responses=initial_responses[:i+1].copy(),
+                    responses=initial_responses[: i + 1].copy(),
                     current_score=current_result,
-                    completion_percentage=(i + 1) / total_questions * 100
+                    completion_percentage=(i + 1) / total_questions * 100,
                 )
                 snapshots.append(snapshot)
 
         # Get final result
-        final_result = await self.engine.score_assessment(assessment_type, initial_responses)
+        final_result = await self.engine.score_assessment(
+            assessment_type, initial_responses
+        )
         processing_times.append(final_result.processing_time)
 
         # Calculate change metrics
@@ -233,8 +278,12 @@ class ReportAccuracyMidwayTester:
 
         change_magnitude = abs(score_change["overall_change"])
         direction = score_change["direction"]
-        personality_type_changed = initial_result.personality_type != final_result.personality_type
-        confidence_change = final_result.confidence_score - initial_result.confidence_score
+        personality_type_changed = (
+            initial_result.personality_type != final_result.personality_type
+        )
+        confidence_change = (
+            final_result.confidence_score - initial_result.confidence_score
+        )
 
         return ChangeImpactResult(
             scenario=ChangeScenario.PROGRESSIVE_CHANGES,
@@ -245,16 +294,20 @@ class ReportAccuracyMidwayTester:
             direction=direction,
             personality_type_changed=personality_type_changed,
             confidence_change=confidence_change,
-            processing_times=processing_times
+            processing_times=processing_times,
         )
 
-    def _calculate_score_change(self, initial: ScoringResult, final: ScoringResult) -> Dict[str, Any]:
+    def _calculate_score_change(
+        self, initial: ScoringResult, final: ScoringResult
+    ) -> Dict[str, Any]:
         """Calculate change metrics between two scoring results"""
         if not initial.normalized_scores or not final.normalized_scores:
             return {"overall_change": 0, "direction": "neutral"}
 
         # Calculate average score change
-        common_categories = set(initial.normalized_scores.keys()) & set(final.normalized_scores.keys())
+        common_categories = set(initial.normalized_scores.keys()) & set(
+            final.normalized_scores.keys()
+        )
         if not common_categories:
             return {"overall_change": 0, "direction": "neutral"}
 
@@ -277,18 +330,28 @@ class ReportAccuracyMidwayTester:
         return {
             "overall_change": overall_change,
             "direction": direction,
-            "category_changes": dict(zip(common_categories, score_changes))
+            "category_changes": dict(zip(common_categories, score_changes)),
         }
 
-    async def run_accuracy_tests(self, assessment_type: AssessmentType) -> AccuracyTestResult:
+    async def run_accuracy_tests(
+        self, assessment_type: AssessmentType
+    ) -> AccuracyTestResult:
         """Run all accuracy tests for a specific assessment type"""
-        print(f"Testing report accuracy with answer changes for {assessment_type.value}...")
+        print(
+            f"Testing report accuracy with answer changes for {assessment_type.value}..."
+        )
 
         # Run all change scenarios
         scenarios = {}
-        scenarios["single_answer"] = await self.test_single_answer_change(assessment_type)
-        scenarios["multiple_answers"] = await self.test_multiple_answer_changes(assessment_type)
-        scenarios["progressive_changes"] = await self.test_progressive_changes(assessment_type)
+        scenarios["single_answer"] = await self.test_single_answer_change(
+            assessment_type
+        )
+        scenarios["multiple_answers"] = await self.test_multiple_answer_changes(
+            assessment_type
+        )
+        scenarios["progressive_changes"] = await self.test_progressive_changes(
+            assessment_type
+        )
 
         # Calculate overall accuracy metrics
         successful_scenarios = 0
@@ -308,19 +371,29 @@ class ReportAccuracyMidwayTester:
 
         avg_change_magnitude /= total_scenarios
         success_rate = (successful_scenarios / total_scenarios) * 100
-        overall_accuracy = 100 - avg_change_magnitude if avg_change_magnitude < 100 else 0
+        overall_accuracy = (
+            100 - avg_change_magnitude if avg_change_magnitude < 100 else 0
+        )
 
         # Generate recommendations
         recommendations = []
         if avg_change_magnitude > 30:
-            recommendations.append("High sensitivity to answer changes - review scoring algorithm stability")
+            recommendations.append(
+                "High sensitivity to answer changes - review scoring algorithm stability"
+            )
         if personality_changes > total_scenarios * 0.5:
-            recommendations.append("Frequent personality type changes - consider adding stability thresholds")
+            recommendations.append(
+                "Frequent personality type changes - consider adding stability thresholds"
+            )
         if success_rate < 80:
-            recommendations.append("Low success rate in change scenarios - review change impact handling")
+            recommendations.append(
+                "Low success rate in change scenarios - review change impact handling"
+            )
 
         if not recommendations:
-            recommendations.append("Report accuracy with answer changes is within acceptable ranges")
+            recommendations.append(
+                "Report accuracy with answer changes is within acceptable ranges"
+            )
 
         return AccuracyTestResult(
             test_name="report_accuracy_with_answer_changes",
@@ -329,8 +402,9 @@ class ReportAccuracyMidwayTester:
             change_scenarios=scenarios,
             overall_accuracy=overall_accuracy,
             recommendations=recommendations,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
+
 
 async def main():
     """Main function to run report accuracy tests"""
@@ -355,7 +429,9 @@ async def main():
         print(f"  📊 {scenario_name.replace('_', ' ').title()}:")
         print(f"     Change Magnitude: {scenario_result.change_magnitude:.2f}")
         print(f"     Direction: {scenario_result.direction}")
-        print(f"     Personality Type Changed: {scenario_result.personality_type_changed}")
+        print(
+            f"     Personality Type Changed: {scenario_result.personality_type_changed}"
+        )
         print(f"     Confidence Change: {scenario_result.confidence_change:.2f}")
 
     print(f"\nRecommendations:")
@@ -363,6 +439,7 @@ async def main():
         print(f"  {i}. {rec}")
 
     return result
+
 
 if __name__ == "__main__":
     asyncio.run(main())

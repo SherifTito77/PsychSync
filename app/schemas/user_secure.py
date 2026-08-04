@@ -18,16 +18,24 @@ Author: Security Team
 Version: 3.0 Enterprise Security
 """
 
-from datetime import date, datetime
 import re
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
 import bleach
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, constr, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    SecretStr,
+    constr,
+    field_validator,
+)
 
-from app.services.security import validate_password
 from app.db.models.user_secure import UserRole, UserSecurityLevel
+from app.services.security import validate_password
 
 # Security logger
 security_logger = logging.getLogger("app.security.schemas")
@@ -50,7 +58,9 @@ class SecurityMixin:
             return value
 
         # Basic HTML sanitization
-        return bleach.clean(value, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES, strip=True)
+        return bleach.clean(
+            value, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRIBUTES, strip=True
+        )
 
     @classmethod
     def validate_no_injection(cls, value: str, field_name: str) -> str:
@@ -97,7 +107,9 @@ class SecurityMixin:
     ) -> str:
         """Validate string length"""
         if len(value) < min_length:
-            raise ValueError(f"{field_name} must be at least {min_length} characters long")
+            raise ValueError(
+                f"{field_name} must be at least {min_length} characters long"
+            )
         if len(value) > max_length:
             raise ValueError(f"{field_name} must not exceed {max_length} characters")
         return value
@@ -106,10 +118,12 @@ class SecurityMixin:
 class UserBaseSecure(SecurityMixin, BaseModel):
     """Enhanced base user schema with security validation"""
 
-    email: EmailStr | None = Field(None, description="User email address (validated format)")
+    email: EmailStr | None = Field(
+        None, description="User email address (validated format)"
+    )
 
-    full_name: constr(min_length=2, max_length=255, strip_whitespace=True) | None = Field(
-        None, description="Full legal name (sanitized)"
+    full_name: constr(min_length=2, max_length=255, strip_whitespace=True) | None = (
+        Field(None, description="Full legal name (sanitized)")
     )
 
     role: UserRole = Field(UserRole.USER, description="User role with permission level")
@@ -139,7 +153,12 @@ class UserBaseSecure(SecurityMixin, BaseModel):
         v = v.lower().strip()
 
         # Additional security validation
-        dangerous_domains = ["tempmail.com", "10minutemail.com", "guerrillamail.com", "yopmail.com"]
+        dangerous_domains = [
+            "tempmail.com",
+            "10minutemail.com",
+            "guerrillamail.com",
+            "yopmail.com",
+        ]
         domain = v.split("@")[-1]
 
         if domain in dangerous_domains:
@@ -221,7 +240,10 @@ class UserCreateSecure(UserBaseSecure):
     email: EmailStr = Field(..., description="User email address (required, validated)")
 
     password: SecretStr = Field(
-        ..., min_length=12, max_length=128, description="Secure password (encrypted in transit)"
+        ...,
+        min_length=12,
+        max_length=128,
+        description="Secure password (encrypted in transit)",
     )
 
     confirm_password: SecretStr = Field(..., description="Password confirmation")
@@ -230,7 +252,9 @@ class UserCreateSecure(UserBaseSecure):
         None, description="Phone number (validated format)"
     )
 
-    date_of_birth: date | None = Field(None, description="Date of birth (validated range)")
+    date_of_birth: date | None = Field(
+        None, description="Date of birth (validated range)"
+    )
 
     address: constr(max_length=1000) | None = Field(
         None, description="Physical address (sanitized)"
@@ -238,11 +262,17 @@ class UserCreateSecure(UserBaseSecure):
 
     accept_terms: bool = Field(..., description="Terms of service acceptance")
 
-    data_processing_consent: bool = Field(False, description="Data processing consent (GDPR)")
+    data_processing_consent: bool = Field(
+        False, description="Data processing consent (GDPR)"
+    )
 
-    marketing_consent: bool = Field(False, description="Marketing communication consent")
+    marketing_consent: bool = Field(
+        False, description="Marketing communication consent"
+    )
 
-    ip_address: str | None = Field(None, description="Registration IP address (for security)")
+    ip_address: str | None = Field(
+        None, description="Registration IP address (for security)"
+    )
 
     user_agent: str | None = Field(None, description="User agent string (for security)")
 
@@ -277,7 +307,9 @@ class UserCreateSecure(UserBaseSecure):
                 if hasattr(password, "get_secret_value")
                 else str(password)
             )
-            confirm_value = v.get_secret_value() if hasattr(v, "get_secret_value") else str(v)
+            confirm_value = (
+                v.get_secret_value() if hasattr(v, "get_secret_value") else str(v)
+            )
 
             if password_value != confirm_value:
                 raise ValueError("Passwords do not match")
@@ -414,13 +446,17 @@ class UserUpdateSecure(SecurityMixin, BaseModel):
 class UserPasswordChangeSecure(BaseModel):
     """Enhanced password change schema with security validation"""
 
-    current_password: SecretStr = Field(..., description="Current password for verification")
+    current_password: SecretStr = Field(
+        ..., description="Current password for verification"
+    )
 
     new_password: SecretStr = Field(
         ..., min_length=12, max_length=128, description="New secure password"
     )
 
-    confirm_new_password: SecretStr = Field(..., description="New password confirmation")
+    confirm_new_password: SecretStr = Field(
+        ..., description="New password confirmation"
+    )
 
     ip_address: str | None = Field(None, description="Request IP address for audit")
 
@@ -449,7 +485,9 @@ class UserPasswordChangeSecure(BaseModel):
                 if hasattr(new_password, "get_secret_value")
                 else str(new_password)
             )
-            confirm_value = v.get_secret_value() if hasattr(v, "get_secret_value") else str(v)
+            confirm_value = (
+                v.get_secret_value() if hasattr(v, "get_secret_value") else str(v)
+            )
 
             if new_value != confirm_value:
                 raise ValueError("New passwords do not match")
@@ -470,7 +508,9 @@ class UserReadSecure(SecurityMixin, BaseModel):
 
     role: UserRole = Field(..., description="User role")
 
-    security_level: UserSecurityLevel = Field(..., description="Security classification level")
+    security_level: UserSecurityLevel = Field(
+        ..., description="Security classification level"
+    )
 
     is_active: bool = Field(..., description="Account active status")
 
@@ -518,9 +558,13 @@ class UserSearchSecure(BaseModel):
 
     is_verified: bool | None = Field(None, description="Filter by verification status")
 
-    created_after: datetime | None = Field(None, description="Filter by creation date (after)")
+    created_after: datetime | None = Field(
+        None, description="Filter by creation date (after)"
+    )
 
-    created_before: datetime | None = Field(None, description="Filter by creation date (before)")
+    created_before: datetime | None = Field(
+        None, description="Filter by creation date (before)"
+    )
 
     page: int = Field(1, ge=1, le=1000, description="Page number")
 
@@ -549,9 +593,13 @@ class UserBulkOperationSecure(BaseModel):
         ..., min_items=1, max_items=100, description="List of user IDs (max 100)"
     )
 
-    operation: str = Field(..., description="Operation type (activate, deactivate, delete, etc.)")
+    operation: str = Field(
+        ..., description="Operation type (activate, deactivate, delete, etc.)"
+    )
 
-    reason: constr(max_length=1000) | None = Field(None, description="Reason for operation")
+    reason: constr(max_length=1000) | None = Field(
+        None, description="Reason for operation"
+    )
 
     ip_address: str | None = Field(None, description="Request IP address")
 

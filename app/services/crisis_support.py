@@ -2,10 +2,10 @@
 Crisis Support Service - Emergency mental health support with safety protocols and immediate intervention
 """
 
-from datetime import datetime
 import logging
-from typing import Any
 import uuid
+from datetime import datetime
+from typing import Any
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,17 +47,25 @@ class CrisisSupportService:
             risk_level = await self._determine_risk_level(severity_score, responses)
 
             # Identify immediate safety concerns
-            safety_concerns = await self._identify_safety_concerns(responses, risk_level)
+            safety_concerns = await self._identify_safety_concerns(
+                responses, risk_level
+            )
 
             # Generate immediate recommendations
-            recommended_actions = await self._generate_immediate_actions(risk_level, responses)
+            recommended_actions = await self._generate_immediate_actions(
+                risk_level, responses
+            )
 
             # Create crisis alert if necessary
             if risk_level in ["high", "emergency"]:
-                await self._create_crisis_alert(user_id, responses, risk_level, severity_score)
+                await self._create_crisis_alert(
+                    user_id, responses, risk_level, severity_score
+                )
 
             # Log assessment (maintaining privacy)
-            await self._log_crisis_assessment(user_id, risk_level, severity_score, timestamp)
+            await self._log_crisis_assessment(
+                user_id, risk_level, severity_score, timestamp
+            )
 
             return {
                 "severity": risk_level,
@@ -122,11 +130,16 @@ class CrisisSupportService:
             logger.error(f"Error calculating severity score: {e}")
             return 10.0  # Default to maximum severity
 
-    async def _determine_risk_level(self, severity_score: float, responses: dict[str, str]) -> str:
+    async def _determine_risk_level(
+        self, severity_score: float, responses: dict[str, str]
+    ) -> str:
         """Determine risk level based on severity score and responses"""
         try:
             # Immediate emergency indicators
-            if responses.get("suicidal_thoughts") == "yes" and responses.get("harm_plan") == "yes":
+            if (
+                responses.get("suicidal_thoughts") == "yes"
+                and responses.get("harm_plan") == "yes"
+            ):
                 return "emergency"
 
             # High severity score
@@ -169,7 +182,9 @@ class CrisisSupportService:
             # High anxiety levels
             anxiety_level = int(responses.get("anxiety_level", 0))
             if anxiety_level >= 8:
-                concerns.append("Severe anxiety or panic - may need immediate calming techniques")
+                concerns.append(
+                    "Severe anxiety or panic - may need immediate calming techniques"
+                )
             elif anxiety_level >= 6:
                 concerns.append("High anxiety levels - may need coping strategies")
 
@@ -184,7 +199,9 @@ class CrisisSupportService:
             # Sleep deprivation
             sleep_hours = int(responses.get("sleep", 8))
             if sleep_hours < 4:
-                concerns.append("Severe sleep deprivation - may affect mental stability")
+                concerns.append(
+                    "Severe sleep deprivation - may affect mental stability"
+                )
 
             # Risk level specific concerns
             if risk_level == "emergency":
@@ -192,11 +209,15 @@ class CrisisSupportService:
                     "Immediate risk to personal safety - emergency intervention required"
                 )
             elif risk_level == "high":
-                concerns.append("High risk situation - professional intervention needed soon")
+                concerns.append(
+                    "High risk situation - professional intervention needed soon"
+                )
 
         except Exception as e:
             logger.error(f"Error identifying safety concerns: {e}")
-            concerns.append("Unable to fully assess safety concerns - seek professional help")
+            concerns.append(
+                "Unable to fully assess safety concerns - seek professional help"
+            )
 
         return concerns
 
@@ -347,7 +368,10 @@ class CrisisSupportService:
         return needs
 
     async def create_personalized_safety_plan(
-        self, user_id: str, personalize: bool = True, include_local_resources: bool = True
+        self,
+        user_id: str,
+        personalize: bool = True,
+        include_local_resources: bool = True,
     ) -> dict[str, Any]:
         """
         Create a personalized safety plan for crisis situations
@@ -378,7 +402,9 @@ class CrisisSupportService:
             social_supports = await self._generate_social_supports(user_data)
 
             # Generate professional help resources
-            professional_help = await self._generate_professional_help(include_local_resources)
+            professional_help = await self._generate_professional_help(
+                include_local_resources
+            )
 
             # Generate emergency contacts
             emergency_contacts = await self._generate_emergency_contacts()
@@ -426,9 +452,11 @@ class CrisisSupportService:
 
             user_data = {
                 "recent_responses": len(recent_responses),
-                "last_assessment": recent_responses[0].completed_at.isoformat()
-                if recent_responses
-                else None,
+                "last_assessment": (
+                    recent_responses[0].completed_at.isoformat()
+                    if recent_responses
+                    else None
+                ),
                 "assessment_patterns": [],
             }
 
@@ -516,7 +544,9 @@ class CrisisSupportService:
             "Mentor or spiritual advisor: [Name] - [Phone number]",
         ]
 
-    async def _generate_professional_help(self, include_local_resources: bool) -> list[str]:
+    async def _generate_professional_help(
+        self, include_local_resources: bool
+    ) -> list[str]:
         """Generate professional help resources"""
         resources = [
             "988 Suicide & Crisis Lifeline - 988 (24/7)",
@@ -578,7 +608,11 @@ class CrisisSupportService:
         }
 
     async def _create_crisis_alert(
-        self, user_id: str, responses: dict[str, str], risk_level: str, severity_score: float
+        self,
+        user_id: str,
+        responses: dict[str, str],
+        risk_level: str,
+        severity_score: float,
     ) -> None:
         """Create a crisis alert for immediate intervention"""
         try:
@@ -628,7 +662,9 @@ class CrisisSupportService:
         except Exception as e:
             logger.error(f"Error logging crisis assessment: {e}")
 
-    async def _save_safety_plan(self, user_id: str, safety_plan: dict[str, Any]) -> None:
+    async def _save_safety_plan(
+        self, user_id: str, safety_plan: dict[str, Any]
+    ) -> None:
         """Save safety plan to database"""
         try:
             # In production, this would save to a safety_plans table

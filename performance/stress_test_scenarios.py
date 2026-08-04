@@ -11,17 +11,19 @@ Specialized stress testing for extreme edge cases and failure scenarios:
 """
 
 import asyncio
-import aiohttp
-import json
-import time
 import gc
-import threading
-import psutil
+import json
 import resource
-from pathlib import Path
-from datetime import datetime, timezone
-from typing import Dict, Any, List
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List
+
+import aiohttp
+import psutil
+
 
 class StressTestScenarios:
     """Advanced stress testing scenarios for edge cases"""
@@ -66,7 +68,7 @@ class StressTestScenarios:
                 large_data = {
                     "test_data": "X" * (size_mb * 1024 * 1024),  # Generate specified MB
                     "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "metadata": {"size_mb": size_mb}
+                    "metadata": {"size_mb": size_mb},
                 }
 
                 try:
@@ -74,13 +76,15 @@ class StressTestScenarios:
                     async with self.session.post(
                         f"{self.backend_url}/api/v1/test/large-payload",
                         json=large_data,
-                        timeout=aiohttp.ClientTimeout(total=30)
+                        timeout=aiohttp.ClientTimeout(total=30),
                     ) as response:
                         duration = time.time() - start_time
                         current_memory = psutil.virtual_memory().percent
 
-                        print(f"   {size_mb}MB payload: Status {response.status} "
-                              f"({duration:.2f}s, Memory: {current_memory:.1f}%)")
+                        print(
+                            f"   {size_mb}MB payload: Status {response.status} "
+                            f"({duration:.2f}s, Memory: {current_memory:.1f}%)"
+                        )
 
                         if response.status == 200:
                             success_count += 1
@@ -89,7 +93,9 @@ class StressTestScenarios:
 
                         # Stop if memory usage is too high (>90%)
                         if current_memory > 90:
-                            print(f"   ⚠️  Memory usage critical ({current_memory:.1f}%), stopping test")
+                            print(
+                                f"   ⚠️  Memory usage critical ({current_memory:.1f}%), stopping test"
+                            )
                             break
 
                 except aiohttp.ServerTimeoutError:
@@ -108,19 +114,21 @@ class StressTestScenarios:
                     # Create memory-intensive data structure
                     memory_data = []
                     for i in range(1000):
-                        memory_data.append({
-                            "id": f"{task_id}_{i}",
-                            "data": "A" * 10000,  # 10KB per item
-                            "nested": {
-                                "level1": {"level2": {"level3": "X" * 5000}}
+                        memory_data.append(
+                            {
+                                "id": f"{task_id}_{i}",
+                                "data": "A" * 10000,  # 10KB per item
+                                "nested": {
+                                    "level1": {"level2": {"level3": "X" * 5000}}
+                                },
                             }
-                        })
+                        )
 
                     # Try to process this data
                     async with self.session.post(
                         f"{self.backend_url}/api/v1/test/memory-intensive",
                         json={"task_id": task_id, "data_size": len(memory_data)},
-                        timeout=aiohttp.ClientTimeout(total=10)
+                        timeout=aiohttp.ClientTimeout(total=10),
                     ) as response:
                         return response.status == 200
 
@@ -137,7 +145,9 @@ class StressTestScenarios:
             concurrent_success = sum(1 for result in results if result == True)
             concurrent_failures = len(results) - concurrent_success
 
-            print(f"   Concurrent memory allocation: {concurrent_success} successful, {concurrent_failures} failed")
+            print(
+                f"   Concurrent memory allocation: {concurrent_success} successful, {concurrent_failures} failed"
+            )
 
         finally:
             # Force garbage collection
@@ -148,9 +158,15 @@ class StressTestScenarios:
 
         print(f"\n📊 MEMORY EXHAUSTION TEST RESULTS:")
         print(f"   Initial memory: {initial_memory:.1f}% -> Final: {final_memory:.1f}%")
-        print(f"   Process memory: {process_memory:.1f}MB -> {final_process_memory:.1f}MB")
-        print(f"   Large payload tests: {success_count} success, {failure_count} failures")
-        print(f"   Concurrent tests: {concurrent_success} success, {concurrent_failures} failures")
+        print(
+            f"   Process memory: {process_memory:.1f}MB -> {final_process_memory:.1f}MB"
+        )
+        print(
+            f"   Large payload tests: {success_count} success, {failure_count} failures"
+        )
+        print(
+            f"   Concurrent tests: {concurrent_success} success, {concurrent_failures} failures"
+        )
 
         self.test_results["memory_exhaustion"] = {
             "success": True,
@@ -159,7 +175,7 @@ class StressTestScenarios:
             "large_payload_success": success_count,
             "large_payload_failures": failure_count,
             "concurrent_success": concurrent_success,
-            "concurrent_failures": concurrent_failures
+            "concurrent_failures": concurrent_failures,
         }
 
     async def test_database_connection_exhaustion(self):
@@ -193,18 +209,22 @@ class StressTestScenarios:
                         "operation_id": operation_id,
                         "query_complexity": "high",
                         "data": {
-                            "user_responses": {f"q_{i}": f"answer_{i}" for i in range(100)},
+                            "user_responses": {
+                                f"q_{i}": f"answer_{i}" for i in range(100)
+                            },
                             "calculations": [i * 2 for i in range(50)],
                             "nested_data": {
-                                "level1": {"level2": {"level3": {"data": list(range(30))}}}
-                            }
-                        }
+                                "level1": {
+                                    "level2": {"level3": {"data": list(range(30))}}
+                                }
+                            },
+                        },
                     }
 
                     async with self.session.post(
                         f"{self.backend_url}/api/v1/test/database-intensive",
                         json=test_data,
-                        timeout=aiohttp.ClientTimeout(total=30)
+                        timeout=aiohttp.ClientTimeout(total=30),
                     ) as response:
                         op_time = time.time() - op_start
                         response_times.append(op_time)
@@ -229,7 +249,9 @@ class StressTestScenarios:
                     return await database_operation(op_id)
 
             # Run concurrent database operations
-            tasks = [operation_with_semaphore(i) for i in range(max_connections * 2)]  # 2x the limit
+            tasks = [
+                operation_with_semaphore(i) for i in range(max_connections * 2)
+            ]  # 2x the limit
             operation_results = await asyncio.gather(*tasks, return_exceptions=True)
 
             # Count results
@@ -246,7 +268,9 @@ class StressTestScenarios:
                         error_count += 1
 
             total_time = time.time() - start_time
-            avg_response_time = sum(response_times) / len(response_times) if response_times else 0
+            avg_response_time = (
+                sum(response_times) / len(response_times) if response_times else 0
+            )
 
             results[max_connections] = {
                 "success_count": success_count,
@@ -254,17 +278,27 @@ class StressTestScenarios:
                 "error_count": error_count,
                 "total_time": total_time,
                 "avg_response_time": avg_response_time,
-                "throughput": success_count / total_time if total_time > 0 else 0
+                "throughput": success_count / total_time if total_time > 0 else 0,
             }
 
-            print(f"   Results: {success_count} success, {timeout_count} timeouts, {error_count} errors")
-            print(f"   Throughput: {results[max_connections]['throughput']:.2f} ops/sec")
+            print(
+                f"   Results: {success_count} success, {timeout_count} timeouts, {error_count} errors"
+            )
+            print(
+                f"   Throughput: {results[max_connections]['throughput']:.2f} ops/sec"
+            )
             print(f"   Avg Response: {avg_response_time:.3f}s")
 
             # Stop testing if success rate drops too low
-            success_rate = success_count / (success_count + timeout_count + error_count) if (success_count + timeout_count + error_count) > 0 else 0
+            success_rate = (
+                success_count / (success_count + timeout_count + error_count)
+                if (success_count + timeout_count + error_count) > 0
+                else 0
+            )
             if success_rate < 0.5:  # Less than 50% success rate
-                print(f"   ⚠️  Success rate too low ({success_rate:.1%}), stopping connection tests")
+                print(
+                    f"   ⚠️  Success rate too low ({success_rate:.1%}), stopping connection tests"
+                )
                 break
 
         self.test_results["connection_exhaustion"] = results
@@ -282,7 +316,7 @@ class StressTestScenarios:
             {"name": "Normal Response", "delay": 1, "expected": "success"},
             {"name": "Slow Response", "delay": 15, "expected": "timeout"},
             {"name": "Very Slow Response", "delay": 45, "expected": "timeout"},
-            {"name": "Service Unavailable", "delay": None, "expected": "error"}
+            {"name": "Service Unavailable", "delay": None, "expected": "error"},
         ]
 
         results = {}
@@ -298,58 +332,80 @@ class StressTestScenarios:
                     request_data = {
                         "test_scenario": scenario["name"],
                         "assessment_data": {
-                            "responses": {f"q_{j}": random.choice(["A", "B", "C", "D"]) for j in range(30)},
-                            "user_profile": {"age": 25, "experience": 5, "role": "manager"}
+                            "responses": {
+                                f"q_{j}": random.choice(["A", "B", "C", "D"])
+                                for j in range(30)
+                            },
+                            "user_profile": {
+                                "age": 25,
+                                "experience": 5,
+                                "role": "manager",
+                            },
                         },
                         "artificial_delay": scenario.get("delay"),
-                        "request_id": f"timeout_test_{i}_{int(time.time())}"
+                        "request_id": f"timeout_test_{i}_{int(time.time())}",
                     }
 
                     request_start = time.time()
                     async with self.session.post(
                         f"{self.backend_url}/api/v1/ai/analyze-with-timeout",
                         json=request_data,
-                        timeout=aiohttp.ClientTimeout(total=60)  # 60 second timeout
+                        timeout=aiohttp.ClientTimeout(total=60),  # 60 second timeout
                     ) as response:
                         request_time = time.time() - request_start
-                        response_data = await response.json() if response.content_type == 'application/json' else {}
+                        response_data = (
+                            await response.json()
+                            if response.content_type == "application/json"
+                            else {}
+                        )
 
-                        responses.append({
-                            "status_code": response.status,
-                            "response_time": request_time,
-                            "data": response_data,
-                            "timeout_triggered": "timeout" in str(response_data).lower()
-                        })
+                        responses.append(
+                            {
+                                "status_code": response.status,
+                                "response_time": request_time,
+                                "data": response_data,
+                                "timeout_triggered": "timeout"
+                                in str(response_data).lower(),
+                            }
+                        )
 
                 except asyncio.TimeoutError:
-                    responses.append({
-                        "status_code": None,
-                        "response_time": 60.0,
-                        "data": {"error": "timeout"},
-                        "timeout_triggered": True
-                    })
+                    responses.append(
+                        {
+                            "status_code": None,
+                            "response_time": 60.0,
+                            "data": {"error": "timeout"},
+                            "timeout_triggered": True,
+                        }
+                    )
                 except Exception as e:
-                    responses.append({
-                        "status_code": None,
-                        "response_time": 0.0,
-                        "data": {"error": str(e)},
-                        "timeout_triggered": False
-                    })
+                    responses.append(
+                        {
+                            "status_code": None,
+                            "response_time": 0.0,
+                            "data": {"error": str(e)},
+                            "timeout_triggered": False,
+                        }
+                    )
 
             # Analyze results
             scenario_results = {
                 "name": scenario["name"],
                 "expected": scenario["expected"],
-                "responses": responses
+                "responses": responses,
             }
 
             # Calculate metrics
             successful = sum(1 for r in responses if r["status_code"] == 200)
             timeouts = sum(1 for r in responses if r["timeout_triggered"])
             errors = len(responses) - successful - timeouts
-            avg_response_time = sum(r["response_time"] for r in responses) / len(responses)
+            avg_response_time = sum(r["response_time"] for r in responses) / len(
+                responses
+            )
 
-            print(f"   Results: {successful} success, {timeouts} timeouts, {errors} errors")
+            print(
+                f"   Results: {successful} success, {timeouts} timeouts, {errors} errors"
+            )
             print(f"   Average Response Time: {avg_response_time:.2f}s")
 
             # Validate expected behavior
@@ -375,10 +431,10 @@ class StressTestScenarios:
                 "errors": errors,
                 "avg_response_time": avg_response_time,
                 "behavior_correct": (
-                    (scenario["expected"] == "success" and successful >= 8) or
-                    (scenario["expected"] == "timeout" and timeouts >= 8) or
-                    (scenario["expected"] == "error" and errors >= 8)
-                )
+                    (scenario["expected"] == "success" and successful >= 8)
+                    or (scenario["expected"] == "timeout" and timeouts >= 8)
+                    or (scenario["expected"] == "error" and errors >= 8)
+                ),
             }
 
         self.test_results["ai_timeout"] = results
@@ -396,13 +452,15 @@ class StressTestScenarios:
             {"name": "Moderate Load", "sessions": 100},
             {"name": "High Load", "sessions": 500},
             {"name": "Extreme Load", "sessions": 1000},
-            {"name": "Maximum Load", "sessions": 2000}
+            {"name": "Maximum Load", "sessions": 2000},
         ]
 
         results = {}
 
         for scenario in session_scenarios:
-            print(f"\n🔄 Testing {scenario['name']} - {scenario['sessions']} concurrent sessions...")
+            print(
+                f"\n🔄 Testing {scenario['name']} - {scenario['sessions']} concurrent sessions..."
+            )
 
             start_time = time.time()
             active_sessions = 0
@@ -416,13 +474,13 @@ class StressTestScenarios:
                     # 1. User login
                     login_data = {
                         "email": f"session_test_{session_id}@example.com",
-                        "password": "test_password_123"
+                        "password": "test_password_123",
                     }
 
                     async with self.session.post(
                         f"{self.backend_url}/api/v1/token-login",
                         json=login_data,
-                        timeout=aiohttp.ClientTimeout(total=10)
+                        timeout=aiohttp.ClientTimeout(total=10),
                     ) as login_response:
                         if login_response.status != 200:
                             return "rejected", 0.0
@@ -442,7 +500,7 @@ class StressTestScenarios:
                         ("GET", f"/api/v1/users/{session_id}"),
                         ("GET", "/api/v1/dashboard"),
                         ("GET", "/api/v1/assessments"),
-                        ("POST", "/api/v1/test/activity", {"activity": "session_test"})
+                        ("POST", "/api/v1/test/activity", {"activity": "session_test"}),
                     ]
 
                     for method, endpoint in user_activities:
@@ -451,16 +509,19 @@ class StressTestScenarios:
                                 async with self.session.get(
                                     f"{self.backend_url}{endpoint}",
                                     headers=headers,
-                                    timeout=aiohttp.ClientTimeout(total=5)
+                                    timeout=aiohttp.ClientTimeout(total=5),
                                 ) as response:
                                     if response.status == 200:
                                         successful_calls += 1
                             else:
                                 async with self.session.post(
                                     f"{self.backend_url}{endpoint}",
-                                    json={"session_id": session_id, "timestamp": time.time()},
+                                    json={
+                                        "session_id": session_id,
+                                        "timestamp": time.time(),
+                                    },
                                     headers=headers,
-                                    timeout=aiohttp.ClientTimeout(total=5)
+                                    timeout=aiohttp.ClientTimeout(total=5),
                                 ) as response:
                                     if response.status == 200:
                                         successful_calls += 1
@@ -483,11 +544,12 @@ class StressTestScenarios:
 
             # Start sessions concurrently
             session_tasks = [
-                start_session_with_semaphore(i)
-                for i in range(scenario["sessions"])
+                start_session_with_semaphore(i) for i in range(scenario["sessions"])
             ]
 
-            session_results = await asyncio.gather(*session_tasks, return_exceptions=True)
+            session_results = await asyncio.gather(
+                *session_tasks, return_exceptions=True
+            )
 
             # Count results
             for result in session_results:
@@ -504,7 +566,9 @@ class StressTestScenarios:
 
             total_time = time.time() - start_time
 
-            print(f"   Results: {successful_sessions} successful, {rejected_sessions} rejected, {session_errors} errors")
+            print(
+                f"   Results: {successful_sessions} successful, {rejected_sessions} rejected, {session_errors} errors"
+            )
             print(f"   Total Time: {total_time:.2f}s")
             print(f"   Throughput: {successful_sessions/total_time:.2f} sessions/sec")
 
@@ -515,7 +579,7 @@ class StressTestScenarios:
                 "errors": session_errors,
                 "total_time": total_time,
                 "throughput": successful_sessions / total_time,
-                "success_rate": successful_sessions / scenario["sessions"]
+                "success_rate": successful_sessions / scenario["sessions"],
             }
 
             # Stop testing if success rate drops too low
@@ -553,15 +617,17 @@ class StressTestScenarios:
 
     def generate_stress_test_report(self):
         """Generate comprehensive stress testing report"""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("📊 COMPREHENSIVE STRESS TESTING REPORT")
-        print("="*80)
+        print("=" * 80)
 
         # Memory Exhaustion Results
         if "memory_exhaustion" in self.test_results:
             results = self.test_results["memory_exhaustion"]
             print(f"\n🧠 MEMORY EXHAUSTION TEST RESULTS:")
-            print(f"   System memory change: {results['initial_memory']:.1f}% → {results['final_memory']:.1f}%")
+            print(
+                f"   System memory change: {results['initial_memory']:.1f}% → {results['final_memory']:.1f}%"
+            )
             print(f"   Large payload success: {results['large_payload_success']}")
             print(f"   Large payload failures: {results['large_payload_failures']}")
             print(f"   Concurrent success: {results['concurrent_success']}")
@@ -615,9 +681,10 @@ class StressTestScenarios:
         print(f"   ✅ Timeout handling: AI service timeouts managed correctly")
         print(f"   ✅ Session management: Concurrent sessions handled appropriately")
 
-        print(f"\n" + "="*80)
+        print(f"\n" + "=" * 80)
         print("🎉 STRESS TESTING ANALYSIS COMPLETE")
-        print("="*80)
+        print("=" * 80)
+
 
 async def main():
     """Main stress testing execution"""
@@ -631,6 +698,8 @@ async def main():
         print(f"\n💥 Unexpected error: {e}")
         sys.exit(2)
 
+
 if __name__ == "__main__":
     import random  # Add missing import
+
     asyncio.run(main())

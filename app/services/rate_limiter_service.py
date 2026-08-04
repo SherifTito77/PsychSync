@@ -4,32 +4,37 @@ Implements tier-based, endpoint-specific rate limiting with Redis backend
 Performance improvement: 90% reduction in abuse-related server load
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
 
-from fastapi import HTTPException, Request, status
 import redis.asyncio as redis
+from fastapi import HTTPException, Request, status
 
 logger = logging.getLogger(__name__)
 
+
 class UserTier(str, Enum):
     """User subscription tiers for rate limiting"""
+
     ANONYMOUS = "anonymous"
     BASIC = "basic"
     PREMIUM = "premium"
     ENTERPRISE = "enterprise"
     ADMIN = "admin"
 
+
 @dataclass
 class RateLimit:
     """Rate limit configuration"""
+
     requests_per_minute: int
     requests_per_hour: int
     requests_per_day: int
     burst_capacity: int = 0  # Extra capacity for sudden spikes
+
 
 class AdvancedRateLimiter:
     """
@@ -49,7 +54,7 @@ class AdvancedRateLimiter:
         UserTier.BASIC: RateLimit(200, 1000, 10000, 100),
         UserTier.PREMIUM: RateLimit(500, 2500, 50000, 250),
         UserTier.ENTERPRISE: RateLimit(1000, 5000, 100000, 500),
-        UserTier.ADMIN: RateLimit(2000, 10000, 200000, 1000)
+        UserTier.ADMIN: RateLimit(2000, 10000, 200000, 1000),
     }
 
     # Endpoint-specific multipliers
@@ -59,17 +64,14 @@ class AdvancedRateLimiter:
         "POST:/api/v1/users": 0.3,
         "POST:/api/v1/auth/register": 0.3,
         "POST:/api/v1/auth/forgot-password": 0.2,
-
         # Assessment endpoints (moderate limits)
         "GET:/api/v1/assessments": 1.0,
         "POST:/api/v1/assessments": 0.8,
         "PUT:/api/v1/assessments": 0.8,
-
         # Data-heavy endpoints (stricter limits)
         "GET:/api/v1/analytics": 0.5,
         "GET:/api/v1/reports": 0.5,
         "POST:/api/v1/assessments/bulk": 0.3,
-
         # Health endpoints (lenient limits)
         "GET:/api/v1/health": 2.0,
         "GET:/api/v1/metrics": 0.7,
@@ -89,13 +91,16 @@ class AdvancedRateLimiter:
         """Get or create Redis client with connection pooling"""
         if self._redis_client is None:
             if self.redis_url:
-                self._redis_client = redis.from_url(self.redis_url, decode_responses=True)
+                self._redis_client = redis.from_url(
+                    self.redis_url, decode_responses=True
+                )
             else:
                 # Use app settings
                 from app.core.config import settings
+
                 self._redis_client = redis.from_url(
                     f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
-                    decode_responses=True
+                    decode_responses=True,
                 )
         return self._redis_client
 
@@ -131,7 +136,9 @@ class AdvancedRateLimiter:
         """
         return f"{request.method}:{request.url.path}"
 
-    def _get_rate_limit_for_endpoint(self, endpoint: str, user_tier: UserTier) -> RateLimit:
+    def _get_rate_limit_for_endpoint(
+        self, endpoint: str, user_tier: UserTier
+    ) -> RateLimit:
         """
         Calculate effective rate limit for specific endpoint
 
@@ -149,13 +156,11 @@ class AdvancedRateLimiter:
             requests_per_minute=int(base_limit.requests_per_minute * multiplier),
             requests_per_hour=int(base_limit.requests_per_hour * multiplier),
             requests_per_day=int(base_limit.requests_per_day * multiplier),
-            burst_capacity=int(base_limit.burst_capacity * multiplier)
+            burst_capacity=int(base_limit.burst_capacity * multiplier),
         )
 
     async def check_rate_limit(
-        self,
-        request: Request,
-        user_tier: UserTier = UserTier.ANONYMOUS
+        self, request: Request, user_tier: UserTier = UserTier.ANONYMOUS
     ) -> tuple[bool, dict[str, Any]]:
         """
         Check if request is within rate limits
@@ -197,8 +202,8 @@ class AdvancedRateLimiter:
 
             # Set expiration for cleanup (also atomic)
             pipe.expire(minute_key, 300)  # 5 minutes
-            pipe.expire(hour_key, 3600)    # 1 hour
-            pipe.expire(day_key, 86400)    # 24 hours
+            pipe.expire(hour_key, 3600)  # 1 hour
+            pipe.expire(day_key, 86400)  # 24 hours
 
             # Get the incremented values
             pipe.get(minute_key)
@@ -215,9 +220,9 @@ class AdvancedRateLimiter:
 
             # Check if any limit exceeded (after increment)
             is_allowed = (
-                minute_count <= rate_limit.requests_per_minute and
-                hour_count <= rate_limit.requests_per_hour and
-                day_count <= rate_limit.requests_per_day
+                minute_count <= rate_limit.requests_per_minute
+                and hour_count <= rate_limit.requests_per_hour
+                and day_count <= rate_limit.requests_per_day
             )
 
             # Prepare limit info for headers
@@ -225,20 +230,20 @@ class AdvancedRateLimiter:
                 "minute": {
                     "limit": rate_limit.requests_per_minute,
                     "remaining": max(0, rate_limit.requests_per_minute - minute_count),
-                    "reset_time": (now + timedelta(minutes=1)).isoformat()
+                    "reset_time": (now + timedelta(minutes=1)).isoformat(),
                 },
                 "hour": {
                     "limit": rate_limit.requests_per_hour,
                     "remaining": max(0, rate_limit.requests_per_hour - hour_count),
-                    "reset_time": (now + timedelta(hours=1)).isoformat()
+                    "reset_time": (now + timedelta(hours=1)).isoformat(),
                 },
                 "day": {
                     "limit": rate_limit.requests_per_day,
                     "remaining": max(0, rate_limit.requests_per_day - day_count),
-                    "reset_time": (now + timedelta(days=1)).isoformat()
+                    "reset_time": (now + timedelta(days=1)).isoformat(),
                 },
                 "tier": user_tier.value,
-                "endpoint": endpoint
+                "endpoint": endpoint,
             }
 
             logger.info(
@@ -254,9 +259,7 @@ class AdvancedRateLimiter:
             return True, {"error": "Rate limiting service unavailable"}
 
     async def get_user_rate_limit_stats(
-        self,
-        user_id: str,
-        user_tier: UserTier
+        self, user_id: str, user_tier: UserTier
     ) -> dict[str, Any]:
         """
         Get comprehensive rate limit statistics for a user
@@ -291,7 +294,9 @@ class AdvancedRateLimiter:
                 pipe.get(key)
             if minute_keys:
                 minute_values = await pipe.execute()
-                total_minute_requests = sum(int(v or 0) for v in minute_values[-len(minute_keys):])
+                total_minute_requests = sum(
+                    int(v or 0) for v in minute_values[-len(minute_keys) :]
+                )
 
             return {
                 "user_id": user_id,
@@ -300,21 +305,22 @@ class AdvancedRateLimiter:
                     "requests_per_minute": total_minute_requests,
                     "limit_per_minute": self.RATE_LIMITS[user_tier].requests_per_minute,
                     "utilization_percent": round(
-                        (total_minute_requests / self.RATE_LIMITS[user_tier].requests_per_minute) * 100, 2
-                    )
+                        (
+                            total_minute_requests
+                            / self.RATE_LIMITS[user_tier].requests_per_minute
+                        )
+                        * 100,
+                        2,
+                    ),
                 },
-                "timestamp": now.isoformat()
+                "timestamp": now.isoformat(),
             }
 
         except Exception as e:
             logger.error(f"Failed to get rate limit stats: {e}")
             return {"error": "Failed to retrieve rate limit statistics"}
 
-    async def reset_rate_limit(
-        self,
-        client_id: str,
-        endpoint: str = None
-    ) -> bool:
+    async def reset_rate_limit(self, client_id: str, endpoint: str = None) -> bool:
         """
         Reset rate limit for a specific client or endpoint
 
@@ -338,7 +344,9 @@ class AdvancedRateLimiter:
             keys = await client.keys(pattern)
             if keys:
                 await client.delete(*keys)
-                logger.info(f"Reset rate limits for {len(keys)} keys matching pattern: {pattern}")
+                logger.info(
+                    f"Reset rate limits for {len(keys)} keys matching pattern: {pattern}"
+                )
                 return True
 
             return False
@@ -347,8 +355,10 @@ class AdvancedRateLimiter:
             logger.error(f"Failed to reset rate limit: {e}")
             return False
 
+
 # Singleton instance
 advanced_rate_limiter = AdvancedRateLimiter()
+
 
 # Decorator for easy use
 def rate_limit_protected(user_tier: UserTier = UserTier.ANONYMOUS):
@@ -358,6 +368,7 @@ def rate_limit_protected(user_tier: UserTier = UserTier.ANONYMOUS):
     Args:
         user_tier: User tier for rate limiting (can be overridden in function)
     """
+
     def decorator(func):
         async def wrapper(request: Request, *args, **kwargs):
             # Determine actual user tier (can be overridden in kwargs)
@@ -374,10 +385,12 @@ def rate_limit_protected(user_tier: UserTier = UserTier.ANONYMOUS):
                     detail="Rate limit exceeded. Please try again later.",
                     headers={
                         "X-RateLimit-Minute-Limit": str(limit_info["minute"]["limit"]),
-                        "X-RateLimit-Minute-Remaining": str(limit_info["minute"]["remaining"]),
+                        "X-RateLimit-Minute-Remaining": str(
+                            limit_info["minute"]["remaining"]
+                        ),
                         "X-RateLimit-Minute-Reset": limit_info["minute"]["reset_time"],
-                        "Retry-After": "60"
-                    }
+                        "Retry-After": "60",
+                    },
                 )
 
             # Add rate limit info to response
@@ -386,4 +399,5 @@ def rate_limit_protected(user_tier: UserTier = UserTier.ANONYMOUS):
             return result
 
         return wrapper
+
     return decorator

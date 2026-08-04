@@ -8,7 +8,9 @@ class OrgMember(Base):
     __tablename__ = "org_members"
 
     id = sa.Column(
-        UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=sa.text("gen_random_uuid()"),
     )
     user_id = sa.Column(UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False)
     organization_id = sa.Column(

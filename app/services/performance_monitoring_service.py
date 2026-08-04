@@ -4,15 +4,15 @@ Provides comprehensive system performance monitoring, alerting, and analytics
 """
 
 import asyncio
+import logging
+import uuid
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from statistics import mean, median, stdev
 from typing import Any
-import uuid
 
 import psutil
 
@@ -133,7 +133,9 @@ class PerformanceMonitoringService:
     """Comprehensive performance monitoring service"""
 
     def __init__(self):
-        self.metrics_store: dict[MetricType, deque] = defaultdict(lambda: deque(maxlen=10000))
+        self.metrics_store: dict[MetricType, deque] = defaultdict(
+            lambda: deque(maxlen=10000)
+        )
         self.alerts: dict[str, Alert] = {}
         self.thresholds: dict[MetricType, MetricThreshold] = {}
         self.monitoring_status = MonitoringStatus.ACTIVE
@@ -254,7 +256,10 @@ class PerformanceMonitoringService:
         # CPU metrics
         cpu_percent = psutil.cpu_percent(interval=1)
         cpu_metric = PerformanceMetric(
-            timestamp=timestamp, metric_type=MetricType.CPU_USAGE, value=cpu_percent, unit="percent"
+            timestamp=timestamp,
+            metric_type=MetricType.CPU_USAGE,
+            value=cpu_percent,
+            unit="percent",
         )
         self.metrics_store[MetricType.CPU_USAGE].append(cpu_metric)
 
@@ -380,7 +385,9 @@ class PerformanceMonitoringService:
                     continue
 
                 # Get recent metrics within time window
-                cutoff_time = datetime.utcnow() - timedelta(seconds=threshold.time_window)
+                cutoff_time = datetime.utcnow() - timedelta(
+                    seconds=threshold.time_window
+                )
                 recent_metrics = [m for m in metrics if m.timestamp >= cutoff_time]
 
                 if not recent_metrics:
@@ -397,10 +404,14 @@ class PerformanceMonitoringService:
                     )
                 else:
                     # Check if we should resolve existing alerts
-                    await self._resolve_alert_if_resolved(metric_type, avg_value, threshold)
+                    await self._resolve_alert_if_resolved(
+                        metric_type, avg_value, threshold
+                    )
 
             except Exception as e:
-                logger.error(f"Error checking thresholds for {metric_type.value}: {e!s}")
+                logger.error(
+                    f"Error checking thresholds for {metric_type.value}: {e!s}"
+                )
 
     def _should_trigger_alert(self, threshold: MetricThreshold, value: float) -> bool:
         """Determine if alert should be triggered based on threshold"""
@@ -449,9 +460,11 @@ class PerformanceMonitoringService:
                 severity=severity,
                 message=f"{metric_type.value} threshold exceeded",
                 current_value=current_value,
-                threshold=threshold.warning_threshold
-                if severity == AlertSeverity.WARNING
-                else threshold.critical_threshold,
+                threshold=(
+                    threshold.warning_threshold
+                    if severity == AlertSeverity.WARNING
+                    else threshold.critical_threshold
+                ),
                 triggered_at=datetime.utcnow(),
             )
             self.alerts[alert_id] = alert
@@ -489,7 +502,9 @@ class PerformanceMonitoringService:
             message += f"Metric: {alert.metric_type.value}\n"
             message += f"Current Value: {alert.current_value:.2f}\n"
             message += f"Threshold: {alert.threshold:.2f}\n"
-            message += f"Triggered: {alert.triggered_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            message += (
+                f"Triggered: {alert.triggered_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            )
 
             logger.warning(f"ALERT: {message}")
             alert.notification_sent = True
@@ -502,7 +517,9 @@ class PerformanceMonitoringService:
         try:
             message = f" Alert Resolved: {alert.metric_type.value}\n"
             message += "Value returned to normal range\n"
-            message += f"Resolved: {alert.resolved_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            message += (
+                f"Resolved: {alert.resolved_at.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            )
 
             logger.info(f"ALERT RESOLVED: {message}")
 
@@ -516,7 +533,9 @@ class PerformanceMonitoringService:
         for metric_type in self.metrics_store:
             metrics = self.metrics_store[metric_type]
             # Keep only recent metrics
-            recent_metrics = deque((m for m in metrics if m.timestamp >= cutoff_time), maxlen=10000)
+            recent_metrics = deque(
+                (m for m in metrics if m.timestamp >= cutoff_time), maxlen=10000
+            )
             self.metrics_store[metric_type] = recent_metrics
 
         # Clean up resolved alerts older than 7 days
@@ -649,7 +668,9 @@ class PerformanceMonitoringService:
         # Collect metrics data for the period
         all_metrics = {}
         for metric_type in self.metrics_store:
-            metrics = await self.get_metric_history(metric_type, start_time, end_time, limit=10000)
+            metrics = await self.get_metric_history(
+                metric_type, start_time, end_time, limit=10000
+            )
             all_metrics[metric_type.value] = metrics
 
         # Calculate summary statistics
@@ -668,7 +689,9 @@ class PerformanceMonitoringService:
 
         # Count alerts
         alerts_in_period = [
-            alert for alert in self.alerts.values() if start_time <= alert.triggered_at <= end_time
+            alert
+            for alert in self.alerts.values()
+            if start_time <= alert.triggered_at <= end_time
         ]
 
         alerts_summary = {
@@ -677,12 +700,18 @@ class PerformanceMonitoringService:
             "active": len([a for a in alerts_in_period if not a.resolved_at]),
             "by_severity": {
                 "critical": len(
-                    [a for a in alerts_in_period if a.severity == AlertSeverity.CRITICAL]
+                    [
+                        a
+                        for a in alerts_in_period
+                        if a.severity == AlertSeverity.CRITICAL
+                    ]
                 ),
                 "warning": len(
                     [a for a in alerts_in_period if a.severity == AlertSeverity.WARNING]
                 ),
-                "info": len([a for a in alerts_in_period if a.severity == AlertSeverity.INFO]),
+                "info": len(
+                    [a for a in alerts_in_period if a.severity == AlertSeverity.INFO]
+                ),
             },
         }
 
@@ -714,7 +743,9 @@ class PerformanceMonitoringService:
             period_start=start_time,
             period_end=end_time,
             summary={
-                "total_metrics_collected": sum(len(metrics) for metrics in all_metrics.values()),
+                "total_metrics_collected": sum(
+                    len(metrics) for metrics in all_metrics.values()
+                ),
                 "monitoring_coverage": len(all_metrics) / len(MetricType),
                 "report_generation_time": datetime.utcnow().isoformat(),
             },
@@ -753,7 +784,9 @@ class PerformanceMonitoringService:
                     "Memory usage is critically high. Consider adding more memory or optimizing memory usage."
                 )
             elif mem_avg > 70:
-                recommendations.append("Memory usage is high. Monitor for potential memory leaks.")
+                recommendations.append(
+                    "Memory usage is high. Monitor for potential memory leaks."
+                )
 
         # Response time recommendations
         if "response_time" in summary_stats:
@@ -786,7 +819,9 @@ class PerformanceMonitoringService:
             )
 
         # Trend-based recommendations
-        increasing_trends = [metric for metric, trend in trends.items() if trend == "increasing"]
+        increasing_trends = [
+            metric for metric, trend in trends.items() if trend == "increasing"
+        ]
         if len(increasing_trends) > 3:
             recommendations.append(
                 f"Multiple metrics are trending upwards: {', '.join(increasing_trends)}. Proactive monitoring recommended."
@@ -795,7 +830,11 @@ class PerformanceMonitoringService:
         return recommendations
 
     async def update_threshold(
-        self, metric_type: MetricType, warning_threshold: float, critical_threshold: float, **kwargs
+        self,
+        metric_type: MetricType,
+        warning_threshold: float,
+        critical_threshold: float,
+        **kwargs,
     ) -> MetricThreshold:
         """Update monitoring threshold for a metric"""
         threshold = MetricThreshold(

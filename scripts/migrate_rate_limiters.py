@@ -16,27 +16,26 @@ import re
 import sys
 from pathlib import Path
 
-
 # Import mapping: old imports -> new imports
 IMPORT_MAPPINGS = {
-    r'from app\.middleware\.rate_limiter import': 'from app.core.rate_limiter_unified import',
-    r'from app\.core\.rate_limiter import': 'from app.core.rate_limiter_unified import',
-    r'from app\.core\.simple_rate_limiter import': 'from app.core.rate_limiter_unified import',
-    r'from app\.core\.advanced_rate_limiter import': 'from app.core.rate_limiter_unified import',
+    r"from app\.middleware\.rate_limiter import": "from app.core.rate_limiter_unified import",
+    r"from app\.core\.rate_limiter import": "from app.core.rate_limiter_unified import",
+    r"from app\.core\.simple_rate_limiter import": "from app.core.rate_limiter_unified import",
+    r"from app\.core\.advanced_rate_limiter import": "from app.core.rate_limiter_unified import",
 }
 
 # Decorator mappings
 DECORATOR_MAPPINGS = {
-    r'@RateLimiter\(': '@rate_limit(',
-    r'@rate_limit\(max_requests=(\d+), window_seconds=(\+)\)': r'@rate_limit(limit=\1, window=\2)',
-    r'rate_limit\(max_requests=(\d+), window_seconds=(\+)\)': r'rate_limit(limit=\1, window=\2)',
+    r"@RateLimiter\(": "@rate_limit(",
+    r"@rate_limit\(max_requests=(\d+), window_seconds=(\+)\)": r"@rate_limit(limit=\1, window=\2)",
+    r"rate_limit\(max_requests=(\d+), window_seconds=(\+)\)": r"rate_limit(limit=\1, window=\2)",
 }
 
 # Function call mappings
 FUNCTION_MAPPINGS = {
-    r'get_rate_limiter\(\)': 'unified_rate_limiter',
-    r'init_rate_limiter\(': '# init_rate_limiter(  # TODO: Replace with UnifiedRateLimiter()',
-    r'RateLimiter\(': 'UnifiedRateLimiter(',
+    r"get_rate_limiter\(\)": "unified_rate_limiter",
+    r"init_rate_limiter\(": "# init_rate_limiter(  # TODO: Replace with UnifiedRateLimiter()",
+    r"RateLimiter\(": "UnifiedRateLimiter(",
 }
 
 
@@ -61,32 +60,38 @@ def migrate_imports(content: str) -> tuple[str, list[str]]:
             changes.append(f"  -> Replaced with: {new_import}")
 
     # Check for specific usage and add required imports
-    if re.search(r'@rate_limit\(', new_content) or re.search(r'RateLimiter\(', new_content):
-        if 'RateLimitStrategy' not in new_content:
-            imports_to_add.update(['RateLimitStrategy'])
+    if re.search(r"@rate_limit\(", new_content) or re.search(
+        r"RateLimiter\(", new_content
+    ):
+        if "RateLimitStrategy" not in new_content:
+            imports_to_add.update(["RateLimitStrategy"])
             changes.append("  -> Will add: RateLimitStrategy import")
 
-    if re.search(r'UnifiedRateLimiter\(', new_content) or re.search(r'StorageBackend', new_content):
-        if 'StorageBackend' not in new_content:
-            imports_to_add.update(['StorageBackend'])
+    if re.search(r"UnifiedRateLimiter\(", new_content) or re.search(
+        r"StorageBackend", new_content
+    ):
+        if "StorageBackend" not in new_content:
+            imports_to_add.update(["StorageBackend"])
             changes.append("  -> Will add: StorageBackend import")
 
-    if re.search(r'RateLimitConfig', new_content):
-        if 'RateLimitConfig' not in new_content:
-            imports_to_add.update(['RateLimitConfig'])
+    if re.search(r"RateLimitConfig", new_content):
+        if "RateLimitConfig" not in new_content:
+            imports_to_add.update(["RateLimitConfig"])
             changes.append("  -> Will add: RateLimitConfig import")
 
     # Add imports if needed
     if imports_to_add:
         # Find the import line and add missing imports
-        import_match = re.search(r'from app\.core\.rate_limiter_unified import ([^\n]+)', new_content)
+        import_match = re.search(
+            r"from app\.core\.rate_limiter_unified import ([^\n]+)", new_content
+        )
         if import_match:
             existing_imports = import_match.group(1)
-            all_imports = existing_imports + ', ' + ', '.join(sorted(imports_to_add))
+            all_imports = existing_imports + ", " + ", ".join(sorted(imports_to_add))
             new_content = re.sub(
-                r'from app\.core\.rate_limiter_unified import [^\n]+',
-                f'from app.core.rate_limiter_unified import {all_imports}',
-                new_content
+                r"from app\.core\.rate_limiter_unified import [^\n]+",
+                f"from app.core.rate_limiter_unified import {all_imports}",
+                new_content,
             )
             changes.append(f"  -> Added imports: {', '.join(imports_to_add)}")
 
@@ -141,7 +146,7 @@ def migrate_file(file_path: Path, dry_run: bool = False) -> bool:
         True if file was modified, False otherwise
     """
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         original_content = content
@@ -169,7 +174,7 @@ def migrate_file(file_path: Path, dry_run: bool = False) -> bool:
             if dry_run:
                 print("\n[DRY RUN] Would make these changes")
             else:
-                with open(file_path, 'w', encoding='utf-8') as f:
+                with open(file_path, "w", encoding="utf-8") as f:
                     f.write(content)
                 print("\n✅ File updated successfully")
 
@@ -197,24 +202,29 @@ def find_files_to_migrate(root_dir: Path, single_file: str = None) -> list[Path]
     # Search for files with old imports
     for root, dirs, files in os.walk(root_dir):
         # Skip common directories to ignore
-        dirs[:] = [d for d in dirs if d not in {
-            '__pycache__',
-            '.git',
-            'venv',
-            'env',
-            'node_modules',
-            '.pytest_cache',
-            'comprehensive_sec_fix_backups',
-            'api_sec_fix_backups',
-            'payment_fix_backups',
-            '*.egg-info',
-        }]
+        dirs[:] = [
+            d
+            for d in dirs
+            if d
+            not in {
+                "__pycache__",
+                ".git",
+                "venv",
+                "env",
+                "node_modules",
+                ".pytest_cache",
+                "comprehensive_sec_fix_backups",
+                "api_sec_fix_backups",
+                "payment_fix_backups",
+                "*.egg-info",
+            }
+        ]
 
         for file in files:
-            if file.endswith('.py'):
+            if file.endswith(".py"):
                 file_path = Path(root) / file
                 try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
+                    with open(file_path, "r", encoding="utf-8") as f:
                         content = f.read()
 
                     # Check if file has old imports
@@ -231,23 +241,19 @@ def find_files_to_migrate(root_dir: Path, single_file: str = None) -> list[Path]
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Migrate rate limiter imports to unified rate limiter'
+        description="Migrate rate limiter imports to unified rate limiter"
     )
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Preview changes without modifying files'
+        "--dry-run", action="store_true", help="Preview changes without modifying files"
     )
     parser.add_argument(
-        '--file',
+        "--file", type=str, help="Migrate a single file instead of searching"
+    )
+    parser.add_argument(
+        "--root",
         type=str,
-        help='Migrate a single file instead of searching'
-    )
-    parser.add_argument(
-        '--root',
-        type=str,
-        default='.',
-        help='Root directory to search for files (default: current directory)'
+        default=".",
+        help="Root directory to search for files (default: current directory)",
     )
 
     args = parser.parse_args()
@@ -283,5 +289,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

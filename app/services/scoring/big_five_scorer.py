@@ -23,7 +23,14 @@ class BigFiveScorer:
         "openness": {
             "name": "Openness to Experience",
             "description": "Imagination, curiosity, and willingness to try new things",
-            "facets": ["Fantasy", "Aesthetics", "Feelings", "Actions", "Ideas", "Values"],
+            "facets": [
+                "Fantasy",
+                "Aesthetics",
+                "Feelings",
+                "Actions",
+                "Ideas",
+                "Values",
+            ],
         },
         "conscientiousness": {
             "name": "Conscientiousness",
@@ -114,7 +121,10 @@ class BigFiveScorer:
 
     @staticmethod
     def _calculate_factor_score(
-        factor: str, question_ids: list[int], responses: dict[str, Any], reverse_scored: list[int]
+        factor: str,
+        question_ids: list[int],
+        responses: dict[str, Any],
+        reverse_scored: list[int],
     ) -> float:
         """Calculate score for a single factor (0-100)"""
         if not question_ids:
@@ -250,5 +260,10 @@ class BigFiveScorer:
             "algorithm": "big_five",
             "factors": question_mapping,
             "reverse_scored": {},
-            "interpretation_rules": {"very_high": 70, "high": 55, "average_low": 45, "low": 30},
+            "interpretation_rules": {
+                "very_high": 70,
+                "high": 55,
+                "average_low": 45,
+                "low": 30,
+            },
         }

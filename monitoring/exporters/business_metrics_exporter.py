@@ -3,16 +3,16 @@ PsychSync Business Metrics Exporter
 Custom Prometheus exporter for business KPIs and metrics
 """
 
-import time
 import logging
-from typing import Dict, Any, Optional
-from datetime import datetime, timedelta
+import time
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
 
 import psycopg2
 import redis
 import stripe
-from prometheus_client import start_http_server, Gauge, Counter, Histogram, Info
+from prometheus_client import Counter, Gauge, Histogram, Info, start_http_server
 from prometheus_client.core import REGISTRY
 
 # Configuration
@@ -26,56 +26,86 @@ UPDATE_INTERVAL = 60  # seconds
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 # Metrics definitions
 class BusinessMetrics:
     """Business metrics definitions"""
 
     # User Metrics
-    USERS_REGISTERED_TOTAL = Gauge('psychsync_users_registered_total', 'Total number of registered users')
-    USERS_ACTIVE_DAILY = Gauge('psychsync_users_active_daily', 'Daily active users')
-    USERS_ACTIVE_WEEKLY = Gauge('psychsync_users_active_weekly', 'Weekly active users')
-    USERS_ACTIVE_MONTHLY = Gauge('psychsync_users_active_monthly', 'Monthly active users')
+    USERS_REGISTERED_TOTAL = Gauge(
+        "psychsync_users_registered_total", "Total number of registered users"
+    )
+    USERS_ACTIVE_DAILY = Gauge("psychsync_users_active_daily", "Daily active users")
+    USERS_ACTIVE_WEEKLY = Gauge("psychsync_users_active_weekly", "Weekly active users")
+    USERS_ACTIVE_MONTHLY = Gauge(
+        "psychsync_users_active_monthly", "Monthly active users"
+    )
 
     # Assessment Metrics
-    ASSESSMENTS_COMPLETED_TOTAL = Gauge('psychsync_assessments_completed_total', 'Total assessments completed')
-    ASSESSMENTS_STARTED_HOURLY = Gauge('psychsync_assessments_started_hourly', 'Assessments started per hour')
-    ASSESSMENT_COMPLETION_RATE = Gauge('psychsync_assessment_completion_rate', 'Assessment completion rate')
-    ASSESSMENT_AVERAGE_SCORE = Gauge('psychsync_assessment_average_score', 'Average assessment score')
+    ASSESSMENTS_COMPLETED_TOTAL = Gauge(
+        "psychsync_assessments_completed_total", "Total assessments completed"
+    )
+    ASSESSMENTS_STARTED_HOURLY = Gauge(
+        "psychsync_assessments_started_hourly", "Assessments started per hour"
+    )
+    ASSESSMENT_COMPLETION_RATE = Gauge(
+        "psychsync_assessment_completion_rate", "Assessment completion rate"
+    )
+    ASSESSMENT_AVERAGE_SCORE = Gauge(
+        "psychsync_assessment_average_score", "Average assessment score"
+    )
 
     # Team/Organization Metrics
-    ORGANIZATIONS_TOTAL = Gauge('psychsync_organizations_total', 'Total organizations')
-    TEAMS_TOTAL = Gauge('psychsync_teams_total', 'Total teams')
-    TEAM_MEMBERS_AVERAGE = Gauge('psychsync_team_members_average', 'Average team size')
+    ORGANIZATIONS_TOTAL = Gauge("psychsync_organizations_total", "Total organizations")
+    TEAMS_TOTAL = Gauge("psychsync_teams_total", "Total teams")
+    TEAM_MEMBERS_AVERAGE = Gauge("psychsync_team_members_average", "Average team size")
 
     # Revenue Metrics
-    REVENUE_DAILY = Gauge('psychsync_revenue_daily_dollars', 'Daily revenue in dollars')
-    REVENUE_MONTHLY = Gauge('psychsync_revenue_monthly_dollars', 'Monthly revenue in dollars')
-    REVENUE_YEARLY = Gauge('psychsync_revenue_yearly_dollars', 'Yearly revenue in dollars')
-    SUBSCRIPTIONS_ACTIVE = Gauge('psychsync_subscriptions_active_total', 'Active subscriptions')
-    SUBSCRIPTIONS_TRIAL = Gauge('psychsync_subscriptions_trial_total', 'Trial subscriptions')
+    REVENUE_DAILY = Gauge("psychsync_revenue_daily_dollars", "Daily revenue in dollars")
+    REVENUE_MONTHLY = Gauge(
+        "psychsync_revenue_monthly_dollars", "Monthly revenue in dollars"
+    )
+    REVENUE_YEARLY = Gauge(
+        "psychsync_revenue_yearly_dollars", "Yearly revenue in dollars"
+    )
+    SUBSCRIPTIONS_ACTIVE = Gauge(
+        "psychsync_subscriptions_active_total", "Active subscriptions"
+    )
+    SUBSCRIPTIONS_TRIAL = Gauge(
+        "psychsync_subscriptions_trial_total", "Trial subscriptions"
+    )
 
     # Conversion Metrics
     CONVERSION_RATE_REGISTRATION_TO_ASSESSMENT = Gauge(
-        'psychsync_conversion_registration_to_assessment_rate',
-        'Registration to assessment conversion rate'
+        "psychsync_conversion_registration_to_assessment_rate",
+        "Registration to assessment conversion rate",
     )
     CONVERSION_RATE_TRIAL_TO_PAID = Gauge(
-        'psychsync_conversion_trial_to_paid_rate',
-        'Trial to paid conversion rate'
+        "psychsync_conversion_trial_to_paid_rate", "Trial to paid conversion rate"
     )
 
     # Engagement Metrics
-    SESSION_DURATION_AVERAGE = Gauge('psychsync_session_duration_average_seconds', 'Average session duration')
-    PAGE_VIEWS_PER_SESSION = Gauge('psychsync_page_views_per_session_average', 'Average page views per session')
-    BOUNCE_RATE = Gauge('psychsync_bounce_rate', 'Website bounce rate')
+    SESSION_DURATION_AVERAGE = Gauge(
+        "psychsync_session_duration_average_seconds", "Average session duration"
+    )
+    PAGE_VIEWS_PER_SESSION = Gauge(
+        "psychsync_page_views_per_session_average", "Average page views per session"
+    )
+    BOUNCE_RATE = Gauge("psychsync_bounce_rate", "Website bounce rate")
 
     # Performance Metrics
-    API_RESPONSE_TIME_P95 = Histogram('psychsync_api_response_time_p95_seconds', 'P95 API response time')
-    DATABASE_QUERY_TIME_AVERAGE = Gauge('psychsync_database_query_time_average_seconds', 'Average database query time')
-    ERROR_RATE_OVERALL = Gauge('psychsync_error_rate_overall', 'Overall system error rate')
+    API_RESPONSE_TIME_P95 = Histogram(
+        "psychsync_api_response_time_p95_seconds", "P95 API response time"
+    )
+    DATABASE_QUERY_TIME_AVERAGE = Gauge(
+        "psychsync_database_query_time_average_seconds", "Average database query time"
+    )
+    ERROR_RATE_OVERALL = Gauge(
+        "psychsync_error_rate_overall", "Overall system error rate"
+    )
 
     # Health Metrics
-    SYSTEM_HEALTH = Info('psychsync_system_health', 'Overall system health status')
+    SYSTEM_HEALTH = Info("psychsync_system_health", "Overall system health status")
 
     @classmethod
     def register_all(cls):
@@ -87,6 +117,7 @@ class BusinessMetrics:
 @dataclass
 class DatabaseConnection:
     """Database connection manager"""
+
     conn: Optional[psycopg2.extensions.connection] = None
 
     def connect(self):
@@ -121,6 +152,7 @@ class DatabaseConnection:
 @dataclass
 class RedisConnection:
     """Redis connection manager"""
+
     client: Optional[redis.Redis] = None
 
     def connect(self):
@@ -177,26 +209,32 @@ class BusinessMetricsCollector:
                 BusinessMetrics.USERS_REGISTERED_TOTAL.set(result[0][0])
 
             # Daily active users (last 24 hours)
-            result = self.db.query("""
+            result = self.db.query(
+                """
                 SELECT COUNT(DISTINCT user_id) FROM user_sessions
                 WHERE created_at >= NOW() - INTERVAL '24 hours'
-            """)
+            """
+            )
             if result:
                 BusinessMetrics.USERS_ACTIVE_DAILY.set(result[0][0])
 
             # Weekly active users
-            result = self.db.query("""
+            result = self.db.query(
+                """
                 SELECT COUNT(DISTINCT user_id) FROM user_sessions
                 WHERE created_at >= NOW() - INTERVAL '7 days'
-            """)
+            """
+            )
             if result:
                 BusinessMetrics.USERS_ACTIVE_WEEKLY.set(result[0][0])
 
             # Monthly active users
-            result = self.db.query("""
+            result = self.db.query(
+                """
                 SELECT COUNT(DISTINCT user_id) FROM user_sessions
                 WHERE created_at >= NOW() - INTERVAL '30 days'
-            """)
+            """
+            )
             if result:
                 BusinessMetrics.USERS_ACTIVE_MONTHLY.set(result[0][0])
 
@@ -207,35 +245,43 @@ class BusinessMetricsCollector:
         """Collect assessment-related metrics"""
         try:
             # Total assessments completed
-            result = self.db.query("SELECT COUNT(*) FROM responses WHERE completed_at IS NOT NULL")
+            result = self.db.query(
+                "SELECT COUNT(*) FROM responses WHERE completed_at IS NOT NULL"
+            )
             if result:
                 BusinessMetrics.ASSESSMENTS_COMPLETED_TOTAL.set(result[0][0])
 
             # Assessments started in last hour
-            result = self.db.query("""
+            result = self.db.query(
+                """
                 SELECT COUNT(*) FROM responses
                 WHERE created_at >= NOW() - INTERVAL '1 hour'
-            """)
+            """
+            )
             if result:
                 BusinessMetrics.ASSESSMENTS_STARTED_HOURLY.set(result[0][0])
 
             # Assessment completion rate
-            result = self.db.query("""
+            result = self.db.query(
+                """
                 SELECT
                     COUNT(CASE WHEN completed_at IS NOT NULL THEN 1 END)::float /
                     COUNT(*)::float as completion_rate
                 FROM responses
                 WHERE created_at >= NOW() - INTERVAL '7 days'
-            """)
+            """
+            )
             if result and result[0][0]:
                 BusinessMetrics.ASSESSMENT_COMPLETION_RATE.set(result[0][0])
 
             # Average assessment score
-            result = self.db.query("""
+            result = self.db.query(
+                """
                 SELECT AVG(total_score) FROM responses
                 WHERE completed_at IS NOT NULL AND total_score IS NOT NULL
                 AND completed_at >= NOW() - INTERVAL '30 days'
-            """)
+            """
+            )
             if result and result[0][0]:
                 BusinessMetrics.ASSESSMENT_AVERAGE_SCORE.set(result[0][0])
 
@@ -256,13 +302,15 @@ class BusinessMetricsCollector:
                 BusinessMetrics.TEAMS_TOTAL.set(result[0][0])
 
             # Average team size
-            result = self.db.query("""
+            result = self.db.query(
+                """
                 SELECT AVG(member_count) FROM (
                     SELECT COUNT(tum.user_id) as member_count
                     FROM team_user_memberships tum
                     GROUP BY tum.team_id
                 ) team_sizes
-            """)
+            """
+            )
             if result and result[0][0]:
                 BusinessMetrics.TEAM_MEMBERS_AVERAGE.set(result[0][0])
 
@@ -277,12 +325,14 @@ class BusinessMetricsCollector:
             daily_revenue = 0
             for charge in stripe.Charge.list(
                 created={"gte": int((datetime.now() - timedelta(days=1)).timestamp())},
-                limit=100
+                limit=100,
             ).auto_paging_iter():
-                if charge.status == 'succeeded':
+                if charge.status == "succeeded":
                     daily_revenue += charge.amount
 
-            BusinessMetrics.REVENUE_DAILY.set(daily_revenue / 100)  # Convert cents to dollars
+            BusinessMetrics.REVENUE_DAILY.set(
+                daily_revenue / 100
+            )  # Convert cents to dollars
 
             # Monthly revenue (simplified - would need proper calculation in production)
             monthly_revenue = daily_revenue * 30  # Approximation
@@ -292,10 +342,14 @@ class BusinessMetricsCollector:
             active_subs = 0
             trial_subs = 0
 
-            for subscription in stripe.Subscription.list(status="active", limit=100).auto_paging_iter():
+            for subscription in stripe.Subscription.list(
+                status="active", limit=100
+            ).auto_paging_iter():
                 active_subs += 1
 
-            for subscription in stripe.Subscription.list(status="trialing", limit=100).auto_paging_iter():
+            for subscription in stripe.Subscription.list(
+                status="trialing", limit=100
+            ).auto_paging_iter():
                 trial_subs += 1
 
             BusinessMetrics.SUBSCRIPTIONS_ACTIVE.set(active_subs)
@@ -308,16 +362,20 @@ class BusinessMetricsCollector:
         """Collect conversion funnel metrics"""
         try:
             # Registration to assessment completion rate
-            result = self.db.query("""
+            result = self.db.query(
+                """
                 SELECT
                     (SELECT COUNT(DISTINCT r.user_id) FROM responses r
                      WHERE r.completed_at IS NOT NULL
                      AND r.created_at >= NOW() - INTERVAL '7 days')::float /
                     (SELECT COUNT(DISTINCT u.id) FROM users u
                      WHERE u.created_at >= NOW() - INTERVAL '7 days')::float as conversion_rate
-            """)
+            """
+            )
             if result and result[0][0]:
-                BusinessMetrics.CONVERSION_RATE_REGISTRATION_TO_ASSESSMENT.set(result[0][0])
+                BusinessMetrics.CONVERSION_RATE_REGISTRATION_TO_ASSESSMENT.set(
+                    result[0][0]
+                )
 
             # Trial to paid conversion (using Stripe data)
             try:
@@ -334,32 +392,38 @@ class BusinessMetricsCollector:
         """Collect user engagement metrics"""
         try:
             # Average session duration
-            result = self.db.query("""
+            result = self.db.query(
+                """
                 SELECT AVG(EXTRACT(EPOCH FROM (updated_at - created_at)))
                 FROM user_sessions
                 WHERE created_at >= NOW() - INTERVAL '24 hours'
-            """)
+            """
+            )
             if result and result[0][0]:
                 BusinessMetrics.SESSION_DURATION_AVERAGE.set(result[0][0])
 
             # Page views per session
-            result = self.db.query("""
+            result = self.db.query(
+                """
                 SELECT AVG(page_view_count)
                 FROM user_sessions
                 WHERE created_at >= NOW() - INTERVAL '24 hours'
                 AND page_view_count > 0
-            """)
+            """
+            )
             if result and result[0][0]:
                 BusinessMetrics.PAGE_VIEWS_PER_SESSION.set(result[0][0])
 
             # Bounce rate (single page sessions)
-            result = self.db.query("""
+            result = self.db.query(
+                """
                 SELECT
                     COUNT(CASE WHEN page_view_count = 1 THEN 1 END)::float /
                     COUNT(*)::float as bounce_rate
                 FROM user_sessions
                 WHERE created_at >= NOW() - INTERVAL '24 hours'
-            """)
+            """
+            )
             if result and result[0][0]:
                 BusinessMetrics.BOUNCE_RATE.set(result[0][0])
 
@@ -370,17 +434,17 @@ class BusinessMetricsCollector:
         """Collect system performance metrics"""
         try:
             # P95 API response time (from application metrics)
-            api_p95 = self.redis.get('api_response_time_p95')
+            api_p95 = self.redis.get("api_response_time_p95")
             if api_p95:
                 BusinessMetrics.API_RESPONSE_TIME_P95.observe(float(api_p95))
 
             # Average database query time
-            avg_query_time = self.redis.get('avg_database_query_time')
+            avg_query_time = self.redis.get("avg_database_query_time")
             if avg_query_time:
                 BusinessMetrics.DATABASE_QUERY_TIME_AVERAGE.set(float(avg_query_time))
 
             # Overall error rate
-            error_rate = self.redis.get('overall_error_rate')
+            error_rate = self.redis.get("overall_error_rate")
             if error_rate:
                 BusinessMetrics.ERROR_RATE_OVERALL.set(float(error_rate))
 
@@ -394,7 +458,7 @@ class BusinessMetricsCollector:
                 "timestamp": datetime.now().isoformat(),
                 "database": "healthy",
                 "redis": "healthy",
-                "stripe": "healthy"
+                "stripe": "healthy",
             }
 
             # Check database health

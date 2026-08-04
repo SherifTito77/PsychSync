@@ -4,46 +4,49 @@ Final comprehensive validation of the PsychSync application
 This script validates all critical components and identifies remaining issues
 """
 
-import sys
+import importlib.util
 import os
 import subprocess
-import importlib.util
+import sys
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 
 def test_imports():
     """Test critical imports"""
     print("🔍 Testing critical imports...")
 
     critical_imports = [
-        ('app.main', 'app'),
-        ('app.api.v1.api', 'api_router'),
-        ('app.core.config', 'settings'),
-        ('app.core.security', 'verify_password, get_password_hash'),
-        ('app.services.user_service', 'UserService'),
-        ('app.db.models.user', 'User, UserRole'),
-        ('app.db.models.response', 'Response, AssessmentResponse'),
-        ('app.db.models.analytics', 'Analytics'),
-        ('app.db.models.team', 'Team'),
-        ('app.db.models.organization', 'Organization'),
+        ("app.main", "app"),
+        ("app.api.v1.api", "api_router"),
+        ("app.core.config", "settings"),
+        ("app.core.security", "verify_password, get_password_hash"),
+        ("app.services.user_service", "UserService"),
+        ("app.db.models.user", "User, UserRole"),
+        ("app.db.models.response", "Response, AssessmentResponse"),
+        ("app.db.models.analytics", "Analytics"),
+        ("app.db.models.team", "Team"),
+        ("app.db.models.organization", "Organization"),
     ]
 
     failed_imports = []
 
     for module_path, expected_items in critical_imports:
         try:
-            if module_path == 'app.main':
+            if module_path == "app.main":
                 from app.main import app
-                result = expected_items.split(', ')
+
+                result = expected_items.split(", ")
                 for item in result:
                     if hasattr(app, item):
                         pass  # Found it
-                    elif item == 'app' and isinstance(app, object):
+                    elif item == "app" and isinstance(app, object):
                         pass  # App object exists
                     else:
                         print(f"  ⚠️ {item} not found in {module_path}")
             else:
-                module = __import__(module_path, fromlist=[module_path.split('.')[-1]])
-                items = expected_items.split(', ')
+                module = __import__(module_path, fromlist=[module_path.split(".")[-1]])
+                items = expected_items.split(", ")
                 for item in items:
                     if hasattr(module, item.strip()):
                         pass  # Found it
@@ -60,27 +63,28 @@ def test_imports():
         print(f"❌ {len(failed_imports)} imports failed: {failed_imports}")
         return False
 
+
 def test_database_models():
     """Test database models"""
     print("🗃️ Testing database models...")
 
     try:
-        from app.db.models.user import User, UserRole
-        from app.db.models.response import Response, AssessmentResponse
         from app.db.models.analytics import Analytics, AnalyticsEvent
+        from app.db.models.response import AssessmentResponse, Response
         from app.db.models.team import Team, TeamMember
+        from app.db.models.user import User, UserRole
 
         # Test model instantiation
         print("  ✅ All models imported successfully")
 
         # Test relationships
-        if hasattr(User, 'responses'):
+        if hasattr(User, "responses"):
             print("  ✅ User.responses relationship found")
-        if hasattr(User, 'organization'):
+        if hasattr(User, "organization"):
             print("  ✅ User.organization relationship found")
-        if hasattr(Response, 'user'):
+        if hasattr(Response, "user"):
             print("  ✅ Response.user relationship found")
-        if hasattr(Team, 'organization'):
+        if hasattr(Team, "organization"):
             print("  ✅ Team.organization relationship found")
 
         print("✅ Database models working correctly")
@@ -90,21 +94,22 @@ def test_database_models():
         print(f"  ❌ Database model test failed: {e}")
         return False
 
+
 def test_services():
     """Test service layer"""
     print("🔧 Testing services...")
 
     critical_services = [
-        ('app.services.user_service', 'UserService'),
-        ('app.services.team_service', 'TeamService'),
-        ('app.services.response_service', 'ResponseService'),
+        ("app.services.user_service", "UserService"),
+        ("app.services.team_service", "TeamService"),
+        ("app.services.response_service", "ResponseService"),
     ]
 
     working_services = []
 
     for service_path, service_class in critical_services:
         try:
-            module = __import__(service_path, fromlist=[service_path.split('.')[-1]])
+            module = __import__(service_path, fromlist=[service_path.split(".")[-1]])
             if hasattr(module, service_class):
                 print(f"  ✅ {service_class} service available")
                 working_services.append(service_path)
@@ -120,6 +125,7 @@ def test_services():
         print(f"⚠️ {len(working_services)}/{len(critical_services)} services working")
         return False
 
+
 def test_api_routes():
     """Test API routes"""
     print("🌐 Testing API routes...")
@@ -133,7 +139,7 @@ def test_api_routes():
         # Check for key endpoints
         routes = [route.path for route in api_router.routes]
 
-        key_patterns = ['/users/', '/teams/', '/assessments/', '/health', '/auth/']
+        key_patterns = ["/users/", "/teams/", "/assessments/", "/health", "/auth/"]
         found_patterns = 0
 
         for pattern in key_patterns:
@@ -153,6 +159,7 @@ def test_api_routes():
         print(f"  ❌ API routes test failed: {e}")
         return False
 
+
 def test_configuration():
     """Test configuration"""
     print("⚙️ Testing configuration...")
@@ -162,9 +169,9 @@ def test_configuration():
 
         # Test critical settings
         critical_settings = [
-            'DATABASE_URL',
-            'SECRET_KEY',  # This is the main key used for JWT signing
-            'JWT_ALGORITHM',
+            "DATABASE_URL",
+            "SECRET_KEY",  # This is the main key used for JWT signing
+            "JWT_ALGORITHM",
         ]
 
         missing_settings = []
@@ -182,16 +189,16 @@ def test_configuration():
                 missing_settings.append(setting)
 
         # Also test JWT secret property specifically
-        if hasattr(settings, 'jwt_secret'):
+        if hasattr(settings, "jwt_secret"):
             jwt_secret = settings.jwt_secret
             if jwt_secret and len(jwt_secret) >= 32:
                 print(f"  ✅ JWT secret: properly configured ({len(jwt_secret)} chars)")
             else:
                 print(f"  ⚠️ JWT secret: too short or missing")
-                missing_settings.append('JWT_SECRET')
+                missing_settings.append("JWT_SECRET")
         else:
             print(f"  ❌ JWT secret property: missing")
-            missing_settings.append('JWT_SECRET')
+            missing_settings.append("JWT_SECRET")
 
         if not missing_settings:
             print("✅ Configuration is complete")
@@ -204,12 +211,17 @@ def test_configuration():
         print(f"  ❌ Configuration test failed: {e}")
         return False
 
+
 def test_security():
     """Test security components"""
     print("🔒 Testing security...")
 
     try:
-        from app.services.security import verify_password, get_password_hash, validate_password
+        from app.services.security import (
+            get_password_hash,
+            validate_password,
+            verify_password,
+        )
 
         # Test password validation
         result = validate_password("TestPass123!")
@@ -240,6 +252,7 @@ def test_security():
         print(f"  ❌ Security test failed: {e}")
         return False
 
+
 def test_startup():
     """Test application startup simulation"""
     print("🚀 Testing application startup...")
@@ -248,11 +261,12 @@ def test_startup():
         from app.main import app
 
         # Test basic app configuration
-        assert hasattr(app, 'title'), "App should have title"
+        assert hasattr(app, "title"), "App should have title"
         assert app.title == "PsychSync AI API", "App title should match"
 
         # Test that we can access routes
         from app.api.v1.api import api_router
+
         assert len(api_router.routes) > 0, "API should have routes"
 
         print("  ✅ FastAPI application starts successfully")
@@ -265,16 +279,17 @@ def test_startup():
         print(f"  ❌ Startup test failed: {e}")
         return False
 
+
 def check_file_permissions():
     """Check file permissions and accessibility"""
     print("📁 Checking file permissions...")
 
     critical_files = [
-        'app/main.py',
-        'app/core/config.py',
-        'app/core/database.py',
-        'requirements.txt',
-        '.env.dev',
+        "app/main.py",
+        "app/core/config.py",
+        "app/core/database.py",
+        "requirements.txt",
+        ".env.dev",
     ]
 
     permission_issues = []
@@ -296,6 +311,7 @@ def check_file_permissions():
     else:
         print(f"⚠️ {len(permission_issues)} permission issues")
         return False
+
 
 def main():
     """Run comprehensive validation"""
@@ -354,6 +370,7 @@ def main():
         print(f"❌ {success_rate:.1f%} SUCCESS - Critical Issues Remain")
         print("\nMajor issues need to be addressed before production")
         return 2
+
 
 if __name__ == "__main__":
     exit_code = main()

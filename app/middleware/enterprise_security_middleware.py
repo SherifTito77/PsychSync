@@ -3,14 +3,14 @@ Enterprise Security Middleware
 Integrates SOC 2, ISO 27001, GDPR, HIPAA, and FedRAMP compliance
 """
 
-from datetime import datetime
 import logging
 import secrets
 import time
+from datetime import datetime
 
+import redis
 from fastapi import HTTPException, Request, Response
 from fastapi.security import HTTPBearer
-import redis
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -69,9 +69,9 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                     "error_type": "ConnectionError",
                     "redis_host": settings.REDIS_HOST,
                     "redis_port": settings.REDIS_PORT,
-                    "environment": settings.ENVIRONMENT
+                    "environment": settings.ENVIRONMENT,
                 },
-                exc_info=True
+                exc_info=True,
             )
 
             # In production, Redis is required for security
@@ -96,13 +96,15 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                     "error_message": str(e),
                     "redis_host": settings.REDIS_HOST,
                     "redis_port": settings.REDIS_PORT,
-                    "environment": settings.ENVIRONMENT
+                    "environment": settings.ENVIRONMENT,
                 },
-                exc_info=True
+                exc_info=True,
             )
 
             if settings.ENVIRONMENT == "production":
-                raise RuntimeError(f"Unexpected Redis initialization error in production: {e}") from e
+                raise RuntimeError(
+                    f"Unexpected Redis initialization error in production: {e}"
+                ) from e
 
             logger.warning("Continuing without Redis due to unexpected error")
             self.redis_client = None
@@ -143,7 +145,9 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
 
         # Check for blocked IPs
         if await self._is_ip_blocked(client_ip):
-            raise HTTPException(status_code=403, detail="Access denied: IP address blocked")
+            raise HTTPException(
+                status_code=403, detail="Access denied: IP address blocked"
+            )
 
         # Validate request size
         content_length = request.headers.get("content-length")
@@ -171,7 +175,10 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
         event_outcome = response.status_code < 400
 
         await self._log_security_event(
-            request, "API_REQUEST", f"Request processed in {processing_time:.3f}s", event_outcome
+            request,
+            "API_REQUEST",
+            f"Request processed in {processing_time:.3f}s",
+            event_outcome,
         )
 
         # Monitor for suspicious patterns
@@ -208,7 +215,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             logger.error(
                 f"Redis connection error while checking blocked IP: {e!s}",
                 extra={"ip_address": ip_address, "error_type": "ConnectionError"},
-                exc_info=True
+                exc_info=True,
             )
             # Fail open - don't block if Redis is down
             return False
@@ -216,14 +223,19 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             logger.error(
                 f"Unexpected error checking blocked IP: {e!s}",
                 extra={"ip_address": ip_address, "error_type": type(e).__name__},
-                exc_info=True
+                exc_info=True,
             )
             # Fail open for safety
             return False
 
     async def _validate_request_headers(self, request: Request):
         """Validate request headers for security threats"""
-        suspicious_headers = ["x-forwarded-host", "x-original-url", "x-rewrite-url", "x-real-url"]
+        suspicious_headers = [
+            "x-forwarded-host",
+            "x-original-url",
+            "x-rewrite-url",
+            "x-real-url",
+        ]
 
         for header in suspicious_headers:
             if header in request.headers:
@@ -245,7 +257,9 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
 
         for pattern in attack_patterns:
             if pattern in user_agent:
-                await self._increment_suspicious_activity(request, "suspicious_user_agent")
+                await self._increment_suspicious_activity(
+                    request, "suspicious_user_agent"
+                )
 
     async def _check_rate_limiting(self, request: Request):
         """Check rate limiting based on user and endpoint"""
@@ -270,7 +284,9 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
 
         # Check endpoint-specific rate limit
         await self._check_rate_limit(
-            f"endpoint:{client_ip}:{endpoint}", limits["endpoint"], "Endpoint rate limit exceeded"
+            f"endpoint:{client_ip}:{endpoint}",
+            limits["endpoint"],
+            "Endpoint rate limit exceeded",
         )
 
         # Check burst protection
@@ -303,7 +319,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             logger.error(
                 f"Redis connection error during rate limiting: {e!s}",
                 extra={"key": key, "limit": limit, "error_type": "ConnectionError"},
-                exc_info=True
+                exc_info=True,
             )
             # Fail open - don't block requests if Redis is down
             pass
@@ -311,7 +327,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             logger.error(
                 f"Unexpected error during rate limiting: {e!s}",
                 extra={"key": key, "limit": limit, "error_type": type(e).__name__},
-                exc_info=True
+                exc_info=True,
             )
             # Fail open for safety
             pass
@@ -358,7 +374,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             script = self.redis_client.register_script(BURST_PROTECTION_SCRIPT)
             result = script(
                 keys=[burst_key, block_key],
-                args=[20, 300, 10]  # burst_limit=20, block_duration=300s, window=10s
+                args=[20, 300, 10],  # burst_limit=20, block_duration=300s, window=10s
             )
 
             burst_count = int(result[0])
@@ -367,7 +383,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             if is_blocked:
                 logger.warning(
                     f"Burst limit exceeded for IP: {client_ip}",
-                    extra={"client_ip": client_ip, "burst_count": burst_count}
+                    extra={"client_ip": client_ip, "burst_count": burst_count},
                 )
                 raise HTTPException(
                     status_code=429, detail="Burst limit exceeded - temporarily blocked"
@@ -379,13 +395,13 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             logger.error(
                 f"Redis connection error during burst protection: {e!s}",
                 extra={"client_ip": client_ip, "error_type": "ConnectionError"},
-                exc_info=True
+                exc_info=True,
             )
         except Exception as e:
             logger.error(
                 f"Unexpected error during burst protection: {e!s}",
                 extra={"client_ip": client_ip, "error_type": type(e).__name__},
-                exc_info=True
+                exc_info=True,
             )
 
     async def _add_security_headers(self, response: Response):
@@ -423,14 +439,23 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
         """Log security event for compliance monitoring"""
         try:
             # Determine applicable compliance standards
-            compliance_standards = [ComplianceStandard.SOC_2_TYPE_II, ComplianceStandard.ISO_27001]
+            compliance_standards = [
+                ComplianceStandard.SOC_2_TYPE_II,
+                ComplianceStandard.ISO_27001,
+            ]
 
             # Add GDPR for data-related events
-            if any(keyword in event_type.lower() for keyword in ["data", "export", "erasure"]):
+            if any(
+                keyword in event_type.lower()
+                for keyword in ["data", "export", "erasure"]
+            ):
                 compliance_standards.append(ComplianceStandard.GDPR)
 
             # Add HIPAA for PHI-related events
-            if "medical" in request.url.path.lower() or "health" in request.url.path.lower():
+            if (
+                "medical" in request.url.path.lower()
+                or "health" in request.url.path.lower()
+            ):
                 compliance_standards.append(ComplianceStandard.HIPAA)
 
             event = SecurityEvent(
@@ -463,7 +488,9 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             logger.error(f"Failed to log security event: {e!s}")
 
-    async def _increment_suspicious_activity(self, request: Request, activity_type: str):
+    async def _increment_suspicious_activity(
+        self, request: Request, activity_type: str
+    ):
         """
         Track suspicious activity for potential blocking.
 
@@ -506,7 +533,7 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
             script = self.redis_client.register_script(SUSPICIOUS_ACTIVITY_SCRIPT)
             result = script(
                 keys=[suspicious_key, block_key],
-                args=[10, 3600]  # threshold=10, expire_duration=3600s (1 hour)
+                args=[10, 3600],  # threshold=10, expire_duration=3600s (1 hour)
             )
 
             count = int(result[0])
@@ -514,21 +541,27 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
 
             if is_blocked:
                 await self._log_security_event(
-                    request, "SUSPICIOUS_ACTIVITY_BLOCKED", f"IP blocked for {activity_type}", False
+                    request,
+                    "SUSPICIOUS_ACTIVITY_BLOCKED",
+                    f"IP blocked for {activity_type}",
+                    False,
                 )
 
         except Exception as e:
             logger.error(
                 f"Error tracking suspicious activity: {e!s}",
                 extra={"activity_type": activity_type, "error_type": type(e).__name__},
-                exc_info=True
+                exc_info=True,
             )
 
     async def _monitor_slow_request(self, request: Request, processing_time: float):
         """Monitor slow requests for potential attacks"""
         if processing_time > 60:  # Very slow requests
             await self._log_security_event(
-                request, "SLOW_REQUEST", f"Request took {processing_time:.2f} seconds", False
+                request,
+                "SLOW_REQUEST",
+                f"Request took {processing_time:.2f} seconds",
+                False,
             )
 
     async def _sanitize_response_data(self, response: Response) -> Response:
@@ -543,7 +576,9 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
 
         return response
 
-    def _create_secure_error_response(self, status_code: int, message: str) -> JSONResponse:
+    def _create_secure_error_response(
+        self, status_code: int, message: str
+    ) -> JSONResponse:
         """Create secure error response without sensitive information"""
         # Map status codes to safe messages
         safe_messages = {
@@ -636,13 +671,17 @@ compliance_router = APIRouter(prefix="/api/v1/compliance", tags=["Compliance"])
 
 
 @compliance_router.get("/security-report")
-async def get_security_report(standards: str | None = None, db: Session = Depends(get_db)):
+async def get_security_report(
+    standards: str | None = None, db: Session = Depends(get_db)
+):
     """Generate compliance security report"""
     try:
         security_manager = EnterpriseSecurityManager(db, None)
 
         if standards:
-            selected_standards = [ComplianceStandard(std.strip()) for std in standards.split(",")]
+            selected_standards = [
+                ComplianceStandard(std.strip()) for std in standards.split(",")
+            ]
         else:
             selected_standards = list(ComplianceStandard)
 
@@ -659,7 +698,9 @@ async def get_security_report(standards: str | None = None, db: Session = Depend
 
 
 @compliance_router.post("/access-review")
-async def perform_access_review(review_period_days: int = 90, db: Session = Depends(get_db)):
+async def perform_access_review(
+    review_period_days: int = 90, db: Session = Depends(get_db)
+):
     """Perform access review for compliance"""
     try:
         security_manager = EnterpriseSecurityManager(db, None)

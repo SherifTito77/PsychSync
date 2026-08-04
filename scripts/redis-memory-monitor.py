@@ -20,8 +20,8 @@ Arguments:
 
 import argparse
 import json
-import time
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -35,7 +35,7 @@ except ImportError:
 class RedisMemoryMonitor:
     """Monitor Redis memory usage and cache statistics"""
 
-    def __init__(self, host='localhost', port=6379, db=0, password=None):
+    def __init__(self, host="localhost", port=6379, db=0, password=None):
         """Initialize Redis connection"""
         try:
             self.redis_client = redis.Redis(
@@ -45,7 +45,7 @@ class RedisMemoryMonitor:
                 password=password,
                 decode_responses=True,
                 socket_connect_timeout=5,
-                socket_timeout=5
+                socket_timeout=5,
             )
             self.redis_client.ping()
             print(f"✅ Connected to Redis at {host}:{port}")
@@ -58,16 +58,16 @@ class RedisMemoryMonitor:
 
     def get_memory_info(self):
         """Get Redis memory information"""
-        info = self.redis_client.info('memory')
+        info = self.redis_client.info("memory")
         return {
-            'used_memory': info['used_memory'],
-            'used_memory_human': info['used_memory_human'],
-            'used_memory_peak': info['used_memory_peak'],
-            'used_memory_peak_human': info['used_memory_peak_human'],
-            'used_memory_percentage': info.get('used_memory_percentage', 0),
-            'maxmemory': info.get('maxmemory', 0),
-            'maxmemory_human': info.get('maxmemory-human', '0B'),
-            'maxmemory_policy': info.get('maxmemory_policy', 'noeviction'),
+            "used_memory": info["used_memory"],
+            "used_memory_human": info["used_memory_human"],
+            "used_memory_peak": info["used_memory_peak"],
+            "used_memory_peak_human": info["used_memory_peak_human"],
+            "used_memory_percentage": info.get("used_memory_percentage", 0),
+            "maxmemory": info.get("maxmemory", 0),
+            "maxmemory_human": info.get("maxmemory-human", "0B"),
+            "maxmemory_policy": info.get("maxmemory_policy", "noeviction"),
         }
 
     def get_cache_stats(self):
@@ -95,44 +95,46 @@ class RedisMemoryMonitor:
                 if ttl > 0:
                     sampled_with_ttl += 1
 
-            ttl_percentage = (sampled_with_ttl / len(sample_keys) * 100) if sample_keys else 0
+            ttl_percentage = (
+                (sampled_with_ttl / len(sample_keys) * 100) if sample_keys else 0
+            )
 
             return {
-                'total_keys': db_size,
-                'sampled_keys_with_ttl': sampled_with_ttl,
-                'sample_size': len(sample_keys),
-                'ttl_percentage': round(ttl_percentage, 2),
+                "total_keys": db_size,
+                "sampled_keys_with_ttl": sampled_with_ttl,
+                "sample_size": len(sample_keys),
+                "ttl_percentage": round(ttl_percentage, 2),
             }
         except Exception as e:
             print(f"⚠️  Error getting cache stats: {e}")
             return {
-                'total_keys': 0,
-                'sampled_keys_with_ttl': 0,
-                'sample_size': 0,
-                'ttl_percentage': 0,
+                "total_keys": 0,
+                "sampled_keys_with_ttl": 0,
+                "sample_size": 0,
+                "ttl_percentage": 0,
             }
 
     def get_key_patterns(self):
         """Get statistics by key patterns"""
         patterns = {
-            'cache:*': 0,
-            'user:*': 0,
-            'session:*': 0,
-            'lock:*': 0,
-            'other': 0,
+            "cache:*": 0,
+            "user:*": 0,
+            "session:*": 0,
+            "lock:*": 0,
+            "other": 0,
         }
 
         try:
             for pattern in patterns.keys():
-                if pattern == 'other':
+                if pattern == "other":
                     continue
                 count = len(list(self.redis_client.scan_iter(match=pattern, count=100)))
                 patterns[pattern] = count
 
             # Count other keys
             total_keys = self.redis_client.dbsize()
-            patterned_keys = sum(v for k, v in patterns.items() if k != 'other')
-            patterns['other'] = max(0, total_keys - patterned_keys)
+            patterned_keys = sum(v for k, v in patterns.items() if k != "other")
+            patterns["other"] = max(0, total_keys - patterned_keys)
 
         except Exception as e:
             print(f"⚠️  Error getting key patterns: {e}")
@@ -142,14 +144,16 @@ class RedisMemoryMonitor:
     def collect_metrics(self):
         """Collect all metrics"""
         timestamp = datetime.now().isoformat()
-        elapsed_time = (datetime.now() - self.start_time).total_seconds() if self.start_time else 0
+        elapsed_time = (
+            (datetime.now() - self.start_time).total_seconds() if self.start_time else 0
+        )
 
         metrics = {
-            'timestamp': timestamp,
-            'elapsed_time_seconds': round(elapsed_time, 2),
-            'memory': self.get_memory_info(),
-            'cache': self.get_cache_stats(),
-            'key_patterns': self.get_key_patterns(),
+            "timestamp": timestamp,
+            "elapsed_time_seconds": round(elapsed_time, 2),
+            "memory": self.get_memory_info(),
+            "cache": self.get_cache_stats(),
+            "key_patterns": self.get_key_patterns(),
         }
 
         self.metrics.append(metrics)
@@ -157,10 +161,10 @@ class RedisMemoryMonitor:
 
     def print_metrics(self, metrics, iteration):
         """Pretty print metrics"""
-        elapsed = metrics['elapsed_time_seconds']
-        memory = metrics['memory']
-        cache = metrics['cache']
-        patterns = metrics['key_patterns']
+        elapsed = metrics["elapsed_time_seconds"]
+        memory = metrics["memory"]
+        cache = metrics["cache"]
+        patterns = metrics["key_patterns"]
 
         print(f"\n{'='*70}")
         print(f"📊 Redis Metrics - Check #{iteration}")
@@ -172,17 +176,19 @@ class RedisMemoryMonitor:
         print(f"   Max: {memory['maxmemory_human']}")
         print(f"   Policy: {memory['maxmemory_policy']}")
 
-        if memory['used_memory_percentage'] > 0:
-            pct = memory['used_memory_percentage']
-            status = '🚨' if pct > 80 else '⚠️' if pct > 60 else '✅'
+        if memory["used_memory_percentage"] > 0:
+            pct = memory["used_memory_percentage"]
+            status = "🚨" if pct > 80 else "⚠️" if pct > 60 else "✅"
             print(f"   Usage: {pct:.1f}% {status}")
 
         print(f"\n📦 Cache Statistics:")
         print(f"   Total Keys: {cache['total_keys']}")
-        print(f"   Keys with TTL: {cache['sampled_keys_with_ttl']}/{cache['sample_size']} sampled")
+        print(
+            f"   Keys with TTL: {cache['sampled_keys_with_ttl']}/{cache['sample_size']} sampled"
+        )
         print(f"   TTL Coverage: {cache['ttl_percentage']}%")
 
-        if cache['ttl_percentage'] < 80:
+        if cache["ttl_percentage"] < 80:
             print(f"   ⚠️  Warning: Low TTL coverage! Keys may not be expiring.")
 
         print(f"\n🔑 Key Patterns:")
@@ -229,7 +235,7 @@ class RedisMemoryMonitor:
 
     def save_results(self, output_file):
         """Save metrics to JSON file"""
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             json.dump(self.metrics, f, indent=2)
 
     def generate_report(self, output_file):
@@ -246,10 +252,12 @@ class RedisMemoryMonitor:
         final = self.metrics[-1]
 
         # Memory growth analysis
-        initial_memory_mb = initial['memory']['used_memory'] / 1024 / 1024
-        final_memory_mb = final['memory']['used_memory'] / 1024 / 1024
+        initial_memory_mb = initial["memory"]["used_memory"] / 1024 / 1024
+        final_memory_mb = final["memory"]["used_memory"] / 1024 / 1024
         memory_growth_mb = final_memory_mb - initial_memory_mb
-        memory_growth_pct = (memory_growth_mb / initial_memory_mb * 100) if initial_memory_mb > 0 else 0
+        memory_growth_pct = (
+            (memory_growth_mb / initial_memory_mb * 100) if initial_memory_mb > 0 else 0
+        )
 
         print(f"\n💾 Memory Growth:")
         print(f"   Initial: {initial_memory_mb:.2f} MB")
@@ -269,10 +277,12 @@ class RedisMemoryMonitor:
             print(f"   ✅ GOOD: Memory usage is stable")
 
         # Cache keys growth
-        initial_keys = initial['cache']['total_keys']
-        final_keys = final['cache']['total_keys']
+        initial_keys = initial["cache"]["total_keys"]
+        final_keys = final["cache"]["total_keys"]
         keys_growth = final_keys - initial_keys
-        keys_growth_rate = keys_growth / (duration_minutes := (final['elapsed_time_seconds'] / 60))
+        keys_growth_rate = keys_growth / (
+            duration_minutes := (final["elapsed_time_seconds"] / 60)
+        )
 
         print(f"\n📦 Cache Keys Growth:")
         print(f"   Initial Keys: {initial_keys}")
@@ -291,7 +301,7 @@ class RedisMemoryMonitor:
             print(f"   → Check cache TTL configuration")
 
         # TTL coverage
-        ttl_coverage = final['cache']['ttl_percentage']
+        ttl_coverage = final["cache"]["ttl_percentage"]
         print(f"\n⏰ TTL Coverage:")
         print(f"   Keys with Expiration: {ttl_coverage}%")
 
@@ -306,8 +316,10 @@ class RedisMemoryMonitor:
 
         # Key pattern analysis
         print(f"\n🔑 Key Pattern Distribution:")
-        patterns = final['key_patterns']
-        for pattern, count in sorted(patterns.items(), key=lambda x: x[1], reverse=True):
+        patterns = final["key_patterns"]
+        for pattern, count in sorted(
+            patterns.items(), key=lambda x: x[1], reverse=True
+        ):
             if count > 0:
                 print(f"   {pattern}: {count} keys")
 
@@ -348,7 +360,7 @@ class RedisMemoryMonitor:
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Monitor Redis memory usage and cache growth',
+        description="Monitor Redis memory usage and cache growth",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -360,66 +372,51 @@ Examples:
 
   # Monitor specific Redis instance
   python scripts/redis-memory-monitor.py --host redis.example.com --port 6380
-        """
+        """,
     )
 
     parser.add_argument(
-        '--duration',
+        "--duration",
         type=int,
         default=120,
-        help='Monitoring duration in minutes (default: 120)'
+        help="Monitoring duration in minutes (default: 120)",
     )
     parser.add_argument(
-        '--interval',
+        "--interval",
         type=int,
         default=30,
-        help='Check interval in seconds (default: 30)'
+        help="Check interval in seconds (default: 30)",
     )
     parser.add_argument(
-        '--host',
+        "--host", type=str, default="localhost", help="Redis host (default: localhost)"
+    )
+    parser.add_argument(
+        "--port", type=int, default=6379, help="Redis port (default: 6379)"
+    )
+    parser.add_argument(
+        "--db", type=int, default=0, help="Redis database number (default: 0)"
+    )
+    parser.add_argument(
+        "--password", type=str, default=None, help="Redis password (default: None)"
+    )
+    parser.add_argument(
+        "--output",
         type=str,
-        default='localhost',
-        help='Redis host (default: localhost)'
-    )
-    parser.add_argument(
-        '--port',
-        type=int,
-        default=6379,
-        help='Redis port (default: 6379)'
-    )
-    parser.add_argument(
-        '--db',
-        type=int,
-        default=0,
-        help='Redis database number (default: 0)'
-    )
-    parser.add_argument(
-        '--password',
-        type=str,
-        default=None,
-        help='Redis password (default: None)'
-    )
-    parser.add_argument(
-        '--output',
-        type=str,
-        default='redis-monitor-results.json',
-        help='Output file for results (default: redis-monitor-results.json)'
+        default="redis-monitor-results.json",
+        help="Output file for results (default: redis-monitor-results.json)",
     )
 
     args = parser.parse_args()
 
     monitor = RedisMemoryMonitor(
-        host=args.host,
-        port=args.port,
-        db=args.db,
-        password=args.password
+        host=args.host, port=args.port, db=args.db, password=args.password
     )
 
     try:
         monitor.monitor(
             duration_minutes=args.duration,
             interval_seconds=args.interval,
-            output_file=args.output
+            output_file=args.output,
         )
     except KeyboardInterrupt:
         print("\n\n⚠️  Monitoring interrupted by user")
@@ -429,5 +426,5 @@ Examples:
         sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

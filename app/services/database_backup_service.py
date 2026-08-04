@@ -12,17 +12,17 @@ Comprehensive Database Backup Service
 """
 
 import asyncio
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
-from enum import Enum
 import gzip
 import hashlib
 import json
 import logging
 import os
-from pathlib import Path
 import shutil
 import tempfile
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+from pathlib import Path
 from typing import Any
 
 import boto3
@@ -170,7 +170,9 @@ class DatabaseBackupService:
             await self._save_backup_metadata(backup_metadata)
             raise
 
-    async def execute_backup(self, backup_id: str, backup_type: BackupType) -> BackupMetadata:
+    async def execute_backup(
+        self, backup_id: str, backup_type: BackupType
+    ) -> BackupMetadata:
         """
         Execute the actual backup process
 
@@ -225,7 +227,9 @@ class DatabaseBackupService:
                 temp_path = encrypted_path
 
             # Calculate checksum
-            backup_metadata.file_checksum = await self._calculate_file_checksum(temp_path)
+            backup_metadata.file_checksum = await self._calculate_file_checksum(
+                temp_path
+            )
 
             # Move to final location
             final_path = Path(backup_metadata.file_path)
@@ -274,7 +278,9 @@ class DatabaseBackupService:
             # Remove from active backups
             self.active_backups.pop(backup_id, None)
 
-    async def restore_backup(self, backup_id: str, target_database: str | None = None) -> bool:
+    async def restore_backup(
+        self, backup_id: str, target_database: str | None = None
+    ) -> bool:
         """
         Restore database from backup
 
@@ -381,7 +387,9 @@ class DatabaseBackupService:
                 backups.append(backup)
 
             except Exception as e:
-                logger.warning(f"Failed to load backup metadata from {metadata_file}: {e!s}")
+                logger.warning(
+                    f"Failed to load backup metadata from {metadata_file}: {e!s}"
+                )
                 continue
 
         # Sort by creation date (newest first) and limit
@@ -465,7 +473,9 @@ class DatabaseBackupService:
                 return False
 
             # Verify checksum
-            current_checksum = await self._calculate_file_checksum(backup_metadata.file_path)
+            current_checksum = await self._calculate_file_checksum(
+                backup_metadata.file_path
+            )
             if current_checksum != backup_metadata.file_checksum:
                 return False
 
@@ -487,9 +497,15 @@ class DatabaseBackupService:
 
         stats = {
             "total_backups": len(backups),
-            "successful_backups": len([b for b in backups if b.status == BackupStatus.COMPLETED]),
-            "failed_backups": len([b for b in backups if b.status == BackupStatus.FAILED]),
-            "verified_backups": len([b for b in backups if b.verification_status == "verified"]),
+            "successful_backups": len(
+                [b for b in backups if b.status == BackupStatus.COMPLETED]
+            ),
+            "failed_backups": len(
+                [b for b in backups if b.status == BackupStatus.FAILED]
+            ),
+            "verified_backups": len(
+                [b for b in backups if b.verification_status == "verified"]
+            ),
             "total_size_bytes": sum(b.file_size_bytes for b in backups),
             "oldest_backup": None,
             "newest_backup": None,
@@ -504,7 +520,9 @@ class DatabaseBackupService:
             # Count by type
             for backup in backups:
                 backup_type = backup.backup_type.value
-                stats["backup_types"][backup_type] = stats["backup_types"].get(backup_type, 0) + 1
+                stats["backup_types"][backup_type] = (
+                    stats["backup_types"].get(backup_type, 0) + 1
+                )
 
                 storage_provider = backup.storage_provider.value
                 stats["storage_providers"][storage_provider] = (
@@ -538,7 +556,13 @@ class DatabaseBackupService:
         # Parse database URL
         if db_url.startswith("postgresql://"):
             # PostgreSQL
-            cmd = ["pg_dump", "--format=custom", "--no-owner", "--no-privileges", "--verbose"]
+            cmd = [
+                "pg_dump",
+                "--format=custom",
+                "--no-owner",
+                "--no-privileges",
+                "--verbose",
+            ]
 
             if backup_type == BackupType.INCREMENTAL:
                 # For incremental backups, we'd need to implement WAL archiving
@@ -660,7 +684,9 @@ class DatabaseBackupService:
         if data.get("completed_at"):
             data["completed_at"] = datetime.fromisoformat(data["completed_at"])
         if data.get("restoration_test_date"):
-            data["restoration_test_date"] = datetime.fromisoformat(data["restoration_test_date"])
+            data["restoration_test_date"] = datetime.fromisoformat(
+                data["restoration_test_date"]
+            )
 
         return BackupMetadata(**data)
 
@@ -670,7 +696,9 @@ class DatabaseBackupService:
 
         backup_metadata = await self._load_backup_metadata(backup_id)
         if backup_metadata:
-            backup_metadata.verification_status = "verified" if verification_result else "failed"
+            backup_metadata.verification_status = (
+                "verified" if verification_result else "failed"
+            )
             await self._save_backup_metadata(backup_metadata)
 
     async def _upload_to_cloud_storage(self, backup_id: str) -> None:
@@ -694,16 +722,16 @@ class DatabaseBackupService:
         - Connection pooling and threading for better performance
         """
         try:
-            from botocore.config import Config
             from boto3.s3.transfer import TransferConfig
+            from botocore.config import Config
 
             # Configure explicit retry settings
             config = Config(
                 region_name=os.environ.get("AWS_REGION", "us-east-1"),
                 retries={
-                    'max_attempts': 10,  # Increased from default 5
-                    'mode': 'adaptive'    # Adaptive retry strategy for better resilience
-                }
+                    "max_attempts": 10,  # Increased from default 5
+                    "mode": "adaptive",  # Adaptive retry strategy for better resilience
+                },
             )
 
             s3_client = boto3.client("s3", config=config)
@@ -717,19 +745,21 @@ class DatabaseBackupService:
             # Configure multipart upload for large files
             transfer_config = TransferConfig(
                 multipart_threshold=8 * 1024 * 1024,  # 8MB threshold
-                max_concurrency=10,                      # Upload up to 10 parts in parallel
-                multipart_chunksize=8 * 1024 * 1024,    # 8MB chunks
-                use_threads=True                         # Use threading for performance
+                max_concurrency=10,  # Upload up to 10 parts in parallel
+                multipart_chunksize=8 * 1024 * 1024,  # 8MB chunks
+                use_threads=True,  # Use threading for performance
             )
 
-            logger.info(f"Uploading backup {backup_id} to S3 with multipart configuration")
+            logger.info(
+                f"Uploading backup {backup_id} to S3 with multipart configuration"
+            )
 
             s3_client.upload_file(
                 file_path,
                 bucket_name,
                 s3_key,
                 ExtraArgs={"ServerSideEncryption": "AES256"},
-                Config=transfer_config
+                Config=transfer_config,
             )
 
             logger.info(f"Backup {backup_id} uploaded to S3: {s3_key}")
@@ -741,7 +771,9 @@ class DatabaseBackupService:
             logger.error(f"S3 upload failed for backup {backup_id}: {e!s}")
             raise
 
-    async def _download_from_cloud_storage(self, backup_id: str, output_path: str) -> None:
+    async def _download_from_cloud_storage(
+        self, backup_id: str, output_path: str
+    ) -> None:
         """Download backup from cloud storage"""
         # Implementation for downloading from cloud storage
 
@@ -749,7 +781,9 @@ class DatabaseBackupService:
         """Delete backup from cloud storage"""
         # Implementation for deleting from cloud storage
 
-    async def _restore_database(self, backup_path: str, target_database: str | None = None) -> None:
+    async def _restore_database(
+        self, backup_path: str, target_database: str | None = None
+    ) -> None:
         """Restore database from backup file"""
         # Implementation for database restoration
 

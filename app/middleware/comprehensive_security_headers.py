@@ -3,8 +3,8 @@ Comprehensive Security Headers Middleware
 Implements OWASP recommended security headers for FastAPI
 """
 
-from collections.abc import Callable
 import logging
+from collections.abc import Callable
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -133,7 +133,9 @@ class ComprehensiveSecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         # 11. Cache-Control for sensitive endpoints
         if self._is_sensitive_endpoint(request):
-            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+            response.headers["Cache-Control"] = (
+                "no-store, no-cache, must-revalidate, private"
+            )
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
 

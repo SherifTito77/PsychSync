@@ -7,6 +7,7 @@ import os
 import re
 from pathlib import Path
 
+
 def fix_rate_limiter_signatures(directory: str):
     """
     Fix @check_rate_limit decorators in all Python files.
@@ -18,11 +19,11 @@ def fix_rate_limiter_signatures(directory: str):
 
     for py_file in directory.rglob("*.py"):
         try:
-            with open(py_file, 'r', encoding='utf-8') as f:
+            with open(py_file, "r", encoding="utf-8") as f:
                 content = f.read()
 
             # Check if file has the issue
-            if '@check_rate_limit' not in content or 'endpoint_type' not in content:
+            if "@check_rate_limit" not in content or "endpoint_type" not in content:
                 continue
 
             original_content = content
@@ -32,23 +33,23 @@ def fix_rate_limiter_signatures(directory: str):
             # Replace with: @check_rate_limit(identifier="...", limit_name="...")
 
             # Use regex to replace only in decorator lines
-            lines = content.split('\n')
+            lines = content.split("\n")
             fixed_lines = []
 
             for line in lines:
-                if '@check_rate_limit' in line and 'endpoint_type=' in line:
+                if "@check_rate_limit" in line and "endpoint_type=" in line:
                     # Replace endpoint_type with limit_name
-                    fixed_line = line.replace('endpoint_type=', 'limit_name=')
+                    fixed_line = line.replace("endpoint_type=", "limit_name=")
                     fixed_lines.append(fixed_line)
                     print(f"Fixed: {py_file}:{line.strip()}")
                 else:
                     fixed_lines.append(line)
 
-            content = '\n'.join(fixed_lines)
+            content = "\n".join(fixed_lines)
 
             # Only write if content changed
             if content != original_content:
-                with open(py_file, 'w', encoding='utf-8') as f:
+                with open(py_file, "w", encoding="utf-8") as f:
                     f.write(content)
                 fixed_count += 1
                 print(f"✓ Fixed: {py_file}")
@@ -62,6 +63,7 @@ def fix_rate_limiter_signatures(directory: str):
     if error_count > 0:
         print(f"Errors in {error_count} files")
     print(f"{'='*60}")
+
 
 if __name__ == "__main__":
     endpoints_dir = Path("app/api/v1/endpoints")

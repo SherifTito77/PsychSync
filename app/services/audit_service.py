@@ -21,14 +21,15 @@ Audit Events:
 - Failed authentication attempts
 """
 
-import logging
 import json
+import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID, uuid4
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, desc
+
 from fastapi import Request
+from sqlalchemy import and_, desc, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.user import User
 
@@ -38,6 +39,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 # Audit Event Types
 # =============================================================================
+
 
 class AuditEventType(str):
     """Enumeration of audit event types"""
@@ -111,6 +113,7 @@ class AuditSeverity(str):
 # =============================================================================
 # Audit Service
 # =============================================================================
+
 
 class AuditService:
     """
@@ -409,8 +412,9 @@ class AuditService:
             List of failed login attempts
         """
         try:
-            from app.db.models.audit import AuditLog
             from datetime import timedelta
+
+            from app.db.models.audit import AuditLog
 
             cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
 
@@ -449,18 +453,17 @@ class AuditService:
             Dict with suspicious activity categories
         """
         try:
-            from app.db.models.audit import AuditLog
             from datetime import timedelta
+
             from sqlalchemy import func
+
+            from app.db.models.audit import AuditLog
 
             cutoff_time = datetime.now(timezone.utc) - timedelta(hours=hours)
 
             # Multiple failed logins per user
             failed_logins_query = (
-                select(
-                    AuditLog.user_id,
-                    func.count().label("failed_count")
-                )
+                select(AuditLog.user_id, func.count().label("failed_count"))
                 .where(
                     and_(
                         AuditLog.event_type == AuditEventType.LOGIN_FAILED,
@@ -492,7 +495,8 @@ class AuditService:
                 select(AuditLog)
                 .where(
                     and_(
-                        AuditLog.event_type == AuditEventType.UNAUTHORIZED_ACCESS_ATTEMPT,
+                        AuditLog.event_type
+                        == AuditEventType.UNAUTHORIZED_ACCESS_ATTEMPT,
                         AuditLog.timestamp >= cutoff_time,
                     )
                 )
@@ -535,14 +539,12 @@ class AuditService:
             Compliance report data
         """
         try:
-            from app.db.models.audit import AuditLog
             from sqlalchemy import func
 
+            from app.db.models.audit import AuditLog
+
             query = (
-                select(
-                    AuditLog.event_type,
-                    func.count().label("count")
-                )
+                select(AuditLog.event_type, func.count().label("count"))
                 .where(
                     and_(
                         AuditLog.timestamp >= start_date,
@@ -623,9 +625,11 @@ class AuditService:
         try:
             # Check for multiple failed logins from same IP
             if audit_entry.event_type == AuditEventType.LOGIN_FAILED:
-                from app.db.models.audit import AuditLog
                 from datetime import timedelta
+
                 from sqlalchemy import func
+
+                from app.db.models.audit import AuditLog
 
                 # Count failed logins from same IP in last hour
                 one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
@@ -674,6 +678,7 @@ audit_service = AuditService()
 # Convenience Functions
 # =============================================================================
 
+
 async def log_event(
     db: AsyncSession,
     event_type: str,
@@ -696,4 +701,6 @@ async def log_data_access(
     request: Optional[Request] = None,
 ) -> None:
     """Convenience function to log data access"""
-    await audit_service.log_data_access(db, user_id, table_name, record_id, action, details, request)
+    await audit_service.log_data_access(
+        db, user_id, table_name, record_id, action, details, request
+    )

@@ -3,16 +3,17 @@ Advanced Memory Management Service
 Implements memory optimization patterns and resource management
 Expected improvement: 15-30% for memory usage and stability
 """
-from collections import OrderedDict
-from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+
 import gc
 import logging
 import threading
 import time
-from typing import Any, Generic, TypeVar
 import weakref
+from collections import OrderedDict
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from typing import Any, Generic, TypeVar
 
 import psutil
 
@@ -20,15 +21,18 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
+
 @dataclass
 class MemoryStats:
     """Memory usage statistics"""
+
     rss_mb: float  # Resident Set Size in MB
     vms_mb: float  # Virtual Memory Size in MB
     percent: float  # Memory usage percentage
     available_mb: float  # Available memory in MB
     gc_counts: tuple  # Garbage collection counts
     timestamp: float  # When stats were collected
+
 
 class MemoryAwareCache(Generic[T]):
     """
@@ -39,19 +43,14 @@ class MemoryAwareCache(Generic[T]):
         self,
         max_size: int = 1000,
         max_memory_mb: float = 100.0,
-        eviction_policy: str = "lru"
+        eviction_policy: str = "lru",
     ):
         self.max_size = max_size
         self.max_memory_mb = max_memory_mb
         self.eviction_policy = eviction_policy
         self._cache: OrderedDict[str, T] = OrderedDict()
         self._lock = threading.RLock()
-        self._stats = {
-            "hits": 0,
-            "misses": 0,
-            "evictions": 0,
-            "memory_warnings": 0
-        }
+        self._stats = {"hits": 0, "misses": 0, "evictions": 0, "memory_warnings": 0}
 
     def get(self, key: str) -> T | None:
         """Get item from cache with LRU promotion"""
@@ -140,8 +139,9 @@ class MemoryAwareCache(Generic[T]):
                 **self._stats,
                 "current_size": len(self._cache),
                 "max_size": self.max_size,
-                "hit_rate": hit_rate
+                "hit_rate": hit_rate,
             }
+
 
 class ResourcePool:
     """
@@ -153,7 +153,7 @@ class ResourcePool:
         factory: Callable[[], T],
         max_size: int = 10,
         max_idle_time: float = 300.0,  # 5 minutes
-        cleanup_func: Callable[[T], None] | None = None
+        cleanup_func: Callable[[T], None] | None = None,
     ):
         self.factory = factory
         self.max_size = max_size
@@ -168,7 +168,7 @@ class ResourcePool:
             "releases": 0,
             "creations": 0,
             "cleanups": 0,
-            "pool_hits": 0
+            "pool_hits": 0,
         }
 
     def acquire(self) -> T:
@@ -243,8 +243,11 @@ class ResourcePool:
                 "pool_size": len(self._pool),
                 "created_count": self._created_count,
                 "max_size": self.max_size,
-                "utilization": len(self._pool) / self.max_size if self.max_size > 0 else 0
+                "utilization": (
+                    len(self._pool) / self.max_size if self.max_size > 0 else 0
+                ),
             }
+
 
 class MemoryManagementService:
     """
@@ -281,9 +284,7 @@ class MemoryManagementService:
         if self._monitoring_thread is None or not self._monitoring_thread.is_alive():
             self._shutdown_event.clear()
             self._monitoring_thread = threading.Thread(
-                target=self._monitoring_loop,
-                daemon=True,
-                name="MemoryMonitor"
+                target=self._monitoring_loop, daemon=True, name="MemoryMonitor"
             )
             self._monitoring_thread.start()
             logger.info("Memory monitoring started")
@@ -308,7 +309,9 @@ class MemoryManagementService:
                     self._handle_memory_pressure()
 
                 if stats.percent > self.gc_threshold_percent:
-                    logger.info(f"System memory usage high: {stats.percent:.1f}%, forcing GC")
+                    logger.info(
+                        f"System memory usage high: {stats.percent:.1f}%, forcing GC"
+                    )
                     gc.collect()
 
                 # Clean up expired cache entries
@@ -332,7 +335,7 @@ class MemoryManagementService:
                 percent=system_memory.percent,
                 available_mb=system_memory.available / 1024 / 1024,
                 gc_counts=gc.get_count(),
-                timestamp=time.time()
+                timestamp=time.time(),
             )
         except Exception as e:
             logger.error(f"Failed to get memory stats: {e}")
@@ -373,8 +376,7 @@ class MemoryManagementService:
         """Get or create thread pool"""
         if name not in self.thread_pools:
             self.thread_pools[name] = ThreadPoolExecutor(
-                max_workers=max_workers,
-                thread_name_prefix=f"{name}-worker"
+                max_workers=max_workers, thread_name_prefix=f"{name}-worker"
             )
         return self.thread_pools[name]
 
@@ -405,34 +407,39 @@ class MemoryManagementService:
                     "rss_mb": current_stats.rss_mb,
                     "vms_mb": current_stats.vms_mb,
                     "percent": current_stats.percent,
-                    "available_mb": current_stats.available_mb
+                    "available_mb": current_stats.available_mb,
                 },
                 "gc_counts": {
                     "generation_0": current_stats.gc_counts[0],
                     "generation_1": current_stats.gc_counts[1],
-                    "generation_2": current_stats.gc_counts[2]
-                }
+                    "generation_2": current_stats.gc_counts[2],
+                },
             },
             "caches": {
                 "query_cache": self.query_cache.get_stats(),
                 "model_cache": self.model_cache.get_stats(),
-                "user_cache": self.user_cache.get_stats()
+                "user_cache": self.user_cache.get_stats(),
             },
             "thread_pools": {
                 name: {
-                    "active_threads": pool._threads.__len__() if hasattr(pool, "_threads") else 0,
-                    "max_workers": pool._max_workers
+                    "active_threads": (
+                        pool._threads.__len__() if hasattr(pool, "_threads") else 0
+                    ),
+                    "max_workers": pool._max_workers,
                 }
                 for name, pool in self.thread_pools.items()
-            }
+            },
         }
+
 
 # Global memory management service instance
 memory_service = MemoryManagementService()
 
+
 # Singleton pattern for expensive resources
 class Singleton(type):
     """Metaclass for implementing singleton pattern"""
+
     _instances = {}
     _lock = threading.Lock()
 
@@ -442,6 +449,7 @@ class Singleton(type):
                 if cls not in cls._instances:
                     cls._instances[cls] = super().__call__(*args, **kwargs)
         return cls._instances[cls]
+
 
 # Weak reference manager for expensive objects
 class WeakRefManager:
@@ -454,6 +462,7 @@ class WeakRefManager:
 
     def register(self, key: str, obj: Any, callback: Callable | None = None) -> None:
         """Register object with weak reference and cleanup callback"""
+
         def cleanup_callback(ref):
             with self._lock:
                 cleanup_key = None
@@ -468,7 +477,9 @@ class WeakRefManager:
                         try:
                             self._callbacks[cleanup_key]()
                         except Exception as e:
-                            logger.warning(f"Weak reference cleanup callback failed: {e}")
+                            logger.warning(
+                                f"Weak reference cleanup callback failed: {e}"
+                            )
                         del self._callbacks[cleanup_key]
                     del self._refs[cleanup_key]
 
@@ -502,11 +513,14 @@ class WeakRefManager:
                         try:
                             self._callbacks[key]()
                         except Exception as e:
-                            logger.warning(f"Weak reference cleanup callback failed: {e}")
+                            logger.warning(
+                                f"Weak reference cleanup callback failed: {e}"
+                            )
                         del self._callbacks[key]
 
             for key in dead_keys:
                 del self._refs[key]
+
 
 # Global weak reference manager
 weak_ref_manager = WeakRefManager()

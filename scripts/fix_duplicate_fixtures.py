@@ -20,10 +20,10 @@ def fix_duplicate_fixture_decorators(file_path: Path) -> bool:
 
     # Pattern to match duplicate @pytest.fixture decorators
     # Matches: @pytest.fixture\n\n@pytest.fixture\ndef client(
-    pattern = r'@pytest\.fixture\n\n@pytest\.fixture\n'
+    pattern = r"@pytest\.fixture\n\n@pytest\.fixture\n"
 
     # Replace single duplicate with single decorator
-    fixed_content = re.sub(pattern, '@pytest.fixture\n', content)
+    fixed_content = re.sub(pattern, "@pytest.fixture\n", content)
 
     if fixed_content != content:
         file_path.write_text(fixed_content)
@@ -33,10 +33,10 @@ def fix_duplicate_fixture_decorators(file_path: Path) -> bool:
 
 def main():
     """Fix all test files with duplicate fixtures."""
-    tests_dir = Path('tests/api')
+    tests_dir = Path("tests/api")
 
     # Find all Python files in tests/api
-    test_files = list(tests_dir.glob('test_*.py'))
+    test_files = list(tests_dir.glob("test_*.py"))
 
     fixed_count = 0
 
@@ -48,5 +48,5 @@ def main():
     print(f"\n🎉 Fixed {fixed_count} files")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

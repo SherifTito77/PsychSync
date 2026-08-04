@@ -104,7 +104,9 @@ class KafkaEventConsumer:
         self.consumer: Optional[AIOKafkaConsumer] = None
         self.handlers: Dict[EventType, List[EventHandler]] = {}
         self._running = False
-        self._processed_messages = []  # ✅ NEW: Track processed messages for manual commit
+        self._processed_messages = (
+            []
+        )  # ✅ NEW: Track processed messages for manual commit
 
         logger.info(
             f"KafkaEventConsumer initialized: topics={topics}, group_id={group_id}, "

@@ -4,8 +4,8 @@ Direct unit tests for clinical screening algorithms
 Tests scoring logic without HTTP/auth
 """
 
-import sys
 import os
+import sys
 
 # Add the app directory to the path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -20,9 +20,7 @@ def test_phq9_scorer():
     scorer = PHQ9Scorer()
 
     # Test low risk (minimal symptoms)
-    responses_low = {
-        1: 1, 2: 1, 3: 1, 4: 1, 5: 0, 6: 1, 7: 1, 8: 0, 9: 0
-    }
+    responses_low = {1: 1, 2: 1, 3: 1, 4: 1, 5: 0, 6: 1, 7: 1, 8: 0, 9: 0}
 
     result = scorer.score(responses_low)
     print(f"  Low risk test:")
@@ -32,14 +30,14 @@ def test_phq9_scorer():
     print(f"    Crisis Alert: {result.crisis_alert}")
 
     assert result.total_score == 6, f"Expected score 6, got {result.total_score}"
-    assert result.severity_level == "mild", f"Expected mild, got {result.severity_level}"
+    assert (
+        result.severity_level == "mild"
+    ), f"Expected mild, got {result.severity_level}"
     assert result.risk_level == "low", f"Expected low, got {result.risk_level}"
     assert result.crisis_alert == False, "Expected no crisis alert"
 
     # Test crisis (suicide ideation)
-    responses_crisis = {
-        1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3, 9: 2
-    }
+    responses_crisis = {1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3, 9: 2}
 
     result = scorer.score(responses_crisis)
     print(f"\n  Crisis test:")
@@ -65,9 +63,7 @@ def test_gad7_scorer():
     scorer = GAD7Scorer()
 
     # Test minimal anxiety
-    responses_minimal = {
-        1: 0, 2: 0, 3: 1, 4: 0, 5: 1, 6: 0, 7: 0
-    }
+    responses_minimal = {1: 0, 2: 0, 3: 1, 4: 0, 5: 1, 6: 0, 7: 0}
 
     result = scorer.score(responses_minimal)
     print(f"  Minimal anxiety test:")
@@ -76,12 +72,12 @@ def test_gad7_scorer():
     print(f"    Risk: {result.risk_level}")
 
     assert result.total_score == 2, f"Expected score 2, got {result.total_score}"
-    assert result.severity_level == "minimal", f"Expected minimal, got {result.severity_level}"
+    assert (
+        result.severity_level == "minimal"
+    ), f"Expected minimal, got {result.severity_level}"
 
     # Test severe anxiety
-    responses_severe = {
-        1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3
-    }
+    responses_severe = {1: 3, 2: 3, 3: 3, 4: 3, 5: 3, 6: 3, 7: 3}
 
     result = scorer.score(responses_severe)
     print(f"\n  Severe anxiety test:")
@@ -90,7 +86,9 @@ def test_gad7_scorer():
     print(f"    Risk: {result.risk_level}")
 
     assert result.total_score == 21, f"Expected score 21, got {result.total_score}"
-    assert result.severity_level == "severe", f"Expected severe, got {result.severity_level}"
+    assert (
+        result.severity_level == "severe"
+    ), f"Expected severe, got {result.severity_level}"
 
     print("  ✅ GAD-7 scorer working correctly")
     return True
@@ -113,7 +111,7 @@ def test_cssrs_scorer():
         "q5": False,
         "q11": False,
         "q12": False,
-        "q13": False
+        "q13": False,
     }
 
     result = scorer.score(responses_low)
@@ -133,7 +131,7 @@ def test_cssrs_scorer():
         "q5": True,
         "q11": True,  # CRITICAL: Recent attempt
         "q12": True,
-        "q13": False
+        "q13": False,
     }
 
     result = scorer.score(responses_critical)
@@ -142,7 +140,9 @@ def test_cssrs_scorer():
     print(f"    Crisis Alert: {result.crisis_alert}")
     print(f"    Risk Flags: {result.risk_flags}")
 
-    assert result.risk_level == "critical", f"Expected critical, got {result.risk_level}"
+    assert (
+        result.risk_level == "critical"
+    ), f"Expected critical, got {result.risk_level}"
     assert result.crisis_alert == True, "Expected crisis alert"
 
     print("  ✅ C-SSRS scorer working correctly")
@@ -154,11 +154,11 @@ def test_database_schema():
     print("\n4. Testing Database Models...")
 
     from app.db.models.clinical_screening import (
-        ClinicalScreening,
         ClinicalAlert,
-        ClinicalReferral,
         ClinicalAuditLog,
-        ClinicalConsent
+        ClinicalConsent,
+        ClinicalReferral,
+        ClinicalScreening,
     )
 
     print(f"  ✅ ClinicalScreening: {ClinicalScreening.__name__}")
@@ -174,14 +174,15 @@ def test_schemas():
     """Test Pydantic schemas"""
     print("\n5. Testing Pydantic Schemas...")
 
-    from app.schemas.clinical import (
-        PHQ9Request,
-        GAD7Request,
-        CSSRSRequest,
-        ScreeningResponse
-    )
-    from uuid import uuid4
     from datetime import datetime
+    from uuid import uuid4
+
+    from app.schemas.clinical import (
+        CSSRSRequest,
+        GAD7Request,
+        PHQ9Request,
+        ScreeningResponse,
+    )
 
     # Test PHQ9Request
     phq9_data = {
@@ -193,7 +194,7 @@ def test_schemas():
         "q6_self_worth": 1,
         "q7_concentration": 2,
         "q8_motor": 1,
-        "q9_suicide": 0
+        "q9_suicide": 0,
     }
     phq9 = PHQ9Request(**phq9_data)
     print(f"  ✅ PHQ9Request validated")
@@ -206,7 +207,7 @@ def test_schemas():
         "q4_trouble_relaxing": 1,
         "q5_restless": 1,
         "q6_irritable": 1,
-        "q7_afraid": 0
+        "q7_afraid": 0,
     }
     gad7 = GAD7Request(**gad7_data)
     print(f"  ✅ GAD7Request validated")
@@ -220,7 +221,7 @@ def test_schemas():
         "q5_plan": False,
         "q11_actual_attempt": False,
         "q12_preparatory_acts": False,
-        "q13_aborted_attempt": False
+        "q13_aborted_attempt": False,
     }
     cssrs = CSSRSRequest(**cssrs_data)
     print(f"  ✅ CSSRSRequest validated")
@@ -236,7 +237,7 @@ def test_schemas():
         "recommendations": ["Seek help"],
         "crisis_alert": False,
         "risk_flags": [],
-        "completed_at": datetime.now()
+        "completed_at": datetime.now(),
     }
     response = ScreeningResponse(**response_data)
     print(f"  ✅ ScreeningResponse validated")
@@ -265,6 +266,7 @@ def main():
         except Exception as e:
             print(f"  ❌ {name} failed: {e}")
             import traceback
+
             traceback.print_exc()
             results[name] = False
 

@@ -19,11 +19,11 @@ Version: 2.0 Enterprise Security
 """
 
 import asyncio
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
-import logging
 from typing import Any
 from unittest.mock import AsyncMock, Mock
 
@@ -365,7 +365,9 @@ class PerformanceTestRunner:
             failed_requests = total_requests - successful_requests
 
             if results:
-                avg_response_time = sum(r["execution_time"] for r in results) / len(results)
+                avg_response_time = sum(r["execution_time"] for r in results) / len(
+                    results
+                )
                 min_response_time = min(r["execution_time"] for r in results)
                 max_response_time = max(r["execution_time"] for r in results)
             else:
@@ -377,7 +379,9 @@ class PerformanceTestRunner:
                 "total_requests": total_requests,
                 "successful_requests": successful_requests,
                 "failed_requests": failed_requests,
-                "success_rate": successful_requests / total_requests if total_requests > 0 else 0,
+                "success_rate": (
+                    successful_requests / total_requests if total_requests > 0 else 0
+                ),
                 "avg_response_time": avg_response_time,
                 "min_response_time": min_response_time,
                 "max_response_time": max_response_time,
@@ -387,9 +391,11 @@ class PerformanceTestRunner:
 
             test_result = TestResult(
                 test_name=f"load_test_{endpoint.replace('/', '_')}",
-                passed=failed_requests / total_requests < 0.01
-                if total_requests > 0
-                else False,  # <1% error rate
+                passed=(
+                    failed_requests / total_requests < 0.01
+                    if total_requests > 0
+                    else False
+                ),  # <1% error rate
                 execution_time=duration_seconds,
                 performance_metrics=performance_metrics,
             )
@@ -424,7 +430,11 @@ class SecurityTestRunner:
 
             async with aiohttp.ClientSession() as session:
                 # Test 1: SQL Injection in login
-                injection_payloads = ["' OR '1'='1", "admin'--", "' UNION SELECT * FROM users--"]
+                injection_payloads = [
+                    "' OR '1'='1",
+                    "admin'--",
+                    "' UNION SELECT * FROM users--",
+                ]
 
                 for payload in injection_payloads:
                     async with session.post(
@@ -432,7 +442,9 @@ class SecurityTestRunner:
                         json={"email": payload, "password": "password"},
                     ) as response:
                         if response.status != 401:
-                            security_issues.append(f"Potential SQL injection: {payload}")
+                            security_issues.append(
+                                f"Potential SQL injection: {payload}"
+                            )
 
                 # Test 2: Rate limiting
                 failed_attempts = 0
@@ -613,7 +625,9 @@ class TestFramework:
 
             # Integration tests
             integration_modules = ["integration/", "api/"]
-            all_results["integration"] = await self.run_integration_tests(integration_modules)
+            all_results["integration"] = await self.run_integration_tests(
+                integration_modules
+            )
 
             # Performance tests
             if self.config.enable_performance_tests:
@@ -631,7 +645,9 @@ class TestFramework:
             if self.config.enable_security_tests:
                 security_results = []
                 security_results.append(
-                    await self.security_runner.run_authentication_test("http://localhost:8000")
+                    await self.security_runner.run_authentication_test(
+                        "http://localhost:8000"
+                    )
                 )
                 all_results["security"] = security_results
 

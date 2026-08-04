@@ -4,21 +4,20 @@ PsychSync Monitoring Stack Setup Script
 Automated installation and configuration of the complete monitoring stack
 """
 
-import os
-import sys
-import subprocess
-import json
-import shutil
 import argparse
-from pathlib import Path
-from typing import Dict, List, Any, Optional
-from datetime import datetime
+import json
 import logging
+import os
+import shutil
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # Set up logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -46,14 +45,22 @@ class MonitoringStackInstaller:
 
         # Check Docker Compose
         try:
-            subprocess.run(["docker-compose", "--version"], check=True, capture_output=True)
+            subprocess.run(
+                ["docker-compose", "--version"], check=True, capture_output=True
+            )
             logger.info("✓ Docker Compose is available")
         except (subprocess.CalledProcessError, FileNotFoundError):
             logger.error("❌ Docker Compose is not installed or not in PATH")
             return False
 
         # Check Python requirements for custom components
-        required_packages = ["aiohttp", "prometheus_client", "psycopg2", "redis", "stripe"]
+        required_packages = [
+            "aiohttp",
+            "prometheus_client",
+            "psycopg2",
+            "redis",
+            "stripe",
+        ]
         missing_packages = []
 
         for package in required_packages:
@@ -65,11 +72,14 @@ class MonitoringStackInstaller:
                 logger.warning(f"⚠️  Python package {package} is missing")
 
         if missing_packages:
-            logger.info(f"Installing missing Python packages: {', '.join(missing_packages)}")
+            logger.info(
+                f"Installing missing Python packages: {', '.join(missing_packages)}"
+            )
             try:
-                subprocess.run([
-                    sys.executable, "-m", "pip", "install"
-                ] + missing_packages, check=True)
+                subprocess.run(
+                    [sys.executable, "-m", "pip", "install"] + missing_packages,
+                    check=True,
+                )
                 logger.info("✓ Python packages installed successfully")
             except subprocess.CalledProcessError as e:
                 logger.error(f"❌ Failed to install Python packages: {e}")
@@ -96,7 +106,7 @@ class MonitoringStackInstaller:
             "logs/psychsync/api",
             "logs/psychsync/frontend",
             "logs/postgresql",
-            "logs/nginx"
+            "logs/nginx",
         ]
 
         for directory in directories:
@@ -171,7 +181,9 @@ SENTRY_EVENT_RETENTION=90d
 # Health Check URLs
 API_HEALTH_URL=https://api.psychsync.com/api/v1/health
 FRONTEND_URL=https://app.psychsync.com
-""".format(timestamp=datetime.now().isoformat())
+""".format(
+            timestamp=datetime.now().isoformat()
+        )
 
         env_file_path.write_text(env_content)
         logger.info(f"✓ Created environment file: {env_file_path}")
@@ -192,7 +204,7 @@ FRONTEND_URL=https://app.psychsync.com
         config_files = [
             (prometheus_config, "prometheus.yml"),
             (alert_rules, "alert_rules.yml"),
-            (recording_rules, "recording_rules.yml")
+            (recording_rules, "recording_rules.yml"),
         ]
 
         for config_file, name in config_files:
@@ -206,7 +218,9 @@ FRONTEND_URL=https://app.psychsync.com
         logger.info("Installing Grafana configuration...")
 
         # Grafana datasources configuration
-        datasources_dir = self.monitoring_dir / "grafana" / "provisioning" / "datasources"
+        datasources_dir = (
+            self.monitoring_dir / "grafana" / "provisioning" / "datasources"
+        )
         datasources_file = datasources_dir / "datasources.yml"
 
         if not datasources_file.exists():
@@ -264,27 +278,22 @@ providers:
                 "datadog": {
                     "enabled": True,
                     "api_key": os.getenv("DD_API_KEY", ""),
-                    "site": os.getenv("DD_SITE", "datadoghq.com")
+                    "site": os.getenv("DD_SITE", "datadoghq.com"),
                 }
             },
             "notifications": {
                 "slack": {
                     "enabled": True,
-                    "webhook_url": os.getenv("SLACK_WEBHOOK_URL", "")
+                    "webhook_url": os.getenv("SLACK_WEBHOOK_URL", ""),
                 }
             },
-            "retention": {
-                "days": 90,
-                "performance": {
-                    "days": 30
-                }
-            }
+            "retention": {"days": 90, "performance": {"days": 30}},
         }
 
         sentry_config_file = self.monitoring_dir / "sentry" / "config.json"
         sentry_config_file.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(sentry_config_file, 'w') as f:
+        with open(sentry_config_file, "w") as f:
             json.dump(sentry_config, f, indent=2)
 
         logger.info("✓ Created Sentry configuration")
@@ -434,7 +443,9 @@ TimeoutStartSec=0
 
 [Install]
 WantedBy=multi-user.target
-""".format(base_dir=str(self.base_dir))
+""".format(
+            base_dir=str(self.base_dir)
+        )
 
         service_file = Path("/tmp/psychsync-monitoring.service")
         service_file.write_text(service_content)
@@ -450,9 +461,12 @@ WantedBy=multi-user.target
         logger.info("Compiling Python monitoring components...")
 
         python_components = [
-            ("business_metrics_exporter", "monitoring/exporters/business_metrics_exporter.py"),
+            (
+                "business_metrics_exporter",
+                "monitoring/exporters/business_metrics_exporter.py",
+            ),
             ("synthetic_monitoring", "monitoring/synthetic/synthetic_monitoring.py"),
-            ("performance_baseline", "monitoring/sla/performance_baseline.py")
+            ("performance_baseline", "monitoring/sla/performance_baseline.py"),
         ]
 
         for component_name, component_path in python_components:
@@ -461,15 +475,18 @@ WantedBy=multi-user.target
                 logger.info(f"✓ {component_name} source code is available")
 
                 # Create compiled version
-                compiled_path = full_path.with_suffix('.pyc')
+                compiled_path = full_path.with_suffix(".pyc")
                 try:
                     import py_compile
+
                     py_compile.compile(str(full_path), str(compiled_path))
                     logger.info(f"✓ Compiled {component_name}")
                 except Exception as e:
                     logger.warning(f"⚠️  Could not compile {component_name}: {e}")
             else:
-                logger.warning(f"⚠️  {component_name} source code not found at {full_path}")
+                logger.warning(
+                    f"⚠️  {component_name} source code not found at {full_path}"
+                )
 
     def setup_dependencies(self):
         """Install and setup external dependencies"""
@@ -496,9 +513,10 @@ numpy>=1.21.0
 
         # Install Python dependencies
         try:
-            subprocess.run([
-                sys.executable, "-m", "pip", "install", "-r", str(requirements_file)
-            ], check=True)
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-r", str(requirements_file)],
+                check=True,
+            )
             logger.info("✓ Installed Python dependencies")
         except subprocess.CalledProcessError as e:
             logger.error(f"❌ Failed to install Python dependencies: {e}")
@@ -513,11 +531,27 @@ numpy>=1.21.0
         validation_checks = [
             ("Environment file", self.env_file),
             ("Docker Compose file", self.docker_compose_file),
-            ("Prometheus config", self.monitoring_dir / "prometheus" / "prometheus.yml"),
-            ("Grafana config", self.monitoring_dir / "grafana" / "provisioning" / "datasources" / "datasources.yml"),
-            ("Business metrics exporter", self.monitoring_dir / "exporters" / "business_metrics_exporter.py"),
-            ("Synthetic monitoring", self.monitoring_dir / "synthetic" / "synthetic_monitoring.py"),
-            ("SLA monitoring", self.monitoring_dir / "sla" / "performance_baseline.py")
+            (
+                "Prometheus config",
+                self.monitoring_dir / "prometheus" / "prometheus.yml",
+            ),
+            (
+                "Grafana config",
+                self.monitoring_dir
+                / "grafana"
+                / "provisioning"
+                / "datasources"
+                / "datasources.yml",
+            ),
+            (
+                "Business metrics exporter",
+                self.monitoring_dir / "exporters" / "business_metrics_exporter.py",
+            ),
+            (
+                "Synthetic monitoring",
+                self.monitoring_dir / "synthetic" / "synthetic_monitoring.py",
+            ),
+            ("SLA monitoring", self.monitoring_dir / "sla" / "performance_baseline.py"),
         ]
 
         all_valid = True
@@ -583,7 +617,7 @@ numpy>=1.21.0
             ("scripts/start_monitoring.sh", "start_monitoring.sh"),
             ("scripts/stop_monitoring.sh", "stop_monitoring.sh"),
             ("scripts/health_check.sh", "health_check.sh"),
-            ("monitoring-requirements.txt", "requirements.txt")
+            ("monitoring-requirements.txt", "requirements.txt"),
         ]
 
         for src_file, dest_file in files_to_copy:
@@ -591,9 +625,9 @@ numpy>=1.21.0
             dest_path = package_dir / dest_file
 
             if src_path.exists():
-                if dest_path.name.endswith(('.sh', '.yml', '.conf')):
+                if dest_path.name.endswith((".sh", ".yml", ".conf")):
                     shutil.copy2(src_path, dest_path)
-                    dest_path.chmod(0o755 if dest_path.suffix == '.sh' else 0o644)
+                    dest_path.chmod(0o755 if dest_path.suffix == ".sh" else 0o644)
                 else:
                     shutil.copy2(src_path, dest_path)
                 logger.info(f"✓ Copied {src_file} to package")
@@ -644,6 +678,7 @@ For detailed instructions, see the complete documentation at:
 
         # Create tarball
         import tarfile
+
         tarball_path = self.base_dir / "psychsync-monitoring-package.tar.gz"
 
         with tarfile.open(tarball_path, "w:gz") as tar:
@@ -654,16 +689,25 @@ For detailed instructions, see the complete documentation at:
 
 def main():
     parser = argparse.ArgumentParser(description="PsychSync Monitoring Stack Setup")
-    parser.add_argument("--base-dir", default="/Users/sheriftito/Downloads/psychsync",
-                        help="Base directory for PsychSync")
-    parser.add_argument("--create-env", action="store_true",
-                        help="Create new environment file")
-    parser.add_argument("--validate-only", action="store_true",
-                        help="Only validate existing installation")
-    parser.add_argument("--package", action="store_true",
-                        help="Create deployment package")
-    parser.add_argument("--force", action="store_true",
-                        help="Force overwrite existing files")
+    parser.add_argument(
+        "--base-dir",
+        default="/Users/sheriftito/Downloads/psychsync",
+        help="Base directory for PsychSync",
+    )
+    parser.add_argument(
+        "--create-env", action="store_true", help="Create new environment file"
+    )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Only validate existing installation",
+    )
+    parser.add_argument(
+        "--package", action="store_true", help="Create deployment package"
+    )
+    parser.add_argument(
+        "--force", action="store_true", help="Force overwrite existing files"
+    )
 
     args = parser.parse_args()
 

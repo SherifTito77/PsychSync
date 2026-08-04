@@ -15,17 +15,17 @@ Key Features:
 """
 
 import ast
-import os
-import re
 import json
 import logging
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple, Set
-from dataclasses import dataclass, field
-from datetime import datetime
-from collections import defaultdict
+import os
+import re
 import subprocess
 import sys
+from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TestCoverageData:
     """Test coverage information"""
+
     file_path: str
     lines_total: int
     lines_covered: int
@@ -50,6 +51,7 @@ class TestCoverageData:
 @dataclass
 class TestCase:
     """Generated test case information"""
+
     name: str
     description: str
     test_type: str  # unit, integration, e2e, performance
@@ -65,6 +67,7 @@ class TestCase:
 @dataclass
 class TestGenerationResult:
     """Result of test generation process"""
+
     tests_generated: int
     files_processed: int
     coverage_improvement: float
@@ -117,23 +120,25 @@ class TestGenerator:
                 "test_pattern": "test_*.py",
                 "fixture_decorator": "@pytest.fixture",
                 "mock_library": "unittest.mock",
-                "assert_style": "assert"
+                "assert_style": "assert",
             },
             "jest": {
                 "test_pattern": "*.test.js",
                 "fixture_decorator": "",
                 "mock_library": "jest.mock",
-                "assert_style": "expect"
+                "assert_style": "expect",
             },
             "vitest": {
                 "test_pattern": "*.test.ts",
                 "fixture_decorator": "",
                 "mock_library": "vi.mock",
-                "assert_style": "expect"
-            }
+                "assert_style": "expect",
+            },
         }
 
-    async def generate_tests(self, source_files: Optional[List[str]] = None) -> TestGenerationResult:
+    async def generate_tests(
+        self, source_files: Optional[List[str]] = None
+    ) -> TestGenerationResult:
         """
         Generate comprehensive test suite for the codebase
 
@@ -195,7 +200,7 @@ class TestGenerator:
             "unit": len([tc for tc in test_cases_generated if tc.test_type == "unit"]),
             "integration": len(integration_tests),
             "performance": len(performance_tests),
-            "e2e": len(e2e_tests)
+            "e2e": len(e2e_tests),
         }
 
         frameworks_used = set()
@@ -220,7 +225,7 @@ class TestGenerator:
             e2e_tests=e2e_tests,
             mock_files_created=mock_files,
             recommendations=recommendations,
-            error_files=error_files
+            error_files=error_files,
         )
 
     def _discover_source_files(self) -> List[str]:
@@ -246,7 +251,7 @@ class TestGenerator:
             f"{source_name}_test*.py",
             f"{source_name}.test.*",
             f"tests/**/{source_name}*.py",
-            f"__tests__/{source_name}.*"
+            f"__tests__/{source_name}.*",
         ]
 
         for pattern in test_patterns:
@@ -254,7 +259,7 @@ class TestGenerator:
                 # Check if test file is substantial (more than 50 lines)
                 for test_file in self.project_root.glob(pattern):
                     try:
-                        with open(test_file, 'r') as f:
+                        with open(test_file, "r") as f:
                             content = f.read()
                             if len(content.splitlines()) > 50:
                                 return True
@@ -272,11 +277,11 @@ class TestGenerator:
                 cwd=self.project_root,
                 capture_output=True,
                 text=True,
-                timeout=300
+                timeout=300,
             )
 
             if result.returncode == 0 and Path("coverage.json").exists():
-                with open("coverage.json", 'r') as f:
+                with open("coverage.json", "r") as f:
                     coverage_data = json.load(f)
                 return coverage_data.get("totals", {}).get("percent_covered", 0.0)
             else:
@@ -298,20 +303,29 @@ class TestGenerator:
             return await self._generate_javascript_tests(source_path)
         else:
             logger.warning(f"Unsupported file type: {file_extension}")
-            return {"test_files": [], "test_cases": [], "data_factories": [], "mock_files": []}
+            return {
+                "test_files": [],
+                "test_cases": [],
+                "data_factories": [],
+                "mock_files": [],
+            }
 
     async def _generate_python_tests(self, source_path: Path) -> Dict[str, Any]:
         """Generate Python tests using pytest"""
         try:
-            with open(source_path, 'r', encoding='utf-8') as f:
+            with open(source_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             tree = ast.parse(content)
             module_name = source_path.stem
 
             # Extract functions and classes
-            functions = [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)]
-            classes = [node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
+            functions = [
+                node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef)
+            ]
+            classes = [
+                node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)
+            ]
 
             test_files = []
             test_cases = []
@@ -319,47 +333,59 @@ class TestGenerator:
             mock_files = []
 
             # Generate test file
-            test_content = await self._generate_python_test_content(module_name, functions, classes, source_path)
+            test_content = await self._generate_python_test_content(
+                module_name, functions, classes, source_path
+            )
             test_file_path = self.test_dir / f"test_{module_name}.py"
 
-            with open(test_file_path, 'w', encoding='utf-8') as f:
+            with open(test_file_path, "w", encoding="utf-8") as f:
                 f.write(test_content)
 
             test_files.append(str(test_file_path))
 
             # Generate test cases for analysis
             for func in functions:
-                test_cases.append(TestCase(
-                    name=f"test_{func.name}",
-                    description=f"Test for {func.name} function",
-                    test_type="unit",
-                    framework="pytest",
-                    file_path=str(test_file_path),
-                    line_number=func.lineno,
-                    complexity_score=self._calculate_function_complexity(func),
-                    mock_dependencies=self._extract_function_dependencies(func)
-                ))
+                test_cases.append(
+                    TestCase(
+                        name=f"test_{func.name}",
+                        description=f"Test for {func.name} function",
+                        test_type="unit",
+                        framework="pytest",
+                        file_path=str(test_file_path),
+                        line_number=func.lineno,
+                        complexity_score=self._calculate_function_complexity(func),
+                        mock_dependencies=self._extract_function_dependencies(func),
+                    )
+                )
 
             for cls in classes:
                 for method in cls.body:
                     if isinstance(method, ast.FunctionDef):
-                        test_cases.append(TestCase(
-                            name=f"test_{cls.name.lower()}_{method.name}",
-                            description=f"Test for {cls.name}.{method.name} method",
-                            test_type="unit",
-                            framework="pytest",
-                            file_path=str(test_file_path),
-                            line_number=method.lineno,
-                            complexity_score=self._calculate_function_complexity(method),
-                            mock_dependencies=self._extract_function_dependencies(method)
-                        ))
+                        test_cases.append(
+                            TestCase(
+                                name=f"test_{cls.name.lower()}_{method.name}",
+                                description=f"Test for {cls.name}.{method.name} method",
+                                test_type="unit",
+                                framework="pytest",
+                                file_path=str(test_file_path),
+                                line_number=method.lineno,
+                                complexity_score=self._calculate_function_complexity(
+                                    method
+                                ),
+                                mock_dependencies=self._extract_function_dependencies(
+                                    method
+                                ),
+                            )
+                        )
 
             # Generate data factory if needed
             if classes or functions:
-                factory_content = await self._generate_python_data_factory(module_name, classes, functions)
+                factory_content = await self._generate_python_data_factory(
+                    module_name, classes, functions
+                )
                 factory_path = self.test_dir / f"factories_{module_name}.py"
 
-                with open(factory_path, 'w', encoding='utf-8') as f:
+                with open(factory_path, "w", encoding="utf-8") as f:
                     f.write(factory_content)
 
                 data_factories.append(str(factory_path))
@@ -371,7 +397,7 @@ class TestGenerator:
                     mock_content = await self._generate_python_mock(dep)
                     mock_path = self.test_dir / f"mock_{dep.replace('.', '_')}.py"
 
-                    with open(mock_path, 'w', encoding='utf-8') as f:
+                    with open(mock_path, "w", encoding="utf-8") as f:
                         f.write(mock_content)
 
                     mock_files.append(str(mock_path))
@@ -380,46 +406,56 @@ class TestGenerator:
                 "test_files": test_files,
                 "test_cases": test_cases,
                 "data_factories": data_factories,
-                "mock_files": mock_files
+                "mock_files": mock_files,
             }
 
         except Exception as e:
             logger.error(f"Failed to generate Python tests for {source_path}: {e}")
-            return {"test_files": [], "test_cases": [], "data_factories": [], "mock_files": []}
+            return {
+                "test_files": [],
+                "test_cases": [],
+                "data_factories": [],
+                "mock_files": [],
+            }
 
-    async def _generate_python_test_content(self, module_name: str, functions: List[ast.FunctionDef],
-                                          classes: List[ast.ClassDef], source_path: Path) -> str:
+    async def _generate_python_test_content(
+        self,
+        module_name: str,
+        functions: List[ast.FunctionDef],
+        classes: List[ast.ClassDef],
+        source_path: Path,
+    ) -> str:
         """Generate comprehensive Python test content"""
         imports = [
             '"""Auto-generated tests for {module_name}"""',
-            'import pytest',
-            'from unittest.mock import Mock, patch, MagicMock, call',
-            'import sys',
-            'from pathlib import Path',
-            'import asyncio',
-            'from datetime import datetime, timedelta',
-            'import json',
-            'from typing import Any, Dict, List, Optional',
-            '',
-            '# Add project root to path',
-            'project_root = Path(__file__).parent.parent',
-            'sys.path.insert(0, str(project_root))',
-            ''
+            "import pytest",
+            "from unittest.mock import Mock, patch, MagicMock, call",
+            "import sys",
+            "from pathlib import Path",
+            "import asyncio",
+            "from datetime import datetime, timedelta",
+            "import json",
+            "from typing import Any, Dict, List, Optional",
+            "",
+            "# Add project root to path",
+            "project_root = Path(__file__).parent.parent",
+            "sys.path.insert(0, str(project_root))",
+            "",
         ]
 
         # Import the module under test
-        import_statement = f'from app.{module_name} import '
+        import_statement = f"from app.{module_name} import "
 
         if classes:
-            import_statement += ', '.join([cls.name for cls in classes])
+            import_statement += ", ".join([cls.name for cls in classes])
 
         if functions:
             if classes:
-                import_statement += ', '
-            import_statement += ', '.join([func.name for func in functions])
+                import_statement += ", "
+            import_statement += ", ".join([func.name for func in functions])
 
         imports.append(import_statement)
-        imports.append('')
+        imports.append("")
 
         # Generate test class
         test_class = f'''
@@ -464,13 +500,17 @@ class Test{module_name.title()}:
             class_tests.extend(test_methods)
 
         # Generate integration tests
-        integration_tests = await self._generate_integration_test_methods(module_name, functions, classes)
+        integration_tests = await self._generate_integration_test_methods(
+            module_name, functions, classes
+        )
 
         # Combine all content
-        content_parts = imports + [test_class] + function_tests + class_tests + integration_tests
+        content_parts = (
+            imports + [test_class] + function_tests + class_tests + integration_tests
+        )
 
         # Add TODO(human) markers for manual implementation
-        final_content = '\n'.join(content_parts)
+        final_content = "\n".join(content_parts)
 
         # Add human implementation reminders
         final_content += f'''
@@ -501,7 +541,9 @@ class Test{module_name.title()}:
 
         return final_content
 
-    async def _generate_function_tests(self, func: ast.FunctionDef, module_name: str) -> List[str]:
+    async def _generate_function_tests(
+        self, func: ast.FunctionDef, module_name: str
+    ) -> List[str]:
         """Generate test methods for a function"""
         test_methods = []
         func_name = func.name
@@ -559,7 +601,7 @@ class Test{module_name.title()}:
             test_methods.append(mock_test)
 
         # Async test if function is async
-        if func.name.startswith(('async_', 'get_', 'fetch_', 'load_')):
+        if func.name.startswith(("async_", "get_", "fetch_", "load_")):
             async_test = f'''
     @pytest.mark.asyncio
     async def test_{func_name}_async(self):
@@ -578,7 +620,9 @@ class Test{module_name.title()}:
 
         return test_methods
 
-    async def _generate_class_tests(self, cls: ast.ClassDef, module_name: str) -> List[str]:
+    async def _generate_class_tests(
+        self, cls: ast.ClassDef, module_name: str
+    ) -> List[str]:
         """Generate test methods for a class"""
         test_methods = []
         class_name = cls.name.lower()
@@ -617,7 +661,7 @@ class Test{module_name.title()}:
         property_tests = []
         for node in cls.body:
             if isinstance(node, ast.FunctionDef) and any(
-                isinstance(decorator, ast.Name) and decorator.id == 'property'
+                isinstance(decorator, ast.Name) and decorator.id == "property"
                 for decorator in node.decorator_list
             ):
                 property_test = f'''
@@ -637,8 +681,12 @@ class Test{module_name.title()}:
 
         return test_methods
 
-    async def _generate_integration_test_methods(self, module_name: str, functions: List[ast.FunctionDef],
-                                               classes: List[ast.ClassDef]) -> List[str]:
+    async def _generate_integration_test_methods(
+        self,
+        module_name: str,
+        functions: List[ast.FunctionDef],
+        classes: List[ast.ClassDef],
+    ) -> List[str]:
         """Generate integration test methods"""
         integration_tests = []
 
@@ -678,7 +726,7 @@ class Test{module_name.title()}:
     async def _generate_javascript_tests(self, source_path: Path) -> Dict[str, Any]:
         """Generate JavaScript/TypeScript tests using Jest/Vitest"""
         try:
-            with open(source_path, 'r', encoding='utf-8') as f:
+            with open(source_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             # This is a simplified implementation
@@ -686,9 +734,11 @@ class Test{module_name.title()}:
             module_name = source_path.stem
 
             # Determine framework based on project setup
-            framework = "jest" if (self.project_root / "package.json").exists() else "vitest"
+            framework = (
+                "jest" if (self.project_root / "package.json").exists() else "vitest"
+            )
 
-            test_content = f'''// Auto-generated tests for {module_name}
+            test_content = f"""// Auto-generated tests for {module_name}
 import {{ {module_name} }} from '{source_path.relative_to(self.project_root)}';
 
 // TODO(human): Complete test implementation for {module_name}
@@ -711,39 +761,55 @@ describe('{module_name}', () => {{
     }}).toThrow();
   }});
 }});
-'''
+"""
 
-            test_file_path = self.project_root / "src" / "__tests__" / f"{module_name}.test.{source_path.suffix[1:]}"
+            test_file_path = (
+                self.project_root
+                / "src"
+                / "__tests__"
+                / f"{module_name}.test.{source_path.suffix[1:]}"
+            )
 
             # Ensure directory exists
             test_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(test_file_path, 'w', encoding='utf-8') as f:
+            with open(test_file_path, "w", encoding="utf-8") as f:
                 f.write(test_content)
 
-            test_cases = [TestCase(
-                name=f"test_{module_name}",
-                description=f"Test for {module_name}",
-                test_type="unit",
-                framework=framework,
-                file_path=str(test_file_path),
-                line_number=1,
-                complexity_score=1.0
-            )]
+            test_cases = [
+                TestCase(
+                    name=f"test_{module_name}",
+                    description=f"Test for {module_name}",
+                    test_type="unit",
+                    framework=framework,
+                    file_path=str(test_file_path),
+                    line_number=1,
+                    complexity_score=1.0,
+                )
+            ]
 
             return {
                 "test_files": [str(test_file_path)],
                 "test_cases": test_cases,
                 "data_factories": [],
-                "mock_files": []
+                "mock_files": [],
             }
 
         except Exception as e:
             logger.error(f"Failed to generate JavaScript tests for {source_path}: {e}")
-            return {"test_files": [], "test_cases": [], "data_factories": [], "mock_files": []}
+            return {
+                "test_files": [],
+                "test_cases": [],
+                "data_factories": [],
+                "mock_files": [],
+            }
 
-    async def _generate_python_data_factory(self, module_name: str, classes: List[ast.ClassDef],
-                                          functions: List[ast.FunctionDef]) -> str:
+    async def _generate_python_data_factory(
+        self,
+        module_name: str,
+        classes: List[ast.ClassDef],
+        functions: List[ast.FunctionDef],
+    ) -> str:
         """Generate test data factory for Python module"""
         factory_content = f'''"""Test data factory for {module_name}"""
 
@@ -816,7 +882,9 @@ class {module_name.title()}Factory:
                 if isinstance(node.func, ast.Attribute):
                     if isinstance(node.func.value, ast.Name):
                         dependency = f"{node.func.value.id}.{node.func.attr}"
-                        if not dependency.startswith("self.") and not dependency.startswith("cls."):
+                        if not dependency.startswith(
+                            "self."
+                        ) and not dependency.startswith("cls."):
                             dependencies.append(dependency)
                 elif isinstance(node.func, ast.Name):
                     if node.func.id not in dir(__builtins__):
@@ -833,7 +901,7 @@ class {module_name.title()}Factory:
                 for alias in node.names:
                     dependencies.append(alias.name)
             elif isinstance(node, ast.ImportFrom):
-                if node.module and not node.module.startswith('.'):
+                if node.module and not node.module.startswith("."):
                     dependencies.append(node.module)
 
         return dependencies
@@ -842,18 +910,46 @@ class {module_name.title()}Factory:
         """Determine if a dependency needs mocking"""
         # Standard library dependencies usually don't need mocking
         std_lib = {
-            'os', 'sys', 'json', 'datetime', 'time', 'logging', 'pathlib',
-            'collections', 'itertools', 'functools', 'operator', 're',
-            'math', 'random', 'string', 'typing', 'dataclasses', 'enum',
-            'asyncio', 'threading', 'multiprocessing', 'queue',
-            'http', 'urllib', 'socket', 'ssl', 'hashlib', 'hmac',
-            'csv', 'xml', 'html', 'email', 'mimetypes', 'base64'
+            "os",
+            "sys",
+            "json",
+            "datetime",
+            "time",
+            "logging",
+            "pathlib",
+            "collections",
+            "itertools",
+            "functools",
+            "operator",
+            "re",
+            "math",
+            "random",
+            "string",
+            "typing",
+            "dataclasses",
+            "enum",
+            "asyncio",
+            "threading",
+            "multiprocessing",
+            "queue",
+            "http",
+            "urllib",
+            "socket",
+            "ssl",
+            "hashlib",
+            "hmac",
+            "csv",
+            "xml",
+            "html",
+            "email",
+            "mimetypes",
+            "base64",
         }
 
         # Internal modules (starting with 'app.') usually don't need mocking in unit tests
-        internal = dependency.startswith('app.')
+        internal = dependency.startswith("app.")
 
-        return not (std_lib.__contains__(dependency.split('.')[0]) or internal)
+        return not (std_lib.__contains__(dependency.split(".")[0]) or internal)
 
     async def _generate_python_mock(self, dependency: str) -> str:
         """Generate mock for external dependency"""
@@ -881,79 +977,93 @@ mock_{dependency.replace('.', '_')} = Mock{dependency.title().replace('.', '')}(
 
         return mock_content
 
-    async def _generate_integration_tests(self, source_files: List[str]) -> List[TestCase]:
+    async def _generate_integration_tests(
+        self, source_files: List[str]
+    ) -> List[TestCase]:
         """Generate integration tests for multiple components"""
         integration_tests = []
 
         # Database integration tests
         if any("database" in f.lower() or "db" in f.lower() for f in source_files):
-            integration_tests.append(TestCase(
-                name="test_database_integration",
-                description="Test database operations integration",
-                test_type="integration",
-                framework="pytest",
-                file_path="tests/test_integration.py",
-                line_number=1,
-                complexity_score=3.0,
-                mock_dependencies=["database", "connection_pool"]
-            ))
+            integration_tests.append(
+                TestCase(
+                    name="test_database_integration",
+                    description="Test database operations integration",
+                    test_type="integration",
+                    framework="pytest",
+                    file_path="tests/test_integration.py",
+                    line_number=1,
+                    complexity_score=3.0,
+                    mock_dependencies=["database", "connection_pool"],
+                )
+            )
 
         # API integration tests
         if any("api" in f.lower() or "endpoint" in f.lower() for f in source_files):
-            integration_tests.append(TestCase(
-                name="test_api_integration",
-                description="Test API endpoint integration",
-                test_type="integration",
-                framework="pytest",
-                file_path="tests/test_api_integration.py",
-                line_number=1,
-                complexity_score=4.0,
-                mock_dependencies=["http_client", "database"]
-            ))
+            integration_tests.append(
+                TestCase(
+                    name="test_api_integration",
+                    description="Test API endpoint integration",
+                    test_type="integration",
+                    framework="pytest",
+                    file_path="tests/test_api_integration.py",
+                    line_number=1,
+                    complexity_score=4.0,
+                    mock_dependencies=["http_client", "database"],
+                )
+            )
 
         # Authentication integration tests
         if any("auth" in f.lower() or "security" in f.lower() for f in source_files):
-            integration_tests.append(TestCase(
-                name="test_authentication_integration",
-                description="Test authentication flow integration",
-                test_type="integration",
-                framework="pytest",
-                file_path="tests/test_auth_integration.py",
-                line_number=1,
-                complexity_score=3.5,
-                mock_dependencies=["jwt_service", "user_database"]
-            ))
+            integration_tests.append(
+                TestCase(
+                    name="test_authentication_integration",
+                    description="Test authentication flow integration",
+                    test_type="integration",
+                    framework="pytest",
+                    file_path="tests/test_auth_integration.py",
+                    line_number=1,
+                    complexity_score=3.5,
+                    mock_dependencies=["jwt_service", "user_database"],
+                )
+            )
 
         return integration_tests
 
-    async def _generate_performance_tests(self, source_files: List[str]) -> List[TestCase]:
+    async def _generate_performance_tests(
+        self, source_files: List[str]
+    ) -> List[TestCase]:
         """Generate performance tests"""
         performance_tests = []
 
         # General performance test template
-        performance_tests.append(TestCase(
-            name="test_system_performance",
-            description="Test system performance under load",
-            test_type="performance",
-            framework="pytest",
-            file_path="tests/test_performance.py",
-            line_number=1,
-            complexity_score=2.0,
-            mock_dependencies=[]
-        ))
+        performance_tests.append(
+            TestCase(
+                name="test_system_performance",
+                description="Test system performance under load",
+                test_type="performance",
+                framework="pytest",
+                file_path="tests/test_performance.py",
+                line_number=1,
+                complexity_score=2.0,
+                mock_dependencies=[],
+            )
+        )
 
         # Memory usage tests
         if any("memory" in f.lower() or "cache" in f.lower() for f in source_files):
-            performance_tests.append(TestCase(
-                name="test_memory_usage",
-                description="Test memory usage optimization",
-                test_type="performance",
-                framework="pytest",
-                file_path="tests/test_memory.py",
-                line_number=1,
-                complexity_score=3.0,
-                mock_dependencies=[]
-            ))
+            performance_tests.append(
+                TestCase(
+                    name="test_memory_usage",
+                    description="Test memory usage optimization",
+                    test_type="performance",
+                    framework="pytest",
+                    file_path="tests/test_memory.py",
+                    line_number=1,
+                    complexity_score=3.0,
+                    mock_dependencies=[],
+                )
+            )
 
         return performance_tests
 
@@ -963,29 +1073,33 @@ mock_{dependency.replace('.', '_')} = Mock{dependency.title().replace('.', '')}(
 
         # User journey test
         if any("user" in f.lower() or "auth" in f.lower() for f in source_files):
-            e2e_tests.append(TestCase(
-                name="test_user_journey",
-                description="Test complete user registration and login flow",
-                test_type="e2e",
-                framework="pytest",
-                file_path="tests/test_e2e.py",
-                line_number=1,
-                complexity_score=5.0,
-                mock_dependencies=["browser", "database", "email_service"]
-            ))
+            e2e_tests.append(
+                TestCase(
+                    name="test_user_journey",
+                    description="Test complete user registration and login flow",
+                    test_type="e2e",
+                    framework="pytest",
+                    file_path="tests/test_e2e.py",
+                    line_number=1,
+                    complexity_score=5.0,
+                    mock_dependencies=["browser", "database", "email_service"],
+                )
+            )
 
         # API workflow test
         if any("api" in f.lower() for f in source_files):
-            e2e_tests.append(TestCase(
-                name="test_api_workflow",
-                description="Test complete API workflow from request to response",
-                test_type="e2e",
-                framework="pytest",
-                file_path="tests/test_api_e2e.py",
-                line_number=1,
-                complexity_score=4.0,
-                mock_dependencies=["http_server", "database", "auth_service"]
-            ))
+            e2e_tests.append(
+                TestCase(
+                    name="test_api_workflow",
+                    description="Test complete API workflow from request to response",
+                    test_type="e2e",
+                    framework="pytest",
+                    file_path="tests/test_api_e2e.py",
+                    line_number=1,
+                    complexity_score=4.0,
+                    mock_dependencies=["http_server", "database", "auth_service"],
+                )
+            )
 
         return e2e_tests
 
@@ -1044,7 +1158,7 @@ class TestDataFactory:
 '''
 
         factory_path = self.test_dir / "factories.py"
-        with open(factory_path, 'w', encoding='utf-8') as f:
+        with open(factory_path, "w", encoding="utf-8") as f:
             f.write(factory_content)
 
         data_factories.append(str(factory_path))
@@ -1055,13 +1169,19 @@ class TestDataFactory:
         """Analyze test coverage after generating new tests"""
         return await self._analyze_current_coverage()  # Re-run coverage analysis
 
-    def _generate_test_recommendations(self, test_files: List[str], coverage_improvement: float,
-                                     test_types: Dict[str, int]) -> List[str]:
+    def _generate_test_recommendations(
+        self,
+        test_files: List[str],
+        coverage_improvement: float,
+        test_types: Dict[str, int],
+    ) -> List[str]:
         """Generate actionable testing recommendations"""
         recommendations = []
 
         if len(test_files) == 0:
-            recommendations.append("No tests were generated. Check source file analysis.")
+            recommendations.append(
+                "No tests were generated. Check source file analysis."
+            )
             return recommendations
 
         if coverage_improvement < 5:
@@ -1117,5 +1237,5 @@ class TestDataFactory:
             e2e_tests=[],
             mock_files_created=[],
             recommendations=["No source files found for test generation"],
-            error_files=[]
+            error_files=[],
         )

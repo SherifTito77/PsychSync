@@ -3,11 +3,11 @@ Locust Configuration File for PsychSync Load Testing
 Provides shared configuration and utilities for all Locust test files
 """
 
+import logging
 import os
 import random
-import logging
-from typing import Dict, List, Any
 from datetime import datetime, timedelta
+from typing import Any, Dict, List
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -68,9 +68,18 @@ class LoadTestConfig:
 
     # Sample assessment responses
     SAMPLE_RESPONSES = {
-        "mbti": [{"question_id": f"q{i}", "answer": random.randint(1, 5)} for i in range(1, 94)],
-        "big_five": [{"question_id": f"q{i}", "answer": random.randint(1, 5)} for i in range(1, 45)],
-        "enneagram": [{"question_id": f"q{i}", "answer": random.randint(1, 5)} for i in range(1, 145)],
+        "mbti": [
+            {"question_id": f"q{i}", "answer": random.randint(1, 5)}
+            for i in range(1, 94)
+        ],
+        "big_five": [
+            {"question_id": f"q{i}", "answer": random.randint(1, 5)}
+            for i in range(1, 45)
+        ],
+        "enneagram": [
+            {"question_id": f"q{i}", "answer": random.randint(1, 5)}
+            for i in range(1, 145)
+        ],
     }
 
     # Load levels
@@ -102,11 +111,13 @@ class TestDataManager:
         """Generate test user credentials"""
         users = []
         for i in range(count):
-            users.append({
-                "email": f"loadtest_user_{i}@test.com",
-                "password": "LoadTest123!",
-                "username": f"loadtest_{i}",
-            })
+            users.append(
+                {
+                    "email": f"loadtest_user_{i}@test.com",
+                    "password": "LoadTest123!",
+                    "username": f"loadtest_{i}",
+                }
+            )
         self.user_pool = users
         return users
 

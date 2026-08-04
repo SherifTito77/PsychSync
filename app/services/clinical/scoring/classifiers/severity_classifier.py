@@ -9,7 +9,8 @@ Single Responsibility Principle: Only classify severity levels.
 
 from dataclasses import dataclass
 from typing import Dict, List
-from ..config import ScoringThresholds, SeverityLevel, RiskLevel
+
+from ..config import RiskLevel, ScoringThresholds, SeverityLevel
 
 
 @dataclass
@@ -19,6 +20,7 @@ class SeverityClassification:
 
     Contains only severity-related information.
     """
+
     severity: SeverityLevel
     risk: RiskLevel
     score: int
@@ -72,13 +74,15 @@ class SeverityClassifier:
         )
 
     @classmethod
-    def for_phq9(cls) -> 'SeverityClassifier':
+    def for_phq9(cls) -> "SeverityClassifier":
         """Factory method for PHQ-9 classification"""
         from ..config import PHQ9_CONFIG
+
         return cls(thresholds=PHQ9_CONFIG.scoring_thresholds)
 
     @classmethod
-    def for_gad7(cls) -> 'SeverityClassifier':
+    def for_gad7(cls) -> "SeverityClassifier":
         """Factory method for GAD-7 classification"""
         from ..config import GAD7_CONFIG
+
         return cls(thresholds=GAD7_CONFIG.scoring_thresholds)

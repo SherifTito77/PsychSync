@@ -9,7 +9,8 @@ After: 15 lines with composable filter specifications
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
+
 from sqlalchemy import Select, select
 from sqlalchemy.orm import selectinload
 
@@ -44,9 +45,10 @@ class SearchFilter(FilterSpecification):
 
     def apply(self, query: Select, search: str, **kwargs) -> Select:
         from app.db.models.assessment import Assessment
+
         return query.where(
-            Assessment.title.ilike(f"%{search}%") |
-            Assessment.description.ilike(f"%{search}%")
+            Assessment.title.ilike(f"%{search}%")
+            | Assessment.description.ilike(f"%{search}%")
         )
 
 
@@ -58,6 +60,7 @@ class CategoryFilter(FilterSpecification):
 
     def apply(self, query: Select, category: str, **kwargs) -> Select:
         from app.db.models.assessment import Assessment
+
         return query.where(Assessment.category == category)
 
 
@@ -69,6 +72,7 @@ class StatusFilter(FilterSpecification):
 
     def apply(self, query: Select, status: str, **kwargs) -> Select:
         from app.db.models.assessment import Assessment
+
         return query.where(Assessment.status == status)
 
 
@@ -80,6 +84,7 @@ class CreatedByFilter(FilterSpecification):
 
     def apply(self, query: Select, created_by: int, **kwargs) -> Select:
         from app.db.models.assessment import Assessment
+
         return query.where(Assessment.created_by_id == created_by)
 
 
@@ -90,7 +95,7 @@ class DateRangeFilter(FilterSpecification):
         self,
         created_after: Optional[str] = None,
         created_before: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> bool:
         return created_after is not None or created_before is not None
 
@@ -99,7 +104,7 @@ class DateRangeFilter(FilterSpecification):
         query: Select,
         created_after: Optional[str] = None,
         created_before: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> Select:
         from app.db.models.assessment import Assessment
 
@@ -202,7 +207,7 @@ class AssessmentQueryBuilder:
         self,
         user: "User",
         filters: Optional[AssessmentFilters] = None,
-        eager_load: bool = True
+        eager_load: bool = True,
     ) -> Select:
         """
         Build a filtered query for assessments.
@@ -247,10 +252,7 @@ class AssessmentQueryBuilder:
         return query
 
     def build_with_custom_filters(
-        self,
-        user: "User",
-        custom_filters: list[FilterSpecification],
-        **filter_kwargs
+        self, user: "User", custom_filters: list[FilterSpecification], **filter_kwargs
     ) -> Select:
         """
         Build query with custom filter chain.

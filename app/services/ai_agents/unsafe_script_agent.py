@@ -15,13 +15,13 @@ Capabilities:
 Compliance: OWASP Dependency Check, CSP Guidelines
 """
 
+import json
 import logging
 import re
-import json
-from typing import Dict, List, Optional, Set
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
@@ -124,21 +124,14 @@ class UnsafeScriptAgent:
 
     # Patterns for detecting script tags
     SCRIPT_TAG_PATTERN = re.compile(
-        r'<script[^>]*>(.*?)</script>|<script[^>]*/>',
-        re.DOTALL | re.IGNORECASE
+        r"<script[^>]*>(.*?)</script>|<script[^>]*/>", re.DOTALL | re.IGNORECASE
     )
 
     # Pattern for extracting script source
-    SCRIPT_SRC_PATTERN = re.compile(
-        r'src=["\']([^"\']+)["\']',
-        re.IGNORECASE
-    )
+    SCRIPT_SRC_PATTERN = re.compile(r'src=["\']([^"\']+)["\']', re.IGNORECASE)
 
     # Pattern for detecting SRI hashes
-    SRI_PATTERN = re.compile(
-        r'integrity=["\']([^"\']+)["\']',
-        re.IGNORECASE
-    )
+    SRI_PATTERN = re.compile(r'integrity=["\']([^"\']+)["\']', re.IGNORECASE)
 
     def __init__(self):
         self.frontend_path = Path(__file__).parent.parent.parent.parent / "frontend"
@@ -208,7 +201,7 @@ class UnsafeScriptAgent:
             # Find all script tags
             for match in self.SCRIPT_TAG_PATTERN.finditer(content):
                 script_tag = match.group(0)
-                line_num = content[:match.start()].count("\n") + 1
+                line_num = content[: match.start()].count("\n") + 1
 
                 # Check if script has src
                 src_match = self.SCRIPT_SRC_PATTERN.search(script_tag)
@@ -280,7 +273,9 @@ class UnsafeScriptAgent:
         # Check for missing SRI (for external scripts)
         if script_type == ScriptType.CDN:
             # Check if script tag has integrity
-            if not self.SRI_PATTERN.search(src_url):  # This should check the script tag, not URL
+            if not self.SRI_PATTERN.search(
+                src_url
+            ):  # This should check the script tag, not URL
                 vulnerabilities.append(
                     ScriptVulnerability(
                         script_source=src_url,
@@ -425,7 +420,9 @@ class UnsafeScriptAgent:
 
         return vulnerabilities
 
-    def _is_vulnerable_version(self, current: str, vulnerable_ranges: List[str]) -> bool:
+    def _is_vulnerable_version(
+        self, current: str, vulnerable_ranges: List[str]
+    ) -> bool:
         """
         Check if current version is in vulnerable range.
 
@@ -464,27 +461,33 @@ class UnsafeScriptAgent:
         Returns:
             Scan summary
         """
-        critical = len([v for v in vulnerabilities if v.risk_level == RiskLevel.CRITICAL])
+        critical = len(
+            [v for v in vulnerabilities if v.risk_level == RiskLevel.CRITICAL]
+        )
         high = len([v for v in vulnerabilities if v.risk_level == RiskLevel.HIGH])
         medium = len([v for v in vulnerabilities if v.risk_level == RiskLevel.MEDIUM])
         low = len([v for v in vulnerabilities if v.risk_level == RiskLevel.LOW])
 
         # Count specific issues
-        scripts_with_missing_sri = len([
-            v for v in vulnerabilities
-            if "SRI" in v.issue
-        ])
+        scripts_with_missing_sri = len([v for v in vulnerabilities if "SRI" in v.issue])
 
-        scripts_using_unsafe_cdn = len([
-            v for v in vulnerabilities
-            if "CDN" in v.issue
-        ])
+        scripts_using_unsafe_cdn = len([v for v in vulnerabilities if "CDN" in v.issue])
 
         return SecurityScanSummary(
-            total_scripts=len([v for v in vulnerabilities if v.script_type in [ScriptType.CDN, ScriptType.INLINE]]),
+            total_scripts=len(
+                [
+                    v
+                    for v in vulnerabilities
+                    if v.script_type in [ScriptType.CDN, ScriptType.INLINE]
+                ]
+            ),
             unsafe_scripts=len(vulnerabilities),
-            total_dependencies=len([v for v in vulnerabilities if v.script_type == ScriptType.NPM]),
-            vulnerable_dependencies=len([v for v in vulnerabilities if v.script_type == ScriptType.NPM]),
+            total_dependencies=len(
+                [v for v in vulnerabilities if v.script_type == ScriptType.NPM]
+            ),
+            vulnerable_dependencies=len(
+                [v for v in vulnerabilities if v.script_type == ScriptType.NPM]
+            ),
             critical_issues=critical,
             high_issues=high,
             medium_issues=medium,
@@ -509,7 +512,9 @@ class UnsafeScriptAgent:
         recommendations = []
 
         # Critical recommendations
-        critical_vulns = [v for v in vulnerabilities if v.risk_level == RiskLevel.CRITICAL]
+        critical_vulns = [
+            v for v in vulnerabilities if v.risk_level == RiskLevel.CRITICAL
+        ]
         if critical_vulns:
             recommendations.append(
                 f"🚨 CRITICAL: Address {len(critical_vulns)} critical vulnerabilities immediately"

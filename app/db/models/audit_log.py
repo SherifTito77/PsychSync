@@ -8,13 +8,19 @@ from ..base import Base
 class AuditLog(Base):
     __tablename__ = "audit_logs"
     id = sa.Column(
-        UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=sa.text("gen_random_uuid()"),
     )
     organization_id = sa.Column(
-        UUID(as_uuid=True), sa.ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True),
+        sa.ForeignKey("organizations.id", ondelete="CASCADE"),
+        nullable=False,
     )
     actor_user_id = sa.Column(
-        UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True),
+        sa.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
     )
     action = sa.Column(sa.Text, nullable=False)
     entity = sa.Column(sa.Text, nullable=False)

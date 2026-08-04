@@ -1,0 +1,60 @@
+# Pre-commit hooks for chaos testing
+# Install: pre-commit install -c .pre-commit-chaos.yml --hook-type pre-push
+
+repos:
+  - repo: local
+    hooks:
+      - id: chaos-tests-fast
+        name: Run fast chaos tests (circuit breakers)
+        entry: python -m pytest tests/chaos/test_system_boundary_resilience.py::TestCircuitBreakerResilience -v
+        language: system
+        pass_filenames: false
+        always_run: false
+        stages: [pre-push]
+
+      - id: resilience-check
+        name: Check resilience patterns usage
+        entry: |
+          #!/bin/bash
+          echo "🔍 Checking for external API calls without resilience..."
+
+          # Find files making HTTP requests without circuit breaker
+          FILES=$(grep -r "httpx\|requests" app/integrations app/services --include="*.py" | \
+                  grep -v "test_" | \
+                  grep -v "circuit_breaker" | \
+                  grep -v ".pyc" | \
+                  wc -l)
+
+          if [ "$FILES" -gt 0 ]; then
+            echo "⚠️  Found $FILES instances of HTTP calls without circuit breaker protection"
+            echo "Consider using: await circuit_breaker.call(function)"
+            echo ""
+            echo "Files with potentially unprotected calls:"
+            grep -r "httpx\|requests" app/integrations app/services --include="*.py" | \
+                grep -v "test_" | \
+                grep -v "circuit_breaker" | \
+                grep -v ".pyc" | \
+                cut -d: -f1 | sort -u || true
+          fi
+        language: system
+        pass_filenames: false
+
+      - id: timeout-check
+        name: Check for missing timeouts in HTTP calls
+        entry: |
+          #!/bin/bash
+          echo "⏱️  Checking for HTTP calls without explicit timeouts..."
+
+          # Find AsyncClient/Client without timeout parameter
+          FILES=$(grep -r "AsyncClient\|Client" app/integrations app/services --include="*.py" -A 3 | \
+                  grep -v "timeout=" | \
+                  grep -v "test_" | \
+                  grep "AsyncClient\|Client" | \
+                  wc -l)
+
+          if [ "$FILES" -gt 0 ]; then
+            echo "⚠️  Found $FILES HTTP clients without explicit timeout"
+            echo "Consider adding: timeout=30.0"
+          fi
+        language: system
+        pass_filenames: false

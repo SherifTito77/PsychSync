@@ -12,16 +12,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.db.models.query_performance import (
-    SlowQuery,
     IndexRecommendation,
-    QueryPerformanceHistory,
     QueryOptimizationReport,
+    QueryPerformanceHistory,
+    SlowQuery,
 )
 from app.schemas.query_performance import (
-    SlowQueryCreate,
-    SlowQueryUpdate,
     IndexRecommendationCreate,
     IndexRecommendationUpdate,
+    SlowQueryCreate,
+    SlowQueryUpdate,
 )
 
 

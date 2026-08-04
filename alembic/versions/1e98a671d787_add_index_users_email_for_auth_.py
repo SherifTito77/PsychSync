@@ -5,15 +5,16 @@ Revises: 20250119_add_response_performance_indexes
 Create Date: 2026-01-19 10:20:04.007501
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '1e98a671d787'
-down_revision: Union[str, None] = '20250119_add_response_performance_indexes'
+revision: str = "1e98a671d787"
+down_revision: Union[str, None] = "20250119_add_response_performance_indexes"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -32,8 +33,7 @@ def upgrade() -> None:
     # Create CONCURRENTLY to avoid blocking database writes
     # This is critical for production systems with high traffic
     op.execute(
-        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_email "
-        "ON users(email)"
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_user_email " "ON users(email)"
     )
 
     # Also add a composite index for email + is_active for common queries

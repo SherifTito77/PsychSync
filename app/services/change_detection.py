@@ -13,13 +13,13 @@ Key Features:
 - Change impact assessment and prioritization
 """
 
+import logging
+import warnings
 from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import Any
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -193,7 +193,9 @@ class AdvancedChangeDetector:
     Advanced change detection service with multiple algorithms and real-time capabilities.
     """
 
-    def __init__(self, db_session: Session, config: ChangeDetectionConfig | None = None):
+    def __init__(
+        self, db_session: Session, config: ChangeDetectionConfig | None = None
+    ):
         self.db = db_session
         self.config = config or ChangeDetectionConfig()
         self.redis_client: redis.Redis | None = None
@@ -340,7 +342,9 @@ class AdvancedChangeDetector:
         """
         try:
             if len(data_points) < self.config.min_observations:
-                logger.warning(f"Insufficient data points for batch detection: {len(data_points)}")
+                logger.warning(
+                    f"Insufficient data points for batch detection: {len(data_points)}"
+                )
                 return []
 
             timestamps, values = zip(*data_points)
@@ -358,7 +362,12 @@ class AdvancedChangeDetector:
             for algorithm in algorithms:
                 try:
                     algorithm_alerts = await self._run_batch_algorithm(
-                        algorithm, user_id, metric_name, timestamps, values, context or {}
+                        algorithm,
+                        user_id,
+                        metric_name,
+                        timestamps,
+                        values,
+                        context or {},
                     )
                     alerts.extend(algorithm_alerts)
 
@@ -426,7 +435,9 @@ class AdvancedChangeDetector:
             return filtered_alerts
 
         except Exception as e:
-            logger.error(f"Error in multivariate change detection for user {user_id}: {e}")
+            logger.error(
+                f"Error in multivariate change detection for user {user_id}: {e}"
+            )
             return []
 
     async def _initialize_user_state(
@@ -451,7 +462,9 @@ class AdvancedChangeDetector:
 
             self.streaming_states[user_key][algorithm.value] = state
 
-    def _get_algorithm_parameters(self, algorithm: DetectionAlgorithm) -> dict[str, Any]:
+    def _get_algorithm_parameters(
+        self, algorithm: DetectionAlgorithm
+    ) -> dict[str, Any]:
         """Get parameters for a specific algorithm."""
         param_map = {
             DetectionAlgorithm.ADAPTIVE_CUSUM: self.config.cusum_parameters,
@@ -478,22 +491,29 @@ class AdvancedChangeDetector:
 
             # Update mean and variance incrementally
             old_mean = state.current_statistics["mean"]
-            state.current_statistics["mean"] = old_mean + (new_value - old_mean) / state.count
+            state.current_statistics["mean"] = (
+                old_mean + (new_value - old_mean) / state.count
+            )
 
             if state.count > 1:
                 old_variance = state.current_statistics["variance"]
                 state.current_statistics["variance"] = (
                     old_variance
                     + (
-                        (new_value - old_mean) * (new_value - state.current_statistics["mean"])
+                        (new_value - old_mean)
+                        * (new_value - state.current_statistics["mean"])
                         - old_variance
                     )
                     / state.count
                 )
 
             # Update min/max
-            state.current_statistics["min"] = min(state.current_statistics["min"], new_value)
-            state.current_statistics["max"] = max(state.current_statistics["max"], new_value)
+            state.current_statistics["min"] = min(
+                state.current_statistics["min"], new_value
+            )
+            state.current_statistics["max"] = max(
+                state.current_statistics["max"], new_value
+            )
 
             # Run specific algorithm
             if algorithm == DetectionAlgorithm.ADAPTIVE_CUSUM:
@@ -548,7 +568,9 @@ class AdvancedChangeDetector:
             ):
                 # Change detected
                 change_type = (
-                    "increase" if state.current_statistics["cusum_pos"] > h else "decrease"
+                    "increase"
+                    if state.current_statistics["cusum_pos"] > h
+                    else "decrease"
                 )
                 change_magnitude = (
                     state.current_statistics["cusum_pos"]
@@ -580,7 +602,9 @@ class AdvancedChangeDetector:
                     confidence=confidence,
                     statistical_significance=1.0 - confidence,
                     description=f"CUSUM detected {change_type} in metric value",
-                    recommended_actions=[f"Investigate {change_type} in {state.algorithm.value}"],
+                    recommended_actions=[
+                        f"Investigate {change_type} in {state.algorithm.value}"
+                    ],
                 )
 
         except Exception as e:
@@ -681,7 +705,9 @@ class AdvancedChangeDetector:
                 or state.current_statistics["ph_ml"] > lambda_param
             ):
                 change_type = (
-                    "increase" if state.current_statistics["ph_mh"] > lambda_param else "decrease"
+                    "increase"
+                    if state.current_statistics["ph_mh"] > lambda_param
+                    else "decrease"
                 )
                 ph_value = (
                     state.current_statistics["ph_mh"]
@@ -729,7 +755,9 @@ class AdvancedChangeDetector:
 
             # Initialize ADWIN window if not present
             if "adwin_window" not in state.current_statistics:
-                state.current_statistics["adwin_window"] = deque([new_value], maxlen=1000)
+                state.current_statistics["adwin_window"] = deque(
+                    [new_value], maxlen=1000
+                )
                 state.current_statistics["adwin_buckets"] = [deque([new_value])]
 
             window = state.current_statistics["adwin_window"]
@@ -741,7 +769,9 @@ class AdvancedChangeDetector:
                 best_split = -1
                 best_p_value = 1.0
 
-                for split_point in range(min_window_size, len(window) - min_window_size + 1):
+                for split_point in range(
+                    min_window_size, len(window) - min_window_size + 1
+                ):
                     window1 = list(window)[:split_point]
                     window2 = list(window)[split_point:]
 
@@ -773,7 +803,9 @@ class AdvancedChangeDetector:
                         metric_name="",
                         algorithm=DetectionAlgorithm.ADWIN,
                         change_type="distribution_shift",
-                        severity=self._calculate_severity(change_magnitude, np.std(list(window))),
+                        severity=self._calculate_severity(
+                            change_magnitude, np.std(list(window))
+                        ),
                         detected_at=timestamp,
                         baseline_value=old_mean,
                         current_value=new_mean,
@@ -800,12 +832,21 @@ class AdvancedChangeDetector:
     ) -> list[ChangeAlert]:
         """Run a batch change detection algorithm."""
         try:
-            if algorithm == DetectionAlgorithm.CHANGE_FINDER and self.advanced_ts_available:
-                return await self._change_finder_batch(user_id, metric_name, timestamps, values)
+            if (
+                algorithm == DetectionAlgorithm.CHANGE_FINDER
+                and self.advanced_ts_available
+            ):
+                return await self._change_finder_batch(
+                    user_id, metric_name, timestamps, values
+                )
             if algorithm == DetectionAlgorithm.MULTIVARIATE_HOTELLING and ML_AVAILABLE:
-                return await self._hotelling_t2_batch(user_id, metric_name, timestamps, values)
+                return await self._hotelling_t2_batch(
+                    user_id, metric_name, timestamps, values
+                )
             if algorithm == DetectionAlgorithm.ENSEMBLE_STREAM and ML_AVAILABLE:
-                return await self._ensemble_batch(user_id, metric_name, timestamps, values)
+                return await self._ensemble_batch(
+                    user_id, metric_name, timestamps, values
+                )
             logger.warning(f"Batch algorithm {algorithm.value} not available")
             return []
 
@@ -814,7 +855,11 @@ class AdvancedChangeDetector:
             return []
 
     async def _change_finder_batch(
-        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+        self,
+        user_id: str,
+        metric_name: str,
+        timestamps: list[datetime],
+        values: list[float],
     ) -> list[ChangeAlert]:
         """Change Finder algorithm for batch change detection."""
         try:
@@ -850,7 +895,9 @@ class AdvancedChangeDetector:
                             metric_name=metric_name,
                             algorithm=DetectionAlgorithm.CHANGE_FINDER,
                             change_type="level_shift",
-                            severity=self._calculate_severity(change_magnitude, np.std(values)),
+                            severity=self._calculate_severity(
+                                change_magnitude, np.std(values)
+                            ),
                             detected_at=timestamps[change_idx],
                             baseline_value=baseline_mean,
                             current_value=post_change_mean,
@@ -858,7 +905,9 @@ class AdvancedChangeDetector:
                             confidence=0.8,  # Fixed confidence for Pelt
                             statistical_significance=0.05,
                             description="Change Finder detected level shift",
-                            recommended_actions=["Investigate behavioral pattern change"],
+                            recommended_actions=[
+                                "Investigate behavioral pattern change"
+                            ],
                         )
                         alerts.append(alert)
 
@@ -869,7 +918,11 @@ class AdvancedChangeDetector:
             return []
 
     async def _ensemble_batch(
-        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+        self,
+        user_id: str,
+        metric_name: str,
+        timestamps: list[datetime],
+        values: list[float],
     ) -> list[ChangeAlert]:
         """Ensemble method combining multiple change detection algorithms."""
         try:
@@ -891,7 +944,9 @@ class AdvancedChangeDetector:
                     logger.debug(f"Error in ensemble algorithm {alg_name}: {e}")
 
             # Find consensus change points
-            consensus_points = self._find_consensus_changes(all_change_indices, len(values))
+            consensus_points = self._find_consensus_changes(
+                all_change_indices, len(values)
+            )
 
             alerts = []
             for change_idx, consensus_info in consensus_points:
@@ -913,7 +968,9 @@ class AdvancedChangeDetector:
                             metric_name=metric_name,
                             algorithm=DetectionAlgorithm.ENSEMBLE_STREAM,
                             change_type="consensus_change",
-                            severity=self._calculate_severity(change_magnitude, np.std(values)),
+                            severity=self._calculate_severity(
+                                change_magnitude, np.std(values)
+                            ),
                             detected_at=timestamps[change_idx],
                             baseline_value=baseline_mean,
                             current_value=post_change_mean,
@@ -1047,7 +1104,11 @@ class AdvancedChangeDetector:
 
                 if not assigned:
                     consensus_groups.append(
-                        {"center": change_idx, "indices": [change_idx], "algorithms": [algorithm]}
+                        {
+                            "center": change_idx,
+                            "indices": [change_idx],
+                            "algorithms": [algorithm],
+                        }
                     )
 
             # Filter groups with consensus (at least 2 algorithms)
@@ -1070,7 +1131,9 @@ class AdvancedChangeDetector:
         except Exception:
             return []
 
-    def _calculate_severity(self, change_magnitude: float, threshold: float) -> ChangeSeverity:
+    def _calculate_severity(
+        self, change_magnitude: float, threshold: float
+    ) -> ChangeSeverity:
         """Calculate severity level based on change magnitude and threshold."""
         try:
             ratio = change_magnitude / threshold if threshold > 0 else 0
@@ -1106,16 +1169,23 @@ class AdvancedChangeDetector:
         return []
 
     async def _correlation_change_detection(
-        self, user_id: str, aligned_data: pd.DataFrame, correlation_threshold: float | None
+        self,
+        user_id: str,
+        aligned_data: pd.DataFrame,
+        correlation_threshold: float | None,
     ) -> list[ChangeAlert]:
         """Detect changes in correlation patterns."""
         return []
 
-    async def _filter_and_prioritize_alerts(self, alerts: list[ChangeAlert]) -> list[ChangeAlert]:
+    async def _filter_and_prioritize_alerts(
+        self, alerts: list[ChangeAlert]
+    ) -> list[ChangeAlert]:
         """Filter and prioritize change alerts."""
         return alerts
 
-    async def _filter_multivariate_alerts(self, alerts: list[ChangeAlert]) -> list[ChangeAlert]:
+    async def _filter_multivariate_alerts(
+        self, alerts: list[ChangeAlert]
+    ) -> list[ChangeAlert]:
         """Filter multivariate change alerts."""
         return alerts
 

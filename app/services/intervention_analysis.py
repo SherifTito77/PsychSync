@@ -5,11 +5,11 @@ Provides comprehensive pre/post intervention analysis with statistical testing,
 effect size calculations, and significance testing for organizational interventions.
 """
 
+import logging
+import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
-import math
 from typing import Any
 
 import numpy as np
@@ -133,7 +133,9 @@ class InterventionAnalyzer:
 
         # Get intervention details
         intervention = (
-            self.db.query(Intervention).filter(Intervention.id == intervention_id).first()
+            self.db.query(Intervention)
+            .filter(Intervention.id == intervention_id)
+            .first()
         )
 
         if not intervention:
@@ -184,7 +186,9 @@ class InterventionAnalyzer:
 
         # Determine clinical and practical significance
         clinical_significance = self._determine_clinical_significance(effect_sizes)
-        practical_significance = self._determine_practical_significance(pre_post_data, effect_sizes)
+        practical_significance = self._determine_practical_significance(
+            pre_post_data, effect_sizes
+        )
 
         # Generate recommendations
         recommendations = self._generate_recommendations(
@@ -265,7 +269,9 @@ class InterventionAnalyzer:
 
         if follow_up_days:
             intervention = (
-                self.db.query(Intervention).filter(Intervention.id == intervention_id).first()
+                self.db.query(Intervention)
+                .filter(Intervention.id == intervention_id)
+                .first()
             )
             if intervention and intervention.end_date:
                 cutoff_date = intervention.end_date + timedelta(days=follow_up_days)
@@ -273,7 +279,9 @@ class InterventionAnalyzer:
                     PostInterventionMeasurement.measurement_date <= cutoff_date
                 )
 
-        post_measurements = post_query.group_by(PostInterventionMeasurement.user_id).subquery()
+        post_measurements = post_query.group_by(
+            PostInterventionMeasurement.user_id
+        ).subquery()
 
         # Join pre and post measurements
         paired_data = (
@@ -285,7 +293,8 @@ class InterventionAnalyzer:
                 post_measurements.c.post_date,
             )
             .join(
-                post_measurements, participants_with_both.c.user_id == post_measurements.c.user_id
+                post_measurements,
+                participants_with_both.c.user_id == post_measurements.c.user_id,
             )
             .all()
         )
@@ -305,10 +314,14 @@ class InterventionAnalyzer:
             "follow_up_days": follow_up_days,
             "sample_size": len(paired_data),
             "data_collection_dates": {
-                "earliest_pre": min(measurement_dates).isoformat() if measurement_dates else None,
-                "latest_post": max([row.post_date for row in paired_data]).isoformat()
-                if paired_data
-                else None,
+                "earliest_pre": (
+                    min(measurement_dates).isoformat() if measurement_dates else None
+                ),
+                "latest_post": (
+                    max([row.post_date for row in paired_data]).isoformat()
+                    if paired_data
+                    else None
+                ),
             },
         }
 
@@ -321,7 +334,9 @@ class InterventionAnalyzer:
             metadata=metadata,
         )
 
-    async def _perform_statistical_tests(self, data: PrePostData) -> list[StatisticalTestResult]:
+    async def _perform_statistical_tests(
+        self, data: PrePostData
+    ) -> list[StatisticalTestResult]:
         """Perform appropriate statistical tests based on data characteristics"""
 
         results = []
@@ -394,7 +409,9 @@ class InterventionAnalyzer:
 
         return results
 
-    async def _calculate_effect_sizes(self, data: PrePostData) -> list[EffectSizeResult]:
+    async def _calculate_effect_sizes(
+        self, data: PrePostData
+    ) -> list[EffectSizeResult]:
         """Calculate various effect size metrics"""
 
         results = []
@@ -462,7 +479,9 @@ class InterventionAnalyzer:
 
         try:
             # Cliff's Delta (non-parametric effect size)
-            cliffs_delta = self._calculate_cliffs_delta(data.pre_values, data.post_values)
+            cliffs_delta = self._calculate_cliffs_delta(
+                data.pre_values, data.post_values
+            )
 
             results.append(
                 EffectSizeResult(
@@ -483,7 +502,9 @@ class InterventionAnalyzer:
         correction_factor = 1 - (3 / (4 * (2 * n) - 1))
         return cohens_d * correction_factor
 
-    def _calculate_cliffs_delta(self, group1: list[float], group2: list[float]) -> float:
+    def _calculate_cliffs_delta(
+        self, group1: list[float], group2: list[float]
+    ) -> float:
         """Calculate Cliff's Delta for non-parametric effect size"""
         n1, n2 = len(group1), len(group2)
         dominance_count = 0
@@ -581,7 +602,9 @@ class InterventionAnalyzer:
             "independent_observations": True,
         }
 
-    def _determine_clinical_significance(self, effect_sizes: list[EffectSizeResult]) -> str | None:
+    def _determine_clinical_significance(
+        self, effect_sizes: list[EffectSizeResult]
+    ) -> str | None:
         """Determine clinical significance based on effect sizes"""
         if not effect_sizes:
             return None
@@ -655,7 +678,9 @@ class InterventionAnalyzer:
             )
 
         # Check effect sizes
-        large_effects = [es for es in effect_sizes if es.magnitude in ["large", "very_large"]]
+        large_effects = [
+            es for es in effect_sizes if es.magnitude in ["large", "very_large"]
+        ]
 
         if large_effects:
             recommendations.append(
@@ -688,13 +713,17 @@ class InterventionAnalyzer:
 
         # Sample size limitations
         if len(data.pre_values) < 20:
-            limitations.append("Small sample size limits statistical power and generalizability")
+            limitations.append(
+                "Small sample size limits statistical power and generalizability"
+            )
 
         # Test assumption violations
         for test in statistical_tests:
             if test.assumptions_met:
                 violated_assumptions = [
-                    assumption for assumption, met in test.assumptions_met.items() if not met
+                    assumption
+                    for assumption, met in test.assumptions_met.items()
+                    if not met
                 ]
                 if violated_assumptions:
                     limitations.append(
@@ -756,7 +785,9 @@ class InterventionAnalyzer:
             "alpha": alpha,
             "power": power,
             "adequate_power": power >= 0.8 if power is not None else None,
-            "minimum_detectable_effect": self._calculate_minimum_detectable_effect(n, alpha),
+            "minimum_detectable_effect": self._calculate_minimum_detectable_effect(
+                n, alpha
+            ),
         }
 
     def _calculate_minimum_detectable_effect(self, n: int, alpha: float) -> float:

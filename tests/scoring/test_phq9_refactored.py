@@ -6,10 +6,13 @@ because each component can be tested in isolation.
 """
 
 import pytest
-from app.services.clinical.scoring.strategies.phq9_scorer import PHQ9Scorer
-from app.services.clinical.scoring.config import ScoringThresholds, CrisisThresholds
-from app.services.clinical.scoring.classifiers.severity_classifier import SeverityClassifier
+
+from app.services.clinical.scoring.classifiers.severity_classifier import (
+    SeverityClassifier,
+)
+from app.services.clinical.scoring.config import CrisisThresholds, ScoringThresholds
 from app.services.clinical.scoring.detectors.crisis_detector import CrisisDetector
+from app.services.clinical.scoring.strategies.phq9_scorer import PHQ9Scorer
 
 
 class TestScoringThresholds:
@@ -47,7 +50,7 @@ class TestCrisisDetector:
             suicide_item_number=9,
             crisis_threshold=1,
             severe_crisis_threshold=2,
-            requires_any_positive=True
+            requires_any_positive=True,
         )
         detector = CrisisDetector(thresholds)
 
@@ -64,7 +67,7 @@ class TestCrisisDetector:
             suicide_item_number=9,
             crisis_threshold=1,
             severe_crisis_threshold=2,
-            requires_any_positive=True
+            requires_any_positive=True,
         )
         detector = CrisisDetector(thresholds)
 
@@ -84,7 +87,7 @@ class TestCrisisDetector:
             suicide_item_number=9,
             crisis_threshold=1,
             severe_crisis_threshold=2,
-            requires_any_positive=True
+            requires_any_positive=True,
         )
         detector = CrisisDetector(thresholds)
 
@@ -194,8 +197,13 @@ class TestPHQ9Properties:
 
         # Verify result structure
         assert isinstance(result.total_score, float)
-        assert result.severity_level in ["minimal", "mild", "moderate",
-                                          "moderately_severe", "severe"]
+        assert result.severity_level in [
+            "minimal",
+            "mild",
+            "moderate",
+            "moderately_severe",
+            "severe",
+        ]
         assert result.risk_level in ["low", "moderate", "high", "critical"]
         assert isinstance(result.recommendations, list)
         assert len(result.recommendations) > 0

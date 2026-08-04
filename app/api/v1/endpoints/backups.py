@@ -42,9 +42,13 @@ router = APIRouter()
 class BackupRequest(BaseModel):
     """Request model for creating backups"""
 
-    backup_type: BackupType = Field(default=BackupType.FULL, description="Type of backup to create")
+    backup_type: BackupType = Field(
+        default=BackupType.FULL, description="Type of backup to create"
+    )
     description: str | None = Field(None, description="Backup description")
-    tags: list[str] = Field(default_factory=list, description="Backup tags for organization")
+    tags: list[str] = Field(
+        default_factory=list, description="Backup tags for organization"
+    )
 
 
 class BackupConfigRequest(BaseModel):
@@ -55,18 +59,30 @@ class BackupConfigRequest(BaseModel):
     storage_path: str = Field(..., description="Storage path")
     compression_enabled: bool = Field(default=True, description="Enable compression")
     encryption_enabled: bool = Field(default=True, description="Enable encryption")
-    retention_days: int = Field(default=30, ge=1, le=365, description="Retention period in days")
-    schedule_cron: str = Field(default="0 2 * * *", description="Backup schedule (cron format)")
-    verify_after_backup: bool = Field(default=True, description="Verify backup after creation")
-    cleanup_old_backups: bool = Field(default=True, description="Auto-cleanup old backups")
-    notification_emails: list[str] = Field(default_factory=list, description="Notification emails")
+    retention_days: int = Field(
+        default=30, ge=1, le=365, description="Retention period in days"
+    )
+    schedule_cron: str = Field(
+        default="0 2 * * *", description="Backup schedule (cron format)"
+    )
+    verify_after_backup: bool = Field(
+        default=True, description="Verify backup after creation"
+    )
+    cleanup_old_backups: bool = Field(
+        default=True, description="Auto-cleanup old backups"
+    )
+    notification_emails: list[str] = Field(
+        default_factory=list, description="Notification emails"
+    )
 
 
 class RestoreRequest(BaseModel):
     """Request model for restoring backups"""
 
     target_database: str | None = Field(None, description="Target database name")
-    confirm_restore: bool = Field(default=False, description="Confirm restoration (safety measure)")
+    confirm_restore: bool = Field(
+        default=False, description="Confirm restoration (safety measure)"
+    )
 
 
 class BackupResponse(BaseModel):
@@ -136,10 +152,13 @@ async def create_backup(
         backup_metadata = await backup_service.create_backup(backup_request.backup_type)
 
         # Log backup creation
-        logger.info(f"Backup {backup_metadata.backup_id} created by user {current_user.email}")
+        logger.info(
+            f"Backup {backup_metadata.backup_id} created by user {current_user.email}"
+        )
 
         return SuccessResponse(
-            message="Backup created successfully", data=BackupResponse.from_orm(backup_metadata)
+            message="Backup created successfully",
+            data=BackupResponse.from_orm(backup_metadata),
         )
 
     except Exception as e:
@@ -180,7 +199,9 @@ async def list_backups(
         backup_responses = [BackupResponse.from_orm(backup) for backup in backups]
 
         # Get total count for pagination
-        all_backups = await backup_service.list_backups(backup_type=backup_type, status=status)
+        all_backups = await backup_service.list_backups(
+            backup_type=backup_type, status=status
+        )
         total = len(all_backups)
 
         return BackupListResponse.create_paginated(
@@ -216,7 +237,8 @@ async def get_backup(
             raise HTTPException(status_code=404, detail="Backup not found")
 
         return SuccessResponse(
-            message="Backup retrieved successfully", data=BackupResponse.from_orm(backup)
+            message="Backup retrieved successfully",
+            data=BackupResponse.from_orm(backup),
         )
 
     except HTTPException:
@@ -226,7 +248,9 @@ async def get_backup(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/backups/{backup_id}/restore", response_model=SuccessResponse[dict[str, str]])
+@router.post(
+    "/backups/{backup_id}/restore", response_model=SuccessResponse[dict[str, str]]
+)
 async def restore_backup(
     backup_id: str,
     restore_request: RestoreRequest,
@@ -270,7 +294,9 @@ async def restore_backup(
             raise HTTPException(status_code=500, detail="Restore operation failed")
 
         # Log restore operation
-        logger.warning(f"Database restored from backup {backup_id} by user {current_user.email}")
+        logger.warning(
+            f"Database restored from backup {backup_id} by user {current_user.email}"
+        )
 
         return SuccessResponse(
             message="Database restored successfully",
@@ -314,7 +340,9 @@ async def delete_backup(
 
         logger.info(f"Backup {backup_id} deleted by user {current_user.email}")
 
-        return SuccessResponse(message="Backup deleted successfully", data={"backup_id": backup_id})
+        return SuccessResponse(
+            message="Backup deleted successfully", data={"backup_id": backup_id}
+        )
 
     except HTTPException:
         raise
@@ -323,7 +351,9 @@ async def delete_backup(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/backups/{backup_id}/verify", response_model=SuccessResponse[dict[str, Any]])
+@router.post(
+    "/backups/{backup_id}/verify", response_model=SuccessResponse[dict[str, Any]]
+)
 async def verify_backup(
     backup_id: str,
     db: AsyncSession = Depends(get_async_db),
@@ -356,9 +386,12 @@ async def verify_backup(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/backups/statistics", response_model=SuccessResponse[BackupStatisticsResponse])
+@router.get(
+    "/backups/statistics", response_model=SuccessResponse[BackupStatisticsResponse]
+)
 async def get_backup_statistics(
-    current_user: User = Depends(get_current_admin_user), db: AsyncSession = Depends(get_async_db)
+    current_user: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get backup statistics and metrics
@@ -379,7 +412,9 @@ async def get_backup_statistics(
         total_size_gb = stats["total_size_bytes"] / (1024**3)
 
         response_data = BackupStatisticsResponse(
-            **stats, total_size_gb=round(total_size_gb, 2), success_rate=round(success_rate, 2)
+            **stats,
+            total_size_gb=round(total_size_gb, 2),
+            success_rate=round(success_rate, 2),
         )
 
         return SuccessResponse(
@@ -414,7 +449,10 @@ async def cleanup_old_backups(
 
         return SuccessResponse(
             message="Backup cleanup completed",
-            data={"deleted_count": deleted_count, "cleaned_at": datetime.utcnow().isoformat()},
+            data={
+                "deleted_count": deleted_count,
+                "cleaned_at": datetime.utcnow().isoformat(),
+            },
         )
 
     except Exception as e:
@@ -460,7 +498,9 @@ async def download_backup(
             filename += ".enc"
 
         return FileResponse(
-            path=backup.file_path, filename=filename, media_type="application/octet-stream"
+            path=backup.file_path,
+            filename=filename,
+            media_type="application/octet-stream",
         )
 
     except HTTPException:
@@ -516,7 +556,8 @@ async def update_backup_config(
 
 @router.get("/backups/config", response_model=SuccessResponse[dict[str, Any]])
 async def get_backup_config(
-    current_user: User = Depends(get_current_admin_user), db: AsyncSession = Depends(get_async_db)
+    current_user: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get current backup configuration
@@ -551,7 +592,8 @@ async def get_backup_config(
 
 @router.post("/backups/test-connection", response_model=SuccessResponse[dict[str, Any]])
 async def test_storage_connection(
-    current_user: User = Depends(get_current_admin_user), db: AsyncSession = Depends(get_async_db)
+    current_user: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Test connection to storage provider

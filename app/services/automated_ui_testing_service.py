@@ -4,16 +4,16 @@ Provides comprehensive automated UI testing integration with multiple testing fr
 """
 
 import asyncio
+import json
+import logging
+import subprocess
+import traceback
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import json
-import logging
 from pathlib import Path
-import subprocess
-import traceback
 from typing import Any
-import uuid
 
 from app.core.config import settings
 
@@ -205,7 +205,11 @@ class AutomatedUITestingService:
                 "chrome": {
                     "browserName": "chrome",
                     "chromeOptions": {
-                        "args": ["--headless", "--no-sandbox", "--disable-dev-shm-usage"]
+                        "args": [
+                            "--headless",
+                            "--no-sandbox",
+                            "--disable-dev-shm-usage",
+                        ]
                     },
                 },
                 "firefox": {
@@ -252,7 +256,10 @@ class AutomatedUITestingService:
             framework=TestFramework.PLAYWRIGHT,
             test_type=TestType.SMOKE,
             target_browsers=[BrowserType.CHROME, BrowserType.FIREFOX],
-            test_files=["tests/ui/smoke/login.test.js", "tests/ui/smoke/dashboard.test.js"],
+            test_files=[
+                "tests/ui/smoke/login.test.js",
+                "tests/ui/smoke/dashboard.test.js",
+            ],
             priority=["critical"],
             timeout=300,
             retry_count=1,
@@ -410,9 +417,15 @@ class AutomatedUITestingService:
 
         # Calculate results
         total_tests = len(test_executions)
-        passed_tests = len([t for t in test_executions if t.status == TestStatus.PASSED])
-        failed_tests = len([t for t in test_executions if t.status == TestStatus.FAILED])
-        skipped_tests = len([t for t in test_executions if t.status == TestStatus.SKIPPED])
+        passed_tests = len(
+            [t for t in test_executions if t.status == TestStatus.PASSED]
+        )
+        failed_tests = len(
+            [t for t in test_executions if t.status == TestStatus.FAILED]
+        )
+        skipped_tests = len(
+            [t for t in test_executions if t.status == TestStatus.SKIPPED]
+        )
         error_tests = len([t for t in test_executions if t.status == TestStatus.ERROR])
 
         total_duration = sum(t.duration or 0 for t in test_executions)
@@ -488,7 +501,11 @@ class AutomatedUITestingService:
                 raise
 
     async def _execute_tests_parallel(
-        self, suite: TestSuite, browsers: list[BrowserType], environment: str, execution_id: str
+        self,
+        suite: TestSuite,
+        browsers: list[BrowserType],
+        environment: str,
+        execution_id: str,
     ) -> list[TestExecution]:
         """Execute tests in parallel across browsers"""
         tasks = []
@@ -517,7 +534,11 @@ class AutomatedUITestingService:
         ]
 
     async def _execute_tests_sequential(
-        self, suite: TestSuite, browsers: list[BrowserType], environment: str, execution_id: str
+        self,
+        suite: TestSuite,
+        browsers: list[BrowserType],
+        environment: str,
+        execution_id: str,
     ) -> list[TestExecution]:
         """Execute tests sequentially"""
         executions = []
@@ -556,20 +577,26 @@ class AutomatedUITestingService:
 
         try:
             # Build test command based on framework
-            command = await self._build_test_command(suite, test_file, browser, environment)
+            command = await self._build_test_command(
+                suite, test_file, browser, environment
+            )
 
             # Execute test
             result = await self._run_test_command(command, suite.timeout)
 
             # Process results
             execution.end_time = datetime.utcnow()
-            execution.duration = (execution.end_time - execution.start_time).total_seconds()
+            execution.duration = (
+                execution.end_time - execution.start_time
+            ).total_seconds()
 
             if result["exit_code"] == 0:
                 execution.status = TestStatus.PASSED
             else:
                 execution.status = TestStatus.FAILED
-                execution.error_message = result.get("stderr", "")[-500:]  # Last 500 chars
+                execution.error_message = result.get("stderr", "")[
+                    -500:
+                ]  # Last 500 chars
                 execution.stack_trace = result.get("stderr", "")
 
             # Collect artifacts
@@ -578,22 +605,30 @@ class AutomatedUITestingService:
             execution.logs = await self._find_logs(execution.id)
 
             # Extract performance metrics if available
-            execution.performance_metrics = await self._extract_performance_metrics(result)
+            execution.performance_metrics = await self._extract_performance_metrics(
+                result
+            )
 
         except TimeoutError:
             execution.status = TestStatus.TIMEOUT
             execution.end_time = datetime.utcnow()
-            execution.duration = (execution.end_time - execution.start_time).total_seconds()
+            execution.duration = (
+                execution.end_time - execution.start_time
+            ).total_seconds()
             execution.error_message = f"Test timed out after {suite.timeout} seconds"
 
         except Exception as e:
             execution.status = TestStatus.ERROR
             execution.end_time = datetime.utcnow()
-            execution.duration = (execution.end_time - execution.start_time).total_seconds()
+            execution.duration = (
+                execution.end_time - execution.start_time
+            ).total_seconds()
             execution.error_message = str(e)
             execution.stack_trace = traceback.format_exc()
 
-        logger.info(f"Test execution completed: {execution.id} - {execution.status.value}")
+        logger.info(
+            f"Test execution completed: {execution.id} - {execution.status.value}"
+        )
         return execution
 
     async def _build_test_command(
@@ -630,7 +665,9 @@ class AutomatedUITestingService:
             command = f"npm test -- {test_file}"
 
         # Add environment variables
-        env_vars = f"TEST_ENV={environment} TEST_BROWSER={browser.value} TEST_SUITE={suite.id}"
+        env_vars = (
+            f"TEST_ENV={environment} TEST_BROWSER={browser.value} TEST_SUITE={suite.id}"
+        )
 
         return f"{env_vars} {command}"
 
@@ -644,7 +681,9 @@ class AutomatedUITestingService:
                 cwd=settings.PROJECT_ROOT,
             )
 
-            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=timeout
+            )
 
             return {
                 "exit_code": process.returncode,
@@ -677,7 +716,11 @@ class AutomatedUITestingService:
         if not video_dir.exists():
             return []
 
-        return [str(f) for f in video_dir.glob("**/*") if f.suffix.lower() in [".mp4", ".webm"]]
+        return [
+            str(f)
+            for f in video_dir.glob("**/*")
+            if f.suffix.lower() in [".mp4", ".webm"]
+        ]
 
     async def _find_logs(self, execution_id: str) -> list[str]:
         """Find log files for execution"""
@@ -685,9 +728,13 @@ class AutomatedUITestingService:
         if not log_dir.exists():
             return []
 
-        return [str(f) for f in log_dir.glob("**/*") if f.suffix.lower() in [".log", ".txt"]]
+        return [
+            str(f) for f in log_dir.glob("**/*") if f.suffix.lower() in [".log", ".txt"]
+        ]
 
-    async def _extract_performance_metrics(self, test_result: dict[str, Any]) -> dict[str, float]:
+    async def _extract_performance_metrics(
+        self, test_result: dict[str, Any]
+    ) -> dict[str, float]:
         """Extract performance metrics from test results"""
         metrics = {}
         stdout = test_result.get("stdout", "")
@@ -695,7 +742,9 @@ class AutomatedUITestingService:
         # Extract common performance metrics
         if "page_load_time:" in stdout:
             try:
-                metrics["page_load_time"] = float(stdout.split("page_load_time:")[1].split()[0])
+                metrics["page_load_time"] = float(
+                    stdout.split("page_load_time:")[1].split()[0]
+                )
             except (IndexError, ValueError):
                 pass
 
@@ -716,7 +765,9 @@ class AutomatedUITestingService:
         recommendations = []
 
         failed_tests = [t for t in test_executions if t.status == TestStatus.FAILED]
-        slow_tests = [t for t in test_executions if t.duration and t.duration > 300]  # > 5 minutes
+        slow_tests = [
+            t for t in test_executions if t.duration and t.duration > 300
+        ]  # > 5 minutes
 
         if len(failed_tests) > len(test_executions) * 0.3:  # More than 30% failure rate
             recommendations.append(
@@ -813,7 +864,11 @@ class AutomatedUITestingService:
         }
 
     async def run_visual_regression_tests(
-        self, baseline_dir: str, current_dir: str, output_dir: str, threshold: float = 0.1
+        self,
+        baseline_dir: str,
+        current_dir: str,
+        output_dir: str,
+        threshold: float = 0.1,
     ) -> list[VisualTestComparison]:
         """Run visual regression tests"""
         comparisons = []
@@ -863,7 +918,10 @@ class AutomatedUITestingService:
         )
 
     async def get_test_execution_history(
-        self, suite_id: str | None = None, days: int = 30, status: TestStatus | None = None
+        self,
+        suite_id: str | None = None,
+        days: int = 30,
+        status: TestStatus | None = None,
     ) -> list[TestExecution]:
         """Get test execution history"""
         executions = []
@@ -883,7 +941,9 @@ class AutomatedUITestingService:
 
         return sorted(executions, key=lambda x: x.start_time, reverse=True)
 
-    async def generate_test_report(self, execution_id: str, report_format: str = "html") -> str:
+    async def generate_test_report(
+        self, execution_id: str, report_format: str = "html"
+    ) -> str:
         """Generate comprehensive test report"""
         if execution_id not in self.test_results:
             raise ValueError(f"Test result not found: {execution_id}")
@@ -988,7 +1048,9 @@ class AutomatedUITestingService:
             """
 
         # Generate recommendations
-        recommendations = "\n".join([f"<li>{rec}</li>" for rec in result.recommendations])
+        recommendations = "\n".join(
+            [f"<li>{rec}</li>" for rec in result.recommendations]
+        )
 
         return html_template.format(
             suite_name=result.test_suite.name,

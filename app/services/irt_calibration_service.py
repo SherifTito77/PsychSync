@@ -4,13 +4,13 @@ Provides comprehensive tools for IRT model calibration, validation,
 quality assessment, and diagnostic reporting.
 """
 
+import json
+import logging
+import math
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import json
-import logging
-import math
 from typing import Any
 
 import numpy as np
@@ -20,6 +20,7 @@ from scipy import stats
 try:
     import matplotlib.pyplot as plt
     import seaborn as sns
+
     VISUALIZATION_AVAILABLE = True
 except ImportError:
     VISUALIZATION_AVAILABLE = False
@@ -39,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 class ValidationMetric(Enum):
     """Types of validation metrics"""
+
     ITEM_FIT = "item_fit"
     PERSON_FIT = "person_fit"
     UNIDIMENSIONALITY = "unidimensionality"
@@ -50,6 +52,7 @@ class ValidationMetric(Enum):
 
 class CalibrationStatus(Enum):
     """Calibration status levels"""
+
     EXCELLENT = "excellent"
     GOOD = "good"
     ACCEPTABLE = "acceptable"
@@ -61,13 +64,14 @@ class CalibrationStatus(Enum):
 @dataclass
 class ItemFitStatistics:
     """Item fit statistics"""
+
     item_id: str
     outfit_mnsq: float  # Outfit mean square
-    infit_mnsq: float   # Infit mean square
+    infit_mnsq: float  # Infit mean square
     outfit_zstd: float  # Outfit z-standardized
-    infit_zstd: float   # Infit z-standardized
+    infit_zstd: float  # Infit z-standardized
     point_biserial: float  # Point-biserial correlation
-    biserial: float     # Biserial correlation
+    biserial: float  # Biserial correlation
     item_total_correlation: float
     status: CalibrationStatus
     interpretation: str
@@ -83,13 +87,14 @@ class ItemFitStatistics:
             "biserial": self.biserial,
             "item_total_correlation": self.item_total_correlation,
             "status": self.status.value,
-            "interpretation": self.interpretation
+            "interpretation": self.interpretation,
         }
 
 
 @dataclass
 class PersonFitStatistics:
     """Person fit statistics"""
+
     person_id: str
     outfit_mnsq: float
     infit_mnsq: float
@@ -112,13 +117,14 @@ class PersonFitStatistics:
             "ability": self.ability,
             "standard_error": self.standard_error,
             "status": self.status.value,
-            "interpretation": self.interpretation
+            "interpretation": self.interpretation,
         }
 
 
 @dataclass
 class ReliabilityAnalysis:
     """Reliability analysis results"""
+
     cronbach_alpha: float
     mcdonalds_omega: float
     test_reliability: float
@@ -137,13 +143,14 @@ class ReliabilityAnalysis:
             "stratified_alpha": self.stratified_alpha,
             "sem": self.sem,
             "interpretation": self.interpretation,
-            "status": self.status.value
+            "status": self.status.value,
         }
 
 
 @dataclass
 class DimensionalityAnalysis:
     """Dimensionality analysis results"""
+
     eigenvalues: list[float]
     variance_explained: list[float]
     parallel_analysis: list[float]
@@ -164,13 +171,14 @@ class DimensionalityAnalysis:
             "factor_structure": self.factor_structure,
             "unidimensionality_score": self.unidimensionality_score,
             "status": self.status.value,
-            "interpretation": self.interpretation
+            "interpretation": self.interpretation,
         }
 
 
 @dataclass
 class DIFAnalysis:
     """Differential Item Functioning analysis"""
+
     item_id: str
     group_type: str  # e.g., "gender", "age_group"
     group1_name: str
@@ -197,13 +205,14 @@ class DIFAnalysis:
             "mantel_haenszel_chi2": self.mantel_haenszel_chi2,
             "mantel_haenszel_p": self.mantel_haenszel_p,
             "status": self.status.value,
-            "interpretation": self.interpretation
+            "interpretation": self.interpretation,
         }
 
 
 @dataclass
 class CalibrationReport:
     """Comprehensive calibration report"""
+
     calibration_id: str
     timestamp: datetime
     model: IRTModel
@@ -234,7 +243,7 @@ class CalibrationReport:
             "overall_status": self.overall_status.value,
             "recommendations": self.recommendations,
             "summary_metrics": self.summary_metrics,
-            "validation_checks": self.validation_checks
+            "validation_checks": self.validation_checks,
         }
 
 
@@ -256,7 +265,7 @@ class IRTCalibrationService:
             "reliability_acceptable": 0.7,
             "unidimensionality_min": 0.8,
             "dif_effect_size_min": 0.05,
-            "dif_p_threshold": 0.01
+            "dif_p_threshold": 0.01,
         }
 
         logger.info("IRT Calibration Service initialized")
@@ -269,7 +278,7 @@ class IRTCalibrationService:
         item_metadata: list[dict[str, Any]] | None = None,
         person_metadata: list[dict[str, Any]] | None = None,
         perform_dif: bool = True,
-        dif_grouping_variables: list[str] | None = None
+        dif_grouping_variables: list[str] | None = None,
     ) -> CalibrationReport:
         """Perform comprehensive IRT calibration with full validation"""
         try:
@@ -311,27 +320,39 @@ class IRTCalibrationService:
             if perform_dif and person_metadata and dif_grouping_variables:
                 for grouping_var in dif_grouping_variables:
                     dif_results = await self.analyze_differential_item_functioning(
-                        responses, calibration_result.items, calibration_result.persons,
-                        person_metadata, grouping_var
+                        responses,
+                        calibration_result.items,
+                        calibration_result.persons,
+                        person_metadata,
+                        grouping_var,
                     )
                     dif_analyses.extend(dif_results)
 
             # Step 7: Generate overall assessment and recommendations
             overall_status, recommendations = await self.generate_overall_assessment(
-                item_fit_stats, person_fit_stats, reliability_analysis,
-                dimensionality_analysis, dif_analyses
+                item_fit_stats,
+                person_fit_stats,
+                reliability_analysis,
+                dimensionality_analysis,
+                dif_analyses,
             )
 
             # Step 8: Create summary metrics
             summary_metrics = await self.create_summary_metrics(
-                calibration_result, item_fit_stats, person_fit_stats,
-                reliability_analysis, dimensionality_analysis
+                calibration_result,
+                item_fit_stats,
+                person_fit_stats,
+                reliability_analysis,
+                dimensionality_analysis,
             )
 
             # Step 9: Perform validation checks
             validation_checks = await self.perform_validation_checks(
-                item_fit_stats, person_fit_stats, reliability_analysis,
-                dimensionality_analysis, dif_analyses
+                item_fit_stats,
+                person_fit_stats,
+                reliability_analysis,
+                dimensionality_analysis,
+                dif_analyses,
             )
 
             processing_time = (datetime.utcnow() - start_time).total_seconds()
@@ -350,10 +371,12 @@ class IRTCalibrationService:
                 overall_status=overall_status,
                 recommendations=recommendations,
                 summary_metrics=summary_metrics,
-                validation_checks=validation_checks
+                validation_checks=validation_checks,
             )
 
-            logger.info(f"Comprehensive calibration {calibration_id} completed in {processing_time:.2f}s")
+            logger.info(
+                f"Comprehensive calibration {calibration_id} completed in {processing_time:.2f}s"
+            )
             return report
 
         except Exception as e:
@@ -364,7 +387,7 @@ class IRTCalibrationService:
         self,
         responses: list[IRTResponse],
         items: list[IRTItem],
-        persons: list[IRTPerson]
+        persons: list[IRTPerson],
     ) -> list[ItemFitStatistics]:
         """Analyze item fit statistics"""
         try:
@@ -391,14 +414,18 @@ class IRTCalibrationService:
                     continue
 
                 item_responses = response_matrix[valid_mask, i]
-                item_abilities = [persons[p_idx].ability for p_idx in np.where(valid_mask)[0]]
+                item_abilities = [
+                    persons[p_idx].ability for p_idx in np.where(valid_mask)[0]
+                ]
 
                 # Calculate expected values and residuals
                 expected_values = []
                 standardized_residuals = []
 
                 for ability in item_abilities:
-                    p_expected = self.irt_service.probability_of_correct_response(ability, item)
+                    p_expected = self.irt_service.probability_of_correct_response(
+                        ability, item
+                    )
                     expected_values.append(p_expected)
 
                 # Calculate fit statistics
@@ -423,8 +450,12 @@ class IRTCalibrationService:
 
                 # Determine status and interpretation
                 status, interpretation = self._evaluate_item_fit(
-                    outfit_mnsq, infit_mnsq, outfit_zstd, infit_zstd,
-                    point_biserial, item_total_correlation
+                    outfit_mnsq,
+                    infit_mnsq,
+                    outfit_zstd,
+                    infit_zstd,
+                    point_biserial,
+                    item_total_correlation,
                 )
 
                 item_stat = ItemFitStatistics(
@@ -437,7 +468,7 @@ class IRTCalibrationService:
                     biserial=biserial,
                     item_total_correlation=item_total_correlation,
                     status=status,
-                    interpretation=interpretation
+                    interpretation=interpretation,
                 )
 
                 item_fit_stats.append(item_stat)
@@ -452,7 +483,7 @@ class IRTCalibrationService:
         self,
         responses: list[IRTResponse],
         items: list[IRTItem],
-        persons: list[IRTPerson]
+        persons: list[IRTPerson],
     ) -> list[PersonFitStatistics]:
         """Analyze person fit statistics"""
         try:
@@ -515,7 +546,7 @@ class IRTCalibrationService:
                     ability=person.ability,
                     standard_error=person.standard_error,
                     status=status,
-                    interpretation=interpretation
+                    interpretation=interpretation,
                 )
 
                 person_fit_stats.append(person_stat)
@@ -530,7 +561,7 @@ class IRTCalibrationService:
         self,
         responses: list[IRTResponse],
         items: list[IRTItem],
-        persons: list[IRTPerson]
+        persons: list[IRTPerson],
     ) -> ReliabilityAnalysis:
         """Analyze test reliability"""
         try:
@@ -560,7 +591,7 @@ class IRTCalibrationService:
                     stratified_alpha=0.0,
                     sem=float("inf"),
                     interpretation="Insufficient sample for reliability analysis",
-                    status=CalibrationStatus.FAILED
+                    status=CalibrationStatus.FAILED,
                 )
 
             # Calculate Cronbach's Alpha
@@ -573,7 +604,9 @@ class IRTCalibrationService:
             test_reliability = self._calculate_irt_reliability(items, persons)
 
             # Calculate split-half reliability
-            split_half_reliability = self._calculate_split_half_reliability(valid_responses)
+            split_half_reliability = self._calculate_split_half_reliability(
+                valid_responses
+            )
 
             # Calculate stratified alpha (if we have item groupings)
             stratified_alpha = self._calculate_stratified_alpha(valid_responses)
@@ -592,7 +625,7 @@ class IRTCalibrationService:
                 stratified_alpha=stratified_alpha,
                 sem=sem,
                 interpretation=interpretation,
-                status=status
+                status=status,
             )
 
         except Exception as e:
@@ -605,13 +638,11 @@ class IRTCalibrationService:
                 stratified_alpha=0.0,
                 sem=float("inf"),
                 interpretation=f"Error: {e!s}",
-                status=CalibrationStatus.FAILED
+                status=CalibrationStatus.FAILED,
             )
 
     async def analyze_dimensionality(
-        self,
-        responses: list[IRTResponse],
-        persons: list[IRTPerson]
+        self, responses: list[IRTResponse], persons: list[IRTPerson]
     ) -> DimensionalityAnalysis:
         """Analyze test dimensionality"""
         try:
@@ -643,7 +674,7 @@ class IRTCalibrationService:
                     factor_structure=[],
                     unidimensionality_score=0.0,
                     interpretation="Insufficient sample for dimensionality analysis",
-                    status=CalibrationStatus.FAILED
+                    status=CalibrationStatus.FAILED,
                 )
 
             # Perform factor analysis
@@ -658,7 +689,9 @@ class IRTCalibrationService:
             scree_plot = self._create_scree_plot(eigenvalues, parallel_analysis)
 
             # Calculate factor structure
-            factor_structure = self._calculate_factor_structure(valid_responses, kaiser_criterion)
+            factor_structure = self._calculate_factor_structure(
+                valid_responses, kaiser_criterion
+            )
 
             # Calculate unidimensionality score
             unidimensionality_score = self._calculate_unidimensionality_score(
@@ -679,7 +712,7 @@ class IRTCalibrationService:
                 factor_structure=factor_structure,
                 unidimensionality_score=unidimensionality_score,
                 interpretation=interpretation,
-                status=status
+                status=status,
             )
 
         except Exception as e:
@@ -693,7 +726,7 @@ class IRTCalibrationService:
                 factor_structure=[],
                 unidimensionality_score=0.0,
                 interpretation=f"Error: {e!s}",
-                status=CalibrationStatus.FAILED
+                status=CalibrationStatus.FAILED,
             )
 
     async def analyze_differential_item_functioning(
@@ -702,7 +735,7 @@ class IRTCalibrationService:
         items: list[IRTItem],
         persons: list[IRTPerson],
         person_metadata: list[dict[str, Any]],
-        grouping_variable: str
+        grouping_variable: str,
     ) -> list[DIFAnalysis]:
         """Analyze Differential Item Functioning"""
         try:
@@ -720,7 +753,9 @@ class IRTCalibrationService:
                         groups[metadata[grouping_variable]].append(person)
 
             if len(groups) != 2:
-                logger.warning(f"DIF analysis requires exactly 2 groups for {grouping_variable}")
+                logger.warning(
+                    f"DIF analysis requires exactly 2 groups for {grouping_variable}"
+                )
                 return []
 
             group_names = list(groups.keys())
@@ -731,8 +766,13 @@ class IRTCalibrationService:
             for item in items:
                 try:
                     dif_result = await self._analyze_item_dif(
-                        item, responses, group1, group2,
-                        group_names[0], group_names[1], grouping_variable
+                        item,
+                        responses,
+                        group1,
+                        group2,
+                        group_names[0],
+                        group_names[1],
+                        grouping_variable,
                     )
                     if dif_result:
                         dif_analyses.append(dif_result)
@@ -754,7 +794,7 @@ class IRTCalibrationService:
         group2: list[IRTPerson],
         group1_name: str,
         group2_name: str,
-        grouping_variable: str
+        grouping_variable: str,
     ) -> DIFAnalysis | None:
         """Analyze DIF for a specific item"""
         try:
@@ -763,11 +803,13 @@ class IRTCalibrationService:
             group2_person_ids = {p.person_id for p in group2}
 
             group1_responses = [
-                r.response for r in responses
+                r.response
+                for r in responses
                 if r.item_id == item.item_id and r.person_id in group1_person_ids
             ]
             group2_responses = [
-                r.response for r in responses
+                r.response
+                for r in responses
                 if r.item_id == item.item_id and r.person_id in group2_person_ids
             ]
 
@@ -788,7 +830,9 @@ class IRTCalibrationService:
 
             # Calculate Delta statistics
             delta_difficulty = p2 - p1
-            delta_discrimination = 0.0  # Would need calibration for each group to calculate
+            delta_discrimination = (
+                0.0  # Would need calibration for each group to calculate
+            )
 
             # Determine significance and interpretation
             is_significant = mh_p < self.thresholds["dif_p_threshold"]
@@ -813,7 +857,7 @@ class IRTCalibrationService:
                 mantel_haenszel_chi2=mh_chi2,
                 mantel_haenszel_p=mh_p,
                 status=status,
-                interpretation=interpretation
+                interpretation=interpretation,
             )
 
         except Exception as e:
@@ -823,9 +867,7 @@ class IRTCalibrationService:
     # Helper methods for fit statistics
 
     def _calculate_item_fit_statistics(
-        self,
-        observed_responses: np.ndarray,
-        expected_probabilities: list[float]
+        self, observed_responses: np.ndarray, expected_probabilities: list[float]
     ) -> tuple[float, float]:
         """Calculate outfit and infit mean square statistics"""
         try:
@@ -833,11 +875,15 @@ class IRTCalibrationService:
             infit_sum = 0.0
             weight_sum = 0.0
 
-            for i, (observed, expected) in enumerate(zip(observed_responses, expected_probabilities)):
+            for i, (observed, expected) in enumerate(
+                zip(observed_responses, expected_probabilities)
+            ):
                 if 0 < expected < 1:  # Avoid division by zero
-                    standardized_residual = (observed - expected) / math.sqrt(expected * (1 - expected))
-                    outfit_sum += standardized_residual ** 2
-                    infit_sum += expected * standardized_residual ** 2
+                    standardized_residual = (observed - expected) / math.sqrt(
+                        expected * (1 - expected)
+                    )
+                    outfit_sum += standardized_residual**2
+                    infit_sum += expected * standardized_residual**2
                     weight_sum += expected
 
             outfit_mnsq = outfit_sum / len(observed_responses)
@@ -850,18 +896,15 @@ class IRTCalibrationService:
             return 1.0, 1.0
 
     def _calculate_person_fit_statistics(
-        self,
-        observed_responses: np.ndarray,
-        expected_probabilities: list[float]
+        self, observed_responses: np.ndarray, expected_probabilities: list[float]
     ) -> tuple[float, float]:
         """Calculate outfit and infit mean square for person"""
-        return self._calculate_item_fit_statistics(observed_responses, expected_probabilities)
+        return self._calculate_item_fit_statistics(
+            observed_responses, expected_probabilities
+        )
 
     def _calculate_item_fit_z_scores(
-        self,
-        outfit_mnsq: float,
-        infit_mnsq: float,
-        sample_size: int
+        self, outfit_mnsq: float, infit_mnsq: float, sample_size: int
     ) -> tuple[float, float]:
         """Calculate z-scores for fit statistics"""
         try:
@@ -878,18 +921,13 @@ class IRTCalibrationService:
             return 0.0, 0.0
 
     def _calculate_person_fit_z_scores(
-        self,
-        outfit_mnsq: float,
-        infit_mnsq: float,
-        item_count: int
+        self, outfit_mnsq: float, infit_mnsq: float, item_count: int
     ) -> tuple[float, float]:
         """Calculate z-scores for person fit statistics"""
         return self._calculate_item_fit_z_scores(outfit_mnsq, infit_mnsq, item_count)
 
     def _calculate_point_biserial(
-        self,
-        item_responses: np.ndarray,
-        abilities: list[float]
+        self, item_responses: np.ndarray, abilities: list[float]
     ) -> float:
         """Calculate point-biserial correlation"""
         try:
@@ -903,9 +941,7 @@ class IRTCalibrationService:
             return 0.0
 
     def _calculate_biserial_correlation(
-        self,
-        point_biserial: float,
-        item_responses: np.ndarray
+        self, point_biserial: float, item_responses: np.ndarray
     ) -> float:
         """Convert point-biserial to biserial correlation"""
         try:
@@ -920,9 +956,7 @@ class IRTCalibrationService:
             return 0.0
 
     def _calculate_item_total_correlation(
-        self,
-        item_responses: np.ndarray,
-        person_responses: np.ndarray
+        self, item_responses: np.ndarray, person_responses: np.ndarray
     ) -> float:
         """Calculate item-total correlation"""
         try:
@@ -943,7 +977,7 @@ class IRTCalibrationService:
         outfit_zstd: float,
         infit_zstd: float,
         point_biserial: float,
-        item_total_correlation: float
+        item_total_correlation: float,
     ) -> tuple[CalibrationStatus, str]:
         """Evaluate item fit and determine status"""
         try:
@@ -997,7 +1031,7 @@ class IRTCalibrationService:
         outfit_mnsq: float,
         infit_mnsq: float,
         outfit_zstd: float,
-        infit_zstd: float
+        infit_zstd: float,
     ) -> tuple[CalibrationStatus, str]:
         """Evaluate person fit and determine status"""
         try:
@@ -1025,10 +1059,14 @@ class IRTCalibrationService:
                 interpretation = "Response pattern shows excellent fit"
             elif len(issues) <= 1:
                 status = CalibrationStatus.ACCEPTABLE
-                interpretation = f"Response pattern shows acceptable fit: {', '.join(issues)}"
+                interpretation = (
+                    f"Response pattern shows acceptable fit: {', '.join(issues)}"
+                )
             elif len(issues) <= 2:
                 status = CalibrationStatus.QUESTIONABLE
-                interpretation = f"Response pattern shows questionable fit: {', '.join(issues)}"
+                interpretation = (
+                    f"Response pattern shows questionable fit: {', '.join(issues)}"
+                )
             else:
                 status = CalibrationStatus.POOR
                 interpretation = f"Response pattern shows poor fit: {', '.join(issues)}"
@@ -1052,7 +1090,9 @@ class IRTCalibrationService:
             if total_variance == 0:
                 return 0.0
 
-            alpha = (n_items / (n_items - 1)) * (1 - np.sum(item_variances) / total_variance)
+            alpha = (n_items / (n_items - 1)) * (
+                1 - np.sum(item_variances) / total_variance
+            )
             return max(0.0, min(1.0, alpha))
 
         except Exception:
@@ -1068,7 +1108,9 @@ class IRTCalibrationService:
         except Exception:
             return 0.0
 
-    def _calculate_irt_reliability(self, items: list[IRTItem], persons: list[IRTPerson]) -> float:
+    def _calculate_irt_reliability(
+        self, items: list[IRTItem], persons: list[IRTPerson]
+    ) -> float:
         """Calculate reliability from IRT parameters"""
         try:
             # Calculate average information across ability range
@@ -1130,7 +1172,9 @@ class IRTCalibrationService:
         except Exception:
             return float("inf")
 
-    def _interpret_reliability(self, cronbach_alpha: float) -> tuple[str, CalibrationStatus]:
+    def _interpret_reliability(
+        self, cronbach_alpha: float
+    ) -> tuple[str, CalibrationStatus]:
         """Interpret reliability coefficient"""
         if cronbach_alpha >= self.thresholds["reliability_excellent"]:
             return "Excellent internal consistency", CalibrationStatus.EXCELLENT
@@ -1138,7 +1182,10 @@ class IRTCalibrationService:
             return "Good internal consistency", CalibrationStatus.GOOD
         if cronbach_alpha >= self.thresholds["reliability_acceptable"]:
             return "Acceptable internal consistency", CalibrationStatus.ACCEPTABLE
-        return "Poor internal consistency - review test items", CalibrationStatus.QUESTIONABLE
+        return (
+            "Poor internal consistency - review test items",
+            CalibrationStatus.QUESTIONABLE,
+        )
 
     # Dimensionality analysis methods
 
@@ -1189,7 +1236,9 @@ class IRTCalibrationService:
         except Exception:
             return []
 
-    def _create_scree_plot(self, eigenvalues: np.ndarray, parallel_analysis: list[float]) -> str:
+    def _create_scree_plot(
+        self, eigenvalues: np.ndarray, parallel_analysis: list[float]
+    ) -> str:
         """Create scree plot (simplified - return base64 string)"""
         try:
             # For now, return empty string - in production, this would create an actual plot
@@ -1198,7 +1247,9 @@ class IRTCalibrationService:
         except Exception:
             return ""
 
-    def _calculate_factor_structure(self, response_matrix: np.ndarray, n_factors: int) -> list[list[float]]:
+    def _calculate_factor_structure(
+        self, response_matrix: np.ndarray, n_factors: int
+    ) -> list[list[float]]:
         """Calculate factor structure matrix"""
         try:
             if n_factors == 0:
@@ -1225,7 +1276,7 @@ class IRTCalibrationService:
         self,
         eigenvalues: np.ndarray,
         variance_explained: np.ndarray,
-        kaiser_criterion: int
+        kaiser_criterion: int,
     ) -> float:
         """Calculate unidimensionality score"""
         try:
@@ -1238,16 +1289,22 @@ class IRTCalibrationService:
                 eigenvalue_ratio = 1.0
 
             # 2. Variance explained by first factor
-            first_factor_variance = variance_explained[0] if len(variance_explained) > 0 else 0.0
+            first_factor_variance = (
+                variance_explained[0] if len(variance_explained) > 0 else 0.0
+            )
 
             # 3. Kaiser criterion (should be 1 for unidimensional)
-            kaiser_score = 1.0 if kaiser_criterion == 1 else max(0.0, 1.0 - (kaiser_criterion - 1) * 0.2)
+            kaiser_score = (
+                1.0
+                if kaiser_criterion == 1
+                else max(0.0, 1.0 - (kaiser_criterion - 1) * 0.2)
+            )
 
             # Combine scores (weighted average)
             unidimensionality_score = (
-                eigenvalue_ratio * 0.3 +
-                first_factor_variance * 0.4 +
-                kaiser_score * 0.3
+                eigenvalue_ratio * 0.3
+                + first_factor_variance * 0.4
+                + kaiser_score * 0.3
             )
 
             return max(0.0, min(1.0, unidimensionality_score))
@@ -1259,17 +1316,23 @@ class IRTCalibrationService:
         self,
         unidimensionality_score: float,
         kaiser_criterion: int,
-        eigenvalues: np.ndarray
+        eigenvalues: np.ndarray,
     ) -> tuple[str, CalibrationStatus]:
         """Interpret dimensionality analysis results"""
         try:
             if unidimensionality_score >= self.thresholds["unidimensionality_min"]:
                 if kaiser_criterion == 1:
-                    return "Strong evidence of unidimensionality", CalibrationStatus.EXCELLENT
+                    return (
+                        "Strong evidence of unidimensionality",
+                        CalibrationStatus.EXCELLENT,
+                    )
                 return "Moderate evidence of unidimensionality", CalibrationStatus.GOOD
             if kaiser_criterion <= 2:
                 return "Some multidimensionality detected", CalibrationStatus.ACCEPTABLE
-            return "Significant multidimensionality detected - consider test restructuring", CalibrationStatus.QUESTIONABLE
+            return (
+                "Significant multidimensionality detected - consider test restructuring",
+                CalibrationStatus.QUESTIONABLE,
+            )
 
         except Exception:
             return "Error interpreting dimensionality", CalibrationStatus.FAILED
@@ -1277,9 +1340,7 @@ class IRTCalibrationService:
     # DIF analysis helper methods
 
     def _mantel_haenszel_test(
-        self,
-        group1_responses: list[int],
-        group2_responses: list[int]
+        self, group1_responses: list[int], group2_responses: list[int]
     ) -> tuple[float, float]:
         """Perform Mantel-Haenszel test for DIF"""
         try:
@@ -1312,7 +1373,7 @@ class IRTCalibrationService:
         person_fit_stats: list[PersonFitStatistics],
         reliability_analysis: ReliabilityAnalysis,
         dimensionality_analysis: DimensionalityAnalysis,
-        dif_analyses: list[DIFAnalysis]
+        dif_analyses: list[DIFAnalysis],
     ) -> tuple[CalibrationStatus, list[str]]:
         """Generate overall assessment and recommendations"""
         try:
@@ -1320,19 +1381,33 @@ class IRTCalibrationService:
             status_scores = []
 
             # Evaluate item fit
-            problematic_items = sum(1 for stat in item_fit_stats
-                                  if stat.status in [CalibrationStatus.QUESTIONABLE, CalibrationStatus.POOR])
+            problematic_items = sum(
+                1
+                for stat in item_fit_stats
+                if stat.status
+                in [CalibrationStatus.QUESTIONABLE, CalibrationStatus.POOR]
+            )
             if problematic_items > 0:
-                recommendations.append(f"Review {problematic_items} items with poor fit statistics")
-                status_scores.append(0.7 if problematic_items / len(item_fit_stats) < 0.1 else 0.3)
+                recommendations.append(
+                    f"Review {problematic_items} items with poor fit statistics"
+                )
+                status_scores.append(
+                    0.7 if problematic_items / len(item_fit_stats) < 0.1 else 0.3
+                )
             else:
                 status_scores.append(0.9)
 
             # Evaluate person fit
-            problematic_persons = sum(1 for stat in person_fit_stats
-                                    if stat.status in [CalibrationStatus.QUESTIONABLE, CalibrationStatus.POOR])
+            problematic_persons = sum(
+                1
+                for stat in person_fit_stats
+                if stat.status
+                in [CalibrationStatus.QUESTIONABLE, CalibrationStatus.POOR]
+            )
             if problematic_persons > len(person_fit_stats) * 0.1:
-                recommendations.append(f"Consider review of {problematic_persons} respondents with unusual response patterns")
+                recommendations.append(
+                    f"Consider review of {problematic_persons} respondents with unusual response patterns"
+                )
                 status_scores.append(0.6)
             else:
                 status_scores.append(0.9)
@@ -1343,10 +1418,14 @@ class IRTCalibrationService:
             elif reliability_analysis.status == CalibrationStatus.GOOD:
                 status_scores.append(0.8)
             elif reliability_analysis.status == CalibrationStatus.ACCEPTABLE:
-                recommendations.append("Test reliability is acceptable but could be improved")
+                recommendations.append(
+                    "Test reliability is acceptable but could be improved"
+                )
                 status_scores.append(0.7)
             else:
-                recommendations.append("Test reliability is poor - consider item review")
+                recommendations.append(
+                    "Test reliability is poor - consider item review"
+                )
                 status_scores.append(0.3)
 
             # Evaluate dimensionality
@@ -1355,17 +1434,27 @@ class IRTCalibrationService:
             elif dimensionality_analysis.status == CalibrationStatus.GOOD:
                 status_scores.append(0.8)
             elif dimensionality_analysis.status == CalibrationStatus.ACCEPTABLE:
-                recommendations.append("Test appears mostly unidimensional but some secondary dimensions exist")
+                recommendations.append(
+                    "Test appears mostly unidimensional but some secondary dimensions exist"
+                )
                 status_scores.append(0.7)
             else:
-                recommendations.append("Test shows significant multidimensionality - consider factor analysis or test restructuring")
+                recommendations.append(
+                    "Test shows significant multidimensionality - consider factor analysis or test restructuring"
+                )
                 status_scores.append(0.3)
 
             # Evaluate DIF
-            significant_dif = sum(1 for dif in dif_analyses
-                                if dif.status in [CalibrationStatus.QUESTIONABLE, CalibrationStatus.POOR])
+            significant_dif = sum(
+                1
+                for dif in dif_analyses
+                if dif.status
+                in [CalibrationStatus.QUESTIONABLE, CalibrationStatus.POOR]
+            )
             if significant_dif > 0:
-                recommendations.append(f"{significant_dif} items show significant differential item functioning")
+                recommendations.append(
+                    f"{significant_dif} items show significant differential item functioning"
+                )
                 status_scores.append(0.6)
             else:
                 status_scores.append(0.9)
@@ -1375,16 +1464,24 @@ class IRTCalibrationService:
 
             if avg_score >= 0.85:
                 overall_status = CalibrationStatus.EXCELLENT
-                recommendations.insert(0, "Excellent model calibration - test is ready for use")
+                recommendations.insert(
+                    0, "Excellent model calibration - test is ready for use"
+                )
             elif avg_score >= 0.75:
                 overall_status = CalibrationStatus.GOOD
-                recommendations.insert(0, "Good model calibration - minor improvements recommended")
+                recommendations.insert(
+                    0, "Good model calibration - minor improvements recommended"
+                )
             elif avg_score >= 0.65:
                 overall_status = CalibrationStatus.ACCEPTABLE
-                recommendations.insert(0, "Acceptable model calibration - several improvements needed")
+                recommendations.insert(
+                    0, "Acceptable model calibration - several improvements needed"
+                )
             else:
                 overall_status = CalibrationStatus.QUESTIONABLE
-                recommendations.insert(0, "Questionable model calibration - significant revisions needed")
+                recommendations.insert(
+                    0, "Questionable model calibration - significant revisions needed"
+                )
 
             return overall_status, recommendations
 
@@ -1398,7 +1495,7 @@ class IRTCalibrationService:
         item_fit_stats: list[ItemFitStatistics],
         person_fit_stats: list[PersonFitStatistics],
         reliability_analysis: ReliabilityAnalysis,
-        dimensionality_analysis: DimensionalityAnalysis
+        dimensionality_analysis: DimensionalityAnalysis,
     ) -> dict[str, float]:
         """Create summary metrics for the calibration"""
         try:
@@ -1410,24 +1507,45 @@ class IRTCalibrationService:
                 "item_count": len(calibration_result.items),
                 "person_count": len(calibration_result.persons),
                 "sample_size": len(calibration_result.persons),
-                "avg_item_discrimination": np.mean([
-                    item.discrimination for item in calibration_result.items
-                    if item.discrimination is not None
-                ]) if any(item.discrimination for item in calibration_result.items) else 0.0,
-                "avg_item_difficulty": np.mean([item.difficulty for item in calibration_result.items]),
+                "avg_item_discrimination": (
+                    np.mean(
+                        [
+                            item.discrimination
+                            for item in calibration_result.items
+                            if item.discrimination is not None
+                        ]
+                    )
+                    if any(item.discrimination for item in calibration_result.items)
+                    else 0.0
+                ),
+                "avg_item_difficulty": np.mean(
+                    [item.difficulty for item in calibration_result.items]
+                ),
                 "reliability_cronbach_alpha": reliability_analysis.cronbach_alpha,
                 "reliability_mcdonalds_omega": reliability_analysis.mcdonalds_omega,
                 "unidimensionality_score": dimensionality_analysis.unidimensionality_score,
                 "percent_problematic_items": (
-                    sum(1 for stat in item_fit_stats
-                        if stat.status in [CalibrationStatus.QUESTIONABLE, CalibrationStatus.POOR]) /
-                    len(item_fit_stats) if item_fit_stats else 0.0
+                    sum(
+                        1
+                        for stat in item_fit_stats
+                        if stat.status
+                        in [CalibrationStatus.QUESTIONABLE, CalibrationStatus.POOR]
+                    )
+                    / len(item_fit_stats)
+                    if item_fit_stats
+                    else 0.0
                 ),
                 "percent_problematic_persons": (
-                    sum(1 for stat in person_fit_stats
-                        if stat.status in [CalibrationStatus.QUESTIONABLE, CalibrationStatus.POOR]) /
-                    len(person_fit_stats) if person_fit_stats else 0.0
-                )
+                    sum(
+                        1
+                        for stat in person_fit_stats
+                        if stat.status
+                        in [CalibrationStatus.QUESTIONABLE, CalibrationStatus.POOR]
+                    )
+                    / len(person_fit_stats)
+                    if person_fit_stats
+                    else 0.0
+                ),
             }
 
             return metrics
@@ -1442,37 +1560,64 @@ class IRTCalibrationService:
         person_fit_stats: list[PersonFitStatistics],
         reliability_analysis: ReliabilityAnalysis,
         dimensionality_analysis: DimensionalityAnalysis,
-        dif_analyses: list[DIFAnalysis]
+        dif_analyses: list[DIFAnalysis],
     ) -> dict[str, bool]:
         """Perform standard validation checks"""
         try:
             checks = {}
 
             # Item fit checks
-            checks["item_fit_acceptable"] = all(
-                stat.status in [CalibrationStatus.EXCELLENT, CalibrationStatus.GOOD, CalibrationStatus.ACCEPTABLE]
-                for stat in item_fit_stats
-            ) if item_fit_stats else False
+            checks["item_fit_acceptable"] = (
+                all(
+                    stat.status
+                    in [
+                        CalibrationStatus.EXCELLENT,
+                        CalibrationStatus.GOOD,
+                        CalibrationStatus.ACCEPTABLE,
+                    ]
+                    for stat in item_fit_stats
+                )
+                if item_fit_stats
+                else False
+            )
 
             # Person fit checks
-            checks["person_fit_acceptable"] = all(
-                stat.status in [CalibrationStatus.EXCELLENT, CalibrationStatus.GOOD, CalibrationStatus.ACCEPTABLE]
-                for stat in person_fit_stats
-            ) if person_fit_stats else False
+            checks["person_fit_acceptable"] = (
+                all(
+                    stat.status
+                    in [
+                        CalibrationStatus.EXCELLENT,
+                        CalibrationStatus.GOOD,
+                        CalibrationStatus.ACCEPTABLE,
+                    ]
+                    for stat in person_fit_stats
+                )
+                if person_fit_stats
+                else False
+            )
 
             # Reliability checks
-            checks["reliability_acceptable"] = reliability_analysis.cronbach_alpha >= self.thresholds["reliability_acceptable"]
+            checks["reliability_acceptable"] = (
+                reliability_analysis.cronbach_alpha
+                >= self.thresholds["reliability_acceptable"]
+            )
 
             # Dimensionality checks
             checks["unidimensionality_acceptable"] = (
-                dimensionality_analysis.unidimensionality_score >= self.thresholds["unidimensionality_min"]
+                dimensionality_analysis.unidimensionality_score
+                >= self.thresholds["unidimensionality_min"]
             )
 
             # DIF checks
-            checks["no_significant_dif"] = all(
-                dif.status not in [CalibrationStatus.QUESTIONABLE, CalibrationStatus.POOR]
-                for dif in dif_analyses
-            ) if dif_analyses else True
+            checks["no_significant_dif"] = (
+                all(
+                    dif.status
+                    not in [CalibrationStatus.QUESTIONABLE, CalibrationStatus.POOR]
+                    for dif in dif_analyses
+                )
+                if dif_analyses
+                else True
+            )
 
             return checks
 
@@ -1481,9 +1626,7 @@ class IRTCalibrationService:
             return {}
 
     def export_calibration_report(
-        self,
-        report: CalibrationReport,
-        format: str = "json"
+        self, report: CalibrationReport, format: str = "json"
     ) -> str:
         """Export calibration report"""
         try:
@@ -1506,5 +1649,5 @@ __all__ = [
     "ItemFitStatistics",
     "PersonFitStatistics",
     "ReliabilityAnalysis",
-    "ValidationMetric"
+    "ValidationMetric",
 ]

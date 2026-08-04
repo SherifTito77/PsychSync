@@ -1,10 +1,11 @@
 # app/tests/test_template_service.py
-import pytest
 import json
+
+import pytest
 from sqlalchemy.orm import Session
 
-from app.db.models.user import User
 from app.db.models.template import AssessmentTemplate, TemplateCategory
+from app.db.models.user import User
 from app.services.template_service import TemplateService
 
 pytestmark = pytest.mark.template
@@ -28,24 +29,22 @@ class TestTemplateService:
                             "question_type": "likert",
                             "question_text": "Test question",
                             "order": 0,
-                            "is_required": True
+                            "is_required": True,
                         }
-                    ]
+                    ],
                 }
-            ]
+            ],
         }
 
         template_in = TemplateCreate(
             name="Test Template",
             description="Test description",
             category="personality",
-            template_data=json.dumps(template_data)
+            template_data=json.dumps(template_data),
         )
 
         template = TemplateService.create(
-            db,
-            template_in=template_in,
-            creator_id=test_user.id
+            db, template_in=template_in, creator_id=test_user.id
         )
 
         assert template is not None
@@ -62,7 +61,7 @@ class TestTemplateService:
             description="Test",
             category="personality",
             is_public=True,
-            template_data=json.dumps({"title": "Test"})
+            template_data=json.dumps({"title": "Test"}),
         )
 
         TemplateService.create(db, template_in=template_in, creator_id=test_user.id)
@@ -81,7 +80,7 @@ class TestTemplateService:
             description="Searchable description",
             category="personality",
             is_public=True,
-            template_data=json.dumps({"title": "Test"})
+            template_data=json.dumps({"title": "Test"}),
         )
 
         TemplateService.create(db, template_in=template_in, creator_id=test_user.id)
@@ -109,27 +108,27 @@ class TestTemplateService:
                             "question_type": "likert",
                             "question_text": "How are you?",
                             "order": 0,
-                            "is_required": True
+                            "is_required": True,
                         }
-                    ]
+                    ],
                 }
-            ]
+            ],
         }
 
         template_in = TemplateCreate(
             name="Source Template",
             category="personality",
             is_public=True,
-            template_data=json.dumps(template_data)
+            template_data=json.dumps(template_data),
         )
 
-        template = TemplateService.create(db, template_in=template_in, creator_id=test_user.id)
+        template = TemplateService.create(
+            db, template_in=template_in, creator_id=test_user.id
+        )
 
         # Create assessment from template
         assessment = TemplateService.create_assessment_from_template(
-            db,
-            template=template,
-            creator_id=test_user.id
+            db, template=template, creator_id=test_user.id
         )
 
         assert assessment is not None
@@ -137,14 +136,16 @@ class TestTemplateService:
         assert len(assessment.sections) == 1
         assert len(assessment.sections[0].questions) == 1
 
-    def test_create_template_from_assessment(self, db: Session, test_user: User, test_assessment):
+    def test_create_template_from_assessment(
+        self, db: Session, test_user: User, test_assessment
+    ):
         """Test creating template from assessment"""
         template = TemplateService.create_template_from_assessment(
             db,
             assessment=test_assessment,
             template_name="Template from Assessment",
             template_description="Test",
-            creator_id=test_user.id
+            creator_id=test_user.id,
         )
 
         assert template is not None
@@ -182,18 +183,16 @@ class TestTemplateEndpoints:
             name="Test Template",
             category="personality",
             is_public=True,
-            template_data=json.dumps({
-                "title": "From Template",
-                "sections": []
-            })
+            template_data=json.dumps({"title": "From Template", "sections": []}),
         )
 
-        template = TemplateService.create(db, template_in=template_in, creator_id=test_user.id)
+        template = TemplateService.create(
+            db, template_in=template_in, creator_id=test_user.id
+        )
 
         # Use template
         response = client.post(
-            f"/api/v1/templates/{template.id}/use",
-            headers=auth_headers
+            f"/api/v1/templates/{template.id}/use", headers=auth_headers
         )
 
         assert response.status_code == 201

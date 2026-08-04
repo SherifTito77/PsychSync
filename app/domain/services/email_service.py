@@ -39,7 +39,9 @@ class EmailService(ABC):
         """
 
     @abstractmethod
-    async def send_welcome_email(self, to_email: str, full_name: str, login_url: str) -> bool:
+    async def send_welcome_email(
+        self, to_email: str, full_name: str, login_url: str
+    ) -> bool:
         """
         Send welcome email to a newly registered user
 

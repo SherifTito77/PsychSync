@@ -1,4 +1,4 @@
-#test/test_email_service.py
+# test/test_email_service.py
 
 
 """
@@ -7,9 +7,10 @@ Unit Tests for Email Service
 Tests email functionality without actually sending emails
 Uses mocking to simulate email sending
 """
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 from app.services.email_service import EmailService
 
@@ -20,7 +21,7 @@ class TestEmailService:
     @pytest.fixture
     def mock_smtp(self):
         """Mock SMTP server"""
-        with patch('smtplib.SMTP') as mock:
+        with patch("smtplib.SMTP") as mock:
             smtp_instance = MagicMock()
             mock.return_value = smtp_instance
             yield smtp_instance
@@ -29,12 +30,12 @@ class TestEmailService:
     def email_config(self):
         """Email configuration"""
         return {
-            'smtp_server': 'smtp.example.com',
-            'smtp_port': 587,
-            'smtp_username': 'test@example.com',
-            'smtp_password': 'password',
-            'from_email': 'noreply@psychsync.com',
-            'from_name': 'PsychSync'
+            "smtp_server": "smtp.example.com",
+            "smtp_port": 587,
+            "smtp_username": "test@example.com",
+            "smtp_password": "password",
+            "from_email": "noreply@psychsync.com",
+            "from_name": "PsychSync",
         }
 
     @pytest.fixture
@@ -50,16 +51,16 @@ class TestEmailService:
         """Test sending a simple text email"""
         from app.core.email import send_email
 
-        with patch('app.core.email.settings') as mock_settings:
-            mock_settings.SMTP_SERVER = email_config['smtp_server']
-            mock_settings.SMTP_PORT = email_config['smtp_port']
-            mock_settings.SMTP_USERNAME = email_config['smtp_username']
-            mock_settings.SMTP_PASSWORD = email_config['smtp_password']
+        with patch("app.core.email.settings") as mock_settings:
+            mock_settings.SMTP_SERVER = email_config["smtp_server"]
+            mock_settings.SMTP_PORT = email_config["smtp_port"]
+            mock_settings.SMTP_USERNAME = email_config["smtp_username"]
+            mock_settings.SMTP_PASSWORD = email_config["smtp_password"]
 
             result = send_email(
-                to_email='user@example.com',
-                subject='Test Email',
-                text_content='This is a test email'
+                to_email="user@example.com",
+                subject="Test Email",
+                text_content="This is a test email",
             )
 
             assert result is True
@@ -69,8 +70,8 @@ class TestEmailService:
         """Test sending HTML email"""
         from app.core.email import send_email
 
-        with patch('app.core.email.settings') as mock_settings:
-            mock_settings.SMTP_SERVER = email_config['smtp_server']
+        with patch("app.core.email.settings") as mock_settings:
+            mock_settings.SMTP_SERVER = email_config["smtp_server"]
 
             html_content = """
             <html>
@@ -82,9 +83,9 @@ class TestEmailService:
             """
 
             result = send_email(
-                to_email='user@example.com',
-                subject='HTML Test',
-                html_content=html_content
+                to_email="user@example.com",
+                subject="HTML Test",
+                html_content=html_content,
             )
 
             assert result is True
@@ -101,12 +102,12 @@ class TestEmailService:
     def test_send_welcome_email(self, mock_smtp, email_service):
         """Test welcome email to new users"""
         user_data = {
-            'email': 'newuser@example.com',
-            'name': 'John Doe',
-            'verification_url': 'https://app.psychsync.com/verify?token=abc123'
+            "email": "newuser@example.com",
+            "name": "John Doe",
+            "verification_url": "https://app.psychsync.com/verify?token=abc123",
         }
 
-        with patch('app.services.email_service.send_email') as mock_send:
+        with patch("app.services.email_service.send_email") as mock_send:
             mock_send.return_value = True
 
             result = email_service.send_welcome_email(**user_data)
@@ -116,17 +117,16 @@ class TestEmailService:
 
             # Check email contains user name
             call_args = mock_send.call_args
-            assert 'John Doe' in str(call_args)
+            assert "John Doe" in str(call_args)
 
-    @patch('smtplib.SMTP')
+    @patch("smtplib.SMTP")
     def test_send_welcome_email_smtp(self, mock_smtp, email_service):
         """Test sending welcome email with SMTP"""
         mock_server = MagicMock()
         mock_smtp.return_value = mock_server
 
         result = email_service.send_welcome_email(
-            to_email='test@example.com',
-            user_name='Test User'
+            to_email="test@example.com", user_name="Test User"
         )
 
         assert result is True
@@ -135,12 +135,12 @@ class TestEmailService:
     def test_send_password_reset_email(self, mock_smtp, email_service):
         """Test password reset email"""
         reset_data = {
-            'email': 'user@example.com',
-            'reset_token': 'reset_token_123',
-            'reset_url': 'https://app.psychsync.com/reset?token=reset_token_123'
+            "email": "user@example.com",
+            "reset_token": "reset_token_123",
+            "reset_url": "https://app.psychsync.com/reset?token=reset_token_123",
         }
 
-        with patch('app.services.email_service.send_email') as mock_send:
+        with patch("app.services.email_service.send_email") as mock_send:
             mock_send.return_value = True
 
             result = email_service.send_password_reset_email(**reset_data)
@@ -148,16 +148,16 @@ class TestEmailService:
             assert result is True
             assert mock_send.called
 
-    @patch('smtplib.SMTP')
+    @patch("smtplib.SMTP")
     def test_send_password_reset_email_smtp(self, mock_smtp, email_service):
         """Test sending password reset email with SMTP"""
         mock_server = MagicMock()
         mock_smtp.return_value = mock_server
 
         result = email_service.send_password_reset_email(
-            to_email='test@example.com',
-            reset_token='test-token-123',
-            user_name='Test User'
+            to_email="test@example.com",
+            reset_token="test-token-123",
+            user_name="Test User",
         )
 
         assert result is True
@@ -166,61 +166,61 @@ class TestEmailService:
     def test_send_assessment_reminder_email(self, mock_smtp, email_service):
         """Test assessment reminder email"""
         reminder_data = {
-            'email': 'user@example.com',
-            'name': 'Jane Smith',
-            'assessment_type': 'Burnout Assessment',
-            'assessment_url': 'https://app.psychsync.com/assessments/start'
+            "email": "user@example.com",
+            "name": "Jane Smith",
+            "assessment_type": "Burnout Assessment",
+            "assessment_url": "https://app.psychsync.com/assessments/start",
         }
 
-        with patch('app.services.email_service.send_email') as mock_send:
+        with patch("app.services.email_service.send_email") as mock_send:
             mock_send.return_value = True
 
             result = email_service.send_assessment_reminder(**reminder_data)
 
             assert result is True
 
-    @patch('smtplib.SMTP')
+    @patch("smtplib.SMTP")
     def test_send_assessment_invitation(self, mock_smtp, email_service):
         """Test sending assessment invitation"""
         mock_server = MagicMock()
         mock_smtp.return_value = mock_server
 
         result = email_service.send_assessment_invitation(
-            to_email='test@example.com',
-            assessment_name='Personality Assessment',
-            invitation_link='https://app.com/assessment/123'
+            to_email="test@example.com",
+            assessment_name="Personality Assessment",
+            invitation_link="https://app.com/assessment/123",
         )
 
         assert result is True
         mock_server.send_message.assert_called_once()
 
-    @patch('smtplib.SMTP')
+    @patch("smtplib.SMTP")
     def test_send_team_invitation(self, mock_smtp, email_service):
         """Test sending team invitation"""
         mock_server = MagicMock()
         mock_smtp.return_value = mock_server
 
         result = email_service.send_team_invitation(
-            to_email='test@example.com',
-            team_name='Development Team',
-            invited_by='Manager Name',
-            invitation_link='https://app.com/teams/join/abc123'
+            to_email="test@example.com",
+            team_name="Development Team",
+            invited_by="Manager Name",
+            invitation_link="https://app.com/teams/join/abc123",
         )
 
         assert result is True
         mock_server.send_message.assert_called_once()
 
-    @patch('smtplib.SMTP')
+    @patch("smtplib.SMTP")
     def test_send_assessment_completed_notification(self, mock_smtp, email_service):
         """Test sending assessment completion notification"""
         mock_server = MagicMock()
         mock_smtp.return_value = mock_server
 
         result = email_service.send_assessment_completed_notification(
-            to_email='manager@example.com',
-            assessment_name='Skills Assessment',
-            completed_by='Test User',
-            score=85.5
+            to_email="manager@example.com",
+            assessment_name="Skills Assessment",
+            completed_by="Test User",
+            score=85.5,
         )
 
         assert result is True
@@ -234,29 +234,26 @@ class TestEmailService:
         """Test handling of email send failure"""
         from app.core.email import send_email
 
-        with patch('app.core.email.settings') as mock_settings:
-            mock_settings.SMTP_SERVER = 'smtp.example.com'
+        with patch("app.core.email.settings") as mock_settings:
+            mock_settings.SMTP_SERVER = "smtp.example.com"
 
             # Simulate SMTP error
-            mock_smtp.send_message.side_effect = Exception('SMTP Error')
+            mock_smtp.send_message.side_effect = Exception("SMTP Error")
 
             result = send_email(
-                to_email='user@example.com',
-                subject='Test',
-                text_content='Test'
+                to_email="user@example.com", subject="Test", text_content="Test"
             )
 
             # Should handle error gracefully
             assert result is False
 
-    @patch('smtplib.SMTP')
+    @patch("smtplib.SMTP")
     def test_email_failure_handling(self, mock_smtp, email_service):
         """Test email sending failure handling"""
-        mock_smtp.side_effect = Exception('SMTP connection failed')
+        mock_smtp.side_effect = Exception("SMTP connection failed")
 
         result = email_service.send_welcome_email(
-            to_email='test@example.com',
-            user_name='Test User'
+            to_email="test@example.com", user_name="Test User"
         )
 
         assert result is False
@@ -266,9 +263,7 @@ class TestEmailService:
         from app.core.email import send_email
 
         result = send_email(
-            to_email='invalid-email',
-            subject='Test',
-            text_content='Test'
+            to_email="invalid-email", subject="Test", text_content="Test"
         )
 
         assert result is False
@@ -277,13 +272,11 @@ class TestEmailService:
         """Test handling of missing SMTP configuration"""
         from app.core.email import send_email
 
-        with patch('app.core.email.settings') as mock_settings:
+        with patch("app.core.email.settings") as mock_settings:
             mock_settings.SMTP_SERVER = None
 
             result = send_email(
-                to_email='user@example.com',
-                subject='Test',
-                text_content='Test'
+                to_email="user@example.com", subject="Test", text_content="Test"
             )
 
             # Should fail gracefully
@@ -298,17 +291,12 @@ class TestEmailService:
         from app.core.email import validate_email
 
         valid_emails = [
-            'user@example.com',
-            'john.doe@company.co.uk',
-            'test+tag@domain.com'
+            "user@example.com",
+            "john.doe@company.co.uk",
+            "test+tag@domain.com",
         ]
 
-        invalid_emails = [
-            'invalid',
-            '@example.com',
-            'user@',
-            'user space@example.com'
-        ]
+        invalid_emails = ["invalid", "@example.com", "user@", "user space@example.com"]
 
         for email in valid_emails:
             assert validate_email(email) is True
@@ -319,17 +307,12 @@ class TestEmailService:
     def test_email_validation(self, email_service):
         """Test email address validation"""
         valid_emails = [
-            'test@example.com',
-            'user.name@company.co.uk',
-            'test+tag@domain.com'
+            "test@example.com",
+            "user.name@company.co.uk",
+            "test+tag@domain.com",
         ]
 
-        invalid_emails = [
-            'invalid',
-            '@example.com',
-            'test@',
-            'test @example.com'
-        ]
+        invalid_emails = ["invalid", "@example.com", "test@", "test @example.com"]
 
         for email in valid_emails:
             assert email_service.is_valid_email(email) is True
@@ -346,39 +329,31 @@ class TestEmailService:
         from app.core.email import send_batch_emails
 
         recipients = [
-            {'email': 'user1@example.com', 'name': 'User 1'},
-            {'email': 'user2@example.com', 'name': 'User 2'},
-            {'email': 'user3@example.com', 'name': 'User 3'}
+            {"email": "user1@example.com", "name": "User 1"},
+            {"email": "user2@example.com", "name": "User 2"},
+            {"email": "user3@example.com", "name": "User 3"},
         ]
 
-        with patch('app.core.email.send_email') as mock_send:
+        with patch("app.core.email.send_email") as mock_send:
             mock_send.return_value = True
 
             results = send_batch_emails(
-                recipients=recipients,
-                subject='Batch Test',
-                template='test_template'
+                recipients=recipients, subject="Batch Test", template="test_template"
             )
 
             assert len(results) == 3
-            assert all(r['success'] for r in results)
+            assert all(r["success"] for r in results)
 
-    @patch('smtplib.SMTP')
+    @patch("smtplib.SMTP")
     def test_bulk_email_sending(self, mock_smtp, email_service):
         """Test sending emails to multiple recipients"""
         mock_server = MagicMock()
         mock_smtp.return_value = mock_server
 
-        recipients = [
-            'user1@example.com',
-            'user2@example.com',
-            'user3@example.com'
-        ]
+        recipients = ["user1@example.com", "user2@example.com", "user3@example.com"]
 
         results = email_service.send_bulk_emails(
-            recipients=recipients,
-            subject='Team Update',
-            body='Important announcement'
+            recipients=recipients, subject="Team Update", body="Important announcement"
         )
 
         assert len(results) == len(recipients)
@@ -393,9 +368,9 @@ class TestEmailService:
         from app.core.email import queue_email
 
         email_data = {
-            'to_email': 'user@example.com',
-            'subject': 'Queued Email',
-            'text_content': 'This email is queued'
+            "to_email": "user@example.com",
+            "subject": "Queued Email",
+            "text_content": "This email is queued",
         }
 
         result = queue_email(**email_data)
@@ -406,7 +381,7 @@ class TestEmailService:
         """Test processing queued emails"""
         from app.core.email import process_email_queue
 
-        with patch('app.core.email.send_email') as mock_send:
+        with patch("app.core.email.send_email") as mock_send:
             mock_send.return_value = True
 
             processed = process_email_queue()
@@ -423,38 +398,37 @@ class TestEmailService:
         from app.core.email import render_email_template
 
         template_data = {
-            'user_name': 'John Doe',
-            'action_url': 'https://app.psychsync.com/action'
+            "user_name": "John Doe",
+            "action_url": "https://app.psychsync.com/action",
         }
 
-        html = render_email_template('welcome', template_data)
+        html = render_email_template("welcome", template_data)
 
-        assert 'John Doe' in html
-        assert 'app.psychsync.com' in html
+        assert "John Doe" in html
+        assert "app.psychsync.com" in html
 
     def test_template_not_found(self):
         """Test handling of missing template"""
         from app.core.email import render_email_template
 
         with pytest.raises(Exception):
-            render_email_template('non_existent_template', {})
+            render_email_template("non_existent_template", {})
 
     def test_email_template_rendering(self, email_service):
         """Test email template rendering"""
         template_data = {
-            'user_name': 'Test User',
-            'assessment_name': 'Personality Test',
-            'link': 'https://app.com/test'
+            "user_name": "Test User",
+            "assessment_name": "Personality Test",
+            "link": "https://app.com/test",
         }
 
         html_content = email_service.render_template(
-            'assessment_invitation.html',
-            template_data
+            "assessment_invitation.html", template_data
         )
 
         assert html_content is not None
-        assert 'Test User' in html_content
-        assert 'Personality Test' in html_content
+        assert "Test User" in html_content
+        assert "Personality Test" in html_content
 
     # ============================================
     # EMAIL TRACKING
@@ -465,19 +439,17 @@ class TestEmailService:
         from app.core.email import track_email_sent
 
         email_log = track_email_sent(
-            to_email='user@example.com',
-            subject='Test',
-            message_id='msg_123'
+            to_email="user@example.com", subject="Test", message_id="msg_123"
         )
 
         assert email_log is not None
-        assert email_log['status'] == 'sent'
+        assert email_log["status"] == "sent"
 
     def test_track_email_opened(self):
         """Test tracking email opens"""
         from app.core.email import track_email_opened
 
-        result = track_email_opened(message_id='msg_123')
+        result = track_email_opened(message_id="msg_123")
 
         assert result is True
 
@@ -489,7 +461,7 @@ class TestEmailService:
         """Test email rate limiting"""
         # Simulate rate limit
         for i in range(100):
-            can_send = email_service.check_rate_limit('test@example.com')
+            can_send = email_service.check_rate_limit("test@example.com")
             if i < 50:  # Assume limit is 50 per hour
                 assert can_send is True
             else:
@@ -504,13 +476,13 @@ class TestEmailService:
         from app.core.email import send_gdpr_export_email
 
         export_data = {
-            'email': 'user@example.com',
-            'name': 'User Name',
-            'download_url': 'https://app.psychsync.com/downloads/export_123.zip',
-            'expires_at': datetime.utcnow()
+            "email": "user@example.com",
+            "name": "User Name",
+            "download_url": "https://app.psychsync.com/downloads/export_123.zip",
+            "expires_at": datetime.utcnow(),
         }
 
-        with patch('app.core.email.send_email') as mock_send:
+        with patch("app.core.email.send_email") as mock_send:
             mock_send.return_value = True
 
             result = send_gdpr_export_email(**export_data)
@@ -522,13 +494,13 @@ class TestEmailService:
         from app.core.email import send_account_deletion_email
 
         deletion_data = {
-            'email': 'user@example.com',
-            'name': 'User Name',
-            'deletion_date': datetime.utcnow(),
-            'cancellation_url': 'https://app.psychsync.com/cancel?token=abc123'
+            "email": "user@example.com",
+            "name": "User Name",
+            "deletion_date": datetime.utcnow(),
+            "cancellation_url": "https://app.psychsync.com/cancel?token=abc123",
         }
 
-        with patch('app.core.email.send_email') as mock_send:
+        with patch("app.core.email.send_email") as mock_send:
             mock_send.return_value = True
 
             result = send_account_deletion_email(**deletion_data)
@@ -540,12 +512,12 @@ class TestEmailService:
         from app.core.email import send_team_report_email
 
         report_data = {
-            'email': 'manager@example.com',
-            'team_name': 'Development Team',
-            'report_url': 'https://app.psychsync.com/reports/123'
+            "email": "manager@example.com",
+            "team_name": "Development Team",
+            "report_url": "https://app.psychsync.com/reports/123",
         }
 
-        with patch('app.core.email.send_email') as mock_send:
+        with patch("app.core.email.send_email") as mock_send:
             mock_send.return_value = True
 
             result = send_team_report_email(**report_data)
@@ -563,9 +535,7 @@ class TestEmailStubMode:
         email_service = EmailServiceStub()
 
         result = email_service.send_email(
-            to_email='user@example.com',
-            subject='Test',
-            text_content='Test content'
+            to_email="user@example.com", subject="Test", text_content="Test content"
         )
 
         assert result is True
@@ -573,7 +543,7 @@ class TestEmailStubMode:
         # Check that email was logged
         sent_emails = email_service.get_sent_emails()
         assert len(sent_emails) > 0
-        assert sent_emails[0]['to_email'] == 'user@example.com'
+        assert sent_emails[0]["to_email"] == "user@example.com"
 
     def test_clear_sent_emails(self):
         """Test clearing sent email log"""
@@ -581,7 +551,7 @@ class TestEmailStubMode:
 
         email_service = EmailServiceStub()
 
-        email_service.send_email('test@example.com', 'Test', 'Content')
+        email_service.send_email("test@example.com", "Test", "Content")
         assert len(email_service.get_sent_emails()) > 0
 
         email_service.clear_sent_emails()
@@ -626,5 +596,5 @@ class TestEmailNotifications:
         pass
 
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

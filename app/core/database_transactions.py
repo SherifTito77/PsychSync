@@ -68,12 +68,16 @@ async def database_transaction(
         except Exception as rollback_error:
             logger.log_error(
                 DatabaseOperationException(
-                    "Failed to rollback transaction", "transaction_rollback", rollback_error
+                    "Failed to rollback transaction",
+                    "transaction_rollback",
+                    rollback_error,
                 ),
                 operation="transaction_rollback",
             )
 
-        raise DatabaseOperationException(f"Transaction failed: {e!s}", "database_transaction", e) from e
+        raise DatabaseOperationException(
+            f"Transaction failed: {e!s}", "database_transaction", e
+        ) from e
 
     except Exception as e:
         # Rollback on any other errors
@@ -88,12 +92,16 @@ async def database_transaction(
         except Exception as rollback_error:
             logger.log_error(
                 DatabaseOperationException(
-                    "Failed to rollback transaction", "transaction_rollback", rollback_error
+                    "Failed to rollback transaction",
+                    "transaction_rollback",
+                    rollback_error,
                 ),
                 operation="transaction_rollback",
             )
 
-        raise DatabaseOperationException(f"Transaction failed: {e!s}", "database_transaction", e) from e
+        raise DatabaseOperationException(
+            f"Transaction failed: {e!s}", "database_transaction", e
+        ) from e
 
     finally:
         # Clean up session state
@@ -117,7 +125,11 @@ class TransactionManager:
 
     @asynccontextmanager
     async def transaction(
-        self, db: AsyncSession, name: str = None, savepoint: bool = False, readonly: bool = False
+        self,
+        db: AsyncSession,
+        name: str = None,
+        savepoint: bool = False,
+        readonly: bool = False,
     ) -> AsyncGenerator[AsyncSession, None]:
         """
         Advanced transaction management with savepoints and performance tracking
@@ -223,7 +235,10 @@ class TransactionManager:
                 del self.active_transactions[transaction_id]
 
     async def execute_in_transaction(
-        self, db: AsyncSession, operations: list[Callable], name: str = "batch_operations"
+        self,
+        db: AsyncSession,
+        operations: list[Callable],
+        name: str = "batch_operations",
     ) -> list[Any]:
         """
         Execute multiple operations in a single transaction

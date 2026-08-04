@@ -109,10 +109,18 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
         self.max_request_size = max_request_size
 
         # Compile regex patterns for performance
-        self.sql_patterns = [re.compile(p, re.IGNORECASE) for p in self.SQL_INJECTION_PATTERNS]
-        self.xss_patterns = [re.compile(p, re.IGNORECASE | re.DOTALL) for p in self.XSS_PATTERNS]
-        self.cmd_patterns = [re.compile(p, re.IGNORECASE) for p in self.CMD_INJECTION_PATTERNS]
-        self.path_patterns = [re.compile(p, re.IGNORECASE) for p in self.PATH_TRAVERSAL_PATTERNS]
+        self.sql_patterns = [
+            re.compile(p, re.IGNORECASE) for p in self.SQL_INJECTION_PATTERNS
+        ]
+        self.xss_patterns = [
+            re.compile(p, re.IGNORECASE | re.DOTALL) for p in self.XSS_PATTERNS
+        ]
+        self.cmd_patterns = [
+            re.compile(p, re.IGNORECASE) for p in self.CMD_INJECTION_PATTERNS
+        ]
+        self.path_patterns = [
+            re.compile(p, re.IGNORECASE) for p in self.PATH_TRAVERSAL_PATTERNS
+        ]
 
         # Allowed content types for file uploads
         self.allowed_content_types = allowed_content_types or [
@@ -133,11 +141,11 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
         # 2. OPTIONS requests for CORS preflight
         # 3. Simple auth endpoints (for development/testing)
         should_skip = (
-            "/auth/" in request.url.path or
-            request.method == "OPTIONS" or
-            "/simple-login" in request.url.path or
-            "/verify-token" in request.url.path or
-            request.url.path == "/me"
+            "/auth/" in request.url.path
+            or request.method == "OPTIONS"
+            or "/simple-login" in request.url.path
+            or "/verify-token" in request.url.path
+            or request.url.path == "/me"
         )
 
         if should_skip:
@@ -150,7 +158,9 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
         client_ip = self._get_client_ip(request)
         if client_ip in self.blocked_ips:
             logger.warning(f"Blocked request from IP: {client_ip}")
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+            )
 
         # Validate request headers
         self._validate_headers(request)
@@ -228,13 +238,17 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
                     f"SQL injection detected in header '{header_name}': '{header_value[:100]}...'"
                 )
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request header"
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid request header",
                 )
 
             if self._detect_xss(header_value):
-                logger.warning(f"XSS detected in header '{header_name}': '{header_value[:100]}...'")
+                logger.warning(
+                    f"XSS detected in header '{header_name}': '{header_value[:100]}...'"
+                )
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request header"
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid request header",
                 )
 
     def _validate_path(self, request: Request):
@@ -246,7 +260,8 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
             if pattern.search(path):
                 logger.warning(f"Path traversal detected: {path}")
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request path"
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid request path",
                 )
 
     def _validate_query_params(self, request: Request):
@@ -259,14 +274,18 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
             if self._detect_sql_injection(param_name) or self._detect_xss(param_name):
                 logger.warning(f"Injection in query param name: {param_name}")
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request parameter"
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid request parameter",
                 )
 
             # Validate parameter value
             if self._detect_sql_injection(param_value) or self._detect_xss(param_value):
-                logger.warning(f"Injection in query param value: {param_name}={param_value}")
+                logger.warning(
+                    f"Injection in query param value: {param_name}={param_value}"
+                )
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request parameter"
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid request parameter",
                 )
 
     async def _validate_body(self, request: Request):
@@ -301,7 +320,8 @@ class SecurityValidationMiddleware(BaseHTTPMiddleware):
                         if self._detect_path_traversal(filename):
                             logger.warning(f"Path traversal in filename: {filename}")
                             raise HTTPException(
-                                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid filename"
+                                status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="Invalid filename",
                             )
 
     def _detect_sql_injection(self, value: str) -> bool:

@@ -13,9 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_user, get_db
 from app.core.logging_config import logger
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
-from app.services.legal_rights_service import LegalRightsService, LegalRightsAnalyzer
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
+from app.services.legal_rights_service import LegalRightsAnalyzer, LegalRightsService
 
 router = APIRouter(prefix="/legal-rights")
 
@@ -24,8 +24,10 @@ router = APIRouter(prefix="/legal-rights")
 # Pydantic Models
 # ============================================
 
+
 class LaborLawResponse(BaseModel):
     """Labor law information"""
+
     id: str
     country_name: str
     law_name: str
@@ -44,6 +46,7 @@ class LaborLawResponse(BaseModel):
 
 class RightsSummaryResponse(BaseModel):
     """Employee rights summary"""
+
     country_code: str
     country_name: str
     total_laws: int
@@ -54,6 +57,7 @@ class RightsSummaryResponse(BaseModel):
 
 class RightsResourceResponse(BaseModel):
     """Employee rights resource"""
+
     id: str
     title: str
     category: str
@@ -71,10 +75,13 @@ class RightsResourceResponse(BaseModel):
 
 class ContractViolationCreate(BaseModel):
     """Create a contract violation report"""
+
     affected_employee_id: Optional[str] = None
     violation_type: str = Field(..., description="Type of violation")
     category: str = Field(..., description="Violation category")
-    severity: str = Field(..., pattern="^(low|medium|high|critical|legal_action_required)$")
+    severity: str = Field(
+        ..., pattern="^(low|medium|high|critical|legal_action_required)$"
+    )
     title: str = Field(..., min_length=10, max_length=255)
     description: str = Field(..., min_length=50, max_length=5000)
     labor_law_violated: Optional[str] = None
@@ -85,6 +92,7 @@ class ContractViolationCreate(BaseModel):
 
 class ContractViolationResponse(BaseModel):
     """Contract violation details"""
+
     id: str
     violation_type: str
     category: str
@@ -101,12 +109,14 @@ class ContractViolationResponse(BaseModel):
 
 class KnowledgeCheckRequest(BaseModel):
     """Knowledge check submission"""
+
     check_type: str = Field(..., description="Type of knowledge check")
     responses: List[dict] = Field(..., min_items=1)
 
 
 class KnowledgeCheckResponse(BaseModel):
     """Knowledge check results"""
+
     id: str
     check_type: str
     score_percentage: int
@@ -121,6 +131,7 @@ class KnowledgeCheckResponse(BaseModel):
 
 class LegalAidResourceResponse(BaseModel):
     """Legal aid resource"""
+
     id: str
     name: str
     resource_type: str
@@ -139,6 +150,7 @@ class LegalAidResourceResponse(BaseModel):
 
 class ComplianceReportResponse(BaseModel):
     """Organization compliance report"""
+
     legal_risk_score: int
     total_open_violations: int
     critical_violations: int
@@ -152,6 +164,7 @@ class ComplianceReportResponse(BaseModel):
 # ============================================
 # LABOR LAW ENDPOINTS
 # ============================================
+
 
 @router.get("/labor-laws", response_model=List[LaborLawResponse])
 async def get_labor_laws(
@@ -187,7 +200,7 @@ async def get_labor_laws(
                 "mandatory_break_minutes": None,
                 "min_vacation_days": 0,
                 "last_updated": "2024-01-01",
-                "is_active": True
+                "is_active": True,
             },
             {
                 "id": "2",
@@ -204,7 +217,7 @@ async def get_labor_laws(
                 "mandatory_break_minutes": None,
                 "min_vacation_days": None,
                 "last_updated": "2024-01-01",
-                "is_active": True
+                "is_active": True,
             },
             {
                 "id": "3",
@@ -221,7 +234,7 @@ async def get_labor_laws(
                 "mandatory_break_minutes": None,
                 "min_vacation_days": None,
                 "last_updated": "2024-01-01",
-                "is_active": True
+                "is_active": True,
             },
             {
                 "id": "4",
@@ -238,8 +251,8 @@ async def get_labor_laws(
                 "mandatory_break_minutes": None,
                 "min_vacation_days": None,
                 "last_updated": "2024-01-01",
-                "is_active": True
-            }
+                "is_active": True,
+            },
         ]
 
         # Filter by category if provided
@@ -268,27 +281,31 @@ async def get_rights_summary(
         # Return sample data
         return {
             "country_code": country_code.upper(),
-            "country_name": "United States" if country_code.upper() == "US" else country_code.upper(),
+            "country_name": (
+                "United States"
+                if country_code.upper() == "US"
+                else country_code.upper()
+            ),
             "total_laws": 4,
             "categories": {
                 "wages_hours": 2,
                 "leave": 1,
                 "safety": 1,
-                "discrimination": 1
+                "discrimination": 1,
             },
             "key_protections": {
                 "min_wage": 7.25,
                 "max_weekly_hours": 40,
                 "overtime_threshold": 40,
                 "overtime_rate": 1.5,
-                "min_vacation_days": 0
+                "min_vacation_days": 0,
             },
             "protection_levels": {
                 "discrimination": 9,
                 "safety": 8,
                 "wages": 7,
-                "leave": 7
-            }
+                "leave": 7,
+            },
         }
     except Exception as e:
         logger.error(f"Error generating rights summary: {e}")
@@ -298,6 +315,7 @@ async def get_rights_summary(
 # ============================================
 # EDUCATIONAL RESOURCES ENDPOINTS
 # ============================================
+
 
 @router.get("/resources", response_model=List[RightsResourceResponse])
 async def get_rights_resources(
@@ -325,7 +343,7 @@ async def get_rights_resources(
                 "thumbnail_url": None,
                 "video_url": None,
                 "duration_minutes": None,
-                "view_count": 1250
+                "view_count": 1250,
             },
             {
                 "id": "2",
@@ -337,7 +355,7 @@ async def get_rights_resources(
                 "thumbnail_url": "https://example.com/thumb.jpg",
                 "video_url": "https://www.youtube.com/watch?v=example",
                 "duration_minutes": 15,
-                "view_count": 3420
+                "view_count": 3420,
             },
             {
                 "id": "3",
@@ -349,15 +367,19 @@ async def get_rights_resources(
                 "thumbnail_url": None,
                 "video_url": None,
                 "duration_minutes": None,
-                "view_count": 892
-            }
+                "view_count": 892,
+            },
         ]
 
         # Apply filters
         if category:
-            sample_resources = [r for r in sample_resources if r["category"] == category]
+            sample_resources = [
+                r for r in sample_resources if r["category"] == category
+            ]
         if resource_type:
-            sample_resources = [r for r in sample_resources if r["resource_type"] == resource_type]
+            sample_resources = [
+                r for r in sample_resources if r["resource_type"] == resource_type
+            ]
 
         return sample_resources[:limit]
 
@@ -377,8 +399,7 @@ async def mark_resource_helpful(
     try:
         service = LegalRightsService(db)
         success = await service.mark_resource_helpful(
-            resource_id=UUID(resource_id),
-            helpful=helpful
+            resource_id=UUID(resource_id), helpful=helpful
         )
 
         if not success:
@@ -397,6 +418,7 @@ async def mark_resource_helpful(
 # CONTRACT VIOLATION ENDPOINTS
 # ============================================
 
+
 @rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/violations/report", response_model=ContractViolationResponse)
 async def report_violation(
@@ -412,13 +434,15 @@ async def report_violation(
     """
     try:
         if not current_user.organization_id:
-            raise HTTPException(status_code=400, detail="User must belong to an organization")
+            raise HTTPException(
+                status_code=400, detail="User must belong to an organization"
+            )
 
         service = LegalRightsService(db)
         violation = await service.create_violation_report(
             organization_id=current_user.organization_id,
             violation_data=violation_data.dict(),
-            reported_by=current_user.id
+            reported_by=current_user.id,
         )
         return violation
 
@@ -455,6 +479,7 @@ async def get_violations(
 # KNOWLEDGE CHECK ENDPOINTS
 # ============================================
 
+
 @router.post("/knowledge-check", response_model=KnowledgeCheckResponse)
 async def submit_knowledge_check(
     check_data: KnowledgeCheckRequest,
@@ -469,14 +494,16 @@ async def submit_knowledge_check(
     """
     try:
         if not current_user.organization_id:
-            raise HTTPException(status_code=400, detail="User must belong to an organization")
+            raise HTTPException(
+                status_code=400, detail="User must belong to an organization"
+            )
 
         service = LegalRightsService(db)
         knowledge_check = await service.create_knowledge_check(
             user_id=current_user.id,
             organization_id=current_user.organization_id,
             check_type=check_data.check_type,
-            responses=check_data.responses
+            responses=check_data.responses,
         )
         return knowledge_check
 
@@ -495,8 +522,7 @@ async def get_knowledge_check_history(
     try:
         service = LegalRightsService(db)
         history = await service.get_user_knowledge_history(
-            user_id=current_user.id,
-            limit=limit
+            user_id=current_user.id, limit=limit
         )
         return history
 
@@ -508,6 +534,7 @@ async def get_knowledge_check_history(
 # ============================================
 # LEGAL AID ENDPOINTS
 # ============================================
+
 
 @router.get("/legal-aid", response_model=List[LegalAidResourceResponse])
 async def find_legal_aid(
@@ -535,9 +562,13 @@ async def find_legal_aid(
                 "email": "info@nelp.org",
                 "website": "https://www.nelp.org",
                 "address": "1200 18th Street NW, Suite 200, Washington, DC 20036",
-                "specializations": ["employment law", "worker rights", "policy advocacy"],
+                "specializations": [
+                    "employment law",
+                    "worker rights",
+                    "policy advocacy",
+                ],
                 "free_consultation": True,
-                "rating": 4.8
+                "rating": 4.8,
             },
             {
                 "id": "2",
@@ -548,9 +579,13 @@ async def find_legal_aid(
                 "email": "employment@legalaid.org",
                 "website": "https://www.legalaid.org",
                 "address": None,
-                "specializations": ["wrongful termination", "discrimination", "wage theft"],
+                "specializations": [
+                    "wrongful termination",
+                    "discrimination",
+                    "wage theft",
+                ],
                 "free_consultation": True,
-                "rating": 4.6
+                "rating": 4.6,
             },
             {
                 "id": "3",
@@ -563,27 +598,37 @@ async def find_legal_aid(
                 "address": "200 Constitution Avenue NW, Washington, DC 20210",
                 "specializations": ["wage and hour", "overtime", "child labor"],
                 "free_consultation": True,
-                "rating": None
-            }
+                "rating": None,
+            },
         ]
 
         # Apply filters
         if specialization:
-            sample_resources = [r for r in sample_resources if specialization.lower() in " ".join(r.get("specializations", [])).lower()]
+            sample_resources = [
+                r
+                for r in sample_resources
+                if specialization.lower()
+                in " ".join(r.get("specializations", [])).lower()
+            ]
 
         if free_only:
-            sample_resources = [r for r in sample_resources if r.get("free_consultation", False)]
+            sample_resources = [
+                r for r in sample_resources if r.get("free_consultation", False)
+            ]
 
         return sample_resources
 
     except Exception as e:
         logger.error(f"Error finding legal aid: {e}")
-        raise HTTPException(status_code=500, detail="Failed to find legal aid resources")
+        raise HTTPException(
+            status_code=500, detail="Failed to find legal aid resources"
+        )
 
 
 # ============================================
 # COMPLIANCE ANALYTICS (ADMIN/HR ONLY)
 # ============================================
+
 
 @router.get("/compliance/report", response_model=ComplianceReportResponse)
 async def get_compliance_report(
@@ -598,14 +643,18 @@ async def get_compliance_report(
     """
     try:
         # Check permissions
-        if not current_user.is_admin and current_user.role.value not in ["hr", "manager"]:
+        if not current_user.is_admin and current_user.role.value not in [
+            "hr",
+            "manager",
+        ]:
             raise HTTPException(
-                status_code=403,
-                detail="Admin, HR, or manager access required"
+                status_code=403, detail="Admin, HR, or manager access required"
             )
 
         if not current_user.organization_id:
-            raise HTTPException(status_code=400, detail="User must belong to an organization")
+            raise HTTPException(
+                status_code=400, detail="User must belong to an organization"
+            )
 
         analyzer = LegalRightsAnalyzer(db)
         report = await analyzer.analyze_organization_compliance(
@@ -617,4 +666,6 @@ async def get_compliance_report(
         raise
     except Exception as e:
         logger.error(f"Error generating compliance report: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate compliance report")
+        raise HTTPException(
+            status_code=500, detail="Failed to generate compliance report"
+        )

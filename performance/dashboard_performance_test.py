@@ -11,15 +11,17 @@ Focuses specifically on dashboard loading performance and caching impact:
 """
 
 import asyncio
-import aiohttp
 import json
-import time
 import statistics
-import psutil
-from pathlib import Path
-from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List
+import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any, Dict, List
+
+import aiohttp
+import psutil
+
 
 class DashboardPerformanceTester:
     """Specialized dashboard performance testing"""
@@ -33,9 +35,7 @@ class DashboardPerformanceTester:
     async def __aenter__(self):
         # Configure session for dashboard testing
         connector = aiohttp.TCPConnector(
-            limit=200,
-            keepalive_timeout=30,
-            enable_cleanup_closed=True
+            limit=200, keepalive_timeout=30, enable_cleanup_closed=True
         )
         self.session = aiohttp.ClientSession(connector=connector)
         return self
@@ -49,12 +49,11 @@ class DashboardPerformanceTester:
         try:
             login_data = {
                 "username": "dashboard_test@example.com",
-                "password": "test_password_123"
+                "password": "test_password_123",
             }
 
             async with self.session.post(
-                f"{self.backend_url}/api/v1/token-login",
-                json=login_data
+                f"{self.backend_url}/api/v1/token-login", json=login_data
             ) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -67,18 +66,16 @@ class DashboardPerformanceTester:
                 "email": "dashboard_test@example.com",
                 "password": "test_password_123",
                 "full_name": "Dashboard Test User",
-                "role": "user"
+                "role": "user",
             }
 
             async with self.session.post(
-                f"{self.backend_url}/api/v1/register",
-                json=register_data
+                f"{self.backend_url}/api/v1/register", json=register_data
             ) as response:
                 if response.status in [200, 201]:
                     # Try login again
                     async with self.session.post(
-                        f"{self.backend_url}/api/v1/token-login",
-                        json=login_data
+                        f"{self.backend_url}/api/v1/token-login", json=login_data
                     ) as login_response:
                         if login_response.status == 200:
                             data = await login_response.json()
@@ -86,7 +83,9 @@ class DashboardPerformanceTester:
                                 self.auth_token = data["access_token"]
                                 return True
 
-            print("⚠️  Warning: Could not authenticate, running tests without auth token")
+            print(
+                "⚠️  Warning: Could not authenticate, running tests without auth token"
+            )
             return False
 
         except Exception as e:
@@ -119,8 +118,7 @@ class DashboardPerformanceTester:
             start_time = time.time()
             try:
                 async with self.session.get(
-                    f"{self.backend_url}/api/v1/dashboard",
-                    headers=headers
+                    f"{self.backend_url}/api/v1/dashboard", headers=headers
                 ) as response:
                     load_time = time.time() - start_time
                     cold_load_times.append(load_time)
@@ -131,9 +129,13 @@ class DashboardPerformanceTester:
                         if "widgets" in data or "stats" in data or "charts" in data:
                             print(f"   Load {i+1}: {load_time:.3f}s ✅")
                         else:
-                            print(f"   Load {i+1}: {load_time:.3f}s ⚠️  (invalid structure)")
+                            print(
+                                f"   Load {i+1}: {load_time:.3f}s ⚠️  (invalid structure)"
+                            )
                     else:
-                        print(f"   Load {i+1}: {load_time:.3f}s ❌ (HTTP {response.status})")
+                        print(
+                            f"   Load {i+1}: {load_time:.3f}s ❌ (HTTP {response.status})"
+                        )
 
             except Exception as e:
                 print(f"   Load {i+1}: ERROR - {str(e)[:50]}")
@@ -152,8 +154,7 @@ class DashboardPerformanceTester:
             start_time = time.time()
             try:
                 async with self.session.get(
-                    f"{self.backend_url}/api/v1/dashboard",
-                    headers=headers
+                    f"{self.backend_url}/api/v1/dashboard", headers=headers
                 ) as response:
                     load_time = time.time() - start_time
                     warm_load_times.append(load_time)
@@ -161,7 +162,9 @@ class DashboardPerformanceTester:
                     if response.status == 200:
                         print(f"   Load {i+1}: {load_time:.3f}s ✅")
                     else:
-                        print(f"   Load {i+1}: {load_time:.3f}s ❌ (HTTP {response.status})")
+                        print(
+                            f"   Load {i+1}: {load_time:.3f}s ❌ (HTTP {response.status})"
+                        )
 
             except Exception as e:
                 print(f"   Load {i+1}: ERROR - {str(e)[:50]}")
@@ -181,8 +184,12 @@ class DashboardPerformanceTester:
             p95_improvement = ((cold_p95 - warm_p95) / cold_p95) * 100
 
             print(f"\n📈 CACHING PERFORMANCE ANALYSIS:")
-            print(f"   Cold Cache - Avg: {cold_avg:.3f}s, Median: {cold_median:.3f}s, P95: {cold_p95:.3f}s")
-            print(f"   Warm Cache - Avg: {warm_avg:.3f}s, Median: {warm_median:.3f}s, P95: {warm_p95:.3f}s")
+            print(
+                f"   Cold Cache - Avg: {cold_avg:.3f}s, Median: {cold_median:.3f}s, P95: {cold_p95:.3f}s"
+            )
+            print(
+                f"   Warm Cache - Avg: {warm_avg:.3f}s, Median: {warm_median:.3f}s, P95: {warm_p95:.3f}s"
+            )
             print(f"   Average Improvement: {avg_improvement:.1f}%")
             print(f"   Median Improvement: {median_improvement:.1f}%")
             print(f"   P95 Improvement: {p95_improvement:.1f}%")
@@ -199,7 +206,7 @@ class DashboardPerformanceTester:
             "warm_times": warm_load_times,
             "cold_avg": cold_avg,
             "warm_avg": warm_avg,
-            "improvement": avg_improvement
+            "improvement": avg_improvement,
         }
 
     async def test_widget_loading_performance(self):
@@ -221,7 +228,7 @@ class DashboardPerformanceTester:
             "performance_metrics",
             "upcoming_assessments",
             "notifications",
-            "quick_actions"
+            "quick_actions",
         ]
 
         widget_performance = {}
@@ -238,7 +245,7 @@ class DashboardPerformanceTester:
                 try:
                     async with self.session.get(
                         f"{self.backend_url}/api/v1/dashboard/widgets/{widget_type}",
-                        headers=headers
+                        headers=headers,
                     ) as response:
                         load_time = time.time() - start_time
                         load_times.append(load_time)
@@ -250,10 +257,14 @@ class DashboardPerformanceTester:
                                 print(f"   Load {i+1}: {load_time:.3f}s ✅")
                             else:
                                 failed_loads += 1
-                                print(f"   Load {i+1}: {load_time:.3f}s ⚠️  (invalid data)")
+                                print(
+                                    f"   Load {i+1}: {load_time:.3f}s ⚠️  (invalid data)"
+                                )
                         else:
                             failed_loads += 1
-                            print(f"   Load {i+1}: {load_time:.3f}s ❌ (HTTP {response.status})")
+                            print(
+                                f"   Load {i+1}: {load_time:.3f}s ❌ (HTTP {response.status})"
+                            )
 
                 except Exception as e:
                     failed_loads += 1
@@ -265,7 +276,9 @@ class DashboardPerformanceTester:
                 min_time = min(load_times)
                 max_time = max(load_times)
                 median_time = statistics.median(load_times)
-                success_rate = (successful_loads / (successful_loads + failed_loads)) * 100
+                success_rate = (
+                    successful_loads / (successful_loads + failed_loads)
+                ) * 100
 
                 widget_performance[widget_type] = {
                     "avg_time": avg_time,
@@ -274,28 +287,42 @@ class DashboardPerformanceTester:
                     "median_time": median_time,
                     "success_rate": success_rate,
                     "successful_loads": successful_loads,
-                    "failed_loads": failed_loads
+                    "failed_loads": failed_loads,
                 }
 
                 print(f"   📊 {widget_type} Results:")
-                print(f"      Avg: {avg_time:.3f}s, Min: {min_time:.3f}s, Max: {max_time:.3f}s")
-                print(f"      Success Rate: {success_rate:.1f}% ({successful_loads}/{successful_loads + failed_loads})")
+                print(
+                    f"      Avg: {avg_time:.3f}s, Min: {min_time:.3f}s, Max: {max_time:.3f}s"
+                )
+                print(
+                    f"      Success Rate: {success_rate:.1f}% ({successful_loads}/{successful_loads + failed_loads})"
+                )
 
         # Find slowest and fastest widgets
         if widget_performance:
-            sorted_widgets = sorted(widget_performance.items(), key=lambda x: x[1]["avg_time"])
+            sorted_widgets = sorted(
+                widget_performance.items(), key=lambda x: x[1]["avg_time"]
+            )
 
             print(f"\n🏆 WIDGET PERFORMANCE RANKING:")
             for i, (widget, metrics) in enumerate(sorted_widgets):
-                status = "🐌" if i < 3 else "🚀" if i > len(sorted_widgets) - 3 else "📊"
+                status = (
+                    "🐌" if i < 3 else "🚀" if i > len(sorted_widgets) - 3 else "📊"
+                )
                 print(f"   {i+1}. {status} {widget}: {metrics['avg_time']:.3f}s avg")
 
             slowest_widget = sorted_widgets[-1]
             fastest_widget = sorted_widgets[0]
-            performance_ratio = slowest_widget[1]["avg_time"] / fastest_widget[1]["avg_time"]
+            performance_ratio = (
+                slowest_widget[1]["avg_time"] / fastest_widget[1]["avg_time"]
+            )
 
-            print(f"\n   Fastest: {fastest_widget[0]} ({fastest_widget[1]['avg_time']:.3f}s)")
-            print(f"   Slowest: {slowest_widget[0]} ({slowest_widget[1]['avg_time']:.3f}s)")
+            print(
+                f"\n   Fastest: {fastest_widget[0]} ({fastest_widget[1]['avg_time']:.3f}s)"
+            )
+            print(
+                f"   Slowest: {slowest_widget[0]} ({slowest_widget[1]['avg_time']:.3f}s)"
+            )
             print(f"   Performance Ratio: {performance_ratio:.1f}x")
 
         self.test_results["widget_performance"] = widget_performance
@@ -312,13 +339,27 @@ class DashboardPerformanceTester:
 
         # Test real-time update scenarios
         update_scenarios = [
-            {"name": "User Stats Update", "endpoint": "/api/v1/dashboard/stats/update", "frequency": 1},
-            {"name": "Activity Feed Update", "endpoint": "/api/v1/dashboard/activity/update", "frequency": 2},
-            {"name": "Notification Update", "endpoint": "/api/v1/dashboard/notifications/update", "frequency": 0.5}
+            {
+                "name": "User Stats Update",
+                "endpoint": "/api/v1/dashboard/stats/update",
+                "frequency": 1,
+            },
+            {
+                "name": "Activity Feed Update",
+                "endpoint": "/api/v1/dashboard/activity/update",
+                "frequency": 2,
+            },
+            {
+                "name": "Notification Update",
+                "endpoint": "/api/v1/dashboard/notifications/update",
+                "frequency": 0.5,
+            },
         ]
 
         for scenario in update_scenarios:
-            print(f"\n🔄 Testing {scenario['name']} ({scenario['frequency']}s frequency)...")
+            print(
+                f"\n🔄 Testing {scenario['name']} ({scenario['frequency']}s frequency)..."
+            )
 
             update_times = []
             successful_updates = 0
@@ -335,7 +376,7 @@ class DashboardPerformanceTester:
                     async with self.session.post(
                         f"{self.backend_url}{scenario['endpoint']}",
                         json={"timestamp": time.time(), "update_id": update_count},
-                        headers=headers
+                        headers=headers,
                     ) as response:
                         update_time = time.time() - update_start
                         update_times.append(update_time)
@@ -348,12 +389,12 @@ class DashboardPerformanceTester:
                         update_count += 1
 
                         # Wait for next update
-                        await asyncio.sleep(scenario['frequency'])
+                        await asyncio.sleep(scenario["frequency"])
 
                 except Exception as e:
                     failed_updates += 1
                     update_count += 1
-                    await asyncio.sleep(scenario['frequency'])
+                    await asyncio.sleep(scenario["frequency"])
 
             # Calculate update performance metrics
             if update_times:
@@ -369,7 +410,9 @@ class DashboardPerformanceTester:
                 print(f"      Success Rate: {success_rate:.1f}%")
                 print(f"      Updates/sec: {updates_per_second:.1f}")
                 print(f"      Avg Update Time: {avg_update_time:.3f}s")
-                print(f"      Min/Max Time: {min_update_time:.3f}s / {max_update_time:.3f}s")
+                print(
+                    f"      Min/Max Time: {min_update_time:.3f}s / {max_update_time:.3f}s"
+                )
 
                 # Evaluate real-time performance
                 if avg_update_time < 0.1 and success_rate > 95:
@@ -407,8 +450,7 @@ class DashboardPerformanceTester:
 
                     load_start = time.time()
                     async with self.session.get(
-                        f"{self.backend_url}/api/v1/dashboard",
-                        headers=user_headers
+                        f"{self.backend_url}/api/v1/dashboard", headers=user_headers
                     ) as response:
                         load_time = time.time() - load_start
                         load_times.append(load_time)
@@ -422,10 +464,7 @@ class DashboardPerformanceTester:
                     return False, 0.0
 
             # Create concurrent dashboard loads
-            tasks = [
-                load_dashboard_for_user(i)
-                for i in range(concurrent_users)
-            ]
+            tasks = [load_dashboard_for_user(i) for i in range(concurrent_users)]
 
             # Execute all tasks concurrently
             task_results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -458,11 +497,13 @@ class DashboardPerformanceTester:
                     "throughput": throughput,
                     "avg_load_time": avg_load_time,
                     "median_load_time": median_load_time,
-                    "p95_load_time": p95_load_time
+                    "p95_load_time": p95_load_time,
                 }
 
                 print(f"   📊 {concurrent_users} Users Results:")
-                print(f"      Success Rate: {success_rate:.1f}% ({successful_loads}/{concurrent_users})")
+                print(
+                    f"      Success Rate: {success_rate:.1f}% ({successful_loads}/{concurrent_users})"
+                )
                 print(f"      Throughput: {throughput:.2f} users/sec")
                 print(f"      Avg Load Time: {avg_load_time:.3f}s")
                 print(f"      P95 Load Time: {p95_load_time:.3f}s")
@@ -497,7 +538,7 @@ class DashboardPerformanceTester:
             {"name": "Time-based Invalidation", "method": "time", "delay": 30},
             {"name": "Data-change Invalidation", "method": "data_change"},
             {"name": "Manual Cache Refresh", "method": "manual"},
-            {"name": "Selective Cache Clear", "method": "selective"}
+            {"name": "Selective Cache Clear", "method": "selective"},
         ]
 
         for scenario in invalidation_scenarios:
@@ -507,13 +548,14 @@ class DashboardPerformanceTester:
             print("   📥 Loading initial data...")
             try:
                 async with self.session.get(
-                    f"{self.backend_url}/api/v1/dashboard",
-                    headers=headers
+                    f"{self.backend_url}/api/v1/dashboard", headers=headers
                 ) as response:
                     initial_load = time.time()
                     if response.status == 200:
                         initial_data = await response.json()
-                        print(f"   ✅ Initial load successful in {time.time() - initial_load:.3f}s")
+                        print(
+                            f"   ✅ Initial load successful in {time.time() - initial_load:.3f}s"
+                        )
                     else:
                         print(f"   ❌ Initial load failed (HTTP {response.status})")
                         continue
@@ -526,8 +568,7 @@ class DashboardPerformanceTester:
             cached_load_start = time.time()
             try:
                 async with self.session.get(
-                    f"{self.backend_url}/api/v1/dashboard",
-                    headers=headers
+                    f"{self.backend_url}/api/v1/dashboard", headers=headers
                 ) as response:
                     cached_load_time = time.time() - cached_load_start
                     if response.status == 200:
@@ -561,14 +602,13 @@ class DashboardPerformanceTester:
                     async with self.session.post(
                         f"{self.backend_url}/api/v1/test/invalidate-cache",
                         json={"action": "data_change", "timestamp": time.time()},
-                        headers=headers
+                        headers=headers,
                     ) as response:
                         print(f"   Cache invalidation response: {response.status}")
                 elif scenario["method"] == "manual":
                     # Manual cache refresh
                     async with self.session.post(
-                        f"{self.backend_url}/api/v1/dashboard/refresh",
-                        headers=headers
+                        f"{self.backend_url}/api/v1/dashboard/refresh", headers=headers
                     ) as response:
                         print(f"   Cache refresh response: {response.status}")
                 elif scenario["method"] == "selective":
@@ -576,7 +616,7 @@ class DashboardPerformanceTester:
                     async with self.session.delete(
                         f"{self.backend_url}/api/v1/cache/selective",
                         json={"widgets": ["user_stats", "activity"]},
-                        headers=headers
+                        headers=headers,
                     ) as response:
                         print(f"   Selective cache clear response: {response.status}")
 
@@ -590,8 +630,7 @@ class DashboardPerformanceTester:
             fresh_load_start = time.time()
             try:
                 async with self.session.get(
-                    f"{self.backend_url}/api/v1/dashboard",
-                    headers=headers
+                    f"{self.backend_url}/api/v1/dashboard", headers=headers
                 ) as response:
                     fresh_load_time = time.time() - fresh_load_start
                     if response.status == 200:
@@ -599,7 +638,13 @@ class DashboardPerformanceTester:
                         print(f"   ✅ Fresh load in {fresh_load_time:.3f}s")
 
                         # Calculate performance metrics
-                        cache_improvement = ((time.time() - initial_load) - cached_load_time) / (time.time() - initial_load) * 100 if cache_working else 0
+                        cache_improvement = (
+                            ((time.time() - initial_load) - cached_load_time)
+                            / (time.time() - initial_load)
+                            * 100
+                            if cache_working
+                            else 0
+                        )
                         total_invalidation_time = invalidation_time + fresh_load_time
 
                         print(f"   📊 {scenario['Name']} Results:")
@@ -607,7 +652,9 @@ class DashboardPerformanceTester:
                         print(f"      Cache Improvement: {cache_improvement:.1f}%")
                         print(f"      Invalidation Time: {invalidation_time:.3f}s")
                         print(f"      Fresh Load Time: {fresh_load_time:.3f}s")
-                        print(f"      Total Invalidation Time: {total_invalidation_time:.3f}s")
+                        print(
+                            f"      Total Invalidation Time: {total_invalidation_time:.3f}s"
+                        )
 
                         if total_invalidation_time < 2.0:
                             print(f"      ✅ EXCELLENT: Fast cache invalidation")
@@ -652,9 +699,9 @@ class DashboardPerformanceTester:
 
     def generate_dashboard_performance_report(self):
         """Generate comprehensive dashboard performance report"""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("📊 COMPREHENSIVE DASHBOARD PERFORMANCE REPORT")
-        print("="*80)
+        print("=" * 80)
 
         # Cache Performance Summary
         if "cold_warm_cache" in self.test_results:
@@ -674,8 +721,12 @@ class DashboardPerformanceTester:
                 print(f"\n🧩 WIDGET PERFORMANCE SUMMARY:")
                 print(f"   Total Widgets: {len(results)}")
                 print(f"   Average Load Time: {statistics.mean(avg_times):.3f}s")
-                print(f"   Fastest Widget: {min(results.items(), key=lambda x: x[1]['avg_time'])[0]} ({min(avg_times):.3f}s)")
-                print(f"   Slowest Widget: {max(results.items(), key=lambda x: x[1]['avg_time'])[0]} ({max(avg_times):.3f}s)")
+                print(
+                    f"   Fastest Widget: {min(results.items(), key=lambda x: x[1]['avg_time'])[0]} ({min(avg_times):.3f}s)"
+                )
+                print(
+                    f"   Slowest Widget: {max(results.items(), key=lambda x: x[1]['avg_time'])[0]} ({max(avg_times):.3f}s)"
+                )
                 print(f"   Average Success Rate: {statistics.mean(success_rates):.1f}%")
 
         # Concurrent Access Summary
@@ -683,7 +734,9 @@ class DashboardPerformanceTester:
             results = self.test_results["concurrent_access"]
             print(f"\n👥 CONCURRENT ACCESS SUMMARY:")
             for users, metrics in results.items():
-                print(f"   {users} Users: {metrics['success_rate']:.1f}% success, {metrics['throughput']:.1f} users/sec")
+                print(
+                    f"   {users} Users: {metrics['success_rate']:.1f}% success, {metrics['throughput']:.1f} users/sec"
+                )
 
         print(f"\n💡 DASHBOARD PERFORMANCE RECOMMENDATIONS:")
         print(f"   1. Implement Redis caching for dashboard widgets")
@@ -698,9 +751,10 @@ class DashboardPerformanceTester:
         print(f"   ✅ Concurrent user access validated")
         print(f"   ✅ Real-time updates performing efficiently")
 
-        print(f"\n" + "="*80)
+        print(f"\n" + "=" * 80)
         print("🎉 DASHBOARD PERFORMANCE ANALYSIS COMPLETE")
-        print("="*80)
+        print("=" * 80)
+
 
 async def main():
     """Main dashboard performance testing execution"""
@@ -714,6 +768,8 @@ async def main():
         print(f"\n💥 Unexpected error: {e}")
         sys.exit(2)
 
+
 if __name__ == "__main__":
     import statistics  # Add missing import
+
     asyncio.run(main())

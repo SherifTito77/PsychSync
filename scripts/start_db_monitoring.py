@@ -24,7 +24,10 @@ project_root = path.Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from app.core.config import settings
-from app.monitoring.database_error_monitor import db_monitor, start_database_error_monitoring
+from app.monitoring.database_error_monitor import (
+    db_monitor,
+    start_database_error_monitoring,
+)
 
 
 async def main():
@@ -33,7 +36,9 @@ async def main():
     print("DATABASE ERROR MONITORING SYSTEM")
     print("=" * 80)
     print(f"Environment: {settings.ENVIRONMENT}")
-    print(f"Alert Threshold: {settings.get('DB_ERROR_ALERT_THRESHOLD', 10)} errors/minute")
+    print(
+        f"Alert Threshold: {settings.get('DB_ERROR_ALERT_THRESHOLD', 10)} errors/minute"
+    )
     print(f"Report Interval: 60 minutes")
     print("\nStarting monitoring...\n")
 

@@ -4,8 +4,8 @@ Base Service Class for Common CRUD Patterns
 Provides abstract base class with common operations and standardized patterns
 """
 
-from abc import ABC, abstractmethod
 import builtins
+from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any, Generic, TypeVar
 from uuid import UUID
@@ -24,6 +24,7 @@ from app.core.structured_logging import EventType, get_logger
 T = TypeVar("T")  # Model type
 C = TypeVar("C", bound=BaseModel)  # Create schema type
 U = TypeVar("U", bound=BaseModel)  # Update schema type
+
 
 class BaseService(Generic[T, C, U], ABC):
     """
@@ -63,7 +64,7 @@ class BaseService(Generic[T, C, U], ABC):
         db: AsyncSession,
         id: str | UUID,
         include_relations: bool = False,
-        relations: list[str] = None
+        relations: list[str] = None,
     ) -> T | None:
         """
         Get entity by ID with optional eager loading
@@ -85,7 +86,7 @@ class BaseService(Generic[T, C, U], ABC):
                     f"Retrieved {self.model.__name__} by ID",
                     operation_name="get_by_id",
                     entity_id=str(id),
-                    entity_type=self.model.__name__
+                    entity_type=self.model.__name__,
                 )
 
             return entity
@@ -104,7 +105,7 @@ class BaseService(Generic[T, C, U], ABC):
         sort_desc: bool = True,
         filters: dict[str, Any] = None,
         include_relations: bool = False,
-        relations: list[str] = None
+        relations: list[str] = None,
     ) -> list[T]:
         """
         List entities with pagination, sorting, and filtering
@@ -118,11 +119,17 @@ class BaseService(Generic[T, C, U], ABC):
                 for field, value in filters.items():
                     if hasattr(self.model, field):
                         if isinstance(value, list):
-                            filter_conditions.append(getattr(self.model, field).in_(value))
+                            filter_conditions.append(
+                                getattr(self.model, field).in_(value)
+                            )
                         elif isinstance(value, str) and "%" in value:
-                            filter_conditions.append(getattr(self.model, field).ilike(f"%{value}%"))
+                            filter_conditions.append(
+                                getattr(self.model, field).ilike(f"%{value}%")
+                            )
                         else:
-                            filter_conditions.append(getattr(self.model, field) == value)
+                            filter_conditions.append(
+                                getattr(self.model, field) == value
+                            )
 
                 if filter_conditions:
                     query = query.where(and_(*filter_conditions))
@@ -130,7 +137,9 @@ class BaseService(Generic[T, C, U], ABC):
             # Add sorting
             if hasattr(self.model, sort_by):
                 sort_column = getattr(self.model, sort_by)
-                query = query.order_by(desc(sort_column) if sort_desc else asc(sort_column))
+                query = query.order_by(
+                    desc(sort_column) if sort_desc else asc(sort_column)
+                )
 
             # Add eager loading
             if include_relations and relations:
@@ -151,7 +160,7 @@ class BaseService(Generic[T, C, U], ABC):
                 filters=filters,
                 sort_by=sort_by,
                 skip=skip,
-                limit=limit
+                limit=limit,
             )
 
             return entities
@@ -174,11 +183,17 @@ class BaseService(Generic[T, C, U], ABC):
                 for field, value in filters.items():
                     if hasattr(self.model, field):
                         if isinstance(value, list):
-                            filter_conditions.append(getattr(self.model, field).in_(value))
+                            filter_conditions.append(
+                                getattr(self.model, field).in_(value)
+                            )
                         elif isinstance(value, str) and "%" in value:
-                            filter_conditions.append(getattr(self.model, field).ilike(f"%{value}%"))
+                            filter_conditions.append(
+                                getattr(self.model, field).ilike(f"%{value}%")
+                            )
                         else:
-                            filter_conditions.append(getattr(self.model, field) == value)
+                            filter_conditions.append(
+                                getattr(self.model, field) == value
+                            )
 
                 if filter_conditions:
                     query = query.where(and_(*filter_conditions))
@@ -191,7 +206,7 @@ class BaseService(Generic[T, C, U], ABC):
                 f"Counted {count} {self.model.__name__} entities",
                 operation_name="count",
                 entity_count=count,
-                filters=filters
+                filters=filters,
             )
 
             return count
@@ -230,7 +245,7 @@ class BaseService(Generic[T, C, U], ABC):
                 event_name=f"{self.model.__name__.lower()}_created",
                 user_id=str(getattr(entity_data, "created_by_id", "system")),
                 resource_id=str(entity.id),
-                entity_type=self.model.__name__
+                entity_type=self.model.__name__,
             )
 
             # Invalidate related caches
@@ -241,15 +256,14 @@ class BaseService(Generic[T, C, U], ABC):
                 f"Created {self.model.__name__}: {getattr(entity, 'name', entity.id)}",
                 operation_name="create",
                 entity_id=str(entity.id),
-                entity_type=self.model.__name__
+                entity_type=self.model.__name__,
             )
 
             return entity
 
         except IntegrityError as e:
             raise ValidationException(
-                f"Integrity error: {e!s}",
-                field="integrity"
+                f"Integrity error: {e!s}", field="integrity"
             ) from e
         except Exception as e:
             self.logger.log_error(e, operation="create", data=entity_data)
@@ -258,11 +272,7 @@ class BaseService(Generic[T, C, U], ABC):
     @handle_database_errors(f"{__name__}_update")
     @transaction_manager.transaction
     async def update(
-        self,
-        db: AsyncSession,
-        id: str | UUID,
-        data: U,
-        **kwargs
+        self, db: AsyncSession, id: str | UUID, data: U, **kwargs
     ) -> T | None:
         """
         Update entity by ID with validation and cache invalidation
@@ -272,8 +282,7 @@ class BaseService(Generic[T, C, U], ABC):
             entity = await self.get_by_id(db, id)
             if not entity:
                 raise ValidationException(
-                    f"{self.model.__name__} not found",
-                    field="id"
+                    f"{self.model.__name__} not found", field="id"
                 )
 
             # Validate update data
@@ -298,7 +307,7 @@ class BaseService(Generic[T, C, U], ABC):
                 event_name=f"{self.model.__name__.lower()}_updated",
                 user_id=str(getattr(update_data, "updated_by_id", "system")),
                 resource_id=str(entity.id),
-                entity_type=self.model.__name__
+                entity_type=self.model.__name__,
             )
 
             # Invalidate related caches
@@ -309,7 +318,7 @@ class BaseService(Generic[T, C, U], ABC):
                 f"Updated {self.model.__name__}: {getattr(entity, 'name', entity.id)}",
                 operation_name="update",
                 entity_id=str(entity.id),
-                entity_type=self.model.__name__
+                entity_type=self.model.__name__,
             )
 
             return entity
@@ -317,16 +326,15 @@ class BaseService(Generic[T, C, U], ABC):
         except ValidationException:
             raise
         except Exception as e:
-            self.logger.log_error(e, operation="update", entity_id=str(id), data=update_data)
+            self.logger.log_error(
+                e, operation="update", entity_id=str(id), data=update_data
+            )
             raise
 
     @handle_database_errors(f"{__name__}_delete")
     @transaction_manager.transaction
     async def delete(
-        self,
-        db: AsyncSession,
-        id: str | UUID,
-        deleted_by_id: str | UUID = None
+        self, db: AsyncSession, id: str | UUID, deleted_by_id: str | UUID = None
     ) -> bool:
         """
         Delete entity by ID with cache invalidation
@@ -338,10 +346,7 @@ class BaseService(Generic[T, C, U], ABC):
                 return False
 
             # Store info for logging
-            entity_info = {
-                "id": str(entity.id),
-                "name": getattr(entity, "name", None)
-            }
+            entity_info = {"id": str(entity.id), "name": getattr(entity, "name", None)}
 
             # Delete entity
             await db.delete(entity)
@@ -352,7 +357,7 @@ class BaseService(Generic[T, C, U], ABC):
                 event_name=f"{self.model.__name__.lower()}_deleted",
                 user_id=str(deleted_by_id) if deleted_by_id else "system",
                 resource_id=str(entity.id),
-                entity_type=self.model.__name__
+                entity_type=self.model.__name__,
             )
 
             # Invalidate related caches
@@ -363,7 +368,7 @@ class BaseService(Generic[T, C, U], ABC):
                 f"Deleted {self.model.__name__}: {entity_info['name'] or entity_info['id']}",
                 operation_name="delete",
                 entity_id=entity_info["id"],
-                entity_type=self.model.__name__
+                entity_type=self.model.__name__,
             )
 
             return True
@@ -375,10 +380,7 @@ class BaseService(Generic[T, C, U], ABC):
     @handle_database_errors(f"{__name__}_bulk_create")
     @transaction_manager.transaction
     async def bulk_create(
-        self,
-        db: AsyncSession,
-        data_list: builtins.list[C],
-        **kwargs
+        self, db: AsyncSession, data_list: builtins.list[C], **kwargs
     ) -> builtins.list[T]:
         """
         Create multiple entities efficiently
@@ -413,7 +415,7 @@ class BaseService(Generic[T, C, U], ABC):
                 user_id=str(getattr(kwargs, "created_by_id", "system")),
                 resource_id=f"bulk_{len(entities)}",
                 entity_type=self.model.__name__,
-                entity_count=len(entities)
+                entity_count=len(entities),
             )
 
             # Invalidate related caches
@@ -425,18 +427,22 @@ class BaseService(Generic[T, C, U], ABC):
                 f"Bulk created {len(entities)} {self.model.__name__} entities",
                 operation_name="bulk_create",
                 entity_count=len(entities),
-                entity_type=self.model.__name__
+                entity_type=self.model.__name__,
             )
 
             return entities
 
         except Exception as e:
-            self.logger.log_error(e, operation="bulk_create", entity_count=len(data_list))
+            self.logger.log_error(
+                e, operation="bulk_create", entity_count=len(data_list)
+            )
             raise
 
     # Utility Methods
 
-    async def _invalidate_related_caches(self, entity: T | builtins.list[T], operation: str):
+    async def _invalidate_related_caches(
+        self, entity: T | builtins.list[T], operation: str
+    ):
         """
         Invalidate caches related to this entity
         """
@@ -450,7 +456,9 @@ class BaseService(Generic[T, C, U], ABC):
                 await self._invalidate_entity_cache(entity, operation)
 
         except Exception as e:
-            self.logger.log_error(e, operation="cache_invalidation", entity_type=self.model.__name__)
+            self.logger.log_error(
+                e, operation="cache_invalidation", entity_type=self.model.__name__
+            )
 
     async def _invalidate_entity_cache(self, entity: T, operation: str):
         """Invalidate cache for a single entity"""
@@ -466,9 +474,7 @@ class BaseService(Generic[T, C, U], ABC):
         else:
             # Generic invalidation
             await cache_invalidation_manager.invalidate_related_caches(
-                self.model.__name__.lower(),
-                entity_id,
-                operation
+                self.model.__name__.lower(), entity_id, operation
             )
 
     def validate_id(self, id: str | UUID) -> str:
@@ -488,7 +494,9 @@ class BaseService(Generic[T, C, U], ABC):
         """Check if entity exists"""
         try:
             result = await db.execute(
-                select(func.count(self.model.id)).where(self.model.id == self.validate_id(id))
+                select(func.count(self.model.id)).where(
+                    self.model.id == self.validate_id(id)
+                )
             )
             return result.scalar() > 0
         except Exception:
@@ -498,10 +506,7 @@ class BaseService(Generic[T, C, U], ABC):
         """Get entity or raise 404"""
         entity = await self.get_by_id(db, id)
         if not entity:
-            raise ValidationException(
-                f"{self.model.__name__} not found",
-                field="id"
-            )
+            raise ValidationException(f"{self.model.__name__} not found", field="id")
         return entity
 
     # TODO(human): Implement advanced query builder

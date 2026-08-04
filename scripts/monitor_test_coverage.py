@@ -7,10 +7,11 @@ Provides business impact metrics for testing investment decisions
 """
 
 import json
-import sys
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
+
 
 class TestCoverageMonitor:
     def __init__(self):
@@ -27,8 +28,8 @@ class TestCoverageMonitor:
                         "boundary_confidence_values",
                         "corrupted_data_handling",
                         "algorithmic_accuracy",
-                        "performance_validation"
-                    ]
+                        "performance_validation",
+                    ],
                 },
                 "clinical_safety": {
                     "business_impact": "8x ROI",
@@ -40,8 +41,8 @@ class TestCoverageMonitor:
                         "suicide_risk_detection",
                         "consent_validation",
                         "crisis_intervention",
-                        "data_privacy_compliance"
-                    ]
+                        "data_privacy_compliance",
+                    ],
                 },
                 "submission_resilience": {
                     "business_impact": "7x ROI",
@@ -53,8 +54,8 @@ class TestCoverageMonitor:
                         "partial_submission_handling",
                         "duplicate_prevention",
                         "mobile_optimization",
-                        "data_integrity_validation"
-                    ]
+                        "data_integrity_validation",
+                    ],
                 },
                 "mobile_ux": {
                     "business_impact": "6x ROI",
@@ -66,23 +67,23 @@ class TestCoverageMonitor:
                         "responsive_design",
                         "pwa_functionality",
                         "accessibility_compliance",
-                        "performance_optimization"
-                    ]
-                }
+                        "performance_optimization",
+                    ],
+                },
             },
             "overall_metrics": {
                 "total_roi_protection": "31x",
                 "critical_coverage": 90,
                 "tests_passing_rate": 100,
-                "business_risk_reduction": "High"
-            }
+                "business_risk_reduction": "High",
+            },
         }
 
     def generate_coverage_report(self):
         """Generate comprehensive test coverage report"""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("🎯 PSYCHSYNC TEST COVERAGE MONITORING REPORT")
-        print("="*80)
+        print("=" * 80)
         print(f"📅 Generated: {self.coverage_data['timestamp']}")
         print()
 
@@ -99,7 +100,7 @@ class TestCoverageMonitor:
             print(f"   📊 Coverage: {data['coverage_percentage']}%")
             print(f"   ✅ Status: {status}")
 
-            total_coverage += data['coverage_percentage']
+            total_coverage += data["coverage_percentage"]
             critical_count += 1
 
         # Overall Metrics
@@ -125,7 +126,7 @@ class TestCoverageMonitor:
             "Algorithmic errors in personality assessment",
             "Clinical assessment safety violations",
             "User data loss during submission",
-            "Mobile accessibility compliance failures"
+            "Mobile accessibility compliance failures",
         ]
 
         for i, risk in enumerate(risk_areas, 1):
@@ -136,7 +137,7 @@ class TestCoverageMonitor:
     def save_coverage_data(self, filename="test_coverage_report.json"):
         """Save coverage data to JSON file"""
         try:
-            with open(filename, 'w') as f:
+            with open(filename, "w") as f:
                 json.dump(self.coverage_data, f, indent=2)
             print(f"\n💾 Coverage report saved to: {filename}")
             return True
@@ -158,6 +159,7 @@ class TestCoverageMonitor:
             print("❌ Deployment blocked - Business risks require attention")
             return 1
 
+
 def main():
     """Main execution function"""
     monitor = TestCoverageMonitor()
@@ -172,6 +174,7 @@ def main():
     exit_code = monitor.generate_ci_summary()
 
     return exit_code
+
 
 if __name__ == "__main__":
     sys.exit(main())

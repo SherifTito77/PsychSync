@@ -13,8 +13,8 @@ Endpoints:
     GET /metrics - Prometheus metrics endpoint
 """
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 
 from app.monitoring.security_metrics import SecurityMetricsCollector
@@ -48,9 +48,13 @@ class PrometheusMetrics:
             metrics_lines = []
 
             # Security score metrics
-            metrics_lines.append("# HELP psychsync_security_score Security score (0-100)")
+            metrics_lines.append(
+                "# HELP psychsync_security_score Security score (0-100)"
+            )
             metrics_lines.append("# TYPE psychsync_security_score gauge")
-            metrics_lines.append(f"psychsync_security_score {summary['security_score']}")
+            metrics_lines.append(
+                f"psychsync_security_score {summary['security_score']}"
+            )
 
             metrics_lines.append(
                 "\n# HELP psychsync_security_grade Security grade (A+, A, B, C, F)"
@@ -66,7 +70,9 @@ class PrometheusMetrics:
                 "\n# HELP psychsync_vulnerabilities_total Total number of vulnerabilities"
             )
             metrics_lines.append("# TYPE psychsync_vulnerabilities_total gauge")
-            metrics_lines.append(f"psychsync_vulnerabilities_total {summary['total_findings']}")
+            metrics_lines.append(
+                f"psychsync_vulnerabilities_total {summary['total_findings']}"
+            )
 
             metrics_lines.append(
                 "\n# HELP psychsync_vulnerabilities_by_severity Number of vulnerabilities by severity"

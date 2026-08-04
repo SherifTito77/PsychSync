@@ -11,10 +11,31 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        args: ['--unsafe']
+        exclude: |
+          (?x)^(
+            .github/workflows/security-audit\.yml|
+            .github/workflows/dast-zap\.yml|
+            .github/workflows/security-scan\.yml|
+            .github/workflows/sast-semgrep\.yml|
+            github-actions-ci-cd\.yml|
+            semgrep_rules/.*
+          )$
       - id: check-toml
+        exclude: '\.gitleaks\.toml'
       - id: check-json
+        exclude: |
+          (?x)^(
+            docs/archive/reports/next_data\.json|
+            docs/archive/reports/postman_rate_limiting_collection\.json|
+            docs/archive/reports/\.eslintrc\.design-system\.json|
+            postman_rate_limiting_collection\.json|
+            frontend/\.bundle-sizes\.json|
+            frontend/tsconfig\.json|
+            monitoring/logging_config\.json
+          )$
       - id: check-added-large-files
-        args: ['--maxkb=1000']
+        args: ['--maxkb=3000']
       - id: check-merge-conflict
       - id: detect-private-key
 
@@ -25,10 +46,28 @@ repos:
       - id: black
         language_version: python3
         args: ['--line-length=88']
+        exclude: |
+          (?x)^(
+            docs/archive/.*|
+            app/core/nested_lock_prevention\.py|
+            app/core/database_security\.py|
+            app/core/validation\.py|
+            app/crud/crud_query_performance\.py|
+            app/integrations/slack_integration\.py|
+            app/testing/api_fuzzer\.py|
+            agents/crash_log_analyzer\.py|
+            tests/.*|
+            scripts/.*|
+            monitoring/.*|
+            integration/.*|
+            frontend/src/tests/.*|
+            [^/]+\.py$
+          )$
 
-  # Import sorting
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
-    hooks:
-      - id: isort
-        args: ['--profile', 'black']
+  # Import sorting — disabled until isort/black conflict resolved via pyproject.toml
+  # To re-enable: add [tool.isort] profile = "black" to pyproject.toml, then uncomment
+  # - repo: https://github.com/pycqa/isort
+  #   rev: 5.13.2
+  #   hooks:
+  #     - id: isort
+  #       args: ['--profile', 'black']

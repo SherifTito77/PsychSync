@@ -15,30 +15,31 @@ This script orchestrates all production optimization tools:
 """
 
 import asyncio
+import importlib.util
+import json
+import os
 import subprocess
 import sys
-import os
-import json
 import time
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-import importlib.util
+from typing import Any, Dict, List, Optional
 
 sys.path.append(str(Path(__file__).parent.parent))
 
 import logging
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class OptimizationResult:
     """Result from an optimization tool"""
+
     tool_name: str
     success: bool
     execution_time: float
@@ -48,9 +49,11 @@ class OptimizationResult:
     recommendations: List[str]
     report_file: str
 
+
 @dataclass
 class MasterOptimizationReport:
     """Master optimization report"""
+
     timestamp: datetime
     total_execution_time: float
     overall_score: float
@@ -61,6 +64,7 @@ class MasterOptimizationReport:
     production_ready: bool
     next_steps: List[str]
 
+
 class MasterProductionOptimizer:
     """
     Master optimizer that orchestrates all production optimization tools
@@ -68,67 +72,69 @@ class MasterProductionOptimizer:
 
     def __init__(self, project_root: str = None):
         self.project_root = project_root or str(Path(__file__).parent.parent)
-        self.scripts_dir = os.path.join(self.project_root, 'scripts')
+        self.scripts_dir = os.path.join(self.project_root, "scripts")
         self.tools = [
             {
-                'name': 'Security Audit',
-                'script': 'pre_production_security_audit.py',
-                'description': 'Comprehensive security vulnerability assessment',
-                'critical': True,
-                'priority': 1
+                "name": "Security Audit",
+                "script": "pre_production_security_audit.py",
+                "description": "Comprehensive security vulnerability assessment",
+                "critical": True,
+                "priority": 1,
             },
             {
-                'name': 'Database Excellence',
-                'script': 'database_excellence_optimizer.py',
-                'description': 'Database performance optimization and analysis',
-                'critical': True,
-                'priority': 2
+                "name": "Database Excellence",
+                "script": "database_excellence_optimizer.py",
+                "description": "Database performance optimization and analysis",
+                "critical": True,
+                "priority": 2,
             },
             {
-                'name': 'API Enhancement',
-                'script': 'api_excellence_optimizer.py',
-                'description': 'API performance and security optimization',
-                'critical': True,
-                'priority': 3
+                "name": "API Enhancement",
+                "script": "api_excellence_optimizer.py",
+                "description": "API performance and security optimization",
+                "critical": True,
+                "priority": 3,
             },
             {
-                'name': 'Testing Excellence',
-                'script': 'testing_excellence_suite.py',
-                'description': 'Comprehensive testing framework analysis',
-                'critical': True,
-                'priority': 4
+                "name": "Testing Excellence",
+                "script": "testing_excellence_suite.py",
+                "description": "Comprehensive testing framework analysis",
+                "critical": True,
+                "priority": 4,
             },
             {
-                'name': 'Frontend Optimization',
-                'script': 'frontend_excellence_optimizer.py',
-                'description': 'Frontend performance and bundle optimization',
-                'critical': False,
-                'priority': 5
+                "name": "Frontend Optimization",
+                "script": "frontend_excellence_optimizer.py",
+                "description": "Frontend performance and bundle optimization",
+                "critical": False,
+                "priority": 5,
             },
             {
-                'name': 'Deployment Readiness',
-                'script': 'deployment_readiness_automation.py',
-                'description': 'Deployment validation and automation',
-                'critical': True,
-                'priority': 6
+                "name": "Deployment Readiness",
+                "script": "deployment_readiness_automation.py",
+                "description": "Deployment validation and automation",
+                "critical": True,
+                "priority": 6,
             },
             {
-                'name': 'Monitoring & Observability',
-                'script': 'monitoring_observability_system.py',
-                'description': 'Monitoring setup and configuration',
-                'critical': False,
-                'priority': 7
+                "name": "Monitoring & Observability",
+                "script": "monitoring_observability_system.py",
+                "description": "Monitoring setup and configuration",
+                "critical": False,
+                "priority": 7,
             },
             {
-                'name': 'Documentation Package',
-                'script': 'documentation_package_generator.py',
-                'description': 'Complete documentation generation',
-                'critical': False,
-                'priority': 8
-            }
+                "name": "Documentation Package",
+                "script": "documentation_package_generator.py",
+                "description": "Complete documentation generation",
+                "critical": False,
+                "priority": 8,
+            },
         ]
 
-    async def run_complete_optimization(self, run_all: bool = True, selected_tools: List[str] = None) -> MasterOptimizationReport:
+    async def run_complete_optimization(
+        self, run_all: bool = True, selected_tools: List[str] = None
+    ) -> MasterOptimizationReport:
         """Run complete production optimization"""
         print("🚀 PsychSync Master Production Optimizer")
         print("=" * 60)
@@ -139,9 +145,11 @@ class MasterProductionOptimizer:
         tool_results = []
 
         # Determine which tools to run
-        tools_to_run = self.tools if run_all else [
-            tool for tool in self.tools if tool['name'] in selected_tools
-        ]
+        tools_to_run = (
+            self.tools
+            if run_all
+            else [tool for tool in self.tools if tool["name"] in selected_tools]
+        )
 
         print(f"Running {len(tools_to_run)} optimization tools...")
         print()
@@ -187,7 +195,7 @@ class MasterProductionOptimizer:
             combined_recommendations=combined_recommendations,
             combined_critical_issues=combined_critical_issues,
             production_ready=production_ready,
-            next_steps=next_steps
+            next_steps=next_steps,
         )
 
         # Display summary
@@ -200,18 +208,20 @@ class MasterProductionOptimizer:
 
     async def _run_optimization_tool(self, tool: Dict) -> OptimizationResult:
         """Run a single optimization tool"""
-        script_path = os.path.join(self.scripts_dir, tool['script'])
+        script_path = os.path.join(self.scripts_dir, tool["script"])
 
         if not os.path.exists(script_path):
             return OptimizationResult(
-                tool_name=tool['name'],
+                tool_name=tool["name"],
                 success=False,
                 execution_time=0.0,
                 score=None,
                 grade=None,
                 critical_issues=[f"Script not found: {tool['script']}"],
-                recommendations=[f"Ensure {tool['script']} exists in scripts directory"],
-                report_file=""
+                recommendations=[
+                    f"Ensure {tool['script']} exists in scripts directory"
+                ],
+                report_file="",
             )
 
         start_time = time.time()
@@ -223,7 +233,7 @@ class MasterProductionOptimizer:
                 cwd=self.project_root,
                 capture_output=True,
                 text=True,
-                timeout=600  # 10 minute timeout per tool
+                timeout=600,  # 10 minute timeout per tool
             )
 
             execution_time = time.time() - start_time
@@ -240,37 +250,39 @@ class MasterProductionOptimizer:
 
             if os.path.exists(report_path):
                 try:
-                    with open(report_path, 'r') as f:
+                    with open(report_path, "r") as f:
                         report_data = json.load(f)
 
                     # Extract common fields from different report formats
-                    if 'overall_score' in report_data:
-                        score = report_data['overall_score']
-                    elif 'performance_score' in report_data:
-                        score = report_data['performance_score']
-                    elif 'quality_score' in report_data:
-                        score = report_data['quality_score']
+                    if "overall_score" in report_data:
+                        score = report_data["overall_score"]
+                    elif "performance_score" in report_data:
+                        score = report_data["performance_score"]
+                    elif "quality_score" in report_data:
+                        score = report_data["quality_score"]
 
-                    if 'overall_grade' in report_data:
-                        grade = report_data['overall_grade']
-                    elif 'grade' in report_data:
-                        grade = report_data['grade']
+                    if "overall_grade" in report_data:
+                        grade = report_data["overall_grade"]
+                    elif "grade" in report_data:
+                        grade = report_data["grade"]
 
                     # Extract critical issues
-                    if 'critical_recommendations' in report_data:
-                        critical_issues = report_data['critical_recommendations']
-                    elif 'critical_issues' in report_data:
-                        critical_issues = report_data['critical_issues']
-                    elif 'blocking_issues' in report_data:
-                        critical_issues = report_data['blocking_issues']
+                    if "critical_recommendations" in report_data:
+                        critical_issues = report_data["critical_recommendations"]
+                    elif "critical_issues" in report_data:
+                        critical_issues = report_data["critical_issues"]
+                    elif "blocking_issues" in report_data:
+                        critical_issues = report_data["blocking_issues"]
 
                     # Extract recommendations
-                    if 'recommendations' in report_data:
-                        recommendations = report_data['recommendations']
-                    elif 'medium_priority_recommendations' in report_data:
-                        recommendations = report_data['medium_priority_recommendations']
-                    elif 'high_priority_recommendations' in report_data:
-                        recommendations.extend(report_data['high_priority_recommendations'])
+                    if "recommendations" in report_data:
+                        recommendations = report_data["recommendations"]
+                    elif "medium_priority_recommendations" in report_data:
+                        recommendations = report_data["medium_priority_recommendations"]
+                    elif "high_priority_recommendations" in report_data:
+                        recommendations.extend(
+                            report_data["high_priority_recommendations"]
+                        )
 
                 except Exception as e:
                     logger.error(f"Error parsing report file {report_file}: {e}")
@@ -280,38 +292,38 @@ class MasterProductionOptimizer:
                 score = self._extract_score_from_output(result.stdout)
 
             return OptimizationResult(
-                tool_name=tool['name'],
+                tool_name=tool["name"],
                 success=success,
                 execution_time=execution_time,
                 score=score,
                 grade=grade,
                 critical_issues=critical_issues,
                 recommendations=recommendations,
-                report_file=report_file
+                report_file=report_file,
             )
 
         except subprocess.TimeoutExpired:
             return OptimizationResult(
-                tool_name=tool['name'],
+                tool_name=tool["name"],
                 success=False,
                 execution_time=600.0,
                 score=None,
                 grade=None,
                 critical_issues=[f"Tool execution timed out after 10 minutes"],
                 recommendations=["Check for infinite loops or long-running operations"],
-                report_file=""
+                report_file="",
             )
 
         except Exception as e:
             return OptimizationResult(
-                tool_name=tool['name'],
+                tool_name=tool["name"],
                 success=False,
                 execution_time=time.time() - start_time,
                 score=None,
                 grade=None,
                 critical_issues=[f"Tool execution failed: {str(e)}"],
                 recommendations=["Check tool dependencies and configuration"],
-                report_file=""
+                report_file="",
             )
 
     def _extract_score_from_output(self, output: str) -> Optional[float]:
@@ -320,9 +332,9 @@ class MasterProductionOptimizer:
 
         # Look for patterns like "Score: 85.3/100" or "Overall Score: 92.1"
         patterns = [
-            r'(?i)(?:overall\s*)?score:\s*(\d+(?:\.\d+)?)',
-            r'(?i)grade:\s*([A-F])',
-            r'(?i)(\d+(?:\.\d+)?)\/100'
+            r"(?i)(?:overall\s*)?score:\s*(\d+(?:\.\d+)?)",
+            r"(?i)grade:\s*([A-F])",
+            r"(?i)(\d+(?:\.\d+)?)\/100",
         ]
 
         for pattern in patterns:
@@ -342,8 +354,12 @@ class MasterProductionOptimizer:
             return 0.0
 
         # Weight critical tools more heavily
-        critical_tools = [r for r in tool_results if self._is_critical_tool(r.tool_name)]
-        non_critical_tools = [r for r in tool_results if not self._is_critical_tool(r.tool_name)]
+        critical_tools = [
+            r for r in tool_results if self._is_critical_tool(r.tool_name)
+        ]
+        non_critical_tools = [
+            r for r in tool_results if not self._is_critical_tool(r.tool_name)
+        ]
 
         scores = []
         weights = []
@@ -370,36 +386,38 @@ class MasterProductionOptimizer:
     def _is_critical_tool(self, tool_name: str) -> bool:
         """Check if a tool is critical for production readiness"""
         critical_tools = [
-            'Security Audit',
-            'Database Excellence',
-            'API Enhancement',
-            'Testing Excellence',
-            'Deployment Readiness'
+            "Security Audit",
+            "Database Excellence",
+            "API Enhancement",
+            "Testing Excellence",
+            "Deployment Readiness",
         ]
         return tool_name in critical_tools
 
     def _get_grade_from_score(self, score: float) -> str:
         """Get grade from score"""
         if score >= 95:
-            return 'A+'
+            return "A+"
         elif score >= 90:
-            return 'A'
+            return "A"
         elif score >= 85:
-            return 'B+'
+            return "B+"
         elif score >= 80:
-            return 'B'
+            return "B"
         elif score >= 75:
-            return 'C+'
+            return "C+"
         elif score >= 70:
-            return 'C'
+            return "C"
         elif score >= 65:
-            return 'D+'
+            return "D+"
         elif score >= 60:
-            return 'D'
+            return "D"
         else:
-            return 'F'
+            return "F"
 
-    def _combine_critical_issues(self, tool_results: List[OptimizationResult]) -> List[str]:
+    def _combine_critical_issues(
+        self, tool_results: List[OptimizationResult]
+    ) -> List[str]:
         """Combine all critical issues from tool results"""
         all_issues = []
 
@@ -416,7 +434,9 @@ class MasterProductionOptimizer:
 
         return unique_issues
 
-    def _combine_recommendations(self, tool_results: List[OptimizationResult]) -> List[str]:
+    def _combine_recommendations(
+        self, tool_results: List[OptimizationResult]
+    ) -> List[str]:
         """Combine all recommendations from tool results"""
         all_recommendations = []
 
@@ -433,37 +453,49 @@ class MasterProductionOptimizer:
 
         return unique_recommendations
 
-    def _generate_next_steps(self, tool_results: List[OptimizationResult], production_ready: bool) -> List[str]:
+    def _generate_next_steps(
+        self, tool_results: List[OptimizationResult], production_ready: bool
+    ) -> List[str]:
         """Generate next steps based on results"""
         next_steps = []
 
         if production_ready:
-            next_steps.extend([
-                "🚀 System is PRODUCTION READY!",
-                "📋 Create deployment plan and schedule",
-                "🔄 Set up CI/CD pipeline automation",
-                "📊 Configure production monitoring alerts",
-                "📚 Share documentation with team"
-            ])
+            next_steps.extend(
+                [
+                    "🚀 System is PRODUCTION READY!",
+                    "📋 Create deployment plan and schedule",
+                    "🔄 Set up CI/CD pipeline automation",
+                    "📊 Configure production monitoring alerts",
+                    "📚 Share documentation with team",
+                ]
+            )
         else:
             failed_tools = [r for r in tool_results if not r.success]
             critical_issues_tools = [r for r in tool_results if r.critical_issues]
 
             if failed_tools:
-                next_steps.append(f"🔧 Fix {len(failed_tools)} failed tool(s): {', '.join([t.tool_name for t in failed_tools])}")
+                next_steps.append(
+                    f"🔧 Fix {len(failed_tools)} failed tool(s): {', '.join([t.tool_name for t in failed_tools])}"
+                )
 
             if critical_issues_tools:
-                next_steps.append(f"⚠️  Address {len(critical_issues_tools)} tools with critical issues")
+                next_steps.append(
+                    f"⚠️  Address {len(critical_issues_tools)} tools with critical issues"
+                )
 
             low_score_tools = [r for r in tool_results if r.score and r.score < 70]
             if low_score_tools:
-                next_steps.append(f"📈 Improve {len(low_score_tools)} tools with low scores: {', '.join([t.tool_name for t in low_score_tools])}")
+                next_steps.append(
+                    f"📈 Improve {len(low_score_tools)} tools with low scores: {', '.join([t.tool_name for t in low_score_tools])}"
+                )
 
-            next_steps.extend([
-                "🔄 Re-run optimization tools after fixes",
-                "📋 Review individual tool reports for detailed guidance",
-                "👥 Schedule team meeting to discuss remediation plan"
-            ])
+            next_steps.extend(
+                [
+                    "🔄 Re-run optimization tools after fixes",
+                    "📋 Review individual tool reports for detailed guidance",
+                    "👥 Schedule team meeting to discuss remediation plan",
+                ]
+            )
 
         return next_steps
 
@@ -476,23 +508,31 @@ class MasterProductionOptimizer:
         print(f"📊 Overall Production Readiness Score: {report.overall_score:.1f}/100")
         print(f"📈 Overall Grade: {report.overall_grade}")
         print(f"⏱️  Total Execution Time: {report.total_execution_time:.1f} seconds")
-        print(f"🚀 Production Ready: {'✅ YES' if report.production_ready else '❌ NO'}")
+        print(
+            f"🚀 Production Ready: {'✅ YES' if report.production_ready else '❌ NO'}"
+        )
 
         print(f"\n📊 Tool Results:")
         for result in report.tool_results:
             status = "✅ PASSED" if result.success else "❌ FAILED"
             score_display = f" ({result.score:.1f}/100)" if result.score else ""
             grade_display = f" [{result.grade}]" if result.grade else ""
-            time_display = f" ({result.execution_time:.1f}s)" if result.execution_time > 0 else ""
+            time_display = (
+                f" ({result.execution_time:.1f}s)" if result.execution_time > 0 else ""
+            )
 
-            print(f"   {status} {result.tool_name}{score_display}{grade_display}{time_display}")
+            print(
+                f"   {status} {result.tool_name}{score_display}{grade_display}{time_display}"
+            )
 
             # Show critical issues count
             if result.critical_issues:
                 print(f"      ⚠️  {len(result.critical_issues)} critical issues")
 
         if report.combined_critical_issues:
-            print(f"\n🚨 Combined Critical Issues ({len(report.combined_critical_issues)}):")
+            print(
+                f"\n🚨 Combined Critical Issues ({len(report.combined_critical_issues)}):"
+            )
             for issue in report.combined_critical_issues[:5]:  # Show first 5
                 print(f"   • {issue}")
             if len(report.combined_critical_issues) > 5:
@@ -513,22 +553,28 @@ class MasterProductionOptimizer:
 
     async def _save_master_report(self, report: MasterOptimizationReport):
         """Save master optimization report"""
-        report_file = os.path.join(self.project_root, 'master_production_optimization_report.json')
+        report_file = os.path.join(
+            self.project_root, "master_production_optimization_report.json"
+        )
 
         try:
-            with open(report_file, 'w') as f:
+            with open(report_file, "w") as f:
                 json.dump(asdict(report), f, indent=2, default=str)
 
             print(f"📄 Master optimization report saved to: {report_file}")
 
             # Also save a human-readable summary
-            summary_file = os.path.join(self.project_root, 'PRODUCTION_READINESS_SUMMARY.md')
+            summary_file = os.path.join(
+                self.project_root, "PRODUCTION_READINESS_SUMMARY.md"
+            )
             await self._save_summary_markdown(report, summary_file)
 
         except Exception as e:
             logger.error(f"Error saving master report: {e}")
 
-    async def _save_summary_markdown(self, report: MasterOptimizationReport, summary_file: str):
+    async def _save_summary_markdown(
+        self, report: MasterOptimizationReport, summary_file: str
+    ):
         """Save human-readable summary in markdown format"""
         summary_content = f"""# PsychSync Production Readiness Summary
 
@@ -547,8 +593,12 @@ class MasterProductionOptimizer:
             status = "✅ PASSED" if result.success else "❌ FAILED"
             score = f"{result.score:.1f}/100" if result.score else "N/A"
             grade = result.grade or "N/A"
-            time = f"{result.execution_time:.1f}s" if result.execution_time > 0 else "N/A"
-            summary_content += f"| {result.tool_name} | {status} | {score} | {grade} | {time} |\n"
+            time = (
+                f"{result.execution_time:.1f}s" if result.execution_time > 0 else "N/A"
+            )
+            summary_content += (
+                f"| {result.tool_name} | {status} | {score} | {grade} | {time} |\n"
+            )
 
         if report.combined_critical_issues:
             summary_content += f"""
@@ -580,19 +630,26 @@ class MasterProductionOptimizer:
 *For detailed reports, see the individual tool reports in the project directory*
 """
 
-        with open(summary_file, 'w') as f:
+        with open(summary_file, "w") as f:
             f.write(summary_content)
 
         print(f"📄 Human-readable summary saved to: {summary_file}")
+
 
 async def main():
     """Main execution function"""
     import argparse
 
-    parser = argparse.ArgumentParser(description='PsychSync Master Production Optimizer')
-    parser.add_argument('--tools', nargs='+', help='Specific tools to run',
-                       choices=[tool['name'] for tool in MasterProductionOptimizer().tools])
-    parser.add_argument('--quick', action='store_true', help='Run only critical tools')
+    parser = argparse.ArgumentParser(
+        description="PsychSync Master Production Optimizer"
+    )
+    parser.add_argument(
+        "--tools",
+        nargs="+",
+        help="Specific tools to run",
+        choices=[tool["name"] for tool in MasterProductionOptimizer().tools],
+    )
+    parser.add_argument("--quick", action="store_true", help="Run only critical tools")
 
     args = parser.parse_args()
 
@@ -602,11 +659,17 @@ async def main():
         # Determine which tools to run
         if args.tools:
             # Run specific tools
-            report = await optimizer.run_complete_optimization(run_all=False, selected_tools=args.tools)
+            report = await optimizer.run_complete_optimization(
+                run_all=False, selected_tools=args.tools
+            )
         elif args.quick:
             # Run only critical tools
-            critical_tools = [tool['name'] for tool in optimizer.tools if tool['critical']]
-            report = await optimizer.run_complete_optimization(run_all=False, selected_tools=critical_tools)
+            critical_tools = [
+                tool["name"] for tool in optimizer.tools if tool["critical"]
+            ]
+            report = await optimizer.run_complete_optimization(
+                run_all=False, selected_tools=critical_tools
+            )
         else:
             # Run all tools
             report = await optimizer.run_complete_optimization(run_all=True)
@@ -621,6 +684,7 @@ async def main():
         logger.error(f"Error during optimization: {e}")
         print(f"\n❌ Optimization failed: {e}")
         return 1
+
 
 if __name__ == "__main__":
     exit_code = asyncio.run(main())

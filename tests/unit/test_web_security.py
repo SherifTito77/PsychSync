@@ -13,33 +13,34 @@ Version: 1.0
 Date: 2025-12-26
 """
 
-import sys
-import pytest
-from pathlib import Path
-import tempfile
 import os
+import sys
+import tempfile
+from pathlib import Path
+
+import pytest
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.core.secure_query import (
-    QueryBuilder,
-    SecureQueryExecutor,
-    InputSanitizer,
-    SQLInjectionError
-)
 from app.core.input_validation import InputValidator
 from app.core.output_encoding import OutputEncoder
 from app.core.safe_file_handling import (
-    SafeFileHandler,
     FileValidationError,
-    SecureFileUpload
+    SafeFileHandler,
+    SecureFileUpload,
+)
+from app.core.secure_query import (
+    InputSanitizer,
+    QueryBuilder,
+    SecureQueryExecutor,
+    SQLInjectionError,
 )
 from app.db.models import User
 
-
 # ==================== SQL Injection Prevention Tests ====================
+
 
 class TestParameterizedQueries:
     """Test SQL injection prevention via parameterized queries"""
@@ -55,8 +56,7 @@ class TestParameterizedQueries:
         # Should raise error for dangerous patterns
         with pytest.raises(SQLInjectionError):
             builder.execute_raw(
-                "SELECT * FROM users WHERE id = {id}",  # f-string style
-                {"id": 1}
+                "SELECT * FROM users WHERE id = {id}", {"id": 1}  # f-string style
             )
 
     def test_safe_parameterized_query(self):
@@ -70,7 +70,8 @@ class TestParameterizedQueries:
 
         # Verify no dangerous patterns
         import re
-        dangerous_patterns = [r'\{[^}]*\}', r'%s', r'\?%s']
+
+        dangerous_patterns = [r"\{[^}]*\}", r"%s", r"\?%s"]
         for pattern in dangerous_patterns:
             assert not re.search(pattern, query)
 
@@ -82,7 +83,7 @@ class TestInputSanitizer:
         """Test string sanitization"""
         # Remove null bytes
         result = InputSanitizer.sanitize_string("test\x00string")
-        assert '\x00' not in result
+        assert "\x00" not in result
 
     def test_sanitize_email(self):
         """Test email sanitization"""
@@ -100,14 +101,14 @@ class TestInputSanitizer:
 
     def test_sanitize_sort_field_allowlist(self):
         """Test sort field validation against allowlist"""
-        allowed = ['id', 'email', 'username', 'created_at']
+        allowed = ["id", "email", "username", "created_at"]
 
-        result = InputSanitizer.sanitize_sort_field('username', allowed)
-        assert result == 'username'
+        result = InputSanitizer.sanitize_sort_field("username", allowed)
+        assert result == "username"
 
         # Block invalid field
         with pytest.raises(ValueError):
-            InputSanitizer.sanitize_sort_field('password; DROP TABLE users;', allowed)
+            InputSanitizer.sanitize_sort_field("password; DROP TABLE users;", allowed)
 
 
 class TestInputValidation:
@@ -180,6 +181,7 @@ class TestInputValidation:
 
 # ==================== Output Encoding Tests ====================
 
+
 class TestOutputEncoding:
     """Test XSS prevention via output encoding"""
 
@@ -188,17 +190,17 @@ class TestOutputEncoding:
         dangerous = '<script>alert("XSS")</script>'
         safe = OutputEncoder.encode_for_html(dangerous)
 
-        assert '<script>' not in safe
-        assert '&lt;script&gt;' in safe
-        assert 'alert' not in safe or 'alert(&quot;' in safe
+        assert "<script>" not in safe
+        assert "&lt;script&gt;" in safe
+        assert "alert" not in safe or "alert(&quot;" in safe
 
     def test_encode_for_html_attribute(self):
         """Test HTML attribute encoding"""
-        dangerous = '" onclick="alert(\'XSS\')'
+        dangerous = "\" onclick=\"alert('XSS')"
         safe = OutputEncoder.encode_for_html_attribute(dangerous)
 
-        assert '"' not in safe or '&quot;' in safe
-        assert "'" not in safe or '&apos;' in safe
+        assert '"' not in safe or "&quot;" in safe
+        assert "'" not in safe or "&apos;" in safe
 
     def test_encode_for_javascript(self):
         """Test JavaScript encoding"""
@@ -206,16 +208,16 @@ class TestOutputEncoding:
         safe = OutputEncoder.encode_for_javascript(dangerous)
 
         # Should escape quotes and special chars
-        assert '\\' in safe  # Backslash escapes
+        assert "\\" in safe  # Backslash escapes
 
     def test_encode_for_url(self):
         """Test URL encoding"""
         dangerous = "test@example.com&param=<script>"
         safe = OutputEncoder.encode_for_url(dangerous)
 
-        assert '@' in safe and '%40' in safe
-        assert '&' not in safe or '%26' in safe
-        assert '<' not in safe or '%3C' in safe
+        assert "@" in safe and "%40" in safe
+        assert "&" not in safe or "%26" in safe
+        assert "<" not in safe or "%3C" in safe
 
     def test_validate_url_blocks_dangerous_protocols(self):
         """Test that dangerous URL protocols are blocked"""
@@ -235,11 +237,12 @@ class TestOutputEncoding:
         safe = OutputEncoder.encode_json_for_html(data)
 
         # Should be both JSON-encoded and HTML-escaped
-        assert '<script>' not in safe
-        assert '&lt;' in safe or '\\u003c' in safe
+        assert "<script>" not in safe
+        assert "&lt;" in safe or "\\u003c" in safe
 
 
 # ==================== File Handling Tests ====================
+
 
 class TestSafeFileHandling:
     """Test secure file handling"""
@@ -250,7 +253,7 @@ class TestSafeFileHandling:
             "../../../etc/passwd",
             "..\\..\\..\\windows\\system32\\config\\sam",
             "/etc/passwd",
-            "C:\\Windows\\System32\\config\\SAM"
+            "C:\\Windows\\System32\\config\\SAM",
         ]
 
         for filename in dangerous_filenames:
@@ -262,10 +265,10 @@ class TestSafeFileHandling:
         dangerous_filenames = [
             "test*.txt",
             "test?.txt",
-            "test\".txt",
+            'test".txt',
             "test<>.txt",
             "test|.txt",
-            "test\x00.txt"
+            "test\x00.txt",
         ]
 
         for filename in dangerous_filenames:
@@ -279,13 +282,13 @@ class TestSafeFileHandling:
             "test_file.csv",
             "test file.pdf",
             "Test.File.123.txt",
-            "document (1).xlsx"
+            "document (1).xlsx",
         ]
 
         for filename in safe_filenames:
             result = SafeFileHandler.validate_filename(filename)
             assert result is not None
-            assert '..' not in result
+            assert ".." not in result
 
     def test_validate_file_upload_checks_size(self):
         """Test that file size is checked"""
@@ -293,18 +296,12 @@ class TestSafeFileHandling:
         large_content = b"x" * (101 * 1024 * 1024)
 
         with pytest.raises(FileValidationError):
-            SafeFileHandler.validate_file_upload(
-                large_content,
-                "test.txt"
-            )
+            SafeFileHandler.validate_file_upload(large_content, "test.txt")
 
     def test_validate_file_upload_blocks_empty(self):
         """Test that empty files are blocked"""
         with pytest.raises(FileValidationError):
-            SafeFileHandler.validate_file_upload(
-                b"",
-                "test.txt"
-            )
+            SafeFileHandler.validate_file_upload(b"", "test.txt")
 
     def test_safe_read_file_blocks_path_traversal(self):
         """Test safe file read blocks path traversal"""
@@ -314,13 +311,11 @@ class TestSafeFileHandling:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Try to read file outside temp dir
             with pytest.raises(FileValidationError):
-                SafeFileHandler.safe_read_file(
-                    "/etc/passwd",
-                    base_dir=tmpdir
-                )
+                SafeFileHandler.safe_read_file("/etc/passwd", base_dir=tmpdir)
 
 
 # ==================== Integration Tests ====================
+
 
 class TestSecurityIntegration:
     """Integration tests for security utilities"""
@@ -337,13 +332,13 @@ class TestSecurityIntegration:
 
         # Step 2: If HTML allowed, sanitize
         clean = OutputEncoder.strip_html_tags(user_input)
-        assert '<script>' not in clean
-        assert '</script>' not in clean
+        assert "<script>" not in clean
+        assert "</script>" not in clean
 
         # Step 3: Encode for output
         encoded = OutputEncoder.encode_for_html(user_input)
-        assert '<script>' not in encoded
-        assert '&lt;script&gt;' in encoded
+        assert "<script>" not in encoded
+        assert "&lt;script&gt;" in encoded
 
     def test_full_sql_injection_prevention_flow(self):
         """Test complete SQL injection prevention flow"""
@@ -353,9 +348,7 @@ class TestSecurityIntegration:
         # Step 1: Validate as integer
         try:
             clean_id = InputValidator.validate_integer(
-                malicious_id,
-                min_val=1,
-                max_val=1000
+                malicious_id, min_val=1, max_val=1000
             )
             # Should fail validation
             assert False, "Should have raised ValueError"
@@ -387,20 +380,14 @@ class TestSecurityIntegration:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Validate and save
             result = SafeFileHandler.validate_file_upload(
-                file_content,
-                "test.txt",
-                max_size=1024 * 1024
+                file_content, "test.txt", max_size=1024 * 1024
             )
 
-            assert result['is_valid'] is True
-            assert result['filename'] == "test.txt"
+            assert result["is_valid"] is True
+            assert result["filename"] == "test.txt"
 
             # Save file
-            saved = SafeFileHandler.save_upload(
-                file_content,
-                "test.txt",
-                tmpdir
-            )
+            saved = SafeFileHandler.save_upload(file_content, "test.txt", tmpdir)
 
             assert saved is not None
 
@@ -411,6 +398,7 @@ class TestSecurityIntegration:
 
 
 # ==================== Security Property Tests ====================
+
 
 class TestSecurityProperties:
     """Test security properties (invariants)"""
@@ -429,7 +417,7 @@ class TestSecurityProperties:
             # Raw HTML tags should not appear
             assert not any(
                 tag in encoded
-                for tag in ['<script', '<img', '<svg', '<iframe', '<object']
+                for tag in ["<script", "<img", "<svg", "<iframe", "<object"]
             )
 
     def test_input_validation_blocks_null_bytes(self):
@@ -450,7 +438,7 @@ class TestSecurityProperties:
                     result = validator("test\x00")
 
                 # Should not contain null bytes
-                assert '\x00' not in str(result)
+                assert "\x00" not in str(result)
 
             except Exception:
                 # Raising exception is also acceptable
@@ -458,7 +446,7 @@ class TestSecurityProperties:
 
     def test_filename_validation_blocks_path_separators(self):
         """Property: Filename validation should always block path separators"""
-        dangerous_chars = ['/', '\\', '..']
+        dangerous_chars = ["/", "\\", ".."]
 
         for char in dangerous_chars:
             filename = f"test{char}file.txt"
@@ -482,5 +470,5 @@ class TestSecurityProperties:
 
 
 # Run tests
-if __name__ == '__main__':
-    pytest.main([__file__, '-v', '--tb=short'])
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--tb=short"])

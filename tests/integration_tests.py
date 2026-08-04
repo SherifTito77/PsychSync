@@ -5,10 +5,13 @@ from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.integration
 
+
 class TestCompleteUserJourney:
     """Test complete user workflows end-to-end"""
 
-    def test_complete_registration_to_assessment_flow(self, client: TestClient, db: Session):
+    def test_complete_registration_to_assessment_flow(
+        self, client: TestClient, db: Session
+    ):
         """Test: Register → Login → Create Team → Create Assessment → Take → View Results"""
 
         # 1. Register
@@ -17,18 +20,15 @@ class TestCompleteUserJourney:
             json={
                 "email": "journey@test.com",
                 "full_name": "Journey Tester",
-                "password": "Test1234"
-            }
+                "password": "Test1234",
+            },
         )
         assert register_response.status_code == 201
 
         # 2. Login
         login_response = client.post(
             "/api/v1/auth/login/json",
-            json={
-                "email": "journey@test.com",
-                "password": "Test1234"
-            }
+            json={"email": "journey@test.com", "password": "Test1234"},
         )
         assert login_response.status_code == 200
         token = login_response.json()["access_token"]
@@ -37,11 +37,8 @@ class TestCompleteUserJourney:
         # 3. Create Team
         team_response = client.post(
             "/api/v1/teams",
-            json={
-                "name": "Test Team",
-                "description": "Integration test team"
-            },
-            headers=headers
+            json={"name": "Test Team", "description": "Integration test team"},
+            headers=headers,
         )
         assert team_response.status_code == 201
         team_id = team_response.json()["id"]
@@ -62,13 +59,13 @@ class TestCompleteUserJourney:
                                 "question_type": "likert",
                                 "question_text": "How do you feel?",
                                 "order": 0,
-                                "is_required": True
+                                "is_required": True,
                             }
-                        ]
+                        ],
                     }
-                ]
+                ],
             },
-            headers=headers
+            headers=headers,
         )
         assert assessment_response.status_code == 201
         assessment_id = assessment_response.json()["id"]
@@ -76,8 +73,7 @@ class TestCompleteUserJourney:
 
         # 5. Publish Assessment
         publish_response = client.post(
-            f"/api/v1/assessments/{assessment_id}/publish",
-            headers=headers
+            f"/api/v1/assessments/{assessment_id}/publish", headers=headers
         )
         assert publish_response.status_code == 200
 
@@ -85,7 +81,7 @@ class TestCompleteUserJourney:
         start_response = client.post(
             "/api/v1/responses/start",
             json={"assessment_id": assessment_id},
-            headers=headers
+            headers=headers,
         )
         assert start_response.status_code == 201
         response_id = start_response.json()["id"]
@@ -93,26 +89,21 @@ class TestCompleteUserJourney:
         # 7. Submit Answer
         answer_response = client.post(
             f"/api/v1/responses/{response_id}/answers",
-            json={
-                "question_id": question_id,
-                "answer_value": "5"
-            },
-            headers=headers
+            json={"question_id": question_id, "answer_value": "5"},
+            headers=headers,
         )
         assert answer_response.status_code == 201
 
         # 8. Complete Response
         complete_response = client.post(
-            f"/api/v1/responses/{response_id}/complete",
-            headers=headers
+            f"/api/v1/responses/{response_id}/complete", headers=headers
         )
         assert complete_response.status_code == 200
         assert complete_response.json()["status"] == "completed"
 
         # 9. View Results
         results_response = client.get(
-            f"/api/v1/responses/{response_id}/results",
-            headers=headers
+            f"/api/v1/responses/{response_id}/results", headers=headers
         )
         assert results_response.status_code == 200
         results = results_response.json()
@@ -128,15 +119,15 @@ class TestCompleteUserJourney:
             json={
                 "email": "owner@test.com",
                 "full_name": "Team Owner",
-                "password": "Test1234"
-            }
+                "password": "Test1234",
+            },
         )
         assert owner_response.status_code == 201
 
         # 2. Login Owner
         owner_login = client.post(
             "/api/v1/auth/login/json",
-            json={"email": "owner@test.com", "password": "Test1234"}
+            json={"email": "owner@test.com", "password": "Test1234"},
         )
         owner_token = owner_login.json()["access_token"]
         owner_headers = {"Authorization": f"Bearer {owner_token}"}
@@ -147,15 +138,15 @@ class TestCompleteUserJourney:
             json={
                 "email": "member@test.com",
                 "full_name": "Team Member",
-                "password": "Test1234"
-            }
+                "password": "Test1234",
+            },
         )
         assert member_response.status_code == 201
 
         # 4. Login Member
         member_login = client.post(
             "/api/v1/auth/login/json",
-            json={"email": "member@test.com", "password": "Test1234"}
+            json={"email": "member@test.com", "password": "Test1234"},
         )
         member_token = member_login.json()["access_token"]
         member_headers = {"Authorization": f"Bearer {member_token}"}
@@ -163,11 +154,8 @@ class TestCompleteUserJourney:
         # 5. Owner Creates Team
         team_response = client.post(
             "/api/v1/teams",
-            json={
-                "name": "Collaboration Team",
-                "description": "Testing collaboration"
-            },
-            headers=owner_headers
+            json={"name": "Collaboration Team", "description": "Testing collaboration"},
+            headers=owner_headers,
         )
         assert team_response.status_code == 201
         team_id = team_response.json()["id"]
@@ -175,19 +163,15 @@ class TestCompleteUserJourney:
         # 6. Owner Invites Member
         invite_response = client.post(
             f"/api/v1/teams/{team_id}/invite",
-            json={
-                "email": "member@test.com",
-                "role": "member"
-            },
-            headers=owner_headers
+            json={"email": "member@test.com", "role": "member"},
+            headers=owner_headers,
         )
         assert invite_response.status_code == 200
         invite_id = invite_response.json()["invite_id"]
 
         # 7. Member Accepts Invitation
         accept_response = client.post(
-            f"/api/v1/teams/invites/{invite_id}/accept",
-            headers=member_headers
+            f"/api/v1/teams/invites/{invite_id}/accept", headers=member_headers
         )
         assert accept_response.status_code == 200
 
@@ -208,21 +192,20 @@ class TestCompleteUserJourney:
                                 "question_text": "What is your skill level?",
                                 "order": 0,
                                 "is_required": True,
-                                "options": ["Beginner", "Intermediate", "Advanced"]
+                                "options": ["Beginner", "Intermediate", "Advanced"],
                             }
-                        ]
+                        ],
                     }
-                ]
+                ],
             },
-            headers=owner_headers
+            headers=owner_headers,
         )
         assert assessment_response.status_code == 201
         assessment_id = assessment_response.json()["id"]
 
         # 9. Member Can View Assessment
         view_response = client.get(
-            f"/api/v1/assessments/{assessment_id}",
-            headers=member_headers
+            f"/api/v1/assessments/{assessment_id}", headers=member_headers
         )
         assert view_response.status_code == 200
         assert view_response.json()["title"] == "Collaborative Assessment"
@@ -231,7 +214,7 @@ class TestCompleteUserJourney:
         start_response = client.post(
             "/api/v1/responses/start",
             json={"assessment_id": assessment_id},
-            headers=member_headers
+            headers=member_headers,
         )
         assert start_response.status_code == 201
 
@@ -244,12 +227,12 @@ class TestCompleteUserJourney:
             json={
                 "email": "lifecycle@test.com",
                 "full_name": "Lifecycle Tester",
-                "password": "Test1234"
-            }
+                "password": "Test1234",
+            },
         )
         login_response = client.post(
             "/api/v1/auth/login/json",
-            json={"email": "lifecycle@test.com", "password": "Test1234"}
+            json={"email": "lifecycle@test.com", "password": "Test1234"},
         )
         token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
@@ -269,13 +252,13 @@ class TestCompleteUserJourney:
                                 "question_type": "text",
                                 "question_text": "Test question",
                                 "order": 0,
-                                "is_required": False
+                                "is_required": False,
                             }
-                        ]
+                        ],
                     }
-                ]
+                ],
             },
-            headers=headers
+            headers=headers,
         )
         assert create_response.status_code == 201
         assessment_id = create_response.json()["id"]
@@ -285,15 +268,14 @@ class TestCompleteUserJourney:
         update_response = client.put(
             f"/api/v1/assessments/{assessment_id}",
             json={"title": "Updated Lifecycle Assessment"},
-            headers=headers
+            headers=headers,
         )
         assert update_response.status_code == 200
         assert update_response.json()["title"] == "Updated Lifecycle Assessment"
 
         # 3. Publish Assessment
         publish_response = client.post(
-            f"/api/v1/assessments/{assessment_id}/publish",
-            headers=headers
+            f"/api/v1/assessments/{assessment_id}/publish", headers=headers
         )
         assert publish_response.status_code == 200
         assert publish_response.json()["status"] == "published"
@@ -302,14 +284,13 @@ class TestCompleteUserJourney:
         edit_response = client.put(
             f"/api/v1/assessments/{assessment_id}",
             json={"title": "Should Not Work"},
-            headers=headers
+            headers=headers,
         )
         assert edit_response.status_code in [400, 403, 422]
 
         # 5. Archive Assessment
         archive_response = client.post(
-            f"/api/v1/assessments/{assessment_id}/archive",
-            headers=headers
+            f"/api/v1/assessments/{assessment_id}/archive", headers=headers
         )
         assert archive_response.status_code == 200
         assert archive_response.json()["status"] == "archived"
@@ -318,7 +299,7 @@ class TestCompleteUserJourney:
         clone_response = client.post(
             f"/api/v1/assessments/{assessment_id}/clone",
             json={"title": "Cloned Assessment"},
-            headers=headers
+            headers=headers,
         )
         assert clone_response.status_code == 201
         cloned_id = clone_response.json()["id"]
@@ -330,20 +311,32 @@ class TestCompleteUserJourney:
         """Test: Verify proper permission enforcement across resources"""
 
         # Setup: Create two users
-        client.post("/api/v1/auth/register", json={
-            "email": "user1@test.com", "full_name": "User One", "password": "Test1234"
-        })
-        client.post("/api/v1/auth/register", json={
-            "email": "user2@test.com", "full_name": "User Two", "password": "Test1234"
-        })
+        client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "user1@test.com",
+                "full_name": "User One",
+                "password": "Test1234",
+            },
+        )
+        client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "user2@test.com",
+                "full_name": "User Two",
+                "password": "Test1234",
+            },
+        )
 
-        user1_token = client.post("/api/v1/auth/login/json", json={
-            "email": "user1@test.com", "password": "Test1234"
-        }).json()["access_token"]
+        user1_token = client.post(
+            "/api/v1/auth/login/json",
+            json={"email": "user1@test.com", "password": "Test1234"},
+        ).json()["access_token"]
 
-        user2_token = client.post("/api/v1/auth/login/json", json={
-            "email": "user2@test.com", "password": "Test1234"
-        }).json()["access_token"]
+        user2_token = client.post(
+            "/api/v1/auth/login/json",
+            json={"email": "user2@test.com", "password": "Test1234"},
+        ).json()["access_token"]
 
         user1_headers = {"Authorization": f"Bearer {user1_token}"}
         user2_headers = {"Authorization": f"Bearer {user2_token}"}
@@ -352,7 +345,7 @@ class TestCompleteUserJourney:
         team_response = client.post(
             "/api/v1/teams",
             json={"name": "User1 Team", "description": "Private team"},
-            headers=user1_headers
+            headers=user1_headers,
         )
         team_id = team_response.json()["id"]
 
@@ -371,20 +364,19 @@ class TestCompleteUserJourney:
                                 "question_type": "text",
                                 "question_text": "Question",
                                 "order": 0,
-                                "is_required": False
+                                "is_required": False,
                             }
-                        ]
+                        ],
                     }
-                ]
+                ],
             },
-            headers=user1_headers
+            headers=user1_headers,
         )
         assessment_id = assessment_response.json()["id"]
 
         # User2 cannot access User1's team
         user2_team_access = client.get(
-            f"/api/v1/teams/{team_id}",
-            headers=user2_headers
+            f"/api/v1/teams/{team_id}", headers=user2_headers
         )
         assert user2_team_access.status_code in [403, 404]
 
@@ -392,21 +384,19 @@ class TestCompleteUserJourney:
         user2_edit_assessment = client.put(
             f"/api/v1/assessments/{assessment_id}",
             json={"title": "Hacked"},
-            headers=user2_headers
+            headers=user2_headers,
         )
         assert user2_edit_assessment.status_code in [403, 404]
 
         # User2 cannot delete User1's assessment
         user2_delete_assessment = client.delete(
-            f"/api/v1/assessments/{assessment_id}",
-            headers=user2_headers
+            f"/api/v1/assessments/{assessment_id}", headers=user2_headers
         )
         assert user2_delete_assessment.status_code in [403, 404]
 
         # Verify User1 still has access
         user1_access = client.get(
-            f"/api/v1/assessments/{assessment_id}",
-            headers=user1_headers
+            f"/api/v1/assessments/{assessment_id}", headers=user1_headers
         )
         assert user1_access.status_code == 200
 
@@ -418,19 +408,23 @@ class TestErrorHandling:
         """Test: Deleting parent resources properly cascades"""
 
         # Setup
-        client.post("/api/v1/auth/register", json={
-            "email": "cascade@test.com", "full_name": "Cascade Test", "password": "Test1234"
-        })
-        token = client.post("/api/v1/auth/login/json", json={
-            "email": "cascade@test.com", "password": "Test1234"
-        }).json()["access_token"]
+        client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "cascade@test.com",
+                "full_name": "Cascade Test",
+                "password": "Test1234",
+            },
+        )
+        token = client.post(
+            "/api/v1/auth/login/json",
+            json={"email": "cascade@test.com", "password": "Test1234"},
+        ).json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
 
         # Create team with assessment
         team_response = client.post(
-            "/api/v1/teams",
-            json={"name": "Cascade Team"},
-            headers=headers
+            "/api/v1/teams", json={"name": "Cascade Team"}, headers=headers
         )
         team_id = team_response.json()["id"]
 
@@ -449,27 +443,23 @@ class TestErrorHandling:
                                 "question_type": "text",
                                 "question_text": "Q",
                                 "order": 0,
-                                "is_required": False
+                                "is_required": False,
                             }
-                        ]
+                        ],
                     }
-                ]
+                ],
             },
-            headers=headers
+            headers=headers,
         )
         assessment_id = assessment_response.json()["id"]
 
         # Delete team
-        delete_response = client.delete(
-            f"/api/v1/teams/{team_id}",
-            headers=headers
-        )
+        delete_response = client.delete(f"/api/v1/teams/{team_id}", headers=headers)
         assert delete_response.status_code in [200, 204]
 
         # Verify assessment is also deleted or orphaned appropriately
         assessment_check = client.get(
-            f"/api/v1/assessments/{assessment_id}",
-            headers=headers
+            f"/api/v1/assessments/{assessment_id}", headers=headers
         )
         assert assessment_check.status_code == 404
 
@@ -477,12 +467,18 @@ class TestErrorHandling:
         """Test: Handle concurrent answer submissions gracefully"""
 
         # Setup: Create assessment
-        client.post("/api/v1/auth/register", json={
-            "email": "concurrent@test.com", "full_name": "Concurrent Test", "password": "Test1234"
-        })
-        token = client.post("/api/v1/auth/login/json", json={
-            "email": "concurrent@test.com", "password": "Test1234"
-        }).json()["access_token"]
+        client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "concurrent@test.com",
+                "full_name": "Concurrent Test",
+                "password": "Test1234",
+            },
+        )
+        token = client.post(
+            "/api/v1/auth/login/json",
+            json={"email": "concurrent@test.com", "password": "Test1234"},
+        ).json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
 
         assessment_response = client.post(
@@ -499,13 +495,13 @@ class TestErrorHandling:
                                 "question_type": "text",
                                 "question_text": "Q1",
                                 "order": 0,
-                                "is_required": False
+                                "is_required": False,
                             }
-                        ]
+                        ],
                     }
-                ]
+                ],
             },
-            headers=headers
+            headers=headers,
         )
         assessment_id = assessment_response.json()["id"]
         question_id = assessment_response.json()["sections"][0]["questions"][0]["id"]
@@ -516,7 +512,7 @@ class TestErrorHandling:
         response_id = client.post(
             "/api/v1/responses/start",
             json={"assessment_id": assessment_id},
-            headers=headers
+            headers=headers,
         ).json()["id"]
 
         # Submit same answer multiple times (simulating concurrent requests)
@@ -524,11 +520,8 @@ class TestErrorHandling:
         for i in range(3):
             result = client.post(
                 f"/api/v1/responses/{response_id}/answers",
-                json={
-                    "question_id": question_id,
-                    "answer_value": f"Answer {i}"
-                },
-                headers=headers
+                json={"question_id": question_id, "answer_value": f"Answer {i}"},
+                headers=headers,
             )
             results.append(result.status_code)
 
@@ -536,7 +529,6 @@ class TestErrorHandling:
         assert 201 in results or 200 in results
         # Verify we don't have duplicate answers
         response_data = client.get(
-            f"/api/v1/responses/{response_id}",
-            headers=headers
+            f"/api/v1/responses/{response_id}", headers=headers
         ).json()
         assert len(response_data.get("answers", [])) == 1

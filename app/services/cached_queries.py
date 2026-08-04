@@ -17,8 +17,8 @@ Performance Impact:
 """
 
 import logging
-from uuid import UUID
 from typing import Any, Optional
+from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,8 +36,7 @@ logger = logging.getLogger(__name__)
 
 @async_cached(expire=300, key_prefix="user_profile")  # 5 minutes
 async def get_user_profile_cached(
-    user_id: UUID,
-    db: AsyncSession
+    user_id: UUID, db: AsyncSession
 ) -> Optional[dict[str, Any]]:
     """
     Get user profile with caching.
@@ -49,9 +48,7 @@ async def get_user_profile_cached(
     Performance: 10x faster than uncached query
     """
     result = await db.execute(
-        select(User)
-        .options(selectinload(User.organization))
-        .where(User.id == user_id)
+        select(User).options(selectinload(User.organization)).where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
 
@@ -96,8 +93,7 @@ async def invalidate_user_profile_cache(user_id: UUID) -> None:
 
 @async_cached(expire=600, key_prefix="org_settings")  # 10 minutes
 async def get_organization_settings_cached(
-    organization_id: UUID,
-    db: AsyncSession
+    organization_id: UUID, db: AsyncSession
 ) -> Optional[dict[str, Any]]:
     """
     Get organization settings with caching.
@@ -119,8 +115,8 @@ async def get_organization_settings_cached(
     return {
         "id": str(org.id),
         "name": org.name,
-        "settings": org.settings if hasattr(org, 'settings') else {},
-        "features": org.features if hasattr(org, 'features') else [],
+        "settings": org.settings if hasattr(org, "settings") else {},
+        "features": org.features if hasattr(org, "features") else [],
         "created_at": org.created_at.isoformat() if org.created_at else None,
     }
 
@@ -142,10 +138,7 @@ async def invalidate_organization_settings_cache(organization_id: UUID) -> None:
 
 
 @async_cached(expire=120, key_prefix="team_members_count")  # 2 minutes
-async def get_team_members_count_cached(
-    team_id: UUID,
-    db: AsyncSession
-) -> int:
+async def get_team_members_count_cached(team_id: UUID, db: AsyncSession) -> int:
     """
     Get team member count with caching.
 
@@ -156,11 +149,11 @@ async def get_team_members_count_cached(
     Performance: 5x faster than uncached query
     """
     from sqlalchemy import func
+
     from app.db.models.team import TeamMember
 
     result = await db.execute(
-        select(func.count(TeamMember.id))
-        .where(TeamMember.team_id == team_id)
+        select(func.count(TeamMember.id)).where(TeamMember.team_id == team_id)
     )
     count = result.scalar() or 0
     return count
@@ -194,8 +187,7 @@ class CachedQueryExamples:
 
     @staticmethod
     async def example_endpoint_with_cache(
-        user_id: UUID,
-        db: AsyncSession
+        user_id: UUID, db: AsyncSession
     ) -> dict[str, Any]:
         """
         Example: FastAPI endpoint using cached user profile.
@@ -215,9 +207,7 @@ class CachedQueryExamples:
 
     @staticmethod
     async def example_endpoint_with_cache_invalidation(
-        user_id: UUID,
-        new_name: str,
-        db: AsyncSession
+        user_id: UUID, new_name: str, db: AsyncSession
     ) -> dict[str, Any]:
         """
         Example: Update user and invalidate cache.
@@ -247,9 +237,7 @@ class CachedQueryExamples:
             return await get_user_profile_cached(current_user.id, db)
         """
         # Update user
-        result = await db.execute(
-            select(User).where(User.id == user_id)
-        )
+        result = await db.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
 
         if user:
@@ -326,16 +314,13 @@ __all__ = [
     "get_user_profile_cached",
     "get_organization_settings_cached",
     "get_team_members_count_cached",
-
     # Cache invalidation functions
     "invalidate_user_profile_cache",
     "invalidate_organization_settings_cache",
     "invalidate_team_members_count_cache",
-
     # Utility functions
     "warm_up_common_caches",
     "get_cache_stats",
-
     # Examples
     "CachedQueryExamples",
 ]

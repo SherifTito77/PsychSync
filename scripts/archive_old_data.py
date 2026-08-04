@@ -14,10 +14,10 @@ Author: PsychSync Data Governance Team
 Version: 1.0
 """
 
-import asyncio
 import argparse
-import sys
+import asyncio
 import logging
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -25,17 +25,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.core.database import get_async_session
-from app.services.data_retention_service import DataRetentionService, RETENTION_POLICIES
-
+from app.services.data_retention_service import RETENTION_POLICIES, DataRetentionService
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler('/var/log/psychsync/archive_old_data.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
+        logging.FileHandler("/var/log/psychsync/archive_old_data.log"),
+        logging.StreamHandler(sys.stdout),
+    ],
 )
 
 logger = logging.getLogger(__name__)
@@ -64,16 +63,16 @@ async def archive_policy(policy_name: str, dry_run: bool = False) -> dict:
         if dry_run:
             logger.info(f"[DRY RUN] Would archive {len(candidates)} records")
             return {
-                'policy': policy_name,
-                'status': 'dry_run',
-                'candidates_found': len(candidates),
-                'would_archive': len(candidates)
+                "policy": policy_name,
+                "status": "dry_run",
+                "candidates_found": len(candidates),
+                "would_archive": len(candidates),
             }
 
         # Perform archival
         result = await service.archive_data(policy_name)
 
-        if result['status'] == 'success':
+        if result["status"] == "success":
             logger.info(
                 f"Successfully archived {result['records_archived']} records "
                 f"in {result['duration_seconds']:.2f}s"
@@ -105,27 +104,24 @@ async def archive_all_policies(dry_run: bool = False) -> dict:
             result = await archive_policy(policy_name, dry_run)
             results[policy_name] = result
 
-            if result['status'] == 'success':
-                total_archived += result['records_archived']
-            elif result['status'] == 'error':
+            if result["status"] == "success":
+                total_archived += result["records_archived"]
+            elif result["status"] == "error":
                 total_failed += 1
 
         except Exception as e:
             logger.error(f"Failed to process policy {policy_name}: {e}")
-            results[policy_name] = {
-                'status': 'error',
-                'error': str(e)
-            }
+            results[policy_name] = {"status": "error", "error": str(e)}
             total_failed += 1
 
     summary = {
-        'timestamp': datetime.utcnow().isoformat(),
-        'total_policies': len(RETENTION_POLICIES),
-        'policies_succeeded': len(RETENTION_POLICIES) - total_failed,
-        'policies_failed': total_failed,
-        'total_records_archived': total_archived,
-        'dry_run': dry_run,
-        'results': results
+        "timestamp": datetime.utcnow().isoformat(),
+        "total_policies": len(RETENTION_POLICIES),
+        "policies_succeeded": len(RETENTION_POLICIES) - total_failed,
+        "policies_failed": total_failed,
+        "total_records_archived": total_archived,
+        "dry_run": dry_run,
+        "results": results,
     }
 
     logger.info(
@@ -149,7 +145,7 @@ async def show_retention_stats():
         logger.info(f"Timestamp: {stats['timestamp']}")
 
         for key, value in sorted(stats.items()):
-            if key != 'timestamp':
+            if key != "timestamp":
                 logger.info(f"  {key}: {value:,}")
 
         # Check compliance
@@ -158,9 +154,9 @@ async def show_retention_stats():
         logger.info(f"Compliance Score: {compliance['compliance_score']}%")
         logger.info(f"Status: {compliance['status']}")
 
-        if compliance['retention_violations']:
+        if compliance["retention_violations"]:
             logger.info("Retention Violations:")
-            for key, value in compliance['retention_violations'].items():
+            for key, value in compliance["retention_violations"].items():
                 if value > 0:
                     logger.warning(f"  {key}: {value:,} records")
 
@@ -172,10 +168,14 @@ async def list_policies():
     for policy_name, policy in RETENTION_POLICIES.items():
         logger.info(f"\n{policy_name}:")
         logger.info(f"  Source Table: {policy.source_table}")
-        logger.info(f"  Retention Period: {policy.retention_period_days} days "
-                   f"({policy.retention_period_days // 365} years)")
-        logger.info(f"  Archive After: {policy.archive_after_days} days "
-                   f"({policy.archive_after_days // 30} months)")
+        logger.info(
+            f"  Retention Period: {policy.retention_period_days} days "
+            f"({policy.retention_period_days // 365} years)"
+        )
+        logger.info(
+            f"  Archive After: {policy.archive_after_days} days "
+            f"({policy.archive_after_days // 30} months)"
+        )
         logger.info(f"  Anonymize: {policy.anonymize_before_archive}")
         logger.info(f"  Target Storage: {policy.target_storage}")
 
@@ -183,7 +183,7 @@ async def list_policies():
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(
-        description='Archive old data according to retention policies',
+        description="Archive old data according to retention policies",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -201,37 +201,27 @@ Examples:
 
   # List all policies
   python scripts/archive_old_data.py --list-policies
-        """
+        """,
     )
 
     parser.add_argument(
-        '--policy',
-        type=str,
-        help='Specific retention policy to process'
+        "--policy", type=str, help="Specific retention policy to process"
     )
 
     parser.add_argument(
-        '--all',
-        action='store_true',
-        help='Process all retention policies'
+        "--all", action="store_true", help="Process all retention policies"
     )
 
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Identify candidates without archiving'
+        "--dry-run", action="store_true", help="Identify candidates without archiving"
     )
 
     parser.add_argument(
-        '--stats',
-        action='store_true',
-        help='Show retention statistics'
+        "--stats", action="store_true", help="Show retention statistics"
     )
 
     parser.add_argument(
-        '--list-policies',
-        action='store_true',
-        help='List all retention policies'
+        "--list-policies", action="store_true", help="List all retention policies"
     )
 
     args = parser.parse_args()
@@ -248,18 +238,20 @@ Examples:
             result = asyncio.run(archive_all_policies(dry_run=args.dry_run))
 
             # Exit with error code if any policies failed
-            if result['policies_failed'] > 0:
+            if result["policies_failed"] > 0:
                 sys.exit(1)
 
         elif args.policy:
             if args.policy not in RETENTION_POLICIES:
                 logger.error(f"Unknown policy: {args.policy}")
-                logger.error(f"Available policies: {', '.join(RETENTION_POLICIES.keys())}")
+                logger.error(
+                    f"Available policies: {', '.join(RETENTION_POLICIES.keys())}"
+                )
                 sys.exit(1)
 
             result = asyncio.run(archive_policy(args.policy, dry_run=args.dry_run))
 
-            if result['status'] == 'error':
+            if result["status"] == "error":
                 sys.exit(1)
 
         else:

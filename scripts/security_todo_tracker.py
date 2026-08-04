@@ -19,21 +19,22 @@ Usage:
     python scripts/security_todo_tracker.py --export > security_todos.csv
 """
 
+import argparse
+import json
 import os
 import re
 import sys
-import json
-import argparse
-from pathlib import Path
-from typing import List, Dict, Optional
-from datetime import datetime
-from dataclasses import dataclass, asdict
 from collections import defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
 
 
 @dataclass
 class SecurityTODO:
     """Represents a security-related TODO item."""
+
     id: str
     file: str
     line: int
@@ -62,18 +63,18 @@ class SecurityTODOTracker:
         self.tracker_file = Path(tracker_file)
         self.todos: List[SecurityTODO] = []
         self.categories = {
-            'auth': 'Authentication/Authorization',
-            'validation': 'Input Validation',
-            'encryption': 'Encryption/Cryptography',
-            'injection': 'Injection Attacks (SQL, XSS, etc.)',
-            'config': 'Configuration Security',
-            'logging': 'Security Logging/Auditing',
-            'session': 'Session Management',
-            'cors': 'CORS/Origin Security',
-            'rate_limit': 'Rate Limiting',
-            'ssl': 'SSL/TLS',
-            'data_exposure': 'Data Exposure',
-            'other': 'Other Security',
+            "auth": "Authentication/Authorization",
+            "validation": "Input Validation",
+            "encryption": "Encryption/Cryptography",
+            "injection": "Injection Attacks (SQL, XSS, etc.)",
+            "config": "Configuration Security",
+            "logging": "Security Logging/Auditing",
+            "session": "Session Management",
+            "cors": "CORS/Origin Security",
+            "rate_limit": "Rate Limiting",
+            "ssl": "SSL/TLS",
+            "data_exposure": "Data Exposure",
+            "other": "Other Security",
         }
 
         # Load existing tracker if available
@@ -84,77 +85,103 @@ class SecurityTODOTracker:
         files = []
 
         # Python files
-        files.extend(self.root_path.rglob('**/*.py'))
+        files.extend(self.root_path.rglob("**/*.py"))
 
         # TypeScript files
-        files.extend(self.root_path.rglob('**/*.ts'))
-        files.extend(self.root_path.rglob('**/*.tsx'))
+        files.extend(self.root_path.rglob("**/*.ts"))
+        files.extend(self.root_path.rglob("**/*.tsx"))
 
         # JavaScript files
-        files.extend(self.root_path.rglob('**/*.js'))
-        files.extend(self.root_path.rglob('**/*.jsx'))
+        files.extend(self.root_path.rglob("**/*.js"))
+        files.extend(self.root_path.rglob("**/*.jsx"))
 
         ignored_dirs = {
-            'node_modules', '.git', '__pycache__', '.venv',
-            'venv', 'env', '.pytest_cache', 'dist', 'build',
-            '.next', 'coverage', '.cache'
+            "node_modules",
+            ".git",
+            "__pycache__",
+            ".venv",
+            "venv",
+            "env",
+            ".pytest_cache",
+            "dist",
+            "build",
+            ".next",
+            "coverage",
+            ".cache",
         }
 
-        return [f for f in files if not any(
-            ignored_dir in f.parts for ignored_dir in ignored_dirs
-        ) and f.is_file()]
+        return [
+            f
+            for f in files
+            if not any(ignored_dir in f.parts for ignored_dir in ignored_dirs)
+            and f.is_file()
+        ]
 
     def detect_category(self, text: str) -> str:
         """Detect security category from TODO text."""
         text_lower = text.lower()
 
         keywords = {
-            'auth': ['auth', 'login', 'password', 'credential', 'token', 'jwt', 'session'],
-            'validation': ['validat', 'sanitiz', 'escape', 'xss', 'injection'],
-            'encryption': ['encrypt', 'decrypt', 'hash', 'cipher', 'crypto', 'secret'],
-            'injection': ['sql', 'injection', 'xss', 'csrf', 'command'],
-            'config': ['config', 'setting', 'env', 'environment', 'hardcoded'],
-            'logging': ['log', 'audit', 'monitor', 'alert'],
-            'cors': ['cors', 'origin'],
-            'rate_limit': ['rate', 'limit', 'throttle'],
-            'ssl': ['ssl', 'tls', 'certificate', 'https'],
-            'data_exposure': ['expose', 'leak', 'sensitive', 'pii'],
+            "auth": [
+                "auth",
+                "login",
+                "password",
+                "credential",
+                "token",
+                "jwt",
+                "session",
+            ],
+            "validation": ["validat", "sanitiz", "escape", "xss", "injection"],
+            "encryption": ["encrypt", "decrypt", "hash", "cipher", "crypto", "secret"],
+            "injection": ["sql", "injection", "xss", "csrf", "command"],
+            "config": ["config", "setting", "env", "environment", "hardcoded"],
+            "logging": ["log", "audit", "monitor", "alert"],
+            "cors": ["cors", "origin"],
+            "rate_limit": ["rate", "limit", "throttle"],
+            "ssl": ["ssl", "tls", "certificate", "https"],
+            "data_exposure": ["expose", "leak", "sensitive", "pii"],
         }
 
         for category, words in keywords.items():
             if any(word in text_lower for word in words):
                 return category
 
-        return 'other'
+        return "other"
 
     def detect_severity(self, text: str, category: str) -> str:
         """Detect severity from TODO text."""
         text_upper = text.upper()
 
         # Explicit severity markers
-        if 'CRITICAL' in text_upper or 'URGENT' in text_upper or 'SECURITY' in text_upper:
-            return 'CRITICAL'
+        if (
+            "CRITICAL" in text_upper
+            or "URGENT" in text_upper
+            or "SECURITY" in text_upper
+        ):
+            return "CRITICAL"
 
-        if 'HIGH' in text_upper or 'IMPORTANT' in text_upper:
-            return 'HIGH'
+        if "HIGH" in text_upper or "IMPORTANT" in text_upper:
+            return "HIGH"
 
         # Category-based severity
-        high_severity_categories = {'auth', 'encryption', 'injection', 'sql'}
+        high_severity_categories = {"auth", "encryption", "injection", "sql"}
         if category in high_severity_categories:
-            return 'HIGH'
+            return "HIGH"
 
-        if 'FIXME' in text_upper or 'XXX' in text_upper or 'HACK' in text_upper:
-            return 'MEDIUM'
+        if "FIXME" in text_upper or "XXX" in text_upper or "HACK" in text_upper:
+            return "MEDIUM"
 
-        if 'TODO' in text_upper or 'NOTE' in text_upper:
-            return 'MEDIUM'
+        if "TODO" in text_upper or "NOTE" in text_upper:
+            return "MEDIUM"
 
-        return 'LOW'
+        return "LOW"
 
-    def parse_todo_comment(self, line: str, file_path: Path, line_num: int) -> Optional[SecurityTODO]:
+    def parse_todo_comment(
+        self, line: str, file_path: Path, line_num: int
+    ) -> Optional[SecurityTODO]:
         """Parse a TODO comment line into a SecurityTODO object."""
         # Pattern: TODO(security), FIXME(auth), HACK, etc.
-        todo_pattern = r'(TODO|FIXME|HACK|XXX|NOTE)\s*(?:\([^)]+\))?\s*:?\s*(.+)'
+        todo_pattern = r"(TODO|FIXME|HACK|XXX|NOTE)\s*(?:\([^)]+\))?\s*:?\s*(.+)"
         match = re.match(todo_pattern, line.strip())
 
         if not match:
@@ -165,10 +192,29 @@ class SecurityTODOTracker:
 
         # Check if it's security-related
         security_keywords = [
-            'security', 'secure', 'auth', 'validat', 'encrypt', 'inject',
-            'xss', 'csrf', 'sql', 'cors', 'rate', 'limit', 'sanitiz',
-            'escape', 'hash', 'token', 'session', 'credential', 'password',
-            'permission', 'authorization', 'audit', 'log'
+            "security",
+            "secure",
+            "auth",
+            "validat",
+            "encrypt",
+            "inject",
+            "xss",
+            "csrf",
+            "sql",
+            "cors",
+            "rate",
+            "limit",
+            "sanitiz",
+            "escape",
+            "hash",
+            "token",
+            "session",
+            "credential",
+            "password",
+            "permission",
+            "authorization",
+            "audit",
+            "log",
         ]
 
         if not any(keyword in description.lower() for keyword in security_keywords):
@@ -197,14 +243,28 @@ class SecurityTODOTracker:
         todos = []
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 lines = f.readlines()
 
             for i, line in enumerate(lines, 1):
                 # Look for comment markers
-                if any(marker in line for marker in ['# TODO', '# FIXME', '# HACK', '# XXX', '# NOTE',
-                                                    '// TODO', '// FIXME', '// HACK', '// XXX', '// NOTE',
-                                                    '<!-- TODO', '<!-- FIXME']):
+                if any(
+                    marker in line
+                    for marker in [
+                        "# TODO",
+                        "# FIXME",
+                        "# HACK",
+                        "# XXX",
+                        "# NOTE",
+                        "// TODO",
+                        "// FIXME",
+                        "// HACK",
+                        "// XXX",
+                        "// NOTE",
+                        "<!-- TODO",
+                        "<!-- FIXME",
+                    ]
+                ):
                     todo = self.parse_todo_comment(line, file_path, i)
                     if todo:
                         todos.append(todo)
@@ -243,11 +303,11 @@ class SecurityTODOTracker:
             return
 
         try:
-            with open(self.tracker_file, 'r') as f:
+            with open(self.tracker_file, "r") as f:
                 data = json.load(f)
 
             # Load saved TODOs
-            for todo_data in data.get('todos', []):
+            for todo_data in data.get("todos", []):
                 todo = SecurityTODO(**todo_data)
                 self.todos.append(todo)
 
@@ -257,12 +317,12 @@ class SecurityTODOTracker:
     def save_tracker(self) -> None:
         """Save tracker data to file."""
         data = {
-            'last_updated': datetime.now().isoformat(),
-            'total_count': len(self.todos),
-            'todos': [asdict(todo) for todo in self.todos],
+            "last_updated": datetime.now().isoformat(),
+            "total_count": len(self.todos),
+            "todos": [asdict(todo) for todo in self.todos],
         }
 
-        with open(self.tracker_file, 'w') as f:
+        with open(self.tracker_file, "w") as f:
             json.dump(data, f, indent=2)
 
     def update_status(self, todo_id: str, status: str, assigned_to: str = "") -> bool:
@@ -289,22 +349,24 @@ class SecurityTODOTracker:
         for todo in self.todos:
             by_severity[todo.severity].append(todo)
 
-        severity_order = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
+        severity_order = ["CRITICAL", "HIGH", "MEDIUM", "LOW"]
 
         for severity in severity_order:
             todos = by_severity.get(severity, [])
             if not todos:
                 continue
 
-            emoji = {'CRITICAL': '🔴', 'HIGH': '🟠', 'MEDIUM': '🟡', 'LOW': '🟢'}
+            emoji = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🟢"}
             print(f"\n{emoji[severity]} {severity} SEVERITY ({len(todos)} items)")
-            print("="*80)
+            print("=" * 80)
 
             for todo in todos[:5]:  # Show first 5
                 print(f"\n  {todo.id}")
                 print(f"  📍 {todo.file}:{todo.line}")
                 print(f"  📋 {todo.description}")
-                print(f"  🏷️  Category: {self.categories.get(todo.category, todo.category)}")
+                print(
+                    f"  🏷️  Category: {self.categories.get(todo.category, todo.category)}"
+                )
                 print(f"  ⚙️  Status: {todo.status}")
 
             if len(todos) > 5:
@@ -324,7 +386,7 @@ class SecurityTODOTracker:
         for todo in self.todos:
             severity_counts[todo.severity] += 1
 
-        for severity in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+        for severity in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
             count = severity_counts.get(severity, 0)
             if count > 0:
                 lines.append(f"- **{severity}:** {count} items")
@@ -335,9 +397,13 @@ class SecurityTODOTracker:
         for todo in self.todos:
             category_counts[todo.category] += 1
 
-        for category, count in sorted(category_counts.items(), key=lambda x: x[1], reverse=True):
+        for category, count in sorted(
+            category_counts.items(), key=lambda x: x[1], reverse=True
+        ):
             if count > 0:
-                lines.append(f"- **{self.categories.get(category, category)}:** {count} items")
+                lines.append(
+                    f"- **{self.categories.get(category, category)}:** {count} items"
+                )
 
         # Detailed list
         lines.append("\n## Detailed TODOs\n")
@@ -347,7 +413,7 @@ class SecurityTODOTracker:
         for todo in self.todos:
             by_severity[todo.severity].append(todo)
 
-        for severity in ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']:
+        for severity in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
             todos = by_severity.get(severity, [])
             if not todos:
                 continue
@@ -355,34 +421,38 @@ class SecurityTODOTracker:
             lines.append(f"### {severity} ({len(todos)} items)\n")
 
             for todo in todos:
-                lines.extend([
-                    f"#### {todo.id}",
-                    f"- **File:** {todo.file}:{todo.line}",
-                    f"- **Category:** {self.categories.get(todo.category, todo.category)}",
-                    f"- **Status:** {todo.status}",
-                    f"- **Description:** {todo.description}",
-                    f"- **Code:** `{todo.code_snippet}`",
-                    "",
-                ])
+                lines.extend(
+                    [
+                        f"#### {todo.id}",
+                        f"- **File:** {todo.file}:{todo.line}",
+                        f"- **Category:** {self.categories.get(todo.category, todo.category)}",
+                        f"- **Status:** {todo.status}",
+                        f"- **Description:** {todo.description}",
+                        f"- **Code:** `{todo.code_snippet}`",
+                        "",
+                    ]
+                )
 
         # Recommendations
-        lines.extend([
-            "## Recommendations\n",
-            "1. **Address all CRITICAL and HIGH severity TODOs before production deployment**",
-            "2. **Create dedicated tasks for each TODO in your project management tool**",
-            "3. **Assign TODOs to specific developers with clear deadlines**",
-            "4. **Add tests to prevent regressions of security issues**",
-            "5. **Document security patterns in team documentation**",
-            "",
-            "## Tracking",
-            "",
-            "Track these TODOs in your project management system:",
-            "- Export to CSV: `python scripts/security_todo_tracker.py --export`",
-            "- Update status: `python scripts/security_todo_tracker.py --update-id TODO-xxx --status 'In Progress'`",
-            "",
-        ])
+        lines.extend(
+            [
+                "## Recommendations\n",
+                "1. **Address all CRITICAL and HIGH severity TODOs before production deployment**",
+                "2. **Create dedicated tasks for each TODO in your project management tool**",
+                "3. **Assign TODOs to specific developers with clear deadlines**",
+                "4. **Add tests to prevent regressions of security issues**",
+                "5. **Document security patterns in team documentation**",
+                "",
+                "## Tracking",
+                "",
+                "Track these TODOs in your project management system:",
+                "- Export to CSV: `python scripts/security_todo_tracker.py --export`",
+                "- Update status: `python scripts/security_todo_tracker.py --update-id TODO-xxx --status 'In Progress'`",
+                "",
+            ]
+        )
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
     def export_csv(self) -> str:
         """Export TODOs to CSV format."""
@@ -394,45 +464,28 @@ class SecurityTODOTracker:
             line = f'"{todo.id}","{todo.file}",{todo.line},{todo.type},{todo.category},{todo.severity},"{todo.description}",{todo.status},"{todo.assigned_to}",{todo.created_date}'
             lines.append(line)
 
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Track and manage security-related TODOs'
+        description="Track and manage security-related TODOs"
     )
     parser.add_argument(
-        '--path',
-        default='.',
-        help='Path to scan (default: current directory)'
+        "--path", default=".", help="Path to scan (default: current directory)"
     )
     parser.add_argument(
-        '--find',
-        action='store_true',
-        help='Find and display all security TODOs'
+        "--find", action="store_true", help="Find and display all security TODOs"
     )
     parser.add_argument(
-        '--report',
-        action='store_true',
-        help='Generate detailed markdown report'
+        "--report", action="store_true", help="Generate detailed markdown report"
     )
+    parser.add_argument("--export", action="store_true", help="Export to CSV format")
+    parser.add_argument("--update-id", help="Update status of specific TODO by ID")
     parser.add_argument(
-        '--export',
-        action='store_true',
-        help='Export to CSV format'
+        "--status", help="New status (Open, In Progress, Completed, Deferred)"
     )
-    parser.add_argument(
-        '--update-id',
-        help='Update status of specific TODO by ID'
-    )
-    parser.add_argument(
-        '--status',
-        help='New status (Open, In Progress, Completed, Deferred)'
-    )
-    parser.add_argument(
-        '--assigned-to',
-        help='Assign TODO to someone'
-    )
+    parser.add_argument("--assigned-to", help="Assign TODO to someone")
 
     args = parser.parse_args()
 
@@ -444,7 +497,9 @@ def main():
             print("❌ Error: --status required when using --update-id")
             return 1
 
-        success = tracker.update_status(args.update_id, args.status, args.assigned_to or "")
+        success = tracker.update_status(
+            args.update_id, args.status, args.assigned_to or ""
+        )
         if success:
             print(f"✅ Updated {args.update_id} to status: {args.status}")
         else:
@@ -470,5 +525,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

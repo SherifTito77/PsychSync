@@ -18,10 +18,10 @@ Author: Security Team
 Version: 3.0 Enterprise Security
 """
 
-from contextlib import asynccontextmanager
-from datetime import datetime
 import json
 import logging
+from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import text
@@ -295,7 +295,11 @@ class RowLevelSecurityManager:
                 raise
 
     async def set_security_context(
-        self, session: AsyncSession, user_id: str, user_role: str, org_id: str | None = None
+        self,
+        session: AsyncSession,
+        user_id: str,
+        user_role: str,
+        org_id: str | None = None,
     ) -> None:
         """
         Set PostgreSQL session variables for RLS context
@@ -313,7 +317,9 @@ class RowLevelSecurityManager:
 
         for var_name, var_value in context_variables:
             try:
-                await session.execute(text(f"SET {var_name} TO :value"), {"value": var_value})
+                await session.execute(
+                    text(f"SET {var_name} TO :value"), {"value": var_value}
+                )
                 security_logger.debug(f"Set security context: {var_name} = {var_value}")
             except Exception as e:
                 security_logger.error(f"Failed to set security context {var_name}: {e}")
@@ -334,11 +340,17 @@ class RowLevelSecurityManager:
                 await session.execute(text(f"RESET {var_name}"))
                 security_logger.debug(f"Cleared security context: {var_name}")
             except Exception as e:
-                security_logger.error(f"Failed to clear security context {var_name}: {e}")
+                security_logger.error(
+                    f"Failed to clear security context {var_name}: {e}"
+                )
 
     @asynccontextmanager
     async def secure_session(
-        self, session: AsyncSession, user_id: str, user_role: str, org_id: str | None = None
+        self,
+        session: AsyncSession,
+        user_id: str,
+        user_role: str,
+        org_id: str | None = None,
     ):
         """
         Context manager for secure database sessions with RLS
@@ -353,7 +365,12 @@ class RowLevelSecurityManager:
             await self.clear_security_context(session)
 
     async def check_data_access(
-        self, session: AsyncSession, table_name: str, record_id: str, user_id: str, user_role: str
+        self,
+        session: AsyncSession,
+        table_name: str,
+        record_id: str,
+        user_id: str,
+        user_role: str,
     ) -> bool:
         """
         Check if user has access to a specific record
@@ -377,7 +394,9 @@ class RowLevelSecurityManager:
             return access_count > 0
 
         except Exception as e:
-            security_logger.error(f"Access check failed for {table_name}:{record_id}: {e}")
+            security_logger.error(
+                f"Access check failed for {table_name}:{record_id}: {e}"
+            )
             return False
         finally:
             await self.clear_security_context(session)
@@ -406,19 +425,27 @@ class RowLevelSecurityManager:
             "table_name": table_name,
             "operation": operation,
             "record_id": record_id,
-            "ip_address": additional_context.get("ip_address") if additional_context else None,
-            "user_agent": additional_context.get("user_agent") if additional_context else None,
-            "session_id": additional_context.get("session_id") if additional_context else None,
+            "ip_address": (
+                additional_context.get("ip_address") if additional_context else None
+            ),
+            "user_agent": (
+                additional_context.get("user_agent") if additional_context else None
+            ),
+            "session_id": (
+                additional_context.get("session_id") if additional_context else None
+            ),
             "additional_data": additional_context or {},
         }
 
         try:
             # Store audit record in database (would implement audit_logs table)
             await session.execute(
-                text("""
+                text(
+                    """
                 INSERT INTO audit_logs (timestamp, user_id, table_name, operation, record_id, context)
                 VALUES (:timestamp, :user_id, :table_name, :operation, :record_id, :context)
-                """),
+                """
+                ),
                 {
                     "timestamp": audit_record["timestamp"],
                     "user_id": audit_record["user_id"],
@@ -430,7 +457,9 @@ class RowLevelSecurityManager:
             )
             await session.commit()
 
-            security_logger.info(f"Access logged: {user_id} {operation} {table_name}:{record_id}")
+            security_logger.info(
+                f"Access logged: {user_id} {operation} {table_name}:{record_id}"
+            )
 
         except Exception as e:
             security_logger.error(f"Failed to log access audit: {e}")
@@ -516,7 +545,9 @@ class RowLevelSecurityManager:
                 security_logger.info("Tenant isolation function created successfully")
             except Exception as e:
                 await session.rollback()
-                security_logger.error(f"Failed to create tenant isolation function: {e}")
+                security_logger.error(
+                    f"Failed to create tenant isolation function: {e}"
+                )
                 raise
 
     async def validate_rls_enforcement(self, session: AsyncSession) -> dict[str, bool]:
@@ -540,11 +571,13 @@ class RowLevelSecurityManager:
         for table in secure_tables:
             try:
                 result = await session.execute(
-                    text(f"""
+                    text(
+                        f"""
                     SELECT rowsecurity
                     FROM pg_tables
                     WHERE schemaname = 'public' AND tablename = '{table}'
-                """)
+                """
+                    )
                 )
 
                 rls_enabled = result.scalar() or False

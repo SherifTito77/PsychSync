@@ -3,11 +3,11 @@ API Response Optimization for PsychSync
 Implements response compression, field selection, and pagination for 30-50% performance improvement
 """
 
-from datetime import datetime
-from functools import wraps
 import gzip
 import json
 import logging
+from datetime import datetime
+from functools import wraps
 from typing import Any
 
 from fastapi import Query, Request, Response
@@ -39,8 +39,12 @@ class PaginationParams(BaseModel):
 class FieldSelectionParams(BaseModel):
     """Field selection parameters"""
 
-    fields: str | None = Field(None, description="Comma-separated list of fields to include")
-    exclude: str | None = Field(None, description="Comma-separated list of fields to exclude")
+    fields: str | None = Field(
+        None, description="Comma-separated list of fields to include"
+    )
+    exclude: str | None = Field(
+        None, description="Comma-separated list of fields to exclude"
+    )
 
     def get_fields(self) -> list[str]:
         """Parse fields parameter"""
@@ -85,7 +89,9 @@ class APIOptimizer:
         self.max_page_size = 100
         self.compression_threshold = 1024  # Compress responses larger than 1KB
 
-    def create_pagination_params(self, page: int = 1, page_size: int = 20) -> PaginationParams:
+    def create_pagination_params(
+        self, page: int = 1, page_size: int = 20
+    ) -> PaginationParams:
         """Create pagination parameters with validation"""
         return PaginationParams(page=page, page_size=min(page_size, self.max_page_size))
 
@@ -147,7 +153,9 @@ class APIOptimizer:
                 return result
 
             if isinstance(data, (list, tuple)):
-                return [_serialize_object(item, depth) for item in data[:1000]]  # Limit list size
+                return [
+                    _serialize_object(item, depth) for item in data[:1000]
+                ]  # Limit list size
 
             if isinstance(data, datetime):
                 return data.isoformat()
@@ -196,7 +204,11 @@ class APIOptimizer:
         return list(items), total
 
     def create_paginated_response(
-        self, items: list[Any], total: int, pagination: PaginationParams, request: Request = None
+        self,
+        items: list[Any],
+        total: int,
+        pagination: PaginationParams,
+        request: Request = None,
     ) -> PaginatedResponse:
         """Create standardized paginated response"""
         total_pages = (total + pagination.page_size - 1) // pagination.page_size
@@ -249,7 +261,9 @@ class APIOptimizer:
             )
 
             # Convert to JSON
-            json_data = json.dumps(serialized_data, default=str, ensure_ascii=False).encode("utf-8")
+            json_data = json.dumps(
+                serialized_data, default=str, ensure_ascii=False
+            ).encode("utf-8")
 
             # Create response headers
             response_headers = {
@@ -271,15 +285,21 @@ class APIOptimizer:
                 response_headers["content-encoding"] = "gzip"
                 response_headers["content-length"] = str(len(compressed_data))
                 return Response(
-                    content=compressed_data, status_code=status_code, headers=response_headers
+                    content=compressed_data,
+                    status_code=status_code,
+                    headers=response_headers,
                 )
             response_headers["content-length"] = str(len(json_data))
-            return Response(content=json_data, status_code=status_code, headers=response_headers)
+            return Response(
+                content=json_data, status_code=status_code, headers=response_headers
+            )
 
         except Exception as e:
             logger.error(f"Error creating optimized response: {e}")
             # Fallback to basic JSON response
-            return JSONResponse(content={"error": "Internal server error"}, status_code=500)
+            return JSONResponse(
+                content={"error": "Internal server error"}, status_code=500
+            )
 
 
 # Global API optimizer instance
@@ -296,8 +316,12 @@ def get_pagination_params(
 
 
 def get_field_selection_params(
-    fields: str | None = Query(None, description="Comma-separated list of fields to include"),
-    exclude: str | None = Query(None, description="Comma-separated list of fields to exclude"),
+    fields: str | None = Query(
+        None, description="Comma-separated list of fields to include"
+    ),
+    exclude: str | None = Query(
+        None, description="Comma-separated list of fields to exclude"
+    ),
 ) -> FieldSelectionParams:
     """Get field selection parameters"""
     return api_optimizer.create_field_selection_params(fields=fields, exclude=exclude)
@@ -362,7 +386,9 @@ def optimize_api_response(
             except Exception as e:
                 logger.error(f"Error in API optimization decorator: {e}")
                 # Fallback to basic response
-                return JSONResponse(content={"error": "Internal server error"}, status_code=500)
+                return JSONResponse(
+                    content={"error": "Internal server error"}, status_code=500
+                )
 
         return wrapper
 
@@ -425,7 +451,9 @@ def paginated_response(default_page_size: int = 20, max_page_size: int = 100):
 
             except Exception as e:
                 logger.error(f"Error in paginated response decorator: {e}")
-                return JSONResponse(content={"error": "Internal server error"}, status_code=500)
+                return JSONResponse(
+                    content={"error": "Internal server error"}, status_code=500
+                )
 
         return wrapper
 
@@ -445,11 +473,16 @@ async def create_success_response(
         **kwargs,
     }
 
-    return api_optimizer.create_optimized_response(data=response_data, status_code=status_code)
+    return api_optimizer.create_optimized_response(
+        data=response_data, status_code=status_code
+    )
 
 
 async def create_error_response(
-    message: str, status_code: int = 400, error_code: str = None, details: dict[str, Any] = None
+    message: str,
+    status_code: int = 400,
+    error_code: str = None,
+    details: dict[str, Any] = None,
 ) -> Response:
     """Create standardized error response"""
     response_data = {

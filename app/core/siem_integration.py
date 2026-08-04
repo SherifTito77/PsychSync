@@ -18,11 +18,11 @@ Date: December 23, 2024
 """
 
 import asyncio
+import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import json
-import logging
 from typing import Any
 
 import aiohttp
@@ -87,9 +87,11 @@ class SIEMEvent:
         """Convert to dictionary, handling datetime serialization"""
         data = {
             "event_type": self.event_type,
-            "timestamp": self.timestamp.isoformat()
-            if isinstance(self.timestamp, datetime)
-            else self.timestamp,
+            "timestamp": (
+                self.timestamp.isoformat()
+                if isinstance(self.timestamp, datetime)
+                else self.timestamp
+            ),
             "severity": self.severity,
             "category": self.category,
             "source": "psychsync",
@@ -331,8 +333,10 @@ class SIEMIntegration:
 
                     # Handle rate limiting
                     if response.status == 429 and attempt < self.config.max_retries - 1:
-                        wait_time = 2 ** attempt  # Exponential backoff
-                        logger.warning(f"Splunk rate limited, retrying in {wait_time}s...")
+                        wait_time = 2**attempt  # Exponential backoff
+                        logger.warning(
+                            f"Splunk rate limited, retrying in {wait_time}s..."
+                        )
                         await asyncio.sleep(wait_time)
                         continue
 
@@ -342,8 +346,10 @@ class SIEMIntegration:
 
             except asyncio.TimeoutError:
                 if attempt < self.config.max_retries - 1:
-                    wait_time = 2 ** attempt
-                    logger.warning(f"Splunk timeout (attempt {attempt + 1}), retrying in {wait_time}s...")
+                    wait_time = 2**attempt
+                    logger.warning(
+                        f"Splunk timeout (attempt {attempt + 1}), retrying in {wait_time}s..."
+                    )
                     await asyncio.sleep(wait_time)
                     continue
                 logger.error("Splunk request timed out after all retries")
@@ -351,8 +357,10 @@ class SIEMIntegration:
 
             except Exception as e:
                 if attempt < self.config.max_retries - 1:
-                    wait_time = 2 ** attempt
-                    logger.warning(f"Error sending to Splunk (attempt {attempt + 1}): {e}")
+                    wait_time = 2**attempt
+                    logger.warning(
+                        f"Error sending to Splunk (attempt {attempt + 1}): {e}"
+                    )
                     await asyncio.sleep(wait_time)
                     continue
                 logger.error(f"Error sending to Splunk after all retries: {e}")
@@ -368,7 +376,10 @@ class SIEMIntegration:
                     logger.error("Elasticsearch requires endpoint_url")
                     return False
 
-                index = self.config.index or f"psychsync-security-{datetime.now().strftime('%Y.%m')}"
+                index = (
+                    self.config.index
+                    or f"psychsync-security-{datetime.now().strftime('%Y.%m')}"
+                )
 
                 url = f"{self.config.endpoint_url.rstrip('/')}/{index}/_bulk"
                 headers = {"Content-Type": "application/x-ndjson"}
@@ -403,8 +414,10 @@ class SIEMIntegration:
 
                     # Handle rate limiting
                     if response.status == 429 and attempt < self.config.max_retries - 1:
-                        wait_time = 2 ** attempt
-                        logger.warning(f"Elasticsearch rate limited, retrying in {wait_time}s...")
+                        wait_time = 2**attempt
+                        logger.warning(
+                            f"Elasticsearch rate limited, retrying in {wait_time}s..."
+                        )
                         await asyncio.sleep(wait_time)
                         continue
 
@@ -414,8 +427,10 @@ class SIEMIntegration:
 
             except asyncio.TimeoutError:
                 if attempt < self.config.max_retries - 1:
-                    wait_time = 2 ** attempt
-                    logger.warning(f"Elasticsearch timeout (attempt {attempt + 1}), retrying in {wait_time}s...")
+                    wait_time = 2**attempt
+                    logger.warning(
+                        f"Elasticsearch timeout (attempt {attempt + 1}), retrying in {wait_time}s..."
+                    )
                     await asyncio.sleep(wait_time)
                     continue
                 logger.error("Elasticsearch request timed out after all retries")
@@ -423,8 +438,10 @@ class SIEMIntegration:
 
             except Exception as e:
                 if attempt < self.config.max_retries - 1:
-                    wait_time = 2 ** attempt
-                    logger.warning(f"Error sending to Elasticsearch (attempt {attempt + 1}): {e}")
+                    wait_time = 2**attempt
+                    logger.warning(
+                        f"Error sending to Elasticsearch (attempt {attempt + 1}): {e}"
+                    )
                     await asyncio.sleep(wait_time)
                     continue
                 logger.error(f"Error sending to Elasticsearch after all retries: {e}")
@@ -469,8 +486,10 @@ class SIEMIntegration:
 
                     # Handle rate limiting
                     if response.status == 429 and attempt < self.config.max_retries - 1:
-                        wait_time = 2 ** attempt
-                        logger.warning(f"Webhook rate limited, retrying in {wait_time}s...")
+                        wait_time = 2**attempt
+                        logger.warning(
+                            f"Webhook rate limited, retrying in {wait_time}s..."
+                        )
                         await asyncio.sleep(wait_time)
                         continue
 
@@ -480,8 +499,10 @@ class SIEMIntegration:
 
             except asyncio.TimeoutError:
                 if attempt < self.config.max_retries - 1:
-                    wait_time = 2 ** attempt
-                    logger.warning(f"Webhook timeout (attempt {attempt + 1}), retrying in {wait_time}s...")
+                    wait_time = 2**attempt
+                    logger.warning(
+                        f"Webhook timeout (attempt {attempt + 1}), retrying in {wait_time}s..."
+                    )
                     await asyncio.sleep(wait_time)
                     continue
                 logger.error("Webhook request timed out after all retries")
@@ -489,8 +510,10 @@ class SIEMIntegration:
 
             except Exception as e:
                 if attempt < self.config.max_retries - 1:
-                    wait_time = 2 ** attempt
-                    logger.warning(f"Error sending to webhook (attempt {attempt + 1}): {e}")
+                    wait_time = 2**attempt
+                    logger.warning(
+                        f"Error sending to webhook (attempt {attempt + 1}): {e}"
+                    )
                     await asyncio.sleep(wait_time)
                     continue
                 logger.error(f"Error sending to webhook after all retries: {e}")
@@ -529,7 +552,11 @@ class SIEMIntegration:
             }
 
         except Exception as e:
-            return {"success": False, "platform": self.config.platform.value, "error": str(e)}
+            return {
+                "success": False,
+                "platform": self.config.platform.value,
+                "error": str(e),
+            }
 
     async def shutdown(self):
         """Cleanup and close connections"""

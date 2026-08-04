@@ -19,12 +19,14 @@ def seed_default_organization(db: Session):
     try:
         # Check what columns exist in organizations table
         result = db.execute(
-            text("""
+            text(
+                """
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = 'organizations'
             ORDER BY ordinal_position
-        """)
+        """
+            )
         )
         columns = [row[0] for row in result]
         print(f"📋 Organizations table columns: {', '.join(columns)}")
@@ -45,10 +47,12 @@ def seed_default_organization(db: Session):
 
         if "description" in columns:
             db.execute(
-                text("""
+                text(
+                    """
                 INSERT INTO organizations (id, name, description, created_at, updated_at)
                 VALUES (:id, :name, :description, NOW(), NOW())
-            """),
+            """
+                ),
                 {
                     "id": org_id,
                     "name": "Default Organization",
@@ -57,10 +61,12 @@ def seed_default_organization(db: Session):
             )
         else:
             db.execute(
-                text("""
+                text(
+                    """
                 INSERT INTO organizations (id, name, created_at, updated_at)
                 VALUES (:id, :name, NOW(), NOW())
-            """),
+            """
+                ),
                 {"id": org_id, "name": "Default Organization"},
             )
 
@@ -81,31 +87,37 @@ def assign_organization_to_users(db: Session, organization_id):
     try:
         # Check if users table has organization_id column
         result = db.execute(
-            text("""
+            text(
+                """
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = 'users' AND column_name = 'organization_id'
-        """)
+        """
+            )
         )
 
         if not result.fetchone():
             print("⚠️  Users table doesn't have organization_id column yet")
             print("   Adding organization_id column to users...")
             db.execute(
-                text("""
+                text(
+                    """
                 ALTER TABLE users
                 ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id)
-            """)
+            """
+                )
             )
             db.commit()
 
         # Count users without organization
         result = db.execute(
-            text("""
+            text(
+                """
             SELECT COUNT(*) FROM users
             WHERE organization_id IS NULL
             AND (deleted_at IS NULL OR deleted_at IS NOT NULL)
-        """)
+        """
+            )
         )
         count_before = result.scalar()
 
@@ -115,11 +127,13 @@ def assign_organization_to_users(db: Session, organization_id):
 
         # Update users
         result = db.execute(
-            text("""
+            text(
+                """
             UPDATE users
             SET organization_id = :org_id, updated_at = NOW()
             WHERE organization_id IS NULL
-        """),
+        """
+            ),
             {"org_id": organization_id},
         )
 
@@ -128,11 +142,13 @@ def assign_organization_to_users(db: Session, organization_id):
 
         # List updated users
         result = db.execute(
-            text("""
+            text(
+                """
             SELECT email FROM users
             WHERE organization_id = :org_id
             LIMIT 5
-        """),
+        """
+            ),
             {"org_id": organization_id},
         )
 
@@ -152,33 +168,39 @@ def assign_organization_to_teams(db: Session, organization_id):
     try:
         # Check if teams table has organization_id column
         result = db.execute(
-            text("""
+            text(
+                """
             SELECT column_name
             FROM information_schema.columns
             WHERE table_name = 'teams' AND column_name = 'organization_id'
-        """)
+        """
+            )
         )
 
         if not result.fetchone():
             print("⚠️  Teams table doesn't have organization_id column yet")
             print("   Adding organization_id column to teams...")
             db.execute(
-                text("""
+                text(
+                    """
                 ALTER TABLE teams
                 ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id)
-            """)
+            """
+                )
             )
             db.commit()
 
         # Update teams
         result = db.execute(
-            text("""
+            text(
+                """
             UPDATE teams t
             SET organization_id = u.organization_id, updated_at = NOW()
             FROM users u
             WHERE t.created_by_id = u.id
             AND t.organization_id IS NULL
-        """)
+        """
+            )
         )
 
         db.commit()
@@ -201,20 +223,24 @@ def verify_assignment(db: Session):
 
         # Count users with org
         result = db.execute(
-            text("""
+            text(
+                """
             SELECT COUNT(*) FROM users
             WHERE organization_id IS NOT NULL
             AND (deleted_at IS NULL OR deleted_at IS NOT NULL)
-        """)
+        """
+            )
         )
         users_with_org = result.scalar()
 
         # Count total users
         result = db.execute(
-            text("""
+            text(
+                """
             SELECT COUNT(*) FROM users
             WHERE deleted_at IS NULL OR deleted_at IS NOT NULL
-        """)
+        """
+            )
         )
         total_users = result.scalar()
 

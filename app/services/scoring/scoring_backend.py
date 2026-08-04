@@ -113,7 +113,9 @@ class PlayerScoringEngine:
         }
 
         # Calculate weighted overall score
-        overall = sum(score * self.WEIGHTS[cat] for cat, score in category_scores.items())
+        overall = sum(
+            score * self.WEIGHTS[cat] for cat, score in category_scores.items()
+        )
 
         # Calculate percentiles if league data available
         percentiles = {}
@@ -230,7 +232,9 @@ class PlayerScoringEngine:
         adjustment = self.position_adjustments.get(position, {}).get("rebounding", 1.0)
         return min(100, rpg_score * adjustment)
 
-    def _score_consistency(self, current: PlayerMetrics, historical: list[PlayerMetrics]) -> float:
+    def _score_consistency(
+        self, current: PlayerMetrics, historical: list[PlayerMetrics]
+    ) -> float:
         """
         Score performance consistency (0-100 scale)
         Based on variance in key stats over time
@@ -282,11 +286,15 @@ class PlayerScoringEngine:
 
         # Rebounds percentile
         league_rebounds = [p.rebounds for p in league_data]
-        percentiles["rebounds"] = stats.percentileofscore(league_rebounds, player.rebounds)
+        percentiles["rebounds"] = stats.percentileofscore(
+            league_rebounds, player.rebounds
+        )
 
         return {k: round(v, 1) for k, v in percentiles.items()}
 
-    def _analyze_trend(self, current: PlayerMetrics, historical: list[PlayerMetrics]) -> str:
+    def _analyze_trend(
+        self, current: PlayerMetrics, historical: list[PlayerMetrics]
+    ) -> str:
         """
         Analyze performance trend over time
         Returns: 'up', 'down', or 'stable'
@@ -355,7 +363,8 @@ class PlayerScoringEngine:
             # Minutes trend
             recent_minutes = [m.minutes for m in historical[-2:]] + [current.minutes]
             if all(
-                recent_minutes[i] > recent_minutes[i + 1] for i in range(len(recent_minutes) - 1)
+                recent_minutes[i] > recent_minutes[i + 1]
+                for i in range(len(recent_minutes) - 1)
             ):
                 alerts.append("Decreased minutes last 3 weeks - monitor closely")
 
@@ -423,11 +432,15 @@ class ScoringAPIService:
             },
         }
 
-    def batch_score_players(self, player_ids: list[str], timeframe: str = "current") -> list[dict]:
+    def batch_score_players(
+        self, player_ids: list[str], timeframe: str = "current"
+    ) -> list[dict]:
         """Score multiple players in batch"""
         return [self.score_player(pid, timeframe) for pid in player_ids]
 
-    def compare_players(self, player_ids: list[str], timeframe: str = "current") -> dict:
+    def compare_players(
+        self, player_ids: list[str], timeframe: str = "current"
+    ) -> dict:
         """Compare multiple players side by side"""
         scores = self.batch_score_players(player_ids, timeframe)
 
@@ -436,11 +449,15 @@ class ScoringAPIService:
             "comparison": {
                 "highest_overall": max(scores, key=lambda x: x["score"]),
                 "highest_by_category": self._get_category_leaders(scores),
-                "most_consistent": max(scores, key=lambda x: x["categories"]["consistency"]),
+                "most_consistent": max(
+                    scores, key=lambda x: x["categories"]["consistency"]
+                ),
             },
         }
 
-    def get_trending_players(self, direction: str = "up", limit: int = 10) -> list[dict]:
+    def get_trending_players(
+        self, direction: str = "up", limit: int = 10
+    ) -> list[dict]:
         """Get players with strongest trends"""
         # Would query database for all players
         all_players = self._fetch_all_players()
@@ -512,7 +529,9 @@ if __name__ == "__main__":
 
     # Compare multiple players
     comparison = service.compare_players(["player_123", "player_456", "player_789"])
-    print(f"\nHighest Overall: {comparison['comparison']['highest_overall']['player_id']}")
+    print(
+        f"\nHighest Overall: {comparison['comparison']['highest_overall']['player_id']}"
+    )
 
     # Get trending players
     trending_up = service.get_trending_players(direction="up", limit=5)

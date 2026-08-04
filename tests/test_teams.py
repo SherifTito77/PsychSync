@@ -9,13 +9,12 @@ def create_test_user(client: TestClient, email: str, password: str = "Test1234")
     # Register
     client.post(
         "/api/v1/auth/register",
-        json={"email": email, "full_name": "Test User", "password": password}
+        json={"email": email, "full_name": "Test User", "password": password},
     )
     # app/tests/test_teams.py - Continue from create_test_user
     # Login
     response = client.post(
-        "/api/v1/auth/login/json",
-        json={"email": email, "password": password}
+        "/api/v1/auth/login/json", json={"email": email, "password": password}
     )
     return response.json()["access_token"]
 
@@ -27,7 +26,7 @@ def test_create_team(client: TestClient, db: Session):
     response = client.post(
         "/api/v1/teams",
         json={"name": "Test Team", "description": "Test Description"},
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 201
     data = response.json()
@@ -43,7 +42,7 @@ def test_create_team_short_name(client: TestClient, db: Session):
     response = client.post(
         "/api/v1/teams",
         json={"name": "AB", "description": "Test"},
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 422
 
@@ -56,14 +55,11 @@ def test_list_teams(client: TestClient, db: Session):
     client.post(
         "/api/v1/teams",
         json={"name": "Test Team", "description": "Test"},
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
 
     # List teams
-    response = client.get(
-        "/api/v1/teams",
-        headers={"Authorization": f"Bearer {token}"}
-    )
+    response = client.get("/api/v1/teams", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 200
     data = response.json()
     assert "teams" in data
@@ -78,14 +74,13 @@ def test_get_team_detail(client: TestClient, db: Session):
     create_response = client.post(
         "/api/v1/teams",
         json={"name": "Test Team", "description": "Test"},
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
     team_id = create_response.json()["id"]
 
     # Get team details
     response = client.get(
-        f"/api/v1/teams/{team_id}",
-        headers={"Authorization": f"Bearer {token}"}
+        f"/api/v1/teams/{team_id}", headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -102,7 +97,7 @@ def test_update_team(client: TestClient, db: Session):
     create_response = client.post(
         "/api/v1/teams",
         json={"name": "Original Name", "description": "Original"},
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
     team_id = create_response.json()["id"]
 
@@ -110,7 +105,7 @@ def test_update_team(client: TestClient, db: Session):
     response = client.put(
         f"/api/v1/teams/{team_id}",
         json={"name": "Updated Name", "description": "Updated"},
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -126,21 +121,19 @@ def test_delete_team(client: TestClient, db: Session):
     create_response = client.post(
         "/api/v1/teams",
         json={"name": "Test Team", "description": "Test"},
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
     team_id = create_response.json()["id"]
 
     # Delete team
     response = client.delete(
-        f"/api/v1/teams/{team_id}",
-        headers={"Authorization": f"Bearer {token}"}
+        f"/api/v1/teams/{team_id}", headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 204
 
     # Verify deleted
     get_response = client.get(
-        f"/api/v1/teams/{team_id}",
-        headers={"Authorization": f"Bearer {token}"}
+        f"/api/v1/teams/{team_id}", headers={"Authorization": f"Bearer {token}"}
     )
     assert get_response.status_code == 404
 
@@ -152,7 +145,11 @@ def test_add_member_to_team(client: TestClient, db: Session):
     # Create another user
     member_response = client.post(
         "/api/v1/auth/register",
-        json={"email": "member@example.com", "full_name": "Member", "password": "Test1234"}
+        json={
+            "email": "member@example.com",
+            "full_name": "Member",
+            "password": "Test1234",
+        },
     )
     member_id = member_response.json()["id"]
 
@@ -160,7 +157,7 @@ def test_add_member_to_team(client: TestClient, db: Session):
     create_response = client.post(
         "/api/v1/teams",
         json={"name": "Test Team"},
-        headers={"Authorization": f"Bearer {owner_token}"}
+        headers={"Authorization": f"Bearer {owner_token}"},
     )
     team_id = create_response.json()["id"]
 
@@ -168,7 +165,7 @@ def test_add_member_to_team(client: TestClient, db: Session):
     response = client.post(
         f"/api/v1/teams/{team_id}/members",
         json={"user_id": member_id, "role": "member"},
-        headers={"Authorization": f"Bearer {owner_token}"}
+        headers={"Authorization": f"Bearer {owner_token}"},
     )
     assert response.status_code == 201
     data = response.json()
@@ -183,7 +180,11 @@ def test_remove_member_from_team(client: TestClient, db: Session):
     # Create another user
     member_response = client.post(
         "/api/v1/auth/register",
-        json={"email": "member@example.com", "full_name": "Member", "password": "Test1234"}
+        json={
+            "email": "member@example.com",
+            "full_name": "Member",
+            "password": "Test1234",
+        },
     )
     member_id = member_response.json()["id"]
 
@@ -191,20 +192,20 @@ def test_remove_member_from_team(client: TestClient, db: Session):
     create_response = client.post(
         "/api/v1/teams",
         json={"name": "Test Team"},
-        headers={"Authorization": f"Bearer {owner_token}"}
+        headers={"Authorization": f"Bearer {owner_token}"},
     )
     team_id = create_response.json()["id"]
 
     client.post(
         f"/api/v1/teams/{team_id}/members",
         json={"user_id": member_id, "role": "member"},
-        headers={"Authorization": f"Bearer {owner_token}"}
+        headers={"Authorization": f"Bearer {owner_token}"},
     )
 
     # Remove member
     response = client.delete(
         f"/api/v1/teams/{team_id}/members/{member_id}",
-        headers={"Authorization": f"Bearer {owner_token}"}
+        headers={"Authorization": f"Bearer {owner_token}"},
     )
     assert response.status_code == 204
 
@@ -216,7 +217,11 @@ def test_update_member_role(client: TestClient, db: Session):
     # Create another user
     member_response = client.post(
         "/api/v1/auth/register",
-        json={"email": "member@example.com", "full_name": "Member", "password": "Test1234"}
+        json={
+            "email": "member@example.com",
+            "full_name": "Member",
+            "password": "Test1234",
+        },
     )
     member_id = member_response.json()["id"]
 
@@ -224,21 +229,21 @@ def test_update_member_role(client: TestClient, db: Session):
     create_response = client.post(
         "/api/v1/teams",
         json={"name": "Test Team"},
-        headers={"Authorization": f"Bearer {owner_token}"}
+        headers={"Authorization": f"Bearer {owner_token}"},
     )
     team_id = create_response.json()["id"]
 
     client.post(
         f"/api/v1/teams/{team_id}/members",
         json={"user_id": member_id, "role": "member"},
-        headers={"Authorization": f"Bearer {owner_token}"}
+        headers={"Authorization": f"Bearer {owner_token}"},
     )
 
     # Update role
     response = client.patch(
         f"/api/v1/teams/{team_id}/members/{member_id}",
         json={"role": "admin"},
-        headers={"Authorization": f"Bearer {owner_token}"}
+        headers={"Authorization": f"Bearer {owner_token}"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -254,14 +259,14 @@ def test_non_member_cannot_access_team(client: TestClient, db: Session):
     create_response = client.post(
         "/api/v1/teams",
         json={"name": "Test Team"},
-        headers={"Authorization": f"Bearer {owner_token}"}
+        headers={"Authorization": f"Bearer {owner_token}"},
     )
     team_id = create_response.json()["id"]
 
     # Try to access as non-member
     response = client.get(
         f"/api/v1/teams/{team_id}",
-        headers={"Authorization": f"Bearer {non_member_token}"}
+        headers={"Authorization": f"Bearer {non_member_token}"},
     )
     assert response.status_code == 403
 
@@ -273,8 +278,7 @@ def test_member_cannot_add_members(client: TestClient, db: Session):
 
     # Get member ID
     member_response = client.get(
-        "/api/v1/auth/me",
-        headers={"Authorization": f"Bearer {member_token}"}
+        "/api/v1/auth/me", headers={"Authorization": f"Bearer {member_token}"}
     )
     member_id = member_response.json()["id"]
 
@@ -282,7 +286,7 @@ def test_member_cannot_add_members(client: TestClient, db: Session):
     create_response = client.post(
         "/api/v1/teams",
         json={"name": "Test Team"},
-        headers={"Authorization": f"Bearer {owner_token}"}
+        headers={"Authorization": f"Bearer {owner_token}"},
     )
     team_id = create_response.json()["id"]
 
@@ -290,13 +294,17 @@ def test_member_cannot_add_members(client: TestClient, db: Session):
     client.post(
         f"/api/v1/teams/{team_id}/members",
         json={"user_id": member_id, "role": "member"},
-        headers={"Authorization": f"Bearer {owner_token}"}
+        headers={"Authorization": f"Bearer {owner_token}"},
     )
 
     # Create another user to try to add
     new_user_response = client.post(
         "/api/v1/auth/register",
-        json={"email": "newuser@example.com", "full_name": "New", "password": "Test1234"}
+        json={
+            "email": "newuser@example.com",
+            "full_name": "New",
+            "password": "Test1234",
+        },
     )
     new_user_id = new_user_response.json()["id"]
 
@@ -304,6 +312,6 @@ def test_member_cannot_add_members(client: TestClient, db: Session):
     response = client.post(
         f"/api/v1/teams/{team_id}/members",
         json={"user_id": new_user_id, "role": "member"},
-        headers={"Authorization": f"Bearer {member_token}"}
+        headers={"Authorization": f"Bearer {member_token}"},
     )
     assert response.status_code == 403

@@ -6,10 +6,10 @@ Supports multiple notification channels and templates.
 """
 
 import asyncio
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import Any
 
 from app.core.email import send_email_async
@@ -153,7 +153,9 @@ class NotificationService:
             Success status
         """
         try:
-            logger.info(f"Sending {notification.type} notification to user {notification.user_id}")
+            logger.info(
+                f"Sending {notification.type} notification to user {notification.user_id}"
+            )
 
             # Add to queue for processing
             notification.id = self._generate_notification_id()
@@ -175,14 +177,18 @@ class NotificationService:
                     logger.error(f"Failed to send {channel} notification: {e!s}")
                     success = False
 
-            logger.info(f"Notification {notification.id} processed with success: {success}")
+            logger.info(
+                f"Notification {notification.id} processed with success: {success}"
+            )
             return success
 
         except Exception as e:
             logger.error(f"Error sending notification: {e!s}", exc_info=True)
             return False
 
-    async def send_bulk_notifications(self, notifications: list[Notification]) -> dict[str, int]:
+    async def send_bulk_notifications(
+        self, notifications: list[Notification]
+    ) -> dict[str, int]:
         """
         Send multiple notifications in batch
 
@@ -306,7 +312,9 @@ class NotificationService:
         if user_email:
             template = self.email_templates[NotificationType.TEAM_INVITATION]
             html_body = template.html_body.format(
-                team_name=team_name, inviter_name=inviter_name, inviter_email=inviter_email
+                team_name=team_name,
+                inviter_name=inviter_name,
+                inviter_email=inviter_email,
             )
 
             await self.send_email_notification(notification, user_email, html_body)
@@ -314,16 +322,18 @@ class NotificationService:
         return notification
 
     async def create_optimization_complete_notification(
-        self, user_id: int, team_name: str, optimization_score: float, user_email: str = None
+        self,
+        user_id: int,
+        team_name: str,
+        optimization_score: float,
+        user_email: str = None,
     ) -> Notification:
         """Create optimization complete notification"""
 
         score_text = (
             "Excellent"
             if optimization_score > 0.8
-            else "Good"
-            if optimization_score > 0.6
-            else "Fair"
+            else "Good" if optimization_score > 0.6 else "Fair"
         )
 
         notification = Notification(
@@ -355,11 +365,16 @@ class NotificationService:
     async def _send_in_app_notification(self, notification: Notification) -> bool:
         """Send in-app notification (stored in database/cache)"""
         # In production, this would store in database or Redis
-        logger.info(f"In-app notification: {notification.title} for user {notification.user_id}")
+        logger.info(
+            f"In-app notification: {notification.title} for user {notification.user_id}"
+        )
         return True
 
     async def _send_email_notification(
-        self, notification: Notification, user_email: str = None, custom_html: str = None
+        self,
+        notification: Notification,
+        user_email: str = None,
+        custom_html: str = None,
     ) -> bool:
         """Send email notification"""
 
@@ -384,7 +399,8 @@ class NotificationService:
                 """
 
             return send_email_async(
-                to=user_email or f"user_{notification.user_id}@example.com",  # Would get real email
+                to=user_email
+                or f"user_{notification.user_id}@example.com",  # Would get real email
                 subject=notification.title,
                 body=notification.message,
                 html_body=html_body,
@@ -599,10 +615,16 @@ notification_service = NotificationService()
 
 # Convenience functions
 def notify_user_email(
-    user_email: str, subject: str, body: str, html_body: str = None, from_email: str = None
+    user_email: str,
+    subject: str,
+    body: str,
+    html_body: str = None,
+    from_email: str = None,
 ) -> bool:
     """Simple email notification wrapper"""
-    return notification_service.notify_user_email(user_email, subject, body, html_body, from_email)
+    return notification_service.notify_user_email(
+        user_email, subject, body, html_body, from_email
+    )
 
 
 def notify_event(user_id: int, event: str, payload: dict[str, Any]) -> bool:

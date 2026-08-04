@@ -20,21 +20,22 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
 from scipy import stats
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestClassifier
 from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingRegressor
-from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, classification_report, mean_squared_error
 from sklearn.pipeline import Pipeline
-from sklearn.metrics import mean_squared_error, accuracy_score, classification_report
+from sklearn.preprocessing import StandardScaler
+from sqlalchemy import and_, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.clinical_extended import ClinicalAssessmentExtended
 from app.core.logging_config import logger
+from app.db.models.clinical_extended import ClinicalAssessmentExtended
 
 # =============================================================================
 # Data Models for Risk Predictions
 # =============================================================================
+
 
 class RiskPredictionResult:
     """Standard result format for risk predictions"""
@@ -66,7 +67,9 @@ class RiskPredictionResult:
             "prediction_type": self.prediction_type,
             "risk_level": self.risk_level,
             "confidence": round(self.confidence, 3),
-            "predicted_value": round(self.predicted_value, 2) if self.predicted_value else None,
+            "predicted_value": (
+                round(self.predicted_value, 2) if self.predicted_value else None
+            ),
             "factors": self.factors,
             "recommendations": self.recommendations,
             "timestamp": self.timestamp.isoformat(),
@@ -98,8 +101,12 @@ class TrendAnalysisResult:
             "slope": round(self.slope, 4),
             "r_squared": round(self.r_squared, 4),
             "trend_direction": self.trend_direction,
-            "prediction_30_days": round(self.prediction_30_days, 2) if self.prediction_30_days else None,
-            "prediction_90_days": round(self.prediction_90_days, 2) if self.prediction_90_days else None,
+            "prediction_30_days": (
+                round(self.prediction_30_days, 2) if self.prediction_30_days else None
+            ),
+            "prediction_90_days": (
+                round(self.prediction_90_days, 2) if self.prediction_90_days else None
+            ),
             "volatility": round(self.volatility, 4) if self.volatility else None,
         }
 
@@ -107,6 +114,7 @@ class TrendAnalysisResult:
 # =============================================================================
 # Main Risk Prediction Service
 # =============================================================================
+
 
 class RiskPredictionService:
     """
@@ -153,7 +161,9 @@ class RiskPredictionService:
             )
 
             if not assessments or len(assessments) < min_assessments:
-                return self._insufficient_data_result(user_id, "depression_risk", min_assessments)
+                return self._insufficient_data_result(
+                    user_id, "depression_risk", min_assessments
+                )
 
             # Extract features
             scores, dates = self._extract_scores_and_dates(assessments)
@@ -185,7 +195,9 @@ class RiskPredictionService:
             )
 
         except Exception as e:
-            self.logger.error(f"Error predicting depression risk for user {user_id}: {e}")
+            self.logger.error(
+                f"Error predicting depression risk for user {user_id}: {e}"
+            )
             return RiskPredictionResult(
                 user_id=user_id,
                 prediction_type="depression_risk",
@@ -224,7 +236,9 @@ class RiskPredictionService:
             )
 
             if not assessments or len(assessments) < min_assessments:
-                return self._insufficient_data_result(user_id, "anxiety_risk", min_assessments)
+                return self._insufficient_data_result(
+                    user_id, "anxiety_risk", min_assessments
+                )
 
             # Extract features
             scores, dates = self._extract_scores_and_dates(assessments)
@@ -312,13 +326,17 @@ class RiskPredictionService:
             assessments = result.scalars().all()
 
             if not assessments or len(assessments) < min_assessments:
-                return self._insufficient_data_result(user_id, "crisis_risk", min_assessments)
+                return self._insufficient_data_result(
+                    user_id, "crisis_risk", min_assessments
+                )
 
             # Analyze crisis indicators
             crisis_indicators = self._analyze_crisis_indicators(assessments)
 
             # Calculate crisis risk score
-            crisis_score, confidence = self._calculate_crisis_risk_score(crisis_indicators)
+            crisis_score, confidence = self._calculate_crisis_risk_score(
+                crisis_indicators
+            )
 
             # Determine risk level
             if crisis_score >= 0.8:
@@ -331,7 +349,9 @@ class RiskPredictionService:
                 risk_level = "low"
 
             # Generate recommendations
-            recommendations = self._generate_crisis_recommendations(risk_level, crisis_indicators)
+            recommendations = self._generate_crisis_recommendations(
+                risk_level, crisis_indicators
+            )
 
             return RiskPredictionResult(
                 user_id=user_id,
@@ -349,7 +369,9 @@ class RiskPredictionService:
                 prediction_type="crisis_risk",
                 risk_level="error",
                 confidence=0.0,
-                recommendations=["Unable to generate crisis prediction due to system error"],
+                recommendations=[
+                    "Unable to generate crisis prediction due to system error"
+                ],
             )
 
     # ========================================================================
@@ -401,7 +423,9 @@ class RiskPredictionService:
             initial_score = scores[0]
             current_score = scores[-1]
             score_change = initial_score - current_score
-            percent_change = (score_change / initial_score * 100) if initial_score > 0 else 0
+            percent_change = (
+                (score_change / initial_score * 100) if initial_score > 0 else 0
+            )
 
             # Analyze trend
             trend_result = self._analyze_trend(scores, dates, 30)
@@ -410,7 +434,10 @@ class RiskPredictionService:
             if percent_change >= 50 and trend_result.trend_direction == "improving":
                 response_category = "full_response"
                 risk_level = "positive"
-            elif percent_change >= 25 and trend_result.trend_direction in ["improving", "stable"]:
+            elif percent_change >= 25 and trend_result.trend_direction in [
+                "improving",
+                "stable",
+            ]:
                 response_category = "partial_response"
                 risk_level = "moderate"
             elif percent_change < -10:  # Worsening
@@ -421,7 +448,9 @@ class RiskPredictionService:
                 risk_level = "moderate"
 
             # Confidence based on data quality and trend strength
-            confidence = min(0.95, 0.5 + (trend_result.r_squared * 0.3) + (len(scores) * 0.05))
+            confidence = min(
+                0.95, 0.5 + (trend_result.r_squared * 0.3) + (len(scores) * 0.05)
+            )
 
             # Generate recommendations
             recommendations = self._generate_treatment_recommendations(
@@ -444,13 +473,17 @@ class RiskPredictionService:
             )
 
         except Exception as e:
-            self.logger.error(f"Error predicting treatment response for user {user_id}: {e}")
+            self.logger.error(
+                f"Error predicting treatment response for user {user_id}: {e}"
+            )
             return RiskPredictionResult(
                 user_id=user_id,
                 prediction_type="treatment_response",
                 risk_level="error",
                 confidence=0.0,
-                recommendations=["Unable to generate treatment prediction due to system error"],
+                recommendations=[
+                    "Unable to generate treatment prediction due to system error"
+                ],
             )
 
     # ========================================================================
@@ -494,7 +527,9 @@ class RiskPredictionService:
             )
 
             if not assessments or len(assessments) < min_assessments:
-                return self._insufficient_data_result(user_id, "relapse_risk", min_assessments)
+                return self._insufficient_data_result(
+                    user_id, "relapse_risk", min_assessments
+                )
 
             # Extract scores and dates
             scores, dates = self._extract_scores_and_dates(assessments)
@@ -514,9 +549,13 @@ class RiskPredictionService:
                 )
 
             # Calculate relapse risk factors
-            recent_trend = self._analyze_trend(scores[-min(len(scores), 5):], dates[-min(len(scores), 5):], 30)
+            recent_trend = self._analyze_trend(
+                scores[-min(len(scores), 5) :], dates[-min(len(scores), 5) :], 30
+            )
             volatility = self._calculate_volatility(scores)
-            assessment_compliance = self._calculate_assessment_compliance(assessments, lookback_days)
+            assessment_compliance = self._calculate_assessment_compliance(
+                assessments, lookback_days
+            )
 
             # Calculate relapse risk score
             risk_score = 0.0
@@ -582,7 +621,9 @@ class RiskPredictionService:
                 prediction_type="relapse_risk",
                 risk_level="error",
                 confidence=0.0,
-                recommendations=["Unable to generate relapse prediction due to system error"],
+                recommendations=[
+                    "Unable to generate relapse prediction due to system error"
+                ],
             )
 
     # ========================================================================
@@ -783,32 +824,40 @@ class RiskPredictionService:
         recommendations = []
 
         if risk_level == "critical":
-            recommendations.extend([
-                "URGENT: Consider immediate clinical intervention",
-                "Contact mental health professional within 24 hours",
-                "Increased monitoring frequency recommended",
-                "Evaluate need for medication adjustment",
-            ])
+            recommendations.extend(
+                [
+                    "URGENT: Consider immediate clinical intervention",
+                    "Contact mental health professional within 24 hours",
+                    "Increased monitoring frequency recommended",
+                    "Evaluate need for medication adjustment",
+                ]
+            )
         elif risk_level == "high":
-            recommendations.extend([
-                "Schedule clinical assessment within 1 week",
-                "Consider increasing session frequency",
-                "Review treatment plan effectiveness",
-                "Monitor for worsening symptoms",
-            ])
+            recommendations.extend(
+                [
+                    "Schedule clinical assessment within 1 week",
+                    "Consider increasing session frequency",
+                    "Review treatment plan effectiveness",
+                    "Monitor for worsening symptoms",
+                ]
+            )
         elif risk_level == "moderate":
-            recommendations.extend([
-                "Regular monitoring of symptoms recommended",
-                "Consider preventive strategies",
-                "Maintain current treatment plan",
-                "Schedule follow-up in 2-4 weeks",
-            ])
+            recommendations.extend(
+                [
+                    "Regular monitoring of symptoms recommended",
+                    "Consider preventive strategies",
+                    "Maintain current treatment plan",
+                    "Schedule follow-up in 2-4 weeks",
+                ]
+            )
         else:  # low
-            recommendations.extend([
-                "Continue current treatment plan",
-                "Maintain regular assessment schedule",
-                "Focus on wellness and prevention",
-            ])
+            recommendations.extend(
+                [
+                    "Continue current treatment plan",
+                    "Maintain regular assessment schedule",
+                    "Focus on wellness and prevention",
+                ]
+            )
 
         # Add trend-specific recommendations
         if trend.trend_direction == "worsening":
@@ -896,32 +945,40 @@ class RiskPredictionService:
         recommendations = []
 
         if risk_level == "critical":
-            recommendations.extend([
-                "URGENT: Consider immediate clinical intervention",
-                "Evaluate for panic disorder or severe anxiety",
-                "Consider anxiety medication or adjustment",
-                "Implement crisis plan",
-            ])
+            recommendations.extend(
+                [
+                    "URGENT: Consider immediate clinical intervention",
+                    "Evaluate for panic disorder or severe anxiety",
+                    "Consider anxiety medication or adjustment",
+                    "Implement crisis plan",
+                ]
+            )
         elif risk_level == "high":
-            recommendations.extend([
-                "Schedule clinical assessment within 1 week",
-                "Consider CBT or anxiety-focused therapy",
-                "Review stress management techniques",
-                "Evaluate need for medication",
-            ])
+            recommendations.extend(
+                [
+                    "Schedule clinical assessment within 1 week",
+                    "Consider CBT or anxiety-focused therapy",
+                    "Review stress management techniques",
+                    "Evaluate need for medication",
+                ]
+            )
         elif risk_level == "moderate":
-            recommendations.extend([
-                "Regular monitoring recommended",
-                "Consider mindfulness and relaxation techniques",
-                "Review current coping strategies",
-                "Schedule follow-up in 2-4 weeks",
-            ])
+            recommendations.extend(
+                [
+                    "Regular monitoring recommended",
+                    "Consider mindfulness and relaxation techniques",
+                    "Review current coping strategies",
+                    "Schedule follow-up in 2-4 weeks",
+                ]
+            )
         else:  # low
-            recommendations.extend([
-                "Continue current treatment plan",
-                "Maintain regular assessment schedule",
-                "Focus on stress management",
-            ])
+            recommendations.extend(
+                [
+                    "Continue current treatment plan",
+                    "Maintain regular assessment schedule",
+                    "Focus on stress management",
+                ]
+            )
 
         # Add trend-specific recommendations
         if trend.trend_direction == "worsening":
@@ -981,7 +1038,9 @@ class RiskPredictionService:
 
         return indicators
 
-    def _calculate_crisis_risk_score(self, indicators: Dict[str, Any]) -> Tuple[float, float]:
+    def _calculate_crisis_risk_score(
+        self, indicators: Dict[str, Any]
+    ) -> Tuple[float, float]:
         """
         Calculate crisis risk score (0-1)
 
@@ -1014,7 +1073,9 @@ class RiskPredictionService:
             risk_score += 0.1
 
         # Confidence based on multiple indicators
-        confidence = min(0.95, 0.6 + (len([v for v in indicators.values() if v]) * 0.05))
+        confidence = min(
+            0.95, 0.6 + (len([v for v in indicators.values() if v]) * 0.05)
+        )
 
         return min(1.0, risk_score), confidence
 
@@ -1025,41 +1086,53 @@ class RiskPredictionService:
         recommendations = []
 
         if risk_level == "critical":
-            recommendations.extend([
-                "⚠️ IMMEDIATE ACTION REQUIRED",
-                "Contact crisis team immediately",
-                "Consider hospitalization if safety concern exists",
-                "Do not leave user alone - ensure safety plan in place",
-                "Contact emergency services if immediate danger",
-            ])
+            recommendations.extend(
+                [
+                    "⚠️ IMMEDIATE ACTION REQUIRED",
+                    "Contact crisis team immediately",
+                    "Consider hospitalization if safety concern exists",
+                    "Do not leave user alone - ensure safety plan in place",
+                    "Contact emergency services if immediate danger",
+                ]
+            )
         elif risk_level == "high":
-            recommendations.extend([
-                "Urgent clinical assessment required",
-                "Implement safety plan immediately",
-                "Increase monitoring to daily if possible",
-                "Contact support system (family, friends)",
-                "Consider crisis intervention",
-            ])
+            recommendations.extend(
+                [
+                    "Urgent clinical assessment required",
+                    "Implement safety plan immediately",
+                    "Increase monitoring to daily if possible",
+                    "Contact support system (family, friends)",
+                    "Consider crisis intervention",
+                ]
+            )
         elif risk_level == "moderate":
-            recommendations.extend([
-                "Schedule clinical assessment within 48 hours",
-                "Review safety plan",
-                "Increase monitoring frequency",
-                "Inform treatment team of concerns",
-            ])
+            recommendations.extend(
+                [
+                    "Schedule clinical assessment within 48 hours",
+                    "Review safety plan",
+                    "Increase monitoring frequency",
+                    "Inform treatment team of concerns",
+                ]
+            )
         else:  # low
-            recommendations.extend([
-                "Continue current monitoring plan",
-                "Maintain regular check-ins",
-                "Educate on warning signs",
-            ])
+            recommendations.extend(
+                [
+                    "Continue current monitoring plan",
+                    "Maintain regular check-ins",
+                    "Educate on warning signs",
+                ]
+            )
 
         # Add specific recommendations based on indicators
         if indicators["suicidal_ideation"]:
-            recommendations.insert(0, "🚨 SUICIDAL IDEATION DETECTED - Immediate intervention required")
+            recommendations.insert(
+                0, "🚨 SUICIDAL IDEATION DETECTED - Immediate intervention required"
+            )
 
         if indicators["rapid_score_increase"]:
-            recommendations.append("Rapid symptom worsening detected - urgent review needed")
+            recommendations.append(
+                "Rapid symptom worsening detected - urgent review needed"
+            )
 
         return recommendations
 
@@ -1074,33 +1147,41 @@ class RiskPredictionService:
         recommendations = []
 
         if response_category == "full_response":
-            recommendations.extend([
-                "✅ Excellent treatment response",
-                "Consider maintenance phase of treatment",
-                "Gradual reduction in session frequency may be appropriate",
-                "Continue monitoring for relapse",
-            ])
+            recommendations.extend(
+                [
+                    "✅ Excellent treatment response",
+                    "Consider maintenance phase of treatment",
+                    "Gradual reduction in session frequency may be appropriate",
+                    "Continue monitoring for relapse",
+                ]
+            )
         elif response_category == "partial_response":
-            recommendations.extend([
-                "Moderate improvement detected",
-                "Consider treatment plan optimization",
-                "Evaluate for barriers to full response",
-                "Discuss additional interventions with clinician",
-            ])
+            recommendations.extend(
+                [
+                    "Moderate improvement detected",
+                    "Consider treatment plan optimization",
+                    "Evaluate for barriers to full response",
+                    "Discuss additional interventions with clinician",
+                ]
+            )
         elif response_category == "non_response":
-            recommendations.extend([
-                "Limited treatment response",
-                "Consider comprehensive treatment review",
-                "Evaluate diagnosis accuracy",
-                "Explore alternative treatment approaches",
-            ])
+            recommendations.extend(
+                [
+                    "Limited treatment response",
+                    "Consider comprehensive treatment review",
+                    "Evaluate diagnosis accuracy",
+                    "Explore alternative treatment approaches",
+                ]
+            )
         elif response_category == "deterioration":
-            recommendations.extend([
-                "⚠️ Symptoms worsening",
-                "Urgent treatment review required",
-                "Consider medication adjustment",
-                "Evaluate for new stressors or factors",
-            ])
+            recommendations.extend(
+                [
+                    "⚠️ Symptoms worsening",
+                    "Urgent treatment review required",
+                    "Consider medication adjustment",
+                    "Evaluate for new stressors or factors",
+                ]
+            )
 
         return recommendations
 
@@ -1119,34 +1200,44 @@ class RiskPredictionService:
         recommendations = []
 
         if risk_level == "high":
-            recommendations.extend([
-                "⚠️ High relapse risk detected",
-                "Increase clinical monitoring frequency",
-                "Review and strengthen coping strategies",
-                "Consider preventive interventions",
-                "Ensure support system is engaged",
-            ])
+            recommendations.extend(
+                [
+                    "⚠️ High relapse risk detected",
+                    "Increase clinical monitoring frequency",
+                    "Review and strengthen coping strategies",
+                    "Consider preventive interventions",
+                    "Ensure support system is engaged",
+                ]
+            )
         elif risk_level == "moderate":
-            recommendations.extend([
-                "Moderate relapse risk",
-                "Maintain regular monitoring",
-                "Reinforce wellness strategies",
-                "Schedule follow-up in 2-3 weeks",
-            ])
+            recommendations.extend(
+                [
+                    "Moderate relapse risk",
+                    "Maintain regular monitoring",
+                    "Reinforce wellness strategies",
+                    "Schedule follow-up in 2-3 weeks",
+                ]
+            )
         else:  # low
-            recommendations.extend([
-                "Low relapse risk - continue current plan",
-                "Maintain regular assessment schedule",
-                "Focus on relapse prevention education",
-            ])
+            recommendations.extend(
+                [
+                    "Low relapse risk - continue current plan",
+                    "Maintain regular assessment schedule",
+                    "Focus on relapse prevention education",
+                ]
+            )
 
         # Add compliance-specific recommendations
         if compliance < 0.7:
-            recommendations.append("Improve assessment compliance for better monitoring")
+            recommendations.append(
+                "Improve assessment compliance for better monitoring"
+            )
 
         # Add trend-specific recommendations
         if trend.trend_direction == "worsening":
-            recommendations.append("Early warning signs detected - proactive intervention recommended")
+            recommendations.append(
+                "Early warning signs detected - proactive intervention recommended"
+            )
 
         return recommendations
 

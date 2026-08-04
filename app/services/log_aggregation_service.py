@@ -5,34 +5,36 @@ for centralized logging across all application components.
 """
 
 import asyncio
-from collections import defaultdict, deque
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
 import gzip
 import json
 import logging
 import re
-from typing import Any
 import uuid
+from collections import defaultdict, deque
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
 class LogLevel(Enum):
     """Log levels following RFC 5424"""
+
     EMERGENCY = 0  # System is unusable
-    ALERT = 1      # Action must be taken immediately
-    CRITICAL = 2   # Critical conditions
-    ERROR = 3      # Error conditions
-    WARNING = 4    # Warning conditions
-    NOTICE = 5     # Normal but significant condition
-    INFO = 6       # Informational messages
-    DEBUG = 7      # Debug-level messages
+    ALERT = 1  # Action must be taken immediately
+    CRITICAL = 2  # Critical conditions
+    ERROR = 3  # Error conditions
+    WARNING = 4  # Warning conditions
+    NOTICE = 5  # Normal but significant condition
+    INFO = 6  # Informational messages
+    DEBUG = 7  # Debug-level messages
 
 
 class LogSource(Enum):
     """Sources of log data"""
+
     APPLICATION = "application"
     WEB_SERVER = "web_server"
     DATABASE = "database"
@@ -46,6 +48,7 @@ class LogSource(Enum):
 
 class LogFormat(Enum):
     """Supported log formats"""
+
     JSON = "json"
     PLAIN_TEXT = "plain_text"
     STRUCTURED = "structured"
@@ -57,6 +60,7 @@ class LogFormat(Enum):
 @dataclass
 class LogEntry:
     """Individual log entry"""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: datetime = field(default_factory=datetime.utcnow)
     level: LogLevel = LogLevel.INFO
@@ -103,7 +107,7 @@ class LogEntry:
             "environment": self.environment,
             "hostname": self.hostname,
             "process_id": self.process_id,
-            "thread_id": self.thread_id
+            "thread_id": self.thread_id,
         }
 
     @classmethod
@@ -111,7 +115,11 @@ class LogEntry:
         """Create log entry from dictionary"""
         return cls(
             id=data.get("id", str(uuid.uuid4())),
-            timestamp=datetime.fromisoformat(data["timestamp"]) if "timestamp" in data else datetime.utcnow(),
+            timestamp=(
+                datetime.fromisoformat(data["timestamp"])
+                if "timestamp" in data
+                else datetime.utcnow()
+            ),
             level=LogLevel(data.get("level", LogLevel.INFO.value)),
             source=LogSource(data.get("source", LogSource.APPLICATION.value)),
             service=data.get("service", ""),
@@ -130,13 +138,14 @@ class LogEntry:
             environment=data.get("environment", "production"),
             hostname=data.get("hostname"),
             process_id=data.get("process_id"),
-            thread_id=data.get("thread_id")
+            thread_id=data.get("thread_id"),
         )
 
 
 @dataclass
 class LogQuery:
     """Query parameters for log search"""
+
     search_term: str | None = None
     levels: list[LogLevel] | None = None
     sources: list[LogSource] | None = None
@@ -170,13 +179,14 @@ class LogQuery:
             "limit": self.limit,
             "offset": self.offset,
             "sort_by": self.sort_by,
-            "sort_order": self.sort_order
+            "sort_order": self.sort_order,
         }
 
 
 @dataclass
 class LogStats:
     """Log statistics for a time period"""
+
     total_count: int = 0
     error_count: int = 0
     warning_count: int = 0
@@ -202,7 +212,7 @@ class LogStats:
             "service_distribution": self.service_distribution,
             "hourly_distribution": self.hourly_distribution,
             "top_errors": self.top_errors,
-            "top_services": self.top_services
+            "top_services": self.top_services,
         }
 
 
@@ -224,7 +234,7 @@ class LogAggregationService:
             LogFormat.JSON: self._parse_json_log,
             LogFormat.PLAIN_TEXT: self._parse_plain_text_log,
             LogFormat.STRUCTURED: self._parse_structured_log,
-            LogFormat.SYSLOG: self._parse_syslog_log
+            LogFormat.SYSLOG: self._parse_syslog_log,
         }
 
         # Log retention settings
@@ -274,7 +284,7 @@ class LogAggregationService:
         source: LogSource = LogSource.APPLICATION,
         format: LogFormat = LogFormat.JSON,
         service: str = "",
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ) -> str:
         """Ingest a log entry"""
         try:
@@ -282,7 +292,9 @@ class LogAggregationService:
             if format == LogFormat.JSON and isinstance(log_data, dict):
                 log_entry = LogEntry.from_dict(log_data)
             else:
-                log_entry = await self._parse_log_entry(log_data, format, source, service)
+                log_entry = await self._parse_log_entry(
+                    log_data, format, source, service
+                )
 
             # Apply metadata
             if metadata:
@@ -304,14 +316,16 @@ class LogAggregationService:
         source: LogSource = LogSource.APPLICATION,
         format: LogFormat = LogFormat.JSON,
         service: str = "",
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ) -> list[str]:
         """Ingest multiple log entries"""
         log_ids = []
 
         for log_data in logs:
             try:
-                log_id = await self.ingest_log(log_data, source, format, service, metadata)
+                log_id = await self.ingest_log(
+                    log_data, source, format, service, metadata
+                )
                 log_ids.append(log_id)
             except Exception as e:
                 logger.error(f"Failed to ingest log in batch: {e!s}")
@@ -338,12 +352,11 @@ class LogAggregationService:
             if query.sort_by == "timestamp":
                 filtered_logs.sort(
                     key=lambda x: getattr(x, query.sort_by),
-                    reverse=(query.sort_order == "desc")
+                    reverse=(query.sort_order == "desc"),
                 )
             elif query.sort_by == "level":
                 filtered_logs.sort(
-                    key=lambda x: x.level.value,
-                    reverse=(query.sort_order == "desc")
+                    key=lambda x: x.level.value, reverse=(query.sort_order == "desc")
                 )
 
             # Apply pagination
@@ -370,15 +383,15 @@ class LogAggregationService:
         query = LogQuery(trace_id=trace_id, limit=1000)
         return await self.search_logs(query)
 
-    async def get_logs_by_user_id(self, user_id: str, limit: int = 1000) -> list[LogEntry]:
+    async def get_logs_by_user_id(
+        self, user_id: str, limit: int = 1000
+    ) -> list[LogEntry]:
         """Get logs for a specific user"""
         query = LogQuery(user_id=user_id, limit=limit)
         return await self.search_logs(query)
 
     async def get_log_stats(
-        self,
-        start_time: datetime | None = None,
-        end_time: datetime | None = None
+        self, start_time: datetime | None = None, end_time: datetime | None = None
     ) -> LogStats:
         """Get log statistics for a time period"""
         try:
@@ -441,19 +454,23 @@ class LogAggregationService:
             # Top errors
             stats.top_errors = [
                 {"message": msg, "count": count}
-                for msg, count in sorted(error_messages.items(), key=lambda x: x[1], reverse=True)[:10]
+                for msg, count in sorted(
+                    error_messages.items(), key=lambda x: x[1], reverse=True
+                )[:10]
             ]
 
             # Top services by error count
             stats.top_services = [
                 {"service": service, "error_count": count}
-                for service, count in sorted(service_errors.items(), key=lambda x: x[1], reverse=True)[:10]
+                for service, count in sorted(
+                    service_errors.items(), key=lambda x: x[1], reverse=True
+                )[:10]
             ]
 
             # Cache the result
             self._stats_cache[cache_key] = {
                 "stats": stats,
-                "timestamp": datetime.utcnow()
+                "timestamp": datetime.utcnow(),
             }
 
             return stats
@@ -463,10 +480,7 @@ class LogAggregationService:
             return LogStats()
 
     async def export_logs(
-        self,
-        query: LogQuery,
-        format: str = "json",
-        compress: bool = True
+        self, query: LogQuery, format: str = "json", compress: bool = True
     ) -> bytes:
         """Export logs to file"""
         try:
@@ -509,7 +523,7 @@ class LogAggregationService:
         name: str,
         conditions: dict[str, Any],
         notification_channels: list[str],
-        enabled: bool = True
+        enabled: bool = True,
     ) -> str:
         """Create a log-based alert rule"""
         # TODO: Implement log alert rules
@@ -525,8 +539,7 @@ class LogAggregationService:
             try:
                 # Wait for log entry with timeout
                 log_entry = await asyncio.wait_for(
-                    self._processing_queue.get(),
-                    timeout=1.0
+                    self._processing_queue.get(), timeout=1.0
                 )
 
                 # Process the log entry
@@ -556,11 +569,7 @@ class LogAggregationService:
             logger.error(f"Failed to process log entry {log_entry.id}: {e!s}")
 
     async def _parse_log_entry(
-        self,
-        log_data: str,
-        format: LogFormat,
-        source: LogSource,
-        service: str
+        self, log_data: str, format: LogFormat, source: LogSource, service: str
     ) -> LogEntry:
         """Parse log entry from string data"""
         parser = self._parsers.get(format)
@@ -570,10 +579,7 @@ class LogAggregationService:
         return await parser(log_data, source, service)
 
     async def _parse_json_log(
-        self,
-        log_data: str,
-        source: LogSource,
-        service: str
+        self, log_data: str, source: LogSource, service: str
     ) -> LogEntry:
         """Parse JSON log entry"""
         try:
@@ -597,8 +603,11 @@ class LogAggregationService:
                 service=service,
                 message=message,
                 raw_message=log_data,
-                metadata={k: v for k, v in data.items()
-                         if k not in ["timestamp", "level", "message"]},
+                metadata={
+                    k: v
+                    for k, v in data.items()
+                    if k not in ["timestamp", "level", "message"]
+                },
                 tags=data.get("tags", []),
                 trace_id=data.get("trace_id"),
                 span_id=data.get("span_id"),
@@ -611,26 +620,31 @@ class LogAggregationService:
                 environment=data.get("environment", "production"),
                 hostname=data.get("hostname"),
                 process_id=data.get("process_id"),
-                thread_id=data.get("thread_id")
+                thread_id=data.get("thread_id"),
             )
 
             return log_entry
 
         except Exception as e:
             # Fallback to plain text parsing
-            logger.warning(f"Failed to parse JSON log, falling back to plain text: {e!s}")
+            logger.warning(
+                f"Failed to parse JSON log, falling back to plain text: {e!s}"
+            )
             return await self._parse_plain_text_log(log_data, source, service)
 
     async def _parse_plain_text_log(
-        self,
-        log_data: str,
-        source: LogSource,
-        service: str
+        self, log_data: str, source: LogSource, service: str
     ) -> LogEntry:
         """Parse plain text log entry"""
         # Try to extract common log patterns
-        timestamp_match = re.search(r"(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})", log_data)
-        level_match = re.search(r"\b(DEBUG|INFO|NOTICE|WARN|WARNING|ERROR|CRITICAL|ALERT|EMERGENCY)\b", log_data, re.IGNORECASE)
+        timestamp_match = re.search(
+            r"(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2})", log_data
+        )
+        level_match = re.search(
+            r"\b(DEBUG|INFO|NOTICE|WARN|WARNING|ERROR|CRITICAL|ALERT|EMERGENCY)\b",
+            log_data,
+            re.IGNORECASE,
+        )
 
         timestamp = None
         if timestamp_match:
@@ -648,7 +662,11 @@ class LogAggregationService:
             try:
                 level = LogLevel[level_str]
             except KeyError:
-                level = LogLevel.WARNING if level_str == "WARN" else LogLevel.ERROR if level_str == "CRITICAL" else LogLevel.INFO
+                level = (
+                    LogLevel.WARNING
+                    if level_str == "WARN"
+                    else LogLevel.ERROR if level_str == "CRITICAL" else LogLevel.INFO
+                )
 
         return LogEntry(
             timestamp=timestamp or datetime.utcnow(),
@@ -657,14 +675,11 @@ class LogAggregationService:
             service=service,
             message=log_data,
             raw_message=log_data,
-            hostname="unknown"  # Could extract from log patterns
+            hostname="unknown",  # Could extract from log patterns
         )
 
     async def _parse_structured_log(
-        self,
-        log_data: str,
-        source: LogSource,
-        service: str
+        self, log_data: str, source: LogSource, service: str
     ) -> LogEntry:
         """Parse structured log entry (key=value format)"""
         # Parse key=value pairs
@@ -675,7 +690,7 @@ class LogAggregationService:
         for part in parts:
             if "=" in part:
                 key, value = part.split("=", 1)
-                metadata[key] = value.strip('"\'')
+                metadata[key] = value.strip("\"'")
             else:
                 message_parts.append(part)
 
@@ -685,7 +700,9 @@ class LogAggregationService:
         timestamp = None
         if "timestamp" in metadata:
             try:
-                timestamp = datetime.fromisoformat(metadata["timestamp"].replace("Z", "+00:00"))
+                timestamp = datetime.fromisoformat(
+                    metadata["timestamp"].replace("Z", "+00:00")
+                )
             except Exception as e:
                 pass
 
@@ -707,14 +724,11 @@ class LogAggregationService:
             trace_id=metadata.get("trace_id"),
             span_id=metadata.get("span_id"),
             user_id=metadata.get("user_id"),
-            request_id=metadata.get("request_id")
+            request_id=metadata.get("request_id"),
         )
 
     async def _parse_syslog_log(
-        self,
-        log_data: str,
-        source: LogSource,
-        service: str
+        self, log_data: str, source: LogSource, service: str
     ) -> LogEntry:
         """Parse syslog format log entry"""
         # Basic syslog parsing (RFC 3164 format)
@@ -729,19 +743,19 @@ class LogAggregationService:
             # Map syslog severity to our log levels
             level_mapping = {
                 0: LogLevel.EMERGENCY,  # Emergency
-                1: LogLevel.ALERT,      # Alert
-                2: LogLevel.CRITICAL,   # Critical
-                3: LogLevel.ERROR,      # Error
-                4: LogLevel.WARNING,    # Warning
-                5: LogLevel.NOTICE,     # Notice
-                6: LogLevel.INFO,       # Informational
-                7: LogLevel.DEBUG       # Debug
+                1: LogLevel.ALERT,  # Alert
+                2: LogLevel.CRITICAL,  # Critical
+                3: LogLevel.ERROR,  # Error
+                4: LogLevel.WARNING,  # Warning
+                5: LogLevel.NOTICE,  # Notice
+                6: LogLevel.INFO,  # Informational
+                7: LogLevel.DEBUG,  # Debug
             }
 
             level = level_mapping.get(severity, LogLevel.INFO)
 
             # Remove priority from log_data for further parsing
-            remaining_log = log_data[priority_match.end():]
+            remaining_log = log_data[priority_match.end() :]
         else:
             level = LogLevel.INFO
             remaining_log = log_data
@@ -753,7 +767,9 @@ class LogAggregationService:
             service=service,
             message=remaining_log,
             raw_message=log_data,
-            metadata={"syslog_facility": facility if "priority_match" in locals() else None}
+            metadata={
+                "syslog_facility": facility if "priority_match" in locals() else None
+            },
         )
 
     def _update_indexes(self, log_entry: LogEntry) -> None:
@@ -820,8 +836,10 @@ class LogAggregationService:
         # Search term
         if query.search_term:
             search_lower = query.search_term.lower()
-            if (search_lower not in log_entry.message.lower() and
-                search_lower not in log_entry.raw_message.lower()):
+            if (
+                search_lower not in log_entry.message.lower()
+                and search_lower not in log_entry.raw_message.lower()
+            ):
                 return False
 
         # Metadata filters
@@ -856,7 +874,8 @@ class LogAggregationService:
 
                 # Clean up expired stats cache
                 expired_keys = [
-                    key for key, cached in self._stats_cache.items()
+                    key
+                    for key, cached in self._stats_cache.items()
                     if self._is_stats_cache_expired(key)
                 ]
 
@@ -877,7 +896,9 @@ class LogAggregationService:
         log_id = log_entry.id
 
         # Remove from all indexes
-        keys_to_remove = [key for key, log_ids in self._log_index.items() if log_id in log_ids]
+        keys_to_remove = [
+            key for key, log_ids in self._log_index.items() if log_id in log_ids
+        ]
         for key in keys_to_remove:
             self._log_index[key].discard(log_id)
             if not self._log_index[key]:
@@ -902,18 +923,18 @@ class LogAggregationService:
             "formatters": {
                 "json": {
                     "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
-                    "format": "%(asctime)s %(name)s %(levelname)s %(message)s %(pathname)s %(lineno)d"
+                    "format": "%(asctime)s %(name)s %(levelname)s %(message)s %(pathname)s %(lineno)d",
                 },
                 "structured": {
                     "format": '%(asctime)s level=%(levelname)s logger=%(name)s message="%(message)s" pathname=%(pathname)s lineno=%(lineno)d'
-                }
+                },
             },
             "handlers": {
                 "console": {
                     "class": "logging.StreamHandler",
                     "formatter": "json",
                     "level": "INFO",
-                    "stream": "ext://sys.stdout"
+                    "stream": "ext://sys.stdout",
                 },
                 "file": {
                     "class": "logging.handlers.RotatingFileHandler",
@@ -921,13 +942,10 @@ class LogAggregationService:
                     "level": "DEBUG",
                     "filename": "logs/application.log",
                     "maxBytes": 10485760,  # 10MB
-                    "backupCount": 5
-                }
+                    "backupCount": 5,
+                },
             },
-            "root": {
-                "level": "INFO",
-                "handlers": ["console", "file"]
-            }
+            "root": {"level": "INFO", "handlers": ["console", "file"]},
         }
 
 
@@ -939,5 +957,5 @@ __all__ = [
     "LogLevel",
     "LogQuery",
     "LogSource",
-    "LogStats"
+    "LogStats",
 ]

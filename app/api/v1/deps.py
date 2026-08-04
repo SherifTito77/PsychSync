@@ -1,12 +1,13 @@
 # app/api/v1/deps.py
 
+from uuid import UUID
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from uuid import UUID
 
 from app.core.config import settings
 from app.core.database import get_async_db as get_db
@@ -26,7 +27,9 @@ async def get_current_user(
     )
 
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.JWT_ALGORITHM])
+        payload = jwt.decode(
+            token, settings.jwt_secret, algorithms=[settings.JWT_ALGORITHM]
+        )
         # Try user_id first, fall back to sub for backwards compatibility
         user_id = payload.get("user_id") or payload.get("sub")
         if user_id is None:
@@ -64,7 +67,9 @@ async def get_current_user_optional(
         return None
 
     try:
-        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.JWT_ALGORITHM])
+        payload = jwt.decode(
+            token, settings.jwt_secret, algorithms=[settings.JWT_ALGORITHM]
+        )
         # Try user_id first, fall back to sub for backwards compatibility
         user_id = payload.get("user_id") or payload.get("sub")
         if user_id is None:
@@ -87,7 +92,9 @@ async def get_current_user_optional(
             return None
 
 
-async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+async def get_current_active_user(
+    current_user: User = Depends(get_current_user),
+) -> User:
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
@@ -106,8 +113,7 @@ async def get_team_or_404(
         team_uuid = UUID(team_id)
     except ValueError:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid team ID format"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid team ID format"
         )
 
     # Get team
@@ -115,7 +121,9 @@ async def get_team_or_404(
     team = result.scalar_one_or_none()
 
     if not team:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Team not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Team not found"
+        )
 
     # Check if user is member
     member_result = await db.execute(
@@ -181,7 +189,9 @@ async def check_team_admin(
     return result.scalar_one_or_none() is not None
 
 
-async def get_current_admin_user(current_user: User = Depends(get_current_active_user)) -> User:
+async def get_current_admin_user(
+    current_user: User = Depends(get_current_active_user),
+) -> User:
     """
     Get current admin user (requires admin privileges)
     """
@@ -215,7 +225,8 @@ async def get_current_user_with_mfa(
 
 
 async def get_admin_user_with_mfa(
-    current_user: User = Depends(get_current_user_with_mfa), db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user_with_mfa),
+    db: AsyncSession = Depends(get_db),
 ) -> User:
     """
     Get current user, requiring both admin role AND 2FA

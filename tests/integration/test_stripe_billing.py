@@ -14,27 +14,28 @@ Security focus: PCI DSS compliance testing, secure token handling,
 and proper error handling for payment failures.
 """
 
-import pytest
 import asyncio
 import json
-from decimal import Decimal
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Dict, List, Optional
+from unittest.mock import MagicMock, patch
+
+import pytest
 import stripe
 from httpx import AsyncClient
-from unittest.mock import patch, MagicMock
 
-from app.main import app
 from app.core.config import get_settings
-from app.services.billing import StripeBillingService
-from app.db.models.user import User
 from app.db.models.organization import Organization
+from app.db.models.user import User
+from app.main import app
 from app.schemas.billing import (
+    Invoice,
     PaymentMethodCreate,
     SubscriptionCreate,
-    Invoice,
-    WebhookEvent
+    WebhookEvent,
 )
+from app.services.billing import StripeBillingService
 
 settings = get_settings()
 
@@ -53,7 +54,7 @@ async def stripe_test_customer(billing_service: StripeBillingService):
         customer = await billing_service.stripe.Customer.create(
             email="test@example.com",
             name="Test Customer",
-            metadata={"test_mode": "true"}
+            metadata={"test_mode": "true"},
         )
         yield customer
     finally:
@@ -127,10 +128,14 @@ class TestPaymentProcessing:
 
     @pytest.mark.integration
     async def test_create_payment_method_success(
-        self, client: AsyncClient, authenticated_user, payment_method_data, billing_service
+        self,
+        client: AsyncClient,
+        authenticated_user,
+        payment_method_data,
+        billing_service,
     ):
         """Test successful payment method creation."""
-        with patch.object(billing_service, 'create_payment_method') as mock_create:
+        with patch.object(billing_service, "create_payment_method") as mock_create:
             mock_create.return_value = {
                 "id": "pm_test123456789",
                 "type": "card",
@@ -146,7 +151,7 @@ class TestPaymentProcessing:
             response = await client.post(
                 "/api/v1/billing/payment-methods",
                 json=payment_method_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 201
@@ -171,18 +176,18 @@ class TestPaymentProcessing:
             },
         }
 
-        with patch.object(billing_service, 'create_payment_method') as mock_create:
+        with patch.object(billing_service, "create_payment_method") as mock_create:
             mock_create.side_effect = stripe.error.CardError(
                 "Your card was declined.",
                 "decline_code",
                 "charge_declined",
-                {"charge": "ch_test123"}
+                {"charge": "ch_test123"},
             )
 
             response = await client.post(
                 "/api/v1/billing/payment-methods",
                 json=invalid_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 400
@@ -191,7 +196,11 @@ class TestPaymentProcessing:
 
     @pytest.mark.integration
     async def test_process_payment_success(
-        self, client: AsyncClient, authenticated_user, stripe_test_customer, billing_service
+        self,
+        client: AsyncClient,
+        authenticated_user,
+        stripe_test_customer,
+        billing_service,
     ):
         """Test successful payment processing."""
         payment_data = {
@@ -202,7 +211,7 @@ class TestPaymentProcessing:
             "description": "Test payment",
         }
 
-        with patch.object(billing_service, 'process_payment') as mock_process:
+        with patch.object(billing_service, "process_payment") as mock_process:
             mock_process.return_value = {
                 "id": "ch_test123456789",
                 "object": "charge",
@@ -216,7 +225,7 @@ class TestPaymentProcessing:
             response = await client.post(
                 "/api/v1/billing/payments",
                 json=payment_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -236,18 +245,18 @@ class TestPaymentProcessing:
             "payment_method_id": "pm_test_insufficient",
         }
 
-        with patch.object(billing_service, 'process_payment') as mock_process:
+        with patch.object(billing_service, "process_payment") as mock_process:
             mock_process.side_effect = stripe.error.CardError(
                 "Insufficient funds.",
                 "insufficient_funds",
                 "charge_declined",
-                {"charge": "ch_test_insufficient"}
+                {"charge": "ch_test_insufficient"},
             )
 
             response = await client.post(
                 "/api/v1/billing/payments",
                 json=payment_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 402
@@ -265,7 +274,7 @@ class TestPaymentProcessing:
             "reason": "requested_by_customer",
         }
 
-        with patch.object(billing_service, 'refund_payment') as mock_refund:
+        with patch.object(billing_service, "refund_payment") as mock_refund:
             mock_refund.return_value = {
                 "id": "re_test123456789",
                 "object": "refund",
@@ -278,7 +287,7 @@ class TestPaymentProcessing:
             response = await client.post(
                 "/api/v1/billing/refunds",
                 json=refund_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -291,7 +300,7 @@ class TestPaymentProcessing:
         self, client: AsyncClient, authenticated_user, billing_service
     ):
         """Test listing user's payment methods."""
-        with patch.object(billing_service, 'list_payment_methods') as mock_list:
+        with patch.object(billing_service, "list_payment_methods") as mock_list:
             mock_list.return_value = {
                 "object": "list",
                 "data": [
@@ -309,8 +318,7 @@ class TestPaymentProcessing:
             }
 
             response = await client.get(
-                "/api/v1/billing/payment-methods",
-                headers=authenticated_user["headers"]
+                "/api/v1/billing/payment-methods", headers=authenticated_user["headers"]
             )
 
             assert response.status_code == 200
@@ -324,16 +332,22 @@ class TestSubscriptionManagement:
 
     @pytest.mark.integration
     async def test_create_subscription_success(
-        self, client: AsyncClient, authenticated_user, subscription_data, billing_service
+        self,
+        client: AsyncClient,
+        authenticated_user,
+        subscription_data,
+        billing_service,
     ):
         """Test successful subscription creation."""
-        with patch.object(billing_service, 'create_subscription') as mock_create:
+        with patch.object(billing_service, "create_subscription") as mock_create:
             mock_create.return_value = {
                 "id": "sub_test123456789",
                 "object": "subscription",
                 "status": "trialing",
                 "current_period_start": int(datetime.now().timestamp()),
-                "current_period_end": int((datetime.now() + timedelta(days=30)).timestamp()),
+                "current_period_end": int(
+                    (datetime.now() + timedelta(days=30)).timestamp()
+                ),
                 "trial_start": int(datetime.now().timestamp()),
                 "trial_end": int((datetime.now() + timedelta(days=14)).timestamp()),
                 "items": {
@@ -350,7 +364,7 @@ class TestSubscriptionManagement:
             response = await client.post(
                 "/api/v1/billing/subscriptions",
                 json=subscription_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 201
@@ -368,7 +382,7 @@ class TestSubscriptionManagement:
             "trial_period_days": 30,
         }
 
-        with patch.object(billing_service, 'create_subscription') as mock_create:
+        with patch.object(billing_service, "create_subscription") as mock_create:
             mock_create.return_value = {
                 "id": "sub_test_trial",
                 "status": "trialing",
@@ -379,7 +393,7 @@ class TestSubscriptionManagement:
             response = await client.post(
                 "/api/v1/billing/subscriptions",
                 json=trial_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 201
@@ -398,7 +412,7 @@ class TestSubscriptionManagement:
             "reason": "customer_request",
         }
 
-        with patch.object(billing_service, 'cancel_subscription') as mock_cancel:
+        with patch.object(billing_service, "cancel_subscription") as mock_cancel:
             mock_cancel.return_value = {
                 "id": "sub_test123456789",
                 "status": "canceled",
@@ -409,7 +423,7 @@ class TestSubscriptionManagement:
             response = await client.post(
                 "/api/v1/billing/subscriptions/cancel",
                 json=cancel_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -431,7 +445,7 @@ class TestSubscriptionManagement:
             ],
         }
 
-        with patch.object(billing_service, 'update_subscription') as mock_update:
+        with patch.object(billing_service, "update_subscription") as mock_update:
             mock_update.return_value = {
                 "id": "sub_test123456789",
                 "items": {
@@ -447,7 +461,7 @@ class TestSubscriptionManagement:
             response = await client.put(
                 "/api/v1/billing/subscriptions/sub_test123456789",
                 json=update_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -459,26 +473,29 @@ class TestSubscriptionManagement:
         self, client: AsyncClient, authenticated_user, billing_service
     ):
         """Test listing user's subscriptions."""
-        with patch.object(billing_service, 'list_subscriptions') as mock_list:
+        with patch.object(billing_service, "list_subscriptions") as mock_list:
             mock_list.return_value = {
                 "object": "list",
                 "data": [
                     {
                         "id": "sub_active1",
                         "status": "active",
-                        "current_period_end": int((datetime.now() + timedelta(days=30)).timestamp()),
+                        "current_period_end": int(
+                            (datetime.now() + timedelta(days=30)).timestamp()
+                        ),
                     },
                     {
                         "id": "sub_trial1",
                         "status": "trialing",
-                        "trial_end": int((datetime.now() + timedelta(days=14)).timestamp()),
+                        "trial_end": int(
+                            (datetime.now() + timedelta(days=14)).timestamp()
+                        ),
                     },
                 ],
             }
 
             response = await client.get(
-                "/api/v1/billing/subscriptions",
-                headers=authenticated_user["headers"]
+                "/api/v1/billing/subscriptions", headers=authenticated_user["headers"]
             )
 
             assert response.status_code == 200
@@ -507,7 +524,7 @@ class TestInvoiceHandling:
             ],
         }
 
-        with patch.object(billing_service, 'create_invoice') as mock_create:
+        with patch.object(billing_service, "create_invoice") as mock_create:
             mock_create.return_value = {
                 "id": "in_test123456789",
                 "object": "invoice",
@@ -530,7 +547,7 @@ class TestInvoiceHandling:
             response = await client.post(
                 "/api/v1/billing/invoices",
                 json=invoice_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 201
@@ -544,7 +561,7 @@ class TestInvoiceHandling:
         self, client: AsyncClient, authenticated_user, billing_service
     ):
         """Test invoice finalization."""
-        with patch.object(billing_service, 'finalize_invoice') as mock_finalize:
+        with patch.object(billing_service, "finalize_invoice") as mock_finalize:
             mock_finalize.return_value = {
                 "id": "in_test123456789",
                 "status": "open",
@@ -554,7 +571,7 @@ class TestInvoiceHandling:
 
             response = await client.post(
                 "/api/v1/billing/invoices/in_test123456789/finalize",
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -567,7 +584,7 @@ class TestInvoiceHandling:
         self, client: AsyncClient, authenticated_user, billing_service
     ):
         """Test listing user's invoices."""
-        with patch.object(billing_service, 'list_invoices') as mock_list:
+        with patch.object(billing_service, "list_invoices") as mock_list:
             mock_list.return_value = {
                 "object": "list",
                 "data": [
@@ -587,8 +604,7 @@ class TestInvoiceHandling:
             }
 
             response = await client.get(
-                "/api/v1/billing/invoices",
-                headers=authenticated_user["headers"]
+                "/api/v1/billing/invoices", headers=authenticated_user["headers"]
             )
 
             assert response.status_code == 200
@@ -605,10 +621,10 @@ class TestWebhookProcessing:
     ):
         """Test webhook with valid signature."""
         # Mock webhook signature verification
-        with patch.object(billing_service, 'verify_webhook_signature') as mock_verify:
+        with patch.object(billing_service, "verify_webhook_signature") as mock_verify:
             mock_verify.return_value = True
 
-            with patch.object(billing_service, 'process_webhook_event') as mock_process:
+            with patch.object(billing_service, "process_webhook_event") as mock_process:
                 mock_process.return_value = {"processed": True}
 
                 webhook_payload = json.dumps(mock_webhook_event)
@@ -619,7 +635,7 @@ class TestWebhookProcessing:
                     headers={
                         "stripe-signature": "test_signature",
                         "content-type": "application/json",
-                    }
+                    },
                 )
 
                 assert response.status_code == 200
@@ -631,7 +647,7 @@ class TestWebhookProcessing:
         self, client: AsyncClient, mock_webhook_event, billing_service
     ):
         """Test webhook with invalid signature."""
-        with patch.object(billing_service, 'verify_webhook_signature') as mock_verify:
+        with patch.object(billing_service, "verify_webhook_signature") as mock_verify:
             mock_verify.return_value = False
 
             webhook_payload = json.dumps(mock_webhook_event)
@@ -642,7 +658,7 @@ class TestWebhookProcessing:
                 headers={
                     "stripe-signature": "invalid_signature",
                     "content-type": "application/json",
-                }
+                },
             )
 
             assert response.status_code == 401
@@ -666,16 +682,18 @@ class TestWebhookProcessing:
             },
         }
 
-        with patch.object(billing_service, 'verify_webhook_signature') as mock_verify:
+        with patch.object(billing_service, "verify_webhook_signature") as mock_verify:
             mock_verify.return_value = True
 
-            with patch.object(billing_service, 'handle_invoice_payment_succeeded') as mock_handle:
+            with patch.object(
+                billing_service, "handle_invoice_payment_succeeded"
+            ) as mock_handle:
                 mock_handle.return_value = {"subscription_renewed": True}
 
                 response = await client.post(
                     "/api/v1/billing/webhooks/stripe",
                     data=json.dumps(webhook_data),
-                    headers={"stripe-signature": "valid_signature"}
+                    headers={"stripe-signature": "valid_signature"},
                 )
 
                 assert response.status_code == 200
@@ -696,16 +714,18 @@ class TestWebhookProcessing:
             },
         }
 
-        with patch.object(billing_service, 'verify_webhook_signature') as mock_verify:
+        with patch.object(billing_service, "verify_webhook_signature") as mock_verify:
             mock_verify.return_value = True
 
-            with patch.object(billing_service, 'handle_subscription_cancelled') as mock_handle:
+            with patch.object(
+                billing_service, "handle_subscription_cancelled"
+            ) as mock_handle:
                 mock_handle.return_value = {"access_revoked": True}
 
                 response = await client.post(
                     "/api/v1/billing/webhooks/stripe",
                     data=json.dumps(webhook_data),
-                    headers={"stripe-signature": "valid_signature"}
+                    headers={"stripe-signature": "valid_signature"},
                 )
 
                 assert response.status_code == 200
@@ -725,7 +745,7 @@ class TestBillingSecurity:
         }
 
         # Mock payment processing to ensure no sensitive data is logged
-        with patch.object(billing_service, 'process_payment') as mock_process:
+        with patch.object(billing_service, "process_payment") as mock_process:
             mock_process.return_value = {
                 "id": "ch_test123",
                 "status": "succeeded",
@@ -735,7 +755,7 @@ class TestBillingSecurity:
             response = await client.post(
                 "/api/v1/billing/payments",
                 json=payment_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -758,7 +778,7 @@ class TestBillingSecurity:
             response = await client.post(
                 "/api/v1/billing/payments",
                 json=payment_data,
-                headers={"Authorization": "Bearer test_token"}
+                headers={"Authorization": "Bearer test_token"},
             )
             responses.append(response)
             await asyncio.sleep(0.01)  # Small delay to avoid overwhelming
@@ -784,8 +804,7 @@ class TestBillingSecurity:
     ):
         """Test that billing endpoints include PCI compliance headers."""
         response = await client.get(
-            "/api/v1/billing/payment-methods",
-            headers=authenticated_user["headers"]
+            "/api/v1/billing/payment-methods", headers=authenticated_user["headers"]
         )
 
         # Check for security headers related to PCI compliance
@@ -802,7 +821,7 @@ class TestBillingAnalytics:
         self, client: AsyncClient, authenticated_user, billing_service
     ):
         """Test billing summary endpoint."""
-        with patch.object(billing_service, 'get_billing_summary') as mock_summary:
+        with patch.object(billing_service, "get_billing_summary") as mock_summary:
             mock_summary.return_value = {
                 "total_revenue": 50000,  # $500.00
                 "active_subscriptions": 25,
@@ -813,7 +832,7 @@ class TestBillingAnalytics:
 
             response = await client.get(
                 "/api/v1/billing/analytics/summary",
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -826,7 +845,7 @@ class TestBillingAnalytics:
         self, client: AsyncClient, authenticated_user, billing_service
     ):
         """Test revenue chart data endpoint."""
-        with patch.object(billing_service, 'get_revenue_chart_data') as mock_chart:
+        with patch.object(billing_service, "get_revenue_chart_data") as mock_chart:
             mock_chart.return_value = {
                 "period": "last_30_days",
                 "data": [
@@ -839,7 +858,7 @@ class TestBillingAnalytics:
             response = await client.get(
                 "/api/v1/billing/analytics/revenue",
                 params={"period": "30d"},
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -852,7 +871,7 @@ class TestBillingAnalytics:
         self, client: AsyncClient, authenticated_user, billing_service
     ):
         """Test subscription metrics endpoint."""
-        with patch.object(billing_service, 'get_subscription_metrics') as mock_metrics:
+        with patch.object(billing_service, "get_subscription_metrics") as mock_metrics:
             mock_metrics.return_value = {
                 "total_subscriptions": 100,
                 "active_subscriptions": 85,
@@ -864,7 +883,7 @@ class TestBillingAnalytics:
 
             response = await client.get(
                 "/api/v1/billing/analytics/subscriptions",
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -883,7 +902,7 @@ class TestBillingErrorHandling:
         """Test handling of Stripe API errors."""
         payment_data = {"amount": 2000}
 
-        with patch.object(billing_service, 'process_payment') as mock_process:
+        with patch.object(billing_service, "process_payment") as mock_process:
             # Simulate Stripe API error
             mock_process.side_effect = stripe.error.APIError(
                 "Stripe API error occurred"
@@ -892,7 +911,7 @@ class TestBillingErrorHandling:
             response = await client.post(
                 "/api/v1/billing/payments",
                 json=payment_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 503
@@ -904,7 +923,7 @@ class TestBillingErrorHandling:
         self, client: AsyncClient, authenticated_user, billing_service
     ):
         """Test handling of Stripe rate limit errors."""
-        with patch.object(billing_service, 'create_subscription') as mock_create:
+        with patch.object(billing_service, "create_subscription") as mock_create:
             mock_create.side_effect = stripe.error.RateLimitError(
                 "Too many requests made to the API too quickly"
             )
@@ -912,7 +931,7 @@ class TestBillingErrorHandling:
             response = await client.post(
                 "/api/v1/billing/subscriptions",
                 json={"price_id": "price_test"},
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 429
@@ -926,7 +945,7 @@ class TestBillingErrorHandling:
         """Test handling of invalid payment amounts."""
         invalid_amounts = [
             {"amount": -1000},  # Negative amount
-            {"amount": 0},      # Zero amount
+            {"amount": 0},  # Zero amount
             {"amount": 999999999999},  # Extremely large amount
         ]
 
@@ -934,7 +953,7 @@ class TestBillingErrorHandling:
             response = await client.post(
                 "/api/v1/billing/payments",
                 json=payment_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 400
@@ -950,7 +969,7 @@ class TestBillingErrorHandling:
         }
 
         # Mock successful payment processing
-        with patch.object(billing_service, 'process_payment') as mock_process:
+        with patch.object(billing_service, "process_payment") as mock_process:
             mock_process.return_value = {
                 "id": "ch_test_concurrent",
                 "status": "succeeded",
@@ -962,7 +981,7 @@ class TestBillingErrorHandling:
                 task = client.post(
                     "/api/v1/billing/payments",
                     json=payment_data,
-                    headers=authenticated_user["headers"]
+                    headers=authenticated_user["headers"],
                 )
                 tasks.append(task)
 
@@ -970,11 +989,16 @@ class TestBillingErrorHandling:
 
             # All requests should be handled properly
             for response in responses:
-                if hasattr(response, 'status_code'):
-                    assert response.status_code in [200, 400, 409]  # Success or conflict/race condition
+                if hasattr(response, "status_code"):
+                    assert response.status_code in [
+                        200,
+                        400,
+                        409,
+                    ]  # Success or conflict/race condition
 
 
 # Performance and Load Testing for Billing Endpoints
+
 
 @pytest.mark.performance
 class TestBillingPerformance:
@@ -989,14 +1013,14 @@ class TestBillingPerformance:
 
         payment_data = {"amount": 2000}
 
-        with patch.object(billing_service, 'process_payment') as mock_process:
+        with patch.object(billing_service, "process_payment") as mock_process:
             mock_process.return_value = {"id": "ch_test", "status": "succeeded"}
 
             start_time = time.time()
             response = await client.post(
                 "/api/v1/billing/payments",
                 json=payment_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
             end_time = time.time()
 
@@ -1010,7 +1034,7 @@ class TestBillingPerformance:
         self, client: AsyncClient, authenticated_user, billing_service
     ):
         """Test billing analytics response time."""
-        with patch.object(billing_service, 'get_billing_summary') as mock_summary:
+        with patch.object(billing_service, "get_billing_summary") as mock_summary:
             mock_summary.return_value = {
                 "total_revenue": 50000,
                 "active_subscriptions": 25,
@@ -1019,7 +1043,7 @@ class TestBillingPerformance:
             start_time = time.time()
             response = await client.get(
                 "/api/v1/billing/analytics/summary",
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
             end_time = time.time()
 
@@ -1048,7 +1072,7 @@ class TestBillingEdgeCases:
             "proration_behavior": "create_prorations",
         }
 
-        with patch.object(billing_service, 'update_subscription') as mock_update:
+        with patch.object(billing_service, "update_subscription") as mock_update:
             mock_update.return_value = {
                 "id": "sub_test123",
                 "latest_invoice": {
@@ -1060,7 +1084,7 @@ class TestBillingEdgeCases:
             response = await client.put(
                 "/api/v1/billing/subscriptions/sub_test123",
                 json=update_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -1077,13 +1101,13 @@ class TestBillingEdgeCases:
             "payment_method_id": "pm_test_primary",
         }
 
-        with patch.object(billing_service, 'set_default_payment_method') as mock_set:
+        with patch.object(billing_service, "set_default_payment_method") as mock_set:
             mock_set.return_value = {"success": True}
 
             response = await client.post(
                 "/api/v1/billing/payment-methods/set-default",
                 json=priority_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
@@ -1099,7 +1123,7 @@ class TestBillingEdgeCases:
         }
 
         # Test pause
-        with patch.object(billing_service, 'pause_subscription') as mock_pause:
+        with patch.object(billing_service, "pause_subscription") as mock_pause:
             mock_pause.return_value = {
                 "id": "sub_test123",
                 "pause_collection": {
@@ -1110,13 +1134,13 @@ class TestBillingEdgeCases:
             response = await client.post(
                 "/api/v1/billing/subscriptions/sub_test123/pause",
                 json=pause_data,
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200
 
         # Test resume
-        with patch.object(billing_service, 'resume_subscription') as mock_resume:
+        with patch.object(billing_service, "resume_subscription") as mock_resume:
             mock_resume.return_value = {
                 "id": "sub_test123",
                 "pause_collection": None,
@@ -1125,7 +1149,7 @@ class TestBillingEdgeCases:
 
             response = await client.post(
                 "/api/v1/billing/subscriptions/sub_test123/resume",
-                headers=authenticated_user["headers"]
+                headers=authenticated_user["headers"],
             )
 
             assert response.status_code == 200

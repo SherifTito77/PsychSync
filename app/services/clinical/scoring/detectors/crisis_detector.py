@@ -7,9 +7,10 @@ in assessment responses. It does NOT perform scoring or interpretation.
 Single Responsibility Principle: Only detect crisis signals.
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Dict, List
-import logging
+
 from ..config import CrisisThresholds
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ class CrisisInfo:
 
     Contains only crisis-related information, nothing else.
     """
+
     is_crisis: bool
     is_severe: bool
     risk_flags: List[str]
@@ -64,10 +66,7 @@ class CrisisDetector:
             CrisisInfo with detected crisis information
         """
         crisis_info = CrisisInfo(
-            is_crisis=False,
-            is_severe=False,
-            risk_flags=[],
-            crisis_items={}
+            is_crisis=False, is_severe=False, risk_flags=[], crisis_items={}
         )
 
         # Check suicide/crisis item if configured
@@ -105,12 +104,13 @@ class CrisisDetector:
         return crisis_info
 
     @classmethod
-    def for_phq9(cls) -> 'CrisisDetector':
+    def for_phq9(cls) -> "CrisisDetector":
         """Factory method for PHQ-9 crisis detection"""
         from ..config import PHQ9_CONFIG
+
         return cls(thresholds=PHQ9_CONFIG.crisis_thresholds)
 
     @classmethod
-    def for_gad7(cls) -> 'CrisisDetector':
+    def for_gad7(cls) -> "CrisisDetector":
         """Factory method for GAD-7 crisis detection (no crisis item)"""
         return cls(thresholds=None)

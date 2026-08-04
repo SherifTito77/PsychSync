@@ -11,13 +11,13 @@ Features:
 """
 
 import asyncio
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
-from enum import Enum
 import hashlib
 import json
 import logging
 import time
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
 from typing import Any
 
 from app.core.audit_logging import AuditAction, AuditEvent, audit_logger
@@ -125,7 +125,9 @@ class EnhancedSessionManager:
 
     def __init__(self):
         self.redis_client = None
-        self.session_ttl = settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400  # Convert days to seconds
+        self.session_ttl = (
+            settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400
+        )  # Convert days to seconds
         self.max_concurrent_sessions = settings.MAX_CONCURRENT_SESSIONS
         self.device_trust_duration_days = settings.DEVICE_TRUST_DURATION_DAYS
         self.suspicious_activity_threshold = 5
@@ -160,7 +162,9 @@ class EnhancedSessionManager:
             expires_at = created_at + timedelta(seconds=self.session_ttl)
 
             # Check device trust level
-            trust_level = await self._get_device_trust_level(user_id, device_fingerprint)
+            trust_level = await self._get_device_trust_level(
+                user_id, device_fingerprint
+            )
 
             # Check concurrent session limit
             await self._check_concurrent_sessions(user_id)
@@ -176,8 +180,12 @@ class EnhancedSessionManager:
                 ip_address=device_fingerprint.ip_address,
                 user_agent=device_fingerprint.user_agent,
                 metadata={
-                    "access_token_hash": hashlib.sha256(access_token.encode()).hexdigest(),
-                    "refresh_token_hash": hashlib.sha256(refresh_token.encode()).hexdigest(),
+                    "access_token_hash": hashlib.sha256(
+                        access_token.encode()
+                    ).hexdigest(),
+                    "refresh_token_hash": hashlib.sha256(
+                        refresh_token.encode()
+                    ).hexdigest(),
                 },
             )
 
@@ -185,7 +193,9 @@ class EnhancedSessionManager:
             await self._store_session(session_data)
 
             # Store device fingerprint for trust tracking
-            await self._track_device_fingerprint(user_id, device_fingerprint, trust_level)
+            await self._track_device_fingerprint(
+                user_id, device_fingerprint, trust_level
+            )
 
             # Log session creation
             await audit_logger.log_event(
@@ -246,7 +256,9 @@ class EnhancedSessionManager:
                 return None
 
             # Check device fingerprint
-            device_match = await self._verify_device_fingerprint(session_data, device_fingerprint)
+            device_match = await self._verify_device_fingerprint(
+                session_data, device_fingerprint
+            )
 
             if not device_match:
                 await self._handle_suspicious_activity(
@@ -266,7 +278,9 @@ class EnhancedSessionManager:
 
             # Update device trust level
             if session_data.trust_level == DeviceTrustLevel.NEW:
-                await self._upgrade_device_trust(session_data.user_id, device_fingerprint)
+                await self._upgrade_device_trust(
+                    session_data.user_id, device_fingerprint
+                )
 
             return session_data
 
@@ -285,7 +299,9 @@ class EnhancedSessionManager:
             blacklist_key = f"session_blacklist:{session_id}"
             await redis_set(
                 blacklist_key,
-                json.dumps({"reason": reason, "timestamp": datetime.utcnow().isoformat()}),
+                json.dumps(
+                    {"reason": reason, "timestamp": datetime.utcnow().isoformat()}
+                ),
                 expire_seconds=self.session_ttl,
             )
 
@@ -330,7 +346,9 @@ class EnhancedSessionManager:
             user_blacklist_key = f"user_session_blacklist:{user_id}"
             await redis_set(
                 user_blacklist_key,
-                json.dumps({"reason": reason, "timestamp": datetime.utcnow().isoformat()}),
+                json.dumps(
+                    {"reason": reason, "timestamp": datetime.utcnow().isoformat()}
+                ),
                 expire_seconds=self.session_ttl,
             )
 
@@ -368,7 +386,9 @@ class EnhancedSessionManager:
             logger.error(f"Failed to get user sessions for {user_id}: {e}")
             return []
 
-    async def get_session_analytics(self, time_window_hours: int = 24) -> dict[str, Any]:
+    async def get_session_analytics(
+        self, time_window_hours: int = 24
+    ) -> dict[str, Any]:
         """
         Get session analytics and statistics
         """
@@ -403,7 +423,9 @@ class EnhancedSessionManager:
 
         # Store session data
         await redis_set(
-            session_key, json.dumps(session_data.to_dict()), expire_seconds=self.session_ttl
+            session_key,
+            json.dumps(session_data.to_dict()),
+            expire_seconds=self.session_ttl,
         )
 
         # Add to user's session list
@@ -451,13 +473,17 @@ class EnhancedSessionManager:
         """Check concurrent session limit"""
         user_sessions = await self._get_user_sessions(user_id)
         active_sessions = [
-            s for s in user_sessions if datetime.fromisoformat(s["expires_at"]) > datetime.utcnow()
+            s
+            for s in user_sessions
+            if datetime.fromisoformat(s["expires_at"]) > datetime.utcnow()
         ]
 
         if len(active_sessions) >= self.max_concurrent_sessions:
             # Remove oldest session
             oldest_session = min(active_sessions, key=lambda x: x["created_at"])
-            await self.invalidate_session(oldest_session["session_id"], "concurrent_session_limit")
+            await self.invalidate_session(
+                oldest_session["session_id"], "concurrent_session_limit"
+            )
 
     async def _get_device_trust_level(
         self, user_id: str, device_fingerprint: DeviceFingerprint
@@ -483,7 +509,10 @@ class EnhancedSessionManager:
             return DeviceTrustLevel.NEW
 
     async def _track_device_fingerprint(
-        self, user_id: str, device_fingerprint: DeviceFingerprint, trust_level: DeviceTrustLevel
+        self,
+        user_id: str,
+        device_fingerprint: DeviceFingerprint,
+        trust_level: DeviceTrustLevel,
     ):
         """Track device fingerprint for trust management"""
         try:
@@ -505,14 +534,20 @@ class EnhancedSessionManager:
         except Exception as e:
             logger.error(f"Failed to track device fingerprint: {e}")
 
-    async def _upgrade_device_trust(self, user_id: str, device_fingerprint: DeviceFingerprint):
+    async def _upgrade_device_trust(
+        self, user_id: str, device_fingerprint: DeviceFingerprint
+    ):
         """Upgrade device trust level based on usage patterns"""
         try:
-            current_level = await self._get_device_trust_level(user_id, device_fingerprint)
+            current_level = await self._get_device_trust_level(
+                user_id, device_fingerprint
+            )
 
             if current_level == DeviceTrustLevel.NEW:
                 # Check if device has been used consistently
-                usage_pattern = await self._analyze_device_usage(user_id, device_fingerprint)
+                usage_pattern = await self._analyze_device_usage(
+                    user_id, device_fingerprint
+                )
 
                 if usage_pattern["trust_score"] > 0.8:
                     # Upgrade to trusted
@@ -527,7 +562,9 @@ class EnhancedSessionManager:
         except Exception as e:
             logger.error(f"Failed to upgrade device trust: {e}")
 
-    async def _verify_access_token(self, access_token: str, session_data: SessionData) -> bool:
+    async def _verify_access_token(
+        self, access_token: str, session_data: SessionData
+    ) -> bool:
         """Verify access token matches session"""
         try:
             token_hash = hashlib.sha256(access_token.encode()).hexdigest()
@@ -542,7 +579,8 @@ class EnhancedSessionManager:
     ) -> bool:
         """Verify device fingerprint matches session"""
         return (
-            session_data.device_fingerprint.fingerprint_hash == device_fingerprint.fingerprint_hash
+            session_data.device_fingerprint.fingerprint_hash
+            == device_fingerprint.fingerprint_hash
         )
 
     async def _update_session_activity(self, session_id: str):
@@ -570,7 +608,9 @@ class EnhancedSessionManager:
                     return True
 
             # Check rapid session creation
-            recent_sessions = await self._get_recent_user_sessions(session_data.user_id, hours=1)
+            recent_sessions = await self._get_recent_user_sessions(
+                session_data.user_id, hours=1
+            )
 
             if len(recent_sessions) > self.suspicious_activity_threshold:
                 return True
@@ -587,7 +627,9 @@ class EnhancedSessionManager:
         # Check if IPs are from different continents
         return old_ip != new_ip
 
-    async def _get_recent_user_sessions(self, user_id: str, hours: int) -> list[SessionData]:
+    async def _get_recent_user_sessions(
+        self, user_id: str, hours: int
+    ) -> list[SessionData]:
         """Get recent sessions for user"""
         try:
             user_sessions = await self._get_user_sessions(user_id)
@@ -605,7 +647,10 @@ class EnhancedSessionManager:
             return []
 
     async def _handle_suspicious_activity(
-        self, session_data: SessionData, reason: str, device_fingerprint: DeviceFingerprint
+        self,
+        session_data: SessionData,
+        reason: str,
+        device_fingerprint: DeviceFingerprint,
     ):
         """Handle suspicious activity detection"""
         try:
@@ -626,7 +671,9 @@ class EnhancedSessionManager:
             )
 
             # Invalidate session
-            await self.invalidate_session(session_data.session_id, f"suspicious_activity: {reason}")
+            await self.invalidate_session(
+                session_data.session_id, f"suspicious_activity: {reason}"
+            )
 
             # Could implement additional security measures:
             # - Temporarily lock user account
@@ -668,7 +715,9 @@ class EnhancedSessionManager:
             }
 
             # Publish to Redis pub/sub channel
-            await self.redis_client.publish("session_invalidation", json.dumps(notification_data))
+            await self.redis_client.publish(
+                "session_invalidation", json.dumps(notification_data)
+            )
 
         except Exception as e:
             logger.error(f"Failed to notify session invalidation: {e}")

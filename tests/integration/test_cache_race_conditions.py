@@ -15,21 +15,21 @@ to prevent stale data, cache stampedes, and inconsistencies.
 """
 
 import asyncio
-import pytest
 import json
-from datetime import datetime, timedelta, UTC
-from uuid import uuid4
+from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import uuid4
 
+import pytest
 import redis.asyncio as aioredis
 
 from app.core.async_cache import AsyncCache, async_cached, async_redis_client
 from app.core.config import settings
 
-
 # ============================================================================
 # Test 1: Cache Stampede Prevention
 # ============================================================================
+
 
 @pytest.mark.asyncio
 @pytest.mark.regression
@@ -60,10 +60,7 @@ async def test_cache_stampede_prevention_with_lock():
         return {"result": f"value_{key}", "timestamp": datetime.now(UTC).isoformat()}
 
     # Simulate 50 concurrent requests with cache miss
-    tasks = [
-        expensive_function("test_key")
-        for _ in range(50)
-    ]
+    tasks = [expensive_function("test_key") for _ in range(50)]
 
     # Execute all tasks concurrently
     start_time = datetime.now()
@@ -121,10 +118,7 @@ async def test_cache_stampede_with_various_delays():
         return await expensive_function_with_delay("staggered_key")
 
     # Stagger requests over 200ms
-    tasks = [
-        delayed_request(i * 10)  # 0ms, 10ms, 20ms, ..., 190ms
-        for i in range(20)
-    ]
+    tasks = [delayed_request(i * 10) for i in range(20)]  # 0ms, 10ms, 20ms, ..., 190ms
 
     results = await asyncio.gather(*tasks)
 
@@ -141,6 +135,7 @@ async def test_cache_stampede_with_various_delays():
 # ============================================================================
 # Test 2: Cache Invalidation Race
 # ============================================================================
+
 
 @pytest.mark.asyncio
 @pytest.mark.regression
@@ -177,10 +172,7 @@ async def test_cache_invalidation_during_concurrent_reads():
         await AsyncCache.set(cache_key, {"version": 2, "data": "updated"}, expire=60)
 
     # Run 10 concurrent reads and 1 invalidation
-    tasks = [
-        concurrent_read(i)
-        for i in range(10)
-    ] + [concurrent_invalidate()]
+    tasks = [concurrent_read(i) for i in range(10)] + [concurrent_invalidate()]
 
     await asyncio.gather(*tasks)
 
@@ -188,8 +180,9 @@ async def test_cache_invalidation_during_concurrent_reads():
     versions = [r["value"]["version"] if r["value"] else None for r in read_results]
 
     # All reads should have gotten either version 1 or version 2
-    assert all(v in [1, 2, None] for v in versions), \
-        f"Invalid versions detected: {versions}"
+    assert all(
+        v in [1, 2, None] for v in versions
+    ), f"Invalid versions detected: {versions}"
 
     # At least some reads should have gotten version 1 (before invalidation)
     assert versions.count(1) > 0, "Some reads should have gotten version 1"
@@ -243,15 +236,15 @@ async def test_cache_pattern_invalidation_race():
         return await AsyncCache.delete_pattern(f"{prefix}*")
 
     # Split keys into three groups
-    read_keys_subset = keys[0:7]    # Read 7 keys
+    read_keys_subset = keys[0:7]  # Read 7 keys
     write_keys_subset = keys[7:14]  # Write 7 keys
-    remaining_keys = keys[14:20]    # Remaining 6 keys (only invalidated)
+    remaining_keys = keys[14:20]  # Remaining 6 keys (only invalidated)
 
     # Run operations concurrently
     tasks = [
         read_keys(read_keys_subset),
         write_keys(write_keys_subset),
-        invalidate_pattern()
+        invalidate_pattern(),
     ]
 
     results = await asyncio.gather(*tasks)
@@ -278,6 +271,7 @@ async def test_cache_pattern_invalidation_race():
 # ============================================================================
 # Test 3: Write-Through Race
 # ============================================================================
+
 
 @pytest.mark.asyncio
 @pytest.mark.regression
@@ -315,8 +309,9 @@ async def test_concurrent_writes_to_same_key():
 
     assert final_value is not None, "Key should exist"
     assert "writer_id" in final_value, "Value should have writer_id"
-    assert final_value["writer_id"] in range(10), \
-        f"Invalid writer_id: {final_value['writer_id']}"
+    assert final_value["writer_id"] in range(
+        10
+    ), f"Invalid writer_id: {final_value['writer_id']}"
 
     # Should have exactly one value (last write wins)
     assert isinstance(final_value["writer_id"], int), "writer_id should be integer"
@@ -377,8 +372,10 @@ async def test_write_through_consistency():
     # Read and verify consistency
     result = await read_through(cache_key)
 
-    assert result["source"] in ["cache", "database"], \
-        f"Invalid source: {result['source']}"
+    assert result["source"] in [
+        "cache",
+        "database",
+    ], f"Invalid source: {result['source']}"
     assert result["value"] is not None, "Should have a value"
 
     # Verify database and cache have the same final value
@@ -389,8 +386,9 @@ async def test_write_through_consistency():
     assert cache_value is not None, "Cache should have value"
 
     # Both should have the same version (last write wins)
-    assert db_value["version"] == cache_value["version"], \
-        f"DB and cache mismatch: DB={db_value}, Cache={cache_value}"
+    assert (
+        db_value["version"] == cache_value["version"]
+    ), f"DB and cache mismatch: DB={db_value}, Cache={cache_value}"
 
     # Cleanup
     await AsyncCache.delete(cache_key)
@@ -399,6 +397,7 @@ async def test_write_through_consistency():
 # ============================================================================
 # Test 4: Cache Eviction Under Load
 # ============================================================================
+
 
 @pytest.mark.asyncio
 @pytest.mark.regression
@@ -426,10 +425,7 @@ async def test_cache_eviction_under_memory_pressure():
         return count
 
     # Write 1000 keys in 10 concurrent batches
-    tasks = [
-        write_key_batch(i * 100, 100)
-        for i in range(10)
-    ]
+    tasks = [write_key_batch(i * 100, 100) for i in range(10)]
 
     start_time = datetime.now()
     results = await asyncio.gather(*tasks)
@@ -446,10 +442,7 @@ async def test_cache_eviction_under_memory_pressure():
     print(f"  Throughput: {total_written / duration:.0f} writes/sec")
 
     # Try to read some keys - some may have been evicted
-    sample_keys = [
-        f"{cache_prefix}key_{i}"
-        for i in [0, 100, 500, 900, 999]
-    ]
+    sample_keys = [f"{cache_prefix}key_{i}" for i in [0, 100, 500, 900, 999]]
 
     read_results = []
     for key in sample_keys:
@@ -470,6 +463,7 @@ async def test_cache_eviction_under_memory_pressure():
 # ============================================================================
 # Test 5: Cache Expiration Race
 # ============================================================================
+
 
 @pytest.mark.asyncio
 @pytest.mark.regression
@@ -496,18 +490,20 @@ async def test_cache_expiration_during_concurrent_access():
         """Access key after delay"""
         await asyncio.sleep(delay_ms / 1000)
         value = await AsyncCache.get(cache_key)
-        access_results.append({
-            "access_id": access_id,
-            "delay_ms": delay_ms,
-            "found": value is not None,
-            "value": value
-        })
+        access_results.append(
+            {
+                "access_id": access_id,
+                "delay_ms": delay_ms,
+                "found": value is not None,
+                "value": value,
+            }
+        )
         return value
 
     # Access key at different times (before, during, and after expiration)
     tasks = [
-        access_key(0, 0),      # Immediate (should hit)
-        access_key(1, 500),   # 500ms (should hit)
+        access_key(0, 0),  # Immediate (should hit)
+        access_key(1, 500),  # 500ms (should hit)
         access_key(2, 1000),  # 1000ms (should hit)
         access_key(3, 1500),  # 1500ms (may hit or miss)
         access_key(4, 2000),  # 2000ms (should miss)
@@ -602,6 +598,7 @@ async def test_cache_refresh_on_expiration():
 # Test 6: Cache Warm-Up Race
 # ============================================================================
 
+
 @pytest.mark.asyncio
 @pytest.mark.regression
 @pytest.mark.cache
@@ -663,12 +660,15 @@ async def test_concurrent_cache_warmup():
 
     # Verify all requests succeeded
     assert len(results) == 1000, f"Expected 1000 results, got {len(results)}"
-    assert all(r["value"] is not None for r in results), "All requests should have values"
+    assert all(
+        r["value"] is not None for r in results
+    ), "All requests should have values"
 
     # Due to caching, DB queries should be much less than 1000
     # Ideal: 100 queries (one per unique key), but allow some overhead
-    assert db_query_count < 200, \
-        f"Expected < 200 DB queries due to caching, got {db_query_count}"
+    assert (
+        db_query_count < 200
+    ), f"Expected < 200 DB queries due to caching, got {db_query_count}"
 
     print(f"\nCache Warm-Up Test Results:")
     print(f"  Total requests: 1000")
@@ -685,6 +685,7 @@ async def test_concurrent_cache_warmup():
 # ============================================================================
 # Test 7: Distributed Cache Consistency (Redis-Specific)
 # ============================================================================
+
 
 @pytest.mark.asyncio
 @pytest.mark.regression
@@ -732,10 +733,7 @@ async def test_redis_transaction_atomicity():
     await AsyncCache.set(cache_key, {"version": 0, "value": "initial"}, expire=60)
 
     # Try 10 concurrent updates (only first should succeed due to version check)
-    tasks = [
-        check_and_set(cache_key, i, {"value": f"update_{i}"})
-        for i in range(10)
-    ]
+    tasks = [check_and_set(cache_key, i, {"value": f"update_{i}"}) for i in range(10)]
 
     results = await asyncio.gather(*tasks)
 
@@ -749,7 +747,9 @@ async def test_redis_transaction_atomicity():
     # Verify final version
     final_value = await AsyncCache.get(cache_key)
     assert final_value is not None, "Key should exist"
-    assert final_value["version"] >= 1, f"Version should be >= 1, got {final_value['version']}"
+    assert (
+        final_value["version"] >= 1
+    ), f"Version should be >= 1, got {final_value['version']}"
 
     print(f"\nRedis Transaction Test Results:")
     print(f"  Successful updates: {success_count}")
@@ -763,6 +763,7 @@ async def test_redis_transaction_atomicity():
 # ============================================================================
 # Test 8: Cache Performance Under Load
 # ============================================================================
+
 
 @pytest.mark.asyncio
 @pytest.mark.regression
@@ -789,7 +790,10 @@ async def test_cache_performance_under_high_load():
             return {"operation": "read", "key": key, "found": value is not None}
         else:
             # Write operation
-            value = {"data": f"value_{op_id}", "timestamp": datetime.now(UTC).isoformat()}
+            value = {
+                "data": f"value_{op_id}",
+                "timestamp": datetime.now(UTC).isoformat(),
+            }
             await AsyncCache.set(key, value, expire=300)
             return {"operation": "write", "key": key, "success": True}
 

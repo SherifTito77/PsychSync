@@ -18,11 +18,11 @@ Version: 2.0 Enterprise Security
 """
 
 import asyncio
+import inspect
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-import inspect
-import logging
 from typing import Any, TypeVar
 
 # Initialize DI container logger
@@ -101,10 +101,15 @@ class Container:
         service_name = self._get_service_name(service_type)
 
         if service_name in self._services:
-            di_logger.warning(f"Service {service_name} is already registered, overwriting")
+            di_logger.warning(
+                f"Service {service_name} is already registered, overwriting"
+            )
 
         descriptor = ServiceDescriptor(
-            service_type=service_type, lifetime=lifetime, factory=factory, dependencies=dependencies
+            service_type=service_type,
+            lifetime=lifetime,
+            factory=factory,
+            dependencies=dependencies,
         )
 
         self._services[service_name] = descriptor
@@ -135,7 +140,9 @@ class Container:
         dependencies: dict[str, str] | None = None,
     ) -> None:
         """Register singleton service by name"""
-        self._register_service_by_name(service_name, Lifetime.SINGLETON, factory, dependencies)
+        self._register_service_by_name(
+            service_name, Lifetime.SINGLETON, factory, dependencies
+        )
 
     def register_scoped_by_name(
         self,
@@ -144,7 +151,9 @@ class Container:
         dependencies: dict[str, str] | None = None,
     ) -> None:
         """Register scoped service by name"""
-        self._register_service_by_name(service_name, Lifetime.SCOPED, factory, dependencies)
+        self._register_service_by_name(
+            service_name, Lifetime.SCOPED, factory, dependencies
+        )
 
     def register_transient_by_name(
         self,
@@ -153,7 +162,9 @@ class Container:
         dependencies: dict[str, str] | None = None,
     ) -> None:
         """Register transient service by name"""
-        self._register_service_by_name(service_name, Lifetime.TRANSIENT, factory, dependencies)
+        self._register_service_by_name(
+            service_name, Lifetime.TRANSIENT, factory, dependencies
+        )
 
     def _register_service_by_name(
         self,
@@ -375,7 +386,9 @@ class Container:
         try:
             return service_type(**parameters)
         except Exception as e:
-            di_logger.error(f"Failed to create instance of {service_type.__name__}: {e}")
+            di_logger.error(
+                f"Failed to create instance of {service_type.__name__}: {e}"
+            )
             raise
 
     def _create_with_injection_sync(self, service_type: type[T]) -> T:
@@ -405,9 +418,11 @@ class Container:
                 "lifetime": descriptor.lifetime.value,
                 "has_factory": descriptor.factory is not None,
                 "has_instance": descriptor.instance is not None,
-                "dependencies": list(descriptor.dependencies.keys())
-                if descriptor.dependencies
-                else [],
+                "dependencies": (
+                    list(descriptor.dependencies.keys())
+                    if descriptor.dependencies
+                    else []
+                ),
             }
 
         return info
@@ -419,7 +434,9 @@ class Container:
         for service_name, descriptor in self._services.items():
             # Check circular dependencies
             if self._has_circular_dependency(service_name, set()):
-                validation_errors.append(f"Circular dependency detected: {service_name}")
+                validation_errors.append(
+                    f"Circular dependency detected: {service_name}"
+                )
 
             # Check invalid dependencies
             if descriptor.dependencies:

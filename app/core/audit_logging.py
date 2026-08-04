@@ -10,14 +10,14 @@ Features:
 """
 
 import asyncio
-from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
-from enum import Enum
 import functools
 import json
 import logging
-from typing import Any
 import uuid
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from enum import Enum
+from typing import Any
 
 from app.core.config import settings
 from app.core.redis_client import redis_get
@@ -276,7 +276,9 @@ class AuditLogger:
             if event.severity in [AuditSeverity.HIGH, AuditSeverity.CRITICAL]:
                 security_key = "audit:events:security"
                 await redis_client.lpush(security_key, event_data)
-                await redis_client.ltrim(security_key, 0, 1000)  # Keep last 1k security events
+                await redis_client.ltrim(
+                    security_key, 0, 1000
+                )  # Keep last 1k security events
 
             await redis_client.close()
 
@@ -355,7 +357,8 @@ class AuditLogger:
                 extra={
                     "event": event.to_dict(),
                     "alert_level": "security",
-                    "requires_immediate_attention": event.severity == AuditSeverity.CRITICAL,
+                    "requires_immediate_attention": event.severity
+                    == AuditSeverity.CRITICAL,
                 },
             )
 
@@ -406,7 +409,9 @@ audit_logger = AuditLogger()
 
 
 # Decorator for automatic audit logging
-def audit_action(action: AuditAction, resource_param: str = None, log_details: bool = True):
+def audit_action(
+    action: AuditAction, resource_param: str = None, log_details: bool = True
+):
     """
     Decorator for automatic audit logging of function calls
 
@@ -431,10 +436,16 @@ def audit_action(action: AuditAction, resource_param: str = None, log_details: b
                 if hasattr(args[0], "__self__"):  # Method call
                     self_obj = args[0]
                     if hasattr(self_obj, "current_user"):
-                        user_id = str(self_obj.current_user.id) if self_obj.current_user else None
+                        user_id = (
+                            str(self_obj.current_user.id)
+                            if self_obj.current_user
+                            else None
+                        )
                     if hasattr(self_obj, "request"):
                         ip_address = (
-                            self_obj.request.client.host if self_obj.request.client else None
+                            self_obj.request.client.host
+                            if self_obj.request.client
+                            else None
                         )
                         user_agent = self_obj.request.headers.get("User-Agent")
 
@@ -579,7 +590,11 @@ def log_password_reset(
         user_id=user.id,
         action="password_reset",
         resource_type="user_password",
-        details={"user_email": user.email, "reset_method": reset_method, **(metadata or {})},
+        details={
+            "user_email": user.email,
+            "reset_method": reset_method,
+            **(metadata or {}),
+        },
     )
     db.add(log_entry)
     db.commit()

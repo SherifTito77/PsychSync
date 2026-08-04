@@ -54,7 +54,7 @@ class SecurityLogger:
         enable_redaction: bool = True,
         enable_integrity: bool = True,
         enable_siem: bool = False,
-        enable_detection: bool = True
+        enable_detection: bool = True,
     ):
         self.redactor = redactor or DataRedactor()
         self.integrity_manager = integrity_manager
@@ -71,7 +71,7 @@ class SecurityLogger:
             "events_logged": 0,
             "events_redacted": 0,
             "alerts_generated": 0,
-            "siem_errors": 0
+            "siem_errors": 0,
         }
 
     async def log_event(self, event: SecurityEvent) -> SecurityEvent:
@@ -164,7 +164,9 @@ class SecurityLogger:
             if event.prompt_preview:
                 event.prompt_preview = self.redactor.redact_string(event.prompt_preview)
             if event.response_preview:
-                event.response_preview = self.redactor.redact_string(event.response_preview)
+                event.response_preview = self.redactor.redact_string(
+                    event.response_preview
+                )
 
         elif isinstance(event, DataAccessEvent):
             # Redact filters
@@ -186,7 +188,7 @@ class SecurityLogger:
         failure_reason: str | None = None,
         is_anomalous: bool = False,
         risk_score: float = 0.0,
-        **kwargs
+        **kwargs,
     ) -> AuthEvent:
         """
         Log authentication event.
@@ -225,7 +227,7 @@ class SecurityLogger:
             is_anomalous=is_anomalous,
             risk_score=risk_score,
             description=f"Authentication event: {event_type.value}",
-            metadata=kwargs
+            metadata=kwargs,
         )
 
         return await self.log_event(event)
@@ -247,7 +249,7 @@ class SecurityLogger:
         scope: str = "user",
         organization_id: str | None = None,
         team_id: str | None = None,
-        **kwargs
+        **kwargs,
     ) -> PrivilegeChangeEvent:
         """
         Log privilege change event.
@@ -300,7 +302,7 @@ class SecurityLogger:
             organization_id=organization_id,
             team_id=team_id,
             description=f"Privilege change: {action} on {target_user_id}",
-            metadata=kwargs
+            metadata=kwargs,
         )
 
         return await self.log_event(event)
@@ -319,7 +321,7 @@ class SecurityLogger:
         conversation_id: str | None = None,
         is_abnormal: bool = False,
         abnormality_reason: str | None = None,
-        **kwargs
+        **kwargs,
     ) -> ToolInvocationEvent:
         """
         Log tool/agent invocation event.
@@ -369,7 +371,7 @@ class SecurityLogger:
             is_abnormal=is_abnormal,
             abnormality_reason=abnormality_reason,
             description=f"Tool invocation: {tool_name}",
-            metadata=kwargs
+            metadata=kwargs,
         )
 
         return await self.log_event(event)
@@ -390,7 +392,7 @@ class SecurityLogger:
         export_destination: str | None = None,
         export_size_bytes: int | None = None,
         export_record_count: int | None = None,
-        **kwargs
+        **kwargs,
     ) -> DataAccessEvent:
         """
         Log data access event.
@@ -450,7 +452,7 @@ class SecurityLogger:
             export_size_bytes=export_size_bytes,
             export_record_count=export_record_count,
             description=f"Data access: {query_type} on {data_type}",
-            metadata=kwargs
+            metadata=kwargs,
         )
 
         return await self.log_event(event)
@@ -469,7 +471,7 @@ class SecurityLogger:
         flagged_content: list[str] | None = None,
         injection_indicators: list[str] | None = None,
         cache_hit: bool = False,
-        **kwargs
+        **kwargs,
     ) -> ModelEvent:
         """
         Log model/AI event with automatic redaction.
@@ -511,7 +513,9 @@ class SecurityLogger:
 
         if response:
             response_length = len(response)
-            response_preview = self.redactor.create_safe_preview(response, max_length=100)
+            response_preview = self.redactor.create_safe_preview(
+                response, max_length=100
+            )
             response_hash = hashlib.sha256(response.encode()).hexdigest()
 
         # Determine event type and severity
@@ -546,7 +550,7 @@ class SecurityLogger:
             injection_indicators=injection_indicators or [],
             cache_hit=cache_hit,
             description=f"Model event: {model_name}",
-            metadata=kwargs
+            metadata=kwargs,
         )
 
         return await self.log_event(event)
@@ -570,9 +574,7 @@ class SecurityLogger:
         return EventSeverity.INFO
 
     async def get_alerts(
-        self,
-        severity: EventSeverity | None = None,
-        limit: int = 100
+        self, severity: EventSeverity | None = None, limit: int = 100
     ) -> list[Any]:
         """Get detection alerts"""
         return self.detector.get_alerts(severity=severity, limit=limit)
@@ -581,9 +583,13 @@ class SecurityLogger:
         """Get logging statistics"""
         stats = {
             **self._stats,
-            "integrity": self.integrity_manager.get_integrity_report() if self.integrity_manager else {},
+            "integrity": (
+                self.integrity_manager.get_integrity_report()
+                if self.integrity_manager
+                else {}
+            ),
             "detection": self.detector.get_stats(),
-            "siem": self.siem_streamer.get_stats() if self.enable_siem else {}
+            "siem": self.siem_streamer.get_stats() if self.enable_siem else {},
         }
         return stats
 
@@ -616,38 +622,37 @@ async def log_auth(event_type: EventType, user_id: str, **kwargs) -> AuthEvent:
     return await security_logger.log_auth_event(event_type, user_id, **kwargs)
 
 
-async def log_privilege_change(user_id: str, target_user_id: str, action: str, **kwargs) -> PrivilegeChangeEvent:
+async def log_privilege_change(
+    user_id: str, target_user_id: str, action: str, **kwargs
+) -> PrivilegeChangeEvent:
     """Quick privilege change logging"""
     return await security_logger.log_privilege_change(
-        user_id=user_id,
-        target_user_id=target_user_id,
-        action=action,
-        **kwargs
+        user_id=user_id, target_user_id=target_user_id, action=action, **kwargs
     )
 
 
-async def log_tool_invocation(tool_name: str, user_id: str | None = None, **kwargs) -> ToolInvocationEvent:
+async def log_tool_invocation(
+    tool_name: str, user_id: str | None = None, **kwargs
+) -> ToolInvocationEvent:
     """Quick tool invocation logging"""
     return await security_logger.log_tool_invocation(
-        tool_name=tool_name,
-        user_id=user_id,
-        **kwargs
+        tool_name=tool_name, user_id=user_id, **kwargs
     )
 
 
-async def log_data_access(user_id: str | None = None, data_type: str = "unknown", **kwargs) -> DataAccessEvent:
+async def log_data_access(
+    user_id: str | None = None, data_type: str = "unknown", **kwargs
+) -> DataAccessEvent:
     """Quick data access logging"""
     return await security_logger.log_data_access(
-        user_id=user_id,
-        data_type=data_type,
-        **kwargs
+        user_id=user_id, data_type=data_type, **kwargs
     )
 
 
-async def log_model_event(model_name: str, prompt: str | None = None, **kwargs) -> ModelEvent:
+async def log_model_event(
+    model_name: str, prompt: str | None = None, **kwargs
+) -> ModelEvent:
     """Quick model event logging"""
     return await security_logger.log_model_event(
-        model_name=model_name,
-        prompt=prompt,
-        **kwargs
+        model_name=model_name, prompt=prompt, **kwargs
     )

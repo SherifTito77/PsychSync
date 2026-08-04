@@ -35,11 +35,12 @@ logger = logging.getLogger(__name__)
 # SENTRY INTEGRATION
 # ============================================================================
 
+
 def init_sentry(
     dsn: Optional[str] = None,
     environment: str = "production",
     traces_sample_rate: float = 0.1,
-    profiles_sample_rate: float = 0.1
+    profiles_sample_rate: float = 0.1,
 ) -> bool:
     """
     Initialize Sentry for error tracking and performance monitoring
@@ -62,8 +63,8 @@ def init_sentry(
     try:
         import sentry_sdk
         from sentry_sdk.integrations.fastapi import FastApiIntegration
-        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
         from sentry_sdk.integrations.redis import RedisIntegration
+        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
         if dsn is None:
             dsn = os.getenv("SENTRY_DSN")
@@ -81,7 +82,7 @@ def init_sentry(
             integrations=[
                 FastApiIntegration(),
                 SqlalchemyIntegration(),
-                RedisIntegration()
+                RedisIntegration(),
             ],
             # Filter sensitive data
             before_send_transaction=before_send_transaction_filter,
@@ -149,10 +150,7 @@ def before_send_filter(event, hint):
 
 
 def capture_clinical_error(
-    error: Exception,
-    screening_type: str,
-    user_role: str,
-    context: dict
+    error: Exception, screening_type: str, user_role: str, context: dict
 ):
     """
     Capture clinical error with context for Sentry
@@ -172,12 +170,15 @@ def capture_clinical_error(
         scope.set_tag("severity", context.get("severity", "error"))
 
         # Add context (no PHI)
-        scope.set_context("clinical", {
-            "operation": context.get("operation"),
-            "step": context.get("step"),
-            "error_code": context.get("error_code"),
-            "has_ph": context.get("has_ph", False)
-        })
+        scope.set_context(
+            "clinical",
+            {
+                "operation": context.get("operation"),
+                "step": context.get("step"),
+                "error_code": context.get("error_code"),
+                "has_ph": context.get("has_ph", False),
+            },
+        )
 
         # Capture exception
         sentry_sdk.capture_exception(error)
@@ -187,11 +188,12 @@ def capture_clinical_error(
 # DATADOG INTEGRATION
 # ============================================================================
 
+
 def init_datadog(
     service_name: str = "psychsync-api",
     statsd_host: str = "localhost",
     statsd_port: int = 8125,
-    env: str = "production"
+    env: str = "production",
 ) -> bool:
     """
     Initialize Datadog for metrics and tracing
@@ -212,8 +214,8 @@ def init_datadog(
         True if initialized successfully, False otherwise
     """
     try:
-        from ddtrace import tracer, patch_all
         from ddtrace import config as dd_config
+        from ddtrace import patch_all, tracer
 
         # Configure Datadog
         dd_config.service = service_name
@@ -228,7 +230,7 @@ def init_datadog(
             port=statsd_port,
             enabled=True,
             analytics_enabled=True,
-            trace_propagation_styles=["datadog", "b3"]
+            trace_propagation_styles=["datadog", "b3"],
         )
 
         logger.info(f"Datadog initialized successfully (service: {service_name})")
@@ -245,6 +247,7 @@ def init_datadog(
 # ============================================================================
 # CUSTOM METRICS
 # ============================================================================
+
 
 class ClinicalMetrics:
     """
@@ -283,7 +286,9 @@ class ClinicalMetrics:
         """Increment crisis alert counter"""
         if self.statsd:
             metric_name = "clinical.crisis_alert.triggered"
-            self.statsd.increment(metric_name, tags=[f"type:{alert_type}", f"severity:{severity}"])
+            self.statsd.increment(
+                metric_name, tags=[f"type:{alert_type}", f"severity:{severity}"]
+            )
         logger.warning(f"Metric: Crisis alert {alert_type} ({severity} severity)")
 
     def timing_screening_duration(self, screening_type: str, duration_ms: int):
@@ -297,7 +302,9 @@ class ClinicalMetrics:
         """Increment notification sent counter"""
         if self.statsd:
             metric_name = "clinical.notification.sent"
-            self.statsd.increment(metric_name, tags=[f"type:{notification_type}", f"provider:{provider}"])
+            self.statsd.increment(
+                metric_name, tags=[f"type:{notification_type}", f"provider:{provider}"]
+            )
         logger.debug(f"Metric: Notification sent ({notification_type} via {provider})")
 
 
@@ -312,15 +319,18 @@ def get_clinical_metrics() -> ClinicalMetrics:
         # Try to initialize with Datadog
         try:
             from datadog import DogStatsd
+
             statsd = DogStatsd(
                 host=os.getenv("DATADOG_HOST", "localhost"),
-                port=int(os.getenv("DATADOG_PORT", 8125))
+                port=int(os.getenv("DATADOG_PORT", 8125)),
             )
             _clinical_metrics = ClinicalMetrics(statsd_client=statsd)
             logger.info("Clinical metrics initialized with Datadog")
         except ImportError:
             _clinical_metrics = ClinicalMetrics(statsd_client=None)
-            logger.info("Clinical metrics initialized without Datadog (metrics disabled)")
+            logger.info(
+                "Clinical metrics initialized without Datadog (metrics disabled)"
+            )
 
     return _clinical_metrics
 
@@ -328,6 +338,7 @@ def get_clinical_metrics() -> ClinicalMetrics:
 # ============================================================================
 # HEALTH CHECK ENDPOINT
 # ============================================================================
+
 
 def get_monitoring_status() -> dict:
     """
@@ -339,12 +350,13 @@ def get_monitoring_status() -> dict:
     status = {
         "sentry": {"configured": False, "environment": None},
         "datadog": {"configured": False, "service": None},
-        "logging": {"configured": False, "level": None}
+        "logging": {"configured": False, "level": None},
     }
 
     # Check Sentry
     try:
         import sentry_sdk
+
         status["sentry"]["configured"] = sentry_sdk.Hub.current_client is not None
         status["sentry"]["environment"] = os.getenv("ENVIRONMENT", "unknown")
     except ImportError:
@@ -353,6 +365,7 @@ def get_monitoring_status() -> dict:
     # Check Datadog
     try:
         import ddtrace
+
         status["datadog"]["configured"] = ddgame.tracer is not None
         status["datadog"]["service"] = os.getenv("DD_SERVICE", "psychsync-api")
     except ImportError:
@@ -360,6 +373,7 @@ def get_monitoring_status() -> dict:
 
     # Check logging
     import logging
+
     root_logger = logging.getLogger()
     status["logging"]["configured"] = len(root_logger.handlers) > 0
     status["logging"]["level"] = root_logger.level

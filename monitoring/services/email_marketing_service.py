@@ -7,12 +7,13 @@ Behavioral email campaigns with personalized content and automated triggers
 import asyncio
 import json
 import logging
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
 
 class CampaignType(Enum):
     ONBOARDING = "onboarding"
@@ -23,6 +24,7 @@ class CampaignType(Enum):
     COMPETITIVE_INSIGHT = "competitive_insight"
     ROI_FOLLOWUP = "roi_followup"
 
+
 class TriggerType(Enum):
     SIGNUP = "signup"
     DASHBOARD_CREATED = "dashboard_created"
@@ -31,6 +33,7 @@ class TriggerType(Enum):
     USAGE_MILESTONE = "usage_milestone"
     INACTIVITY = "inactivity"
     COMPETITIVE_BENCHMARK = "competitive_benchmark"
+
 
 @dataclass
 class EmailTemplate:
@@ -43,6 +46,7 @@ class EmailTemplate:
     variables: List[str]
     personalization_tokens: Dict[str, str]
 
+
 @dataclass
 class Campaign:
     id: str
@@ -53,6 +57,7 @@ class Campaign:
     triggers: List[TriggerType]
     delay_rules: Dict[str, int]  # hours to wait after trigger
     conditions: Dict[str, Any]  # conditions for campaign execution
+
 
 @dataclass
 class CustomerBehavior:
@@ -70,6 +75,7 @@ class CustomerBehavior:
     support_interactions: int = 0
     nps_score: Optional[float] = None
 
+
 @dataclass
 class EmailSend:
     id: str
@@ -83,6 +89,7 @@ class EmailSend:
     clicked: bool = False
     converted: bool = False
     revenue_impact: float = 0.0
+
 
 class EmailMarketingService:
     """Automated email marketing with behavioral triggers and personalization"""
@@ -111,12 +118,16 @@ class EmailMarketingService:
                     trigger_type=TriggerType.SIGNUP,
                     subject_template="Your Business Intelligence Dashboard is Ready - {company_name}",
                     html_template=self._get_welcome_template(),
-                    variables=["company_name", "dashboard_url", "setup_completion_time"],
+                    variables=[
+                        "company_name",
+                        "dashboard_url",
+                        "setup_completion_time",
+                    ],
                     personalization_tokens={
                         "company_name": "Customer company name",
                         "dashboard_url": "Direct link to their dashboard",
-                        "setup_completion_time": "Time to complete setup"
-                    }
+                        "setup_completion_time": "Time to complete setup",
+                    },
                 ),
                 EmailTemplate(
                     id="onboarding_first_insight",
@@ -128,8 +139,8 @@ class EmailMarketingService:
                     variables=["company_name", "insight_type", "competitive_advantage"],
                     personalization_tokens={
                         "insight_type": "Type of insight discovered",
-                        "competitive_advantage": "Specific advantage metrics"
-                    }
+                        "competitive_advantage": "Specific advantage metrics",
+                    },
                 ),
                 EmailTemplate(
                     id="onboarding_feature_discovery",
@@ -138,16 +149,24 @@ class EmailMarketingService:
                     trigger_type=TriggerType.INSIGHT_VIEWED,
                     subject_template="3 Ways to Turn {company_name} Data Into Revenue",
                     html_template=self._get_feature_discovery_template(),
-                    variables=["company_name", "revenue_opportunity", "upgrade_potential"],
+                    variables=[
+                        "company_name",
+                        "revenue_opportunity",
+                        "upgrade_potential",
+                    ],
                     personalization_tokens={
                         "revenue_opportunity": "Calculated revenue impact",
-                        "upgrade_potential": "Potential value from upgrade"
-                    }
-                )
+                        "upgrade_potential": "Potential value from upgrade",
+                    },
+                ),
             ],
-            triggers=[TriggerType.SIGNUP, TriggerType.DASHBOARD_CREATED, TriggerType.INSIGHT_VIEWED],
+            triggers=[
+                TriggerType.SIGNUP,
+                TriggerType.DASHBOARD_CREATED,
+                TriggerType.INSIGHT_VIEWED,
+            ],
             delay_rules={"signup": 0, "dashboard_created": 2, "insight_viewed": 24},
-            conditions={"min_tier": "free", "max_tier": "enterprise"}
+            conditions={"min_tier": "free", "max_tier": "enterprise"},
         )
 
         # Upgrade Nudge Campaign
@@ -164,12 +183,17 @@ class EmailMarketingService:
                     trigger_type=TriggerType.USAGE_MILESTONE,
                     subject_template="📈 {company_name} is Outgrowing Free Tier - Next Steps?",
                     html_template=self._get_upgrade_usage_template(),
-                    variables=["company_name", "usage_percentage", "upgrade_benefits", "roi_calculation"],
+                    variables=[
+                        "company_name",
+                        "usage_percentage",
+                        "upgrade_benefits",
+                        "roi_calculation",
+                    ],
                     personalization_tokens={
                         "usage_percentage": "Current tier usage percentage",
                         "upgrade_benefits": "Specific benefits for upgrade",
-                        "roi_calculation": "Personalized ROI calculation"
-                    }
+                        "roi_calculation": "Personalized ROI calculation",
+                    },
                 ),
                 EmailTemplate(
                     id="upgrade_competitive_insight",
@@ -178,17 +202,22 @@ class EmailMarketingService:
                     trigger_type=TriggerType.COMPETITIVE_BENCHMARK,
                     subject_template="🏆 {company_name} vs Industry Leaders - Upgrade to See Full Analysis",
                     html_template=self._get_competitive_upgrade_template(),
-                    variables=["company_name", "industry_ranking", "competitive_gap", "enterprise_benefits"],
+                    variables=[
+                        "company_name",
+                        "industry_ranking",
+                        "competitive_gap",
+                        "enterprise_benefits",
+                    ],
                     personalization_tokens={
                         "industry_ranking": "Current industry ranking",
                         "competitive_gap": "Gap vs industry leaders",
-                        "enterprise_benefits": "Enterprise-tier specific benefits"
-                    }
-                )
+                        "enterprise_benefits": "Enterprise-tier specific benefits",
+                    },
+                ),
             ],
             triggers=[TriggerType.USAGE_MILESTONE, TriggerType.COMPETITIVE_BENCHMARK],
             delay_rules={"usage_milestone": 0, "competitive_benchmark": 4},
-            conditions={"current_tier": "free", "upgrade_eligible": True}
+            conditions={"current_tier": "free", "upgrade_eligible": True},
         )
 
         # Winback Campaign
@@ -205,12 +234,17 @@ class EmailMarketingService:
                     trigger_type=TriggerType.INACTIVITY,
                     subject_template="🔍 {company_name} - New Business Insights Waiting for You",
                     html_template=self._get_winback_insights_template(),
-                    variables=["company_name", "days_inactive", "new_insights_count", "missed_value"],
+                    variables=[
+                        "company_name",
+                        "days_inactive",
+                        "new_insights_count",
+                        "missed_value",
+                    ],
                     personalization_tokens={
                         "days_inactive": "Days since last activity",
                         "new_insights_count": "Number of new insights available",
-                        "missed_value": "Estimated value they missed"
-                    }
+                        "missed_value": "Estimated value they missed",
+                    },
                 ),
                 EmailTemplate(
                     id="winback_roi_reminder",
@@ -219,17 +253,25 @@ class EmailMarketingService:
                     trigger_type=TriggerType.INACTIVITY,
                     subject_template="💰 {company_name} - {missed_revenue} in Revenue Protection Waiting",
                     html_template=self._get_winback_roi_template(),
-                    variables=["company_name", "missed_revenue", "reactivation_bonus", "urgent_insights"],
+                    variables=[
+                        "company_name",
+                        "missed_revenue",
+                        "reactivation_bonus",
+                        "urgent_insights",
+                    ],
                     personalization_tokens={
                         "missed_revenue": "Revenue they could have protected",
                         "reactivation_bonus": "Special offer for reactivation",
-                        "urgent_insights": "Critical insights requiring attention"
-                    }
-                )
+                        "urgent_insights": "Critical insights requiring attention",
+                    },
+                ),
             ],
             triggers=[TriggerType.INACTIVITY],
             delay_rules={"inactivity": 168},  # 1 week
-            conditions={"days_inactive_min": 7, "previous_tier": ["growth", "enterprise"]}
+            conditions={
+                "days_inactive_min": 7,
+                "previous_tier": ["growth", "enterprise"],
+            },
         )
 
         # Feature Adoption Campaign
@@ -246,12 +288,17 @@ class EmailMarketingService:
                     trigger_type=TriggerType.USAGE_MILESTONE,
                     subject_template="🚀 Get {company_name} Insights in Slack - Real-Time Business Intelligence",
                     html_template=self._get_slack_integration_template(),
-                    variables=["company_name", "integration_benefits", "setup_time", "productivity_gain"],
+                    variables=[
+                        "company_name",
+                        "integration_benefits",
+                        "setup_time",
+                        "productivity_gain",
+                    ],
                     personalization_tokens={
                         "integration_benefits": "Benefits of Slack integration",
                         "setup_time": "Time to set up integration",
-                        "productivity_gain": "Expected productivity improvement"
-                    }
+                        "productivity_gain": "Expected productivity improvement",
+                    },
                 ),
                 EmailTemplate(
                     id="feature_custom_metrics",
@@ -260,17 +307,22 @@ class EmailMarketingService:
                     trigger_type=TriggerType.INSIGHT_VIEWED,
                     subject_template="📊 Create {company_name}-Specific Metrics That Drive Revenue",
                     html_template=self._get_custom_metrics_template(),
-                    variables=["company_name", "metric_examples", "revenue_impact", "setup_guide"],
+                    variables=[
+                        "company_name",
+                        "metric_examples",
+                        "revenue_impact",
+                        "setup_guide",
+                    ],
                     personalization_tokens={
                         "metric_examples": "Relevant metric examples",
                         "revenue_impact": "Revenue impact of custom metrics",
-                        "setup_guide": "Quick setup guide"
-                    }
-                )
+                        "setup_guide": "Quick setup guide",
+                    },
+                ),
             ],
             triggers=[TriggerType.USAGE_MILESTONE, TriggerType.INSIGHT_VIEWED],
             delay_rules={"usage_milestone": 48, "insight_viewed": 72},
-            conditions={"current_tier": ["growth", "enterprise"]}
+            conditions={"current_tier": ["growth", "enterprise"]},
         )
 
         return campaigns
@@ -988,7 +1040,9 @@ class EmailMarketingService:
         </html>
         """
 
-    def track_customer_behavior(self, customer_data: Dict[str, Any]) -> CustomerBehavior:
+    def track_customer_behavior(
+        self, customer_data: Dict[str, Any]
+    ) -> CustomerBehavior:
         """Track customer behavior for campaign triggers"""
         customer_id = customer_data.get("customer_id")
 
@@ -1002,17 +1056,23 @@ class EmailMarketingService:
                 last_active=customer_data.get("last_active", datetime.now()),
                 dashboard_created=customer_data.get("dashboard_created", False),
                 insights_viewed=customer_data.get("insights_viewed", 0),
-                upgrade_recommendations_received=customer_data.get("upgrade_recommendations_received", 0),
+                upgrade_recommendations_received=customer_data.get(
+                    "upgrade_recommendations_received", 0
+                ),
                 usage_metrics=customer_data.get("usage_metrics", {}),
                 psychsync_app_url=customer_data.get("psychsync_app_url"),
                 support_interactions=customer_data.get("support_interactions", 0),
-                nps_score=customer_data.get("nps_score")
+                nps_score=customer_data.get("nps_score"),
             )
 
         return self.customer_behaviors[customer_id]
 
-    def trigger_campaign(self, customer_id: str, trigger_type: TriggerType,
-                        trigger_data: Optional[Dict[str, Any]] = None) -> List[str]:
+    def trigger_campaign(
+        self,
+        customer_id: str,
+        trigger_type: TriggerType,
+        trigger_data: Optional[Dict[str, Any]] = None,
+    ) -> List[str]:
         """Trigger email campaigns based on customer behavior"""
         triggered_emails = []
 
@@ -1030,8 +1090,12 @@ class EmailMarketingService:
 
         return triggered_emails
 
-    def _check_campaign_conditions(self, campaign: Campaign, behavior: CustomerBehavior,
-                                 trigger_data: Optional[Dict[str, Any]]) -> bool:
+    def _check_campaign_conditions(
+        self,
+        campaign: Campaign,
+        behavior: CustomerBehavior,
+        trigger_data: Optional[Dict[str, Any]],
+    ) -> bool:
         """Check if campaign conditions are met"""
         conditions = campaign.conditions
 
@@ -1046,18 +1110,24 @@ class EmailMarketingService:
         # Check min/max tier conditions
         if "min_tier" in conditions:
             tier_hierarchy = {"free": 1, "growth": 2, "enterprise": 3}
-            if tier_hierarchy.get(behavior.current_tier, 0) < tier_hierarchy.get(conditions["min_tier"], 0):
+            if tier_hierarchy.get(behavior.current_tier, 0) < tier_hierarchy.get(
+                conditions["min_tier"], 0
+            ):
                 return False
 
         if "max_tier" in conditions:
             tier_hierarchy = {"free": 1, "growth": 2, "enterprise": 3}
-            if tier_hierarchy.get(behavior.current_tier, 0) > tier_hierarchy.get(conditions["max_tier"], 0):
+            if tier_hierarchy.get(behavior.current_tier, 0) > tier_hierarchy.get(
+                conditions["max_tier"], 0
+            ):
                 return False
 
         # Check usage conditions
         if "upgrade_eligible" in conditions and conditions["upgrade_eligible"]:
             # Simple heuristic: if they're using >80% of tier limits
-            usage_percentage = trigger_data.get("usage_percentage", 0) if trigger_data else 0
+            usage_percentage = (
+                trigger_data.get("usage_percentage", 0) if trigger_data else 0
+            )
             if usage_percentage < 80:
                 return False
 
@@ -1069,28 +1139,40 @@ class EmailMarketingService:
 
         return True
 
-    def _execute_campaign(self, campaign: Campaign, behavior: CustomerBehavior,
-                         trigger_data: Optional[Dict[str, Any]]) -> List[str]:
+    def _execute_campaign(
+        self,
+        campaign: Campaign,
+        behavior: CustomerBehavior,
+        trigger_data: Optional[Dict[str, Any]],
+    ) -> List[str]:
         """Execute campaign and send relevant emails"""
         sent_emails = []
 
         for email_template in campaign.emails:
             if email_template.trigger_type in [t for t in campaign.triggers]:
                 # Check delay rules
-                delay_hours = campaign.delay_rules.get(email_template.trigger_type.value, 0)
+                delay_hours = campaign.delay_rules.get(
+                    email_template.trigger_type.value, 0
+                )
                 if delay_hours > 0:
                     # In production, this would schedule the email for later
                     # For now, we'll simulate immediate sending
                     pass
 
                 # Personalize and send email
-                email_id = self._send_personalized_email(email_template, behavior, trigger_data)
+                email_id = self._send_personalized_email(
+                    email_template, behavior, trigger_data
+                )
                 sent_emails.append(email_id)
 
         return sent_emails
 
-    def _send_personalized_email(self, template: EmailTemplate, behavior: CustomerBehavior,
-                               trigger_data: Optional[Dict[str, Any]]) -> str:
+    def _send_personalized_email(
+        self,
+        template: EmailTemplate,
+        behavior: CustomerBehavior,
+        trigger_data: Optional[Dict[str, Any]],
+    ) -> str:
         """Send personalized email using template"""
         # Personalization variables
         variables = {
@@ -1102,7 +1184,9 @@ class EmailMarketingService:
             "competitive_advantage": "43% faster response time than industry",
             "revenue_opportunity": "$25K-$50K monthly",
             "upgrade_potential": "3x revenue acceleration",
-            "usage_percentage": trigger_data.get("usage_percentage", 85) if trigger_data else 85,
+            "usage_percentage": (
+                trigger_data.get("usage_percentage", 85) if trigger_data else 85
+            ),
             "roi_calculation": "189x ROI with 1-day payback period",
             "industry_ranking": "#12 in industry segment",
             "competitive_gap": "25% better user satisfaction",
@@ -1118,7 +1202,7 @@ class EmailMarketingService:
             "productivity_gain": "4x faster response time",
             "revenue_impact": "40% higher revenue growth",
             "metric_examples": "Assessment velocity, team performance, revenue per assessment",
-            "setup_guide": "5-minute quick start"
+            "setup_guide": "5-minute quick start",
         }
 
         # Add trigger-specific variables
@@ -1137,7 +1221,7 @@ class EmailMarketingService:
             campaign_id=template.campaign_type.value,
             subject=subject,
             content=content,
-            sent_at=datetime.now()
+            sent_at=datetime.now(),
         )
 
         self.email_sends.append(email_send)
@@ -1159,9 +1243,9 @@ class EmailMarketingService:
                 "open_rate": 0.35,  # Simulated
                 "click_rate": 0.12,
                 "conversion_rate": 0.04,
-                "revenue_generated": 125000
+                "revenue_generated": 125000,
             },
-            "top_performing_campaigns": []
+            "top_performing_campaigns": [],
         }
 
         # Group by campaign
@@ -1173,7 +1257,7 @@ class EmailMarketingService:
                     "opens": 0,
                     "clicks": 0,
                     "conversions": 0,
-                    "revenue": 0
+                    "revenue": 0,
                 }
 
             analytics["campaigns_sent"][campaign_id]["emails_sent"] += 1
@@ -1199,7 +1283,7 @@ class EmailMarketingService:
                 "opened": s.opened,
                 "clicked": s.clicked,
                 "converted": s.converted,
-                "revenue_impact": s.revenue_impact
+                "revenue_impact": s.revenue_impact,
             }
             for s in sorted(customer_emails, key=lambda x: x.sent_at, reverse=True)
         ]

@@ -17,11 +17,12 @@ Compliance: HIPAA, GDPR, SOC 2
 
 import logging
 import re
-from typing import Dict, List, Optional, Set, Tuple
 from dataclasses import dataclass
 from enum import Enum
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Dict, List, Optional, Set, Tuple
+
 from sqlalchemy import inspect
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapper
 
 logger = logging.getLogger(__name__)
@@ -162,13 +163,14 @@ class EncryptionStrategyAgent:
         # Import models if not provided
         if models is None:
             from app.db.models import (
-                user,
-                clinical_screening,
                 assessment,
-                responses,
+                clinical_screening,
                 organization,
+                responses,
                 team,
+                user,
             )
+
             models = [
                 user.User,
                 clinical_screening.ClinicalScreening,
@@ -215,7 +217,9 @@ class EncryptionStrategyAgent:
                 recommendations.append(recommendation)
 
         # Calculate statistics
-        sensitive_fields = len([r for r in recommendations if r.sensitivity != DataSensitivity.PUBLIC])
+        sensitive_fields = len(
+            [r for r in recommendations if r.sensitivity != DataSensitivity.PUBLIC]
+        )
         recommended_encrypted = len([r for r in recommendations if r.should_encrypt])
 
         # Calculate compliance score
@@ -375,7 +379,9 @@ class EncryptionStrategyAgent:
         if should_encrypt:
             return rationales.get(sensitivity, "Field contains sensitive data")
         else:
-            return rationales.get(DataSensitivity.PUBLIC, "Field does not contain sensitive data")
+            return rationales.get(
+                DataSensitivity.PUBLIC, "Field does not contain sensitive data"
+            )
 
     async def _assess_migration_complexity(
         self,
@@ -448,7 +454,9 @@ class EncryptionStrategyAgent:
             return 1.0
 
         # Check if sensitive fields are recommended for encryption
-        sensitive_fields = [r for r in recommendations if r.sensitivity != DataSensitivity.PUBLIC]
+        sensitive_fields = [
+            r for r in recommendations if r.sensitivity != DataSensitivity.PUBLIC
+        ]
         encrypted_fields = [r for r in sensitive_fields if r.should_encrypt]
 
         if not sensitive_fields:
@@ -473,7 +481,8 @@ class EncryptionStrategyAgent:
         """
         # Check for critical data
         critical_fields = [
-            r for r in recommendations
+            r
+            for r in recommendations
             if r.sensitivity == DataSensitivity.PHI and not r.should_encrypt
         ]
 
@@ -482,7 +491,8 @@ class EncryptionStrategyAgent:
 
         # Check for high-priority data
         high_priority_fields = [
-            r for r in recommendations
+            r
+            for r in recommendations
             if r.sensitivity == DataSensitivity.PII and not r.should_encrypt
         ]
 
@@ -491,7 +501,8 @@ class EncryptionStrategyAgent:
 
         # Check for any unencrypted sensitive data
         unencrypted_sensitive = [
-            r for r in recommendations
+            r
+            for r in recommendations
             if r.sensitivity != DataSensitivity.PUBLIC and not r.should_encrypt
         ]
 

@@ -8,12 +8,10 @@ Phase 2: Updated to use new service architecture with dependency injection
 
 from typing import AsyncGenerator
 
-# Import database dependencies
-from app.core.database import get_async_db
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Import security dependencies (maintained for backward compatibility)
-from app.services.security import get_current_active_user, get_current_user
+# Import database dependencies
+from app.core.database import get_async_db
 
 # Import new service dependencies
 from app.core.service_provider import (
@@ -23,21 +21,14 @@ from app.core.service_provider import (
     get_scoring_strategy_registry_dep,
     get_token_service_dep,
 )
-from app.services.assessment_scoring_strategies import (
-    ScoringStrategyRegistry,
-)
-from app.services.security.authorization_service import (
-    AuthorizationService,
-)
-from app.services.security.input_sanitizer_service import (
-    InputSanitizerService,
-)
-from app.services.security.password_service import (
-    PasswordService,
-)
-from app.services.security.token_service import (
-    TokenService,
-)
+from app.services.assessment_scoring_strategies import ScoringStrategyRegistry
+
+# Import security dependencies (maintained for backward compatibility)
+from app.services.security import get_current_active_user, get_current_user
+from app.services.security.authorization_service import AuthorizationService
+from app.services.security.input_sanitizer_service import InputSanitizerService
+from app.services.security.password_service import PasswordService
+from app.services.security.token_service import TokenService
 
 # Aliases for backward compatibility
 get_db = get_async_db

@@ -14,10 +14,10 @@ Key Features:
 """
 
 import logging
-from pathlib import Path
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ProductionAuditResult:
     """Result of production readiness audit"""
+
     readiness_score: float
     checks_passed: int
     total_checks: int
@@ -46,9 +47,12 @@ class ProductionAuditor:
         # Simplified implementation for demonstration
         checks = {
             "database": {"status": "pass", "details": "Database migrations validated"},
-            "configuration": {"status": "pass", "details": "Configuration files present"},
+            "configuration": {
+                "status": "pass",
+                "details": "Configuration files present",
+            },
             "monitoring": {"status": "pass", "details": "Basic monitoring configured"},
-            "security": {"status": "pass", "details": "Security measures in place"}
+            "security": {"status": "pass", "details": "Security measures in place"},
         }
 
         passed = sum(1 for check in checks.values() if check["status"] == "pass")
@@ -60,7 +64,10 @@ class ProductionAuditor:
             checks_passed=passed,
             total_checks=total,
             critical_issues=[],
-            recommendations=["Set up advanced monitoring", "Implement backup procedures"],
+            recommendations=[
+                "Set up advanced monitoring",
+                "Implement backup procedures",
+            ],
             detailed_checks=checks,
-            production_ready=score >= 80
+            production_ready=score >= 80,
         )

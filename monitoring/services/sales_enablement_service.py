@@ -7,12 +7,13 @@ Provides sales teams with tools, content, and playbooks for effective revenue ge
 import asyncio
 import json
 import logging
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
 
 class SalesPlayType(Enum):
     OUTBOUND_PROSPECTING = "outbound_prospecting"
@@ -23,11 +24,13 @@ class SalesPlayType(Enum):
     WINBACK_CAMPAIGN = "winback_campaign"
     EXPANSION_RENEWAL = "expansion_renewal"
 
+
 class CustomerSegment(Enum):
     STARTUP = "startup"  # 1-50 employees, <$1M revenue
     SMB = "smb"  # 50-500 employees, $1M-50M revenue
     MID_MARKET = "mid_market"  # 500-2000 employees, $50M-500M revenue
     ENTERPRISE = "enterprise"  # 2000+ employees, >$500M revenue
+
 
 class IndustryType(Enum):
     TECHNOLOGY = "technology"
@@ -38,6 +41,7 @@ class IndustryType(Enum):
     PROFESSIONAL_SERVICES = "professional_services"
     EDUCATION = "education"
     GOVERNMENT = "government"
+
 
 @dataclass
 class SalesPlaybook:
@@ -56,6 +60,7 @@ class SalesPlaybook:
     conversion_rates: Dict[str, float]
     required_assets: List[str]
 
+
 @dataclass
 class CompetitiveIntelligence:
     competitor: str
@@ -66,6 +71,7 @@ class CompetitiveIntelligence:
     win_themes: List[str]
     loss_themes: List[str]
     displacement_tactics: List[str]
+
 
 @dataclass
 class SalesAsset:
@@ -79,6 +85,7 @@ class SalesAsset:
     success_metrics: List[str]
     last_updated: datetime
 
+
 @dataclass
 class SalesConversationGuide:
     id: str
@@ -89,6 +96,7 @@ class SalesConversationGuide:
     roi_framework: Dict[str, Any]
     next_steps: List[str]
     success_indicators: List[str]
+
 
 class SalesEnablementService:
     """Comprehensive sales enablement platform with playbooks, content, and intelligence"""
@@ -110,31 +118,34 @@ class SalesEnablementService:
             name="High-Growth Company Outbound Prospecting",
             play_type=SalesPlayType.OUTBOUND_PROSPECTING,
             target_segments=[CustomerSegment.STARTUP, CustomerSegment.SMB],
-            target_industries=[IndustryType.TECHNOLOGY, IndustryType.PROFESSIONAL_SERVICES],
+            target_industries=[
+                IndustryType.TECHNOLOGY,
+                IndustryType.PROFESSIONAL_SERVICES,
+            ],
             description="Outbound playbook for prospecting high-growth companies with personalized business intelligence messaging",
             objectives=[
                 "Secure initial discovery meeting",
                 "Identify specific business pain points",
                 "Establish value of business intelligence",
-                "Create urgency for competitive insights"
+                "Create urgency for competitive insights",
             ],
             key_messages=[
                 "Companies using business intelligence grow 40% faster",
                 "Your competitors are already using similar insights",
                 "We can show you $125K+ in monthly revenue opportunities",
-                "Setup takes 2 minutes, value is immediate"
+                "Setup takes 2 minutes, value is immediate",
             ],
             objection_handling={
                 "Too expensive": "Our Growth tier is $99/month - less than 1 hour of consulting time for insights that save $150K+ annually",
                 "No time": "Setup takes 2 minutes. Most customers see value within their first dashboard view",
                 "Already have tools": "Do your current tools connect business impact to technical performance in real-time?",
-                "Not interested": "I understand - would you be interested in seeing how your competitors are using business intelligence to gain market share?"
+                "Not interested": "I understand - would you be interested in seeing how your competitors are using business intelligence to gain market share?",
             },
             success_criteria=[
                 "Booked discovery meeting",
                 "Identified 3+ specific pain points",
                 "Customer agrees to demo",
-                "Technical stakeholder involved"
+                "Technical stakeholder involved",
             ],
             average_deal_size=2500.0,
             sales_cycle_days=14,
@@ -142,9 +153,13 @@ class SalesEnablementService:
                 "email_to_meeting": 0.08,
                 "meeting_to_demo": 0.65,
                 "demo_to_proposal": 0.45,
-                "proposal_to_close": 0.70
+                "proposal_to_close": 0.70,
             },
-            required_assets=["personalized_outreach_template", "competitive_intelligence_report", "roi_calculator"]
+            required_assets=[
+                "personalized_outreach_template",
+                "competitive_intelligence_report",
+                "roi_calculator",
+            ],
         )
 
         # Upgrade Conversation Playbook
@@ -159,34 +174,39 @@ class SalesEnablementService:
                 "Identify upgrade triggers based on usage",
                 "Demonstrate clear ROI for upgrade",
                 "Remove barriers to upgrade decision",
-                "Process upgrade immediately"
+                "Process upgrade immediately",
             ],
             key_messages=[
                 "You're currently at {usage_percentage}% of free tier limits",
                 "Growth tier customers see 189x ROI with 1-day payback",
                 "You're missing $X in monthly value by staying on free tier",
-                "Upgrade takes 30 seconds and benefits are immediate"
+                "Upgrade takes 30 seconds and benefits are immediate",
             ],
             objection_handling={
                 "Happy with free": "I'm glad you're finding value! Based on your usage, you're leaving $X on the table each month",
                 "Too expensive": "$99/month is less than 2 hours of employee time for insights that save $10K+ monthly",
                 "Don't need features": "It's not about features - it's about the $125K+ in revenue protection you're currently missing",
-                "Need to think": "I understand. Can I show you exactly how much revenue you're missing while you decide?"
+                "Need to think": "I understand. Can I show you exactly how much revenue you're missing while you decide?",
             },
             success_criteria=[
                 "Customer identifies upgrade value",
                 "ROI calculation accepted",
                 "Payment method provided",
-                "Upgrade completed in call"
+                "Upgrade completed in call",
             ],
             average_deal_size=1188.0,
             sales_cycle_days=3,
             conversion_rates={
                 "outreach_to_meeting": 0.25,
                 "meeting_to_upgrade": 0.80,
-                "upgrade_to_success": 0.90
+                "upgrade_to_success": 0.90,
             },
-            required_assets=["usage_report", "roi_analysis", "upgrade_comparison_chart", "competitive_intelligence"]
+            required_assets=[
+                "usage_report",
+                "roi_analysis",
+                "upgrade_comparison_chart",
+                "competitive_intelligence",
+            ],
         )
 
         # Enterprise Deal Playbook
@@ -195,31 +215,35 @@ class SalesEnablementService:
             name="Enterprise Strategic Deal",
             play_type=SalesPlayType.ENTERPRISE_DEAL,
             target_segments=[CustomerSegment.MID_MARKET, CustomerSegment.ENTERPRISE],
-            target_industries=[IndustryType.TECHNOLOGY, IndustryType.FINANCIAL_SERVICES, IndustryType.HEALTHCARE],
+            target_industries=[
+                IndustryType.TECHNOLOGY,
+                IndustryType.FINANCIAL_SERVICES,
+                IndustryType.HEALTHCARE,
+            ],
             description="Enterprise sales playbook for strategic deals with custom requirements and SLA guarantees",
             objectives=[
                 "Identify strategic business requirements",
                 "Align with executive stakeholders",
                 "Demonstrate enterprise-grade capabilities",
-                "Secure multi-year commitment"
+                "Secure multi-year commitment",
             ],
             key_messages=[
                 "Enterprise-grade business intelligence for competitive advantage",
                 "SLA guarantees protecting your revenue streams",
                 "Custom metrics aligned with your specific KPIs",
-                "ROI of 300%+ with executive reporting included"
+                "ROI of 300%+ with executive reporting included",
             ],
             objection_handling={
                 "Too expensive": "At $499/month, we protect enterprise revenue streams worth millions. What's the cost of not having this visibility?",
                 "Need custom features": "We can build custom metrics and integrations. What specific capabilities would drive the most value?",
                 "Long procurement process": "I understand. Can we start with a 90-day pilot to demonstrate value while procurement runs?",
-                "Internal solution": "How long would it take to build this internally? What's the opportunity cost of waiting 6-12 months?"
+                "Internal solution": "How long would it take to build this internally? What's the opportunity cost of waiting 6-12 months?",
             },
             success_criteria=[
                 "Executive sponsor identified",
                 "Technical requirements documented",
                 "Pilot or proof of concept approved",
-                "Procurement process initiated"
+                "Procurement process initiated",
             ],
             average_deal_size=30000.0,
             sales_cycle_days=60,
@@ -227,9 +251,14 @@ class SalesEnablementService:
                 "initial_to_discovery": 0.40,
                 "discovery_to_proposal": 0.70,
                 "proposal_to_pilot": 0.50,
-                "pilot_to_close": 0.80
+                "pilot_to_close": 0.80,
             },
-            required_assets=["executive_summary", "technical_architecture", "security_compliance", "custom_proposal"]
+            required_assets=[
+                "executive_summary",
+                "technical_architecture",
+                "security_compliance",
+                "custom_proposal",
+            ],
         )
 
         # Competitive Displacement Playbook
@@ -244,39 +273,46 @@ class SalesEnablementService:
                 "Identify gaps in current solution",
                 "Demonstrate PsychSync competitive advantages",
                 "Create migration plan",
-                "Accelerate decision timeline"
+                "Accelerate decision timeline",
             ],
             key_messages=[
                 "Your current tool shows technical metrics, we show business impact",
                 "Competitive intelligence: you vs industry leaders in real-time",
                 "189x better ROI with automated insights vs manual dashboards",
-                "Setup in 2 minutes vs months of configuration"
+                "Setup in 2 minutes vs months of configuration",
             ],
             objection_handling={
                 "Happy with current tool": "Great! Are you happy with the business insights and ROI you're getting from it?",
                 "Too disruptive to switch": "We can run in parallel during transition. Most customers see value immediately and switch within weeks",
                 "Already paid for year": "We'll credit remaining months toward Growth tier and provide free onboarding",
-                "Team knows current tool": "Our tool is designed for business users, not technical teams. Setup is 95% faster"
+                "Team knows current tool": "Our tool is designed for business users, not technical teams. Setup is 95% faster",
             },
             success_criteria=[
                 "Current tool limitations identified",
                 "PsychSync advantages demonstrated",
                 "Migration timeline established",
-                "Executive approval secured"
+                "Executive approval secured",
             ],
             average_deal_size=15000.0,
             sales_cycle_days=30,
             conversion_rates={
                 "discovery_to_demo": 0.75,
                 "demo_to_pilot": 0.60,
-                "pilot_to_close": 0.70
+                "pilot_to_close": 0.70,
             },
-            required_assets=["competitive_comparison", "migration_guide", "roi_vs_competitor", "executive_case_study"]
+            required_assets=[
+                "competitive_comparison",
+                "migration_guide",
+                "roi_vs_competitor",
+                "executive_case_study",
+            ],
         )
 
         return playbooks
 
-    def _initialize_competitive_intelligence(self) -> Dict[str, CompetitiveIntelligence]:
+    def _initialize_competitive_intelligence(
+        self,
+    ) -> Dict[str, CompetitiveIntelligence]:
         """Initialize competitive intelligence data"""
         intelligence = {}
 
@@ -287,38 +323,38 @@ class SalesEnablementService:
                 "Established brand in APM space",
                 "Comprehensive technical monitoring",
                 "Large ecosystem of integrations",
-                "Strong enterprise features"
+                "Strong enterprise features",
             ],
             weaknesses=[
                 "Business intelligence focus is secondary",
                 "Complex setup and configuration",
                 "Expensive for business insights",
-                "Requires technical expertise to extract value"
+                "Requires technical expertise to extract value",
             ],
             positioning="New Relic is technical infrastructure monitoring. We're business intelligence that happens to use the same data.",
             pricing_comparison={
                 "New Relic": "$500+/month for business insights",
                 "PsychSync Monitor": "$99/month for superior business intelligence",
                 "Setup Time": "New Relic: weeks, PsychSync: 2 minutes",
-                "ROI": "New Relic: 50x, PsychSync: 189x"
+                "ROI": "New Relic: 50x, PsychSync: 189x",
             },
             win_themes=[
                 "Business impact focus vs technical metrics",
                 "Setup time advantage (2 minutes vs weeks)",
                 "Industry-specific competitive intelligence",
-                "Superior ROI with faster payback"
+                "Superior ROI with faster payback",
             ],
             loss_themes=[
                 "Already invested in New Relic ecosystem",
                 "Need deep technical monitoring capabilities",
-                "Enterprise procurement preference for established vendors"
+                "Enterprise procurement preference for established vendors",
             ],
             displacement_tactics=[
                 "Focus on business users vs technical teams",
                 "Competitive intelligence as differentiator",
                 "ROI comparison highlighting 3x better returns",
-                "Setup complexity and time-to-value advantage"
-            ]
+                "Setup complexity and time-to-value advantage",
+            ],
         )
 
         # Datadog Competition
@@ -328,38 +364,38 @@ class SalesEnablementService:
                 "Strong brand recognition",
                 "Comprehensive monitoring coverage",
                 "Good visualization capabilities",
-                "Strong technical community"
+                "Strong technical community",
             ],
             weaknesses=[
                 "Overwhelming for business users",
                 "Expensive pricing tiers",
                 "Business insights require customization",
-                "No industry benchmarking"
+                "No industry benchmarking",
             ],
             positioning="Datadog shows what's happening. We show what it means for your business.",
             pricing_comparison={
                 "Datadog": "$700+/month for business features",
                 "PsychSync Monitor": "$99/month for complete business intelligence",
                 "Complexity": "Datadog: high, PsychSync: low",
-                "Value": "Datadog: technical, PsychSync: business"
+                "Value": "Datadog: technical, PsychSync: business",
             },
             win_themes=[
                 "Simplicity and ease of use",
                 "Business-focused insights out of the box",
                 "Industry competitive intelligence",
-                "Better ROI and faster setup"
+                "Better ROI and faster setup",
             ],
             loss_themes=[
                 "Need deep technical monitoring",
                 "Already standardized on Datadog",
-                "Require specific Datadog integrations"
+                "Require specific Datadog integrations",
             ],
             displacement_tactics=[
                 "Focus on business stakeholder needs",
                 "Competitive intelligence as unique value",
                 "Cost comparison for business insights",
-                "User experience and adoption advantages"
-            ]
+                "User experience and adoption advantages",
+            ],
         )
 
         # Generic Business Intelligence Competition
@@ -369,38 +405,38 @@ class SalesEnablementService:
                 "Powerful visualization capabilities",
                 "Flexible data modeling",
                 "Strong enterprise adoption",
-                "Custom dashboard capabilities"
+                "Custom dashboard capabilities",
             ],
             weaknesses=[
                 "Requires data engineering setup",
                 "No real-time PsychSync integration",
                 "Generic, not industry-specific",
-                "High implementation and maintenance costs"
+                "High implementation and maintenance costs",
             ],
             positioning="Generic BI tools require data engineering. We provide business intelligence instantly.",
             pricing_comparison={
                 "Generic BI": "$10K+ implementation + $2K+/month",
                 "PsychSync Monitor": "$99/month ready to use",
                 "Time to Value": "Generic: months, PsychSync: minutes",
-                "Domain Expertise": "Generic: none, PsychSync: built-in"
+                "Domain Expertise": "Generic: none, PsychSync: built-in",
             },
             win_themes=[
                 "Instant value vs implementation projects",
                 "PsychSync-specific business intelligence",
                 "Industry competitive intelligence",
-                "No technical resources required"
+                "No technical resources required",
             ],
             loss_themes=[
                 "Need highly custom dashboards",
                 "Already invested in BI platform",
-                "Require data warehouse integration"
+                "Require data warehouse integration",
             ],
             displacement_tactics=[
                 "Total cost of ownership comparison",
                 "Time-to-value advantage",
                 "Business user enablement",
-                "Specialized vs generic capabilities"
-            ]
+                "Specialized vs generic capabilities",
+            ],
         )
 
         return intelligence
@@ -465,9 +501,9 @@ class SalesEnablementService:
                 "Prospect accepts ROI calculation",
                 "ROI meets minimum threshold (100x+)",
                 "Calculation influences purchase decision",
-                "Customer achieves projected ROI within 6 months"
+                "Customer achieves projected ROI within 6 months",
             ],
-            last_updated=datetime.now()
+            last_updated=datetime.now(),
         )
 
         # Executive One-Pager
@@ -536,9 +572,9 @@ PsychSync Monitor translates technical metrics into business intelligence that d
                 "Executive meeting secured",
                 "Request for detailed presentation",
                 "Inclusion in evaluation process",
-                "Executive sponsorship obtained"
+                "Executive sponsorship obtained",
             ],
-            last_updated=datetime.now()
+            last_updated=datetime.now(),
         )
 
         # Case Study Template
@@ -604,9 +640,9 @@ PsychSync Monitor translates technical metrics into business intelligence that d
                 "Influenced prospect decisions",
                 "Used in successful proposals",
                 "Shared by customers",
-                "Improved conversion rates"
+                "Improved conversion rates",
             ],
-            last_updated=datetime.now()
+            last_updated=datetime.now(),
         )
 
         # Demo Script
@@ -702,9 +738,9 @@ PsychSync Monitor translates technical metrics into business intelligence that d
                 "Demo completion rate",
                 "Prospect engagement during demo",
                 "Request for next steps",
-                "Progression to pilot/proposal stage"
+                "Progression to pilot/proposal stage",
             ],
-            last_updated=datetime.now()
+            last_updated=datetime.now(),
         )
 
         return assets
@@ -721,71 +757,87 @@ PsychSync Monitor translates technical metrics into business intelligence that d
                 {
                     "stage": "Opening",
                     "duration": "2 minutes",
-                    "objectives": ["Build rapport", "Understand their context", "Set agenda"],
+                    "objectives": [
+                        "Build rapport",
+                        "Understand their context",
+                        "Set agenda",
+                    ],
                     "key_questions": [
                         "What prompted your interest in business intelligence?",
                         "How familiar are you with PsychSync?",
-                        "What are your biggest business challenges right now?"
-                    ]
+                        "What are your biggest business challenges right now?",
+                    ],
                 },
                 {
                     "stage": "Business Discovery",
                     "duration": "15 minutes",
-                    "objectives": ["Identify pain points", "Understand current solutions", "Quantify impact"],
+                    "objectives": [
+                        "Identify pain points",
+                        "Understand current solutions",
+                        "Quantify impact",
+                    ],
                     "key_questions": [
                         "How do you currently track business performance?",
                         "What metrics matter most to your executives?",
                         "How do technical issues affect your revenue?",
                         "What's the cost of poor performance or downtime?",
-                        "How do you compare to competitors?"
-                    ]
+                        "How do you compare to competitors?",
+                    ],
                 },
                 {
                     "stage": "Solution Alignment",
                     "duration": "10 minutes",
-                    "objectives": ["Connect solutions to pain", "Demonstrate understanding", "Create urgency"],
+                    "objectives": [
+                        "Connect solutions to pain",
+                        "Demonstrate understanding",
+                        "Create urgency",
+                    ],
                     "key_questions": [
                         "If you could prevent just one major outage per year, what would that be worth?",
                         "How much faster would you grow with better competitive intelligence?",
-                        "What would it mean to your team to have insights in minutes vs weeks?"
-                    ]
+                        "What would it mean to your team to have insights in minutes vs weeks?",
+                    ],
                 },
                 {
                     "stage": "Next Steps",
                     "duration": "3 minutes",
-                    "objectives": ["Define clear actions", "Secure stakeholder involvement", "Set timeline"],
+                    "objectives": [
+                        "Define clear actions",
+                        "Secure stakeholder involvement",
+                        "Set timeline",
+                    ],
                     "key_questions": [
                         "Who else needs to be involved in this decision?",
                         "What timeline makes sense for evaluation?",
-                        "What would you need to see to move forward?"
-                    ]
-                }
+                        "What would you need to see to move forward?",
+                    ],
+                },
             ],
             key_questions=[
                 "What's the business impact of poor performance?",
                 "How do you currently measure and optimize user experience?",
                 "What competitive insights would be most valuable?",
-                "What's your process for making data-driven decisions?"
+                "What's your process for making data-driven decisions?",
             ],
             value_proposition="Transform technical monitoring into business intelligence that drives revenue growth and competitive advantage",
             roi_framework={
                 "revenue_protection": "Calculate based on potential downtime costs",
                 "efficiency_gains": "Quantify time savings and productivity improvements",
                 "competitive_advantage": "Value from market positioning and customer experience",
-                "growth_acceleration": "Impact of optimized user journey and conversion"
+                "growth_acceleration": "Impact of optimized user journey and conversion",
             },
             next_steps=[
                 "Schedule personalized demo",
                 "Provide customized ROI analysis",
                 "Set up 30-day pilot program",
-                "Engage technical stakeholders"
+                "Engage technical stakeholders",
             ],
             success_indicators=[
                 "Prospect identifies specific business value",
                 "Clear understanding of current challenges",
                 "Agreement to next steps",
-                "Stakeholder identification complete"
-            ]
+                "Stakeholder identification complete",
+            ],
         )
 
         # Upgrade Conversation Guide
@@ -796,69 +848,85 @@ PsychSync Monitor translates technical metrics into business intelligence that d
                 {
                     "stage": "Value Recognition",
                     "duration": "5 minutes",
-                    "objectives": ["Acknowledge current success", "Identify usage patterns", "Recognize value"],
+                    "objectives": [
+                        "Acknowledge current success",
+                        "Identify usage patterns",
+                        "Recognize value",
+                    ],
                     "key_questions": [
                         "How has PsychSync Monitor helped your business so far?",
                         "What insights have been most valuable?",
-                        "How often are you checking your dashboard?"
-                    ]
+                        "How often are you checking your dashboard?",
+                    ],
                 },
                 {
                     "stage": "Opportunity Identification",
                     "duration": "10 minutes",
-                    "objectives": ["Show growth trajectory", "Identify missed opportunities", "Create urgency"],
+                    "objectives": [
+                        "Show growth trajectory",
+                        "Identify missed opportunities",
+                        "Create urgency",
+                    ],
                     "key_questions": [
                         "Did you know you're at X% of free tier limits?",
                         "What would it mean to get 3x more insights?",
-                        "How much is it costing you to miss these optimization opportunities?"
-                    ]
+                        "How much is it costing you to miss these optimization opportunities?",
+                    ],
                 },
                 {
                     "stage": "ROI Presentation",
                     "duration": "5 minutes",
-                    "objectives": ["Present specific ROI", "Show immediate value", "Remove barriers"],
+                    "objectives": [
+                        "Present specific ROI",
+                        "Show immediate value",
+                        "Remove barriers",
+                    ],
                     "key_questions": [
                         "If you could protect $X more revenue monthly for just $99, would that make sense?",
                         "What would prevent you from upgrading today?",
-                        "How quickly would you like to see these benefits?"
-                    ]
+                        "How quickly would you like to see these benefits?",
+                    ],
                 },
                 {
                     "stage": "Processing",
                     "duration": "2 minutes",
-                    "objectives": ["Complete upgrade", "Confirm value", "Set expectations"],
+                    "objectives": [
+                        "Complete upgrade",
+                        "Confirm value",
+                        "Set expectations",
+                    ],
                     "key_questions": [
                         "Ready to unlock these additional benefits?",
                         "Which payment method would you prefer?",
-                        "Would you like help with any new features?"
-                    ]
-                }
+                        "Would you like help with any new features?",
+                    ],
+                },
             ],
             key_questions=[
                 "How valuable are the insights you're currently receiving?",
                 "What additional insights would be most valuable?",
                 "What's the cost of missing advanced analytics?",
-                "How quickly would you like to see ROI?"
+                "How quickly would you like to see ROI?",
             ],
             value_proposition="Unlock 3x more business intelligence and revenue protection for less than the cost of one lost opportunity",
             roi_framework={
                 "current_value": "Value they're receiving from free tier",
                 "missed_opportunity": "Additional value they could capture",
                 "upgrade_cost": "$99/month investment",
-                "payback_period": "Typically 1-3 days"
+                "payback_period": "Typically 1-3 days",
             },
             next_steps=[
                 "Process upgrade immediately",
                 "Activate premium features",
                 "Provide onboarding for new capabilities",
-                "Schedule success check-in"
+                "Schedule success check-in",
             ],
             success_indicators=[
                 "Customer recognizes upgrade value",
                 "ROI calculation makes sense",
                 "Upgrade completed in conversation",
-                "Immediate activation of premium features"
-            ]
+                "Immediate activation of premium features",
+            ],
         )
 
         return guides
@@ -867,7 +935,9 @@ PsychSync Monitor translates technical metrics into business intelligence that d
         """Get specific sales playbook"""
         return self.playbooks.get(playbook_id)
 
-    def get_competitive_intelligence(self, competitor: str) -> Optional[CompetitiveIntelligence]:
+    def get_competitive_intelligence(
+        self, competitor: str
+    ) -> Optional[CompetitiveIntelligence]:
         """Get competitive intelligence for specific competitor"""
         return self.competitive_intelligence.get(competitor)
 
@@ -907,7 +977,9 @@ PsychSync Monitor translates technical metrics into business intelligence that d
 
         return recommendations
 
-    def _determine_customer_segment(self, customer_data: Dict[str, Any]) -> CustomerSegment:
+    def _determine_customer_segment(
+        self, customer_data: Dict[str, Any]
+    ) -> CustomerSegment:
         """Determine customer segment based on company data"""
         employees = customer_data.get("employees", 0)
         revenue = customer_data.get("annual_revenue", 0)
@@ -921,8 +993,9 @@ PsychSync Monitor translates technical metrics into business intelligence that d
         else:
             return CustomerSegment.ENTERPRISE
 
-    def generate_proposal_template(self, customer_data: Dict[str, Any],
-                                 playbook_id: str) -> Dict[str, Any]:
+    def generate_proposal_template(
+        self, customer_data: Dict[str, Any], playbook_id: str
+    ) -> Dict[str, Any]:
         """Generate customized proposal template based on playbook and customer data"""
         playbook = self.get_playbook(playbook_id)
         if not playbook:
@@ -940,7 +1013,7 @@ PsychSync Monitor translates technical metrics into business intelligence that d
             "roi_analysis": self._generate_roi_analysis(customer_data),
             "implementation_timeline": self._create_implementation_timeline(playbook),
             "investment": self._calculate_investment(customer_data, playbook),
-            "success_metrics": playbook.success_criteria
+            "success_metrics": playbook.success_criteria,
         }
 
         return proposal
@@ -950,31 +1023,44 @@ PsychSync Monitor translates technical metrics into business intelligence that d
         challenges = []
 
         if customer_data.get("has_performance_issues"):
-            challenges.append("Performance issues affecting customer experience and revenue")
+            challenges.append(
+                "Performance issues affecting customer experience and revenue"
+            )
 
         if customer_data.get("has_downtime"):
-            challenges.append("Unexpected downtime causing revenue loss and customer churn")
+            challenges.append(
+                "Unexpected downtime causing revenue loss and customer churn"
+            )
 
         if not customer_data.get("has_business_intelligence"):
-            challenges.append("Limited visibility into business impact of technical performance")
+            challenges.append(
+                "Limited visibility into business impact of technical performance"
+            )
 
         if customer_data.get("competitive_pressure"):
             challenges.append("Competitive pressure requires better market positioning")
 
         if customer_data.get("manual_reporting"):
-            challenges.append("Manual reporting and analysis consuming valuable team time")
+            challenges.append(
+                "Manual reporting and analysis consuming valuable team time"
+            )
 
         return challenges
 
-    def _customize_solution(self, customer_data: Dict[str, Any],
-                          playbook: SalesPlaybook) -> Dict[str, Any]:
+    def _customize_solution(
+        self, customer_data: Dict[str, Any], playbook: SalesPlaybook
+    ) -> Dict[str, Any]:
         """Customize solution based on customer needs and playbook"""
         return {
-            "tier": "Growth" if customer_data.get("employees", 0) < 500 else "Enterprise",
+            "tier": (
+                "Growth" if customer_data.get("employees", 0) < 500 else "Enterprise"
+            ),
             "key_features": self._prioritize_features(customer_data),
             "integration_requirements": customer_data.get("integration_needs", []),
             "customization": self._identify_customization_needs(customer_data),
-            "support_level": "Priority" if customer_data.get("employees", 0) > 100 else "Standard"
+            "support_level": (
+                "Priority" if customer_data.get("employees", 0) > 100 else "Standard"
+            ),
         }
 
     def _prioritize_features(self, customer_data: Dict[str, Any]) -> List[str]:
@@ -982,13 +1068,23 @@ PsychSync Monitor translates technical metrics into business intelligence that d
         priorities = []
 
         if customer_data.get("revenue_focus"):
-            priorities.extend(["Revenue Impact Analysis", "ROI Tracking", "Executive Reporting"])
+            priorities.extend(
+                ["Revenue Impact Analysis", "ROI Tracking", "Executive Reporting"]
+            )
 
         if customer_data.get("competitive_focus"):
-            priorities.extend(["Competitive Benchmarking", "Market Intelligence", "Industry Comparisons"])
+            priorities.extend(
+                [
+                    "Competitive Benchmarking",
+                    "Market Intelligence",
+                    "Industry Comparisons",
+                ]
+            )
 
         if customer_data.get("efficiency_focus"):
-            priorities.extend(["Automated Insights", "Alert Management", "Performance Optimization"])
+            priorities.extend(
+                ["Automated Insights", "Alert Management", "Performance Optimization"]
+            )
 
         return priorities
 
@@ -1023,21 +1119,24 @@ PsychSync Monitor translates technical metrics into business intelligence that d
             "total_annual_value": total_annual_value,
             "investment": 1188,  # Growth tier annual
             "roi": total_annual_value / 1188 if total_annual_value > 0 else 0,
-            "payback_period_days": 30
+            "payback_period_days": 30,
         }
 
-    def _create_implementation_timeline(self, playbook: SalesPlaybook) -> Dict[str, str]:
+    def _create_implementation_timeline(
+        self, playbook: SalesPlaybook
+    ) -> Dict[str, str]:
         """Create implementation timeline based on playbook"""
         return {
             "day_1": "Account setup and initial integration",
             "day_2": "Dashboard configuration and customization",
             "day_3": "Team training and onboarding",
             "day_7": "First insights review and optimization",
-            "day_30": "Success metrics review and expansion planning"
+            "day_30": "Success metrics review and expansion planning",
         }
 
-    def _calculate_investment(self, customer_data: Dict[str, Any],
-                            playbook: SalesPlaybook) -> Dict[str, Any]:
+    def _calculate_investment(
+        self, customer_data: Dict[str, Any], playbook: SalesPlaybook
+    ) -> Dict[str, Any]:
         """Calculate investment based on customer needs and playbook"""
         tier = "Enterprise" if customer_data.get("employees", 0) > 500 else "Growth"
 
@@ -1046,12 +1145,12 @@ PsychSync Monitor translates technical metrics into business intelligence that d
                 "setup_fee": 5000,
                 "monthly_fee": 499,
                 "annual_total": 5988,
-                "implementation_support": "Included"
+                "implementation_support": "Included",
             }
         else:
             return {
                 "setup_fee": 0,
                 "monthly_fee": 99,
                 "annual_total": 1188,
-                "implementation_support": "Standard"
+                "implementation_support": "Standard",
             }

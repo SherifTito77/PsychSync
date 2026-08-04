@@ -4,17 +4,18 @@ Comprehensive Corporate Data Source Integration for PsychSync
 Automated continuous behavioral analysis inputs
 """
 
-from typing import Dict, List, Any, Optional
+import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from dataclasses import dataclass
-import logging
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 
 class DataSourceType(Enum):
     """Types of corporate data sources"""
+
     # Communication Platforms
     EMAIL_METADATA = "email_metadata"
     SLACK_MESSAGES = "slack_messages"
@@ -68,6 +69,7 @@ class DataSourceType(Enum):
 @dataclass
 class DataSourceConfig:
     """Configuration for a data source integration"""
+
     source_type: DataSourceType
     enabled: bool
     api_endpoint: Optional[str]
@@ -92,7 +94,6 @@ class CorporateDataSourceRegistry:
             # ============================================
             # 1. COMMUNICATION PLATFORMS (Highest Value)
             # ============================================
-
             DataSourceType.EMAIL_METADATA: DataSourceConfig(
                 source_type=DataSourceType.EMAIL_METADATA,
                 enabled=True,
@@ -100,7 +101,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="oauth2",
                 sync_frequency_hours=1,
                 data_retention_days=90,
-                privacy_level='metadata_only',
+                privacy_level="metadata_only",
                 behavioral_signals=[
                     "Communication frequency and patterns",
                     "Response time trends",
@@ -111,11 +112,10 @@ class CorporateDataSourceRegistry:
                     "Conflict language indicators",
                     "Thread length (back-and-forth)",
                     "CC/BCC patterns (inclusion/exclusion)",
-                    "Meeting invite acceptance rates"
+                    "Meeting invite acceptance rates",
                 ],
-                requires_consent=True
+                requires_consent=True,
             ),
-
             DataSourceType.SLACK_MESSAGES: DataSourceConfig(
                 source_type=DataSourceType.SLACK_MESSAGES,
                 enabled=True,
@@ -123,7 +123,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="oauth2",
                 sync_frequency_hours=1,
                 data_retention_days=90,
-                privacy_level='metadata_only',
+                privacy_level="metadata_only",
                 behavioral_signals=[
                     "Message frequency by time of day",
                     "Emoji usage patterns (emotional indicators)",
@@ -134,11 +134,10 @@ class CorporateDataSourceRegistry:
                     "Channel participation diversity",
                     "Direct message frequency",
                     "Status updates (availability patterns)",
-                    "Presence indicators (online/offline patterns)"
+                    "Presence indicators (online/offline patterns)",
                 ],
-                requires_consent=True
+                requires_consent=True,
             ),
-
             DataSourceType.TEAMS_MESSAGES: DataSourceConfig(
                 source_type=DataSourceType.TEAMS_MESSAGES,
                 enabled=True,
@@ -146,7 +145,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="microsoft_oauth",
                 sync_frequency_hours=1,
                 data_retention_days=90,
-                privacy_level='metadata_only',
+                privacy_level="metadata_only",
                 behavioral_signals=[
                     "Meeting participation rates",
                     "Chat activity patterns",
@@ -157,11 +156,10 @@ class CorporateDataSourceRegistry:
                     "Background blur usage (privacy concerns?)",
                     "Breakout room participation",
                     "Hand-raising frequency",
-                    "Reaction usage in meetings"
+                    "Reaction usage in meetings",
                 ],
-                requires_consent=True
+                requires_consent=True,
             ),
-
             DataSourceType.ZOOM_TRANSCRIPTS: DataSourceConfig(
                 source_type=DataSourceType.ZOOM_TRANSCRIPTS,
                 enabled=True,
@@ -169,7 +167,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="oauth2",
                 sync_frequency_hours=4,
                 data_retention_days=30,
-                privacy_level='anonymized',
+                privacy_level="anonymized",
                 behavioral_signals=[
                     "Speaking time distribution",
                     "Interruption frequency",
@@ -180,15 +178,13 @@ class CorporateDataSourceRegistry:
                     "Question-asking frequency",
                     "Agreement/disagreement language",
                     "Confidence in speech patterns",
-                    "Meeting length adherence"
+                    "Meeting length adherence",
                 ],
-                requires_consent=True
+                requires_consent=True,
             ),
-
             # ============================================
             # 2. PRODUCTIVITY & COLLABORATION TOOLS
             # ============================================
-
             DataSourceType.CALENDAR_EVENTS: DataSourceConfig(
                 source_type=DataSourceType.CALENDAR_EVENTS,
                 enabled=True,
@@ -196,7 +192,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="oauth2",
                 sync_frequency_hours=2,
                 data_retention_days=180,
-                privacy_level='metadata_only',
+                privacy_level="metadata_only",
                 behavioral_signals=[
                     "Meeting load (hours in meetings)",
                     "Back-to-back meeting frequency",
@@ -207,11 +203,10 @@ class CorporateDataSourceRegistry:
                     "Meeting acceptance/decline rates",
                     "Last-minute cancellations",
                     "Double-booked time slots",
-                    "Time zone spread (global team stress)"
+                    "Time zone spread (global team stress)",
                 ],
-                requires_consent=False  # Calendar metadata is less sensitive
+                requires_consent=False,  # Calendar metadata is less sensitive
             ),
-
             DataSourceType.JIRA_ACTIVITY: DataSourceConfig(
                 source_type=DataSourceType.JIRA_ACTIVITY,
                 enabled=True,
@@ -219,7 +214,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=4,
                 data_retention_days=365,
-                privacy_level='metadata_only',
+                privacy_level="metadata_only",
                 behavioral_signals=[
                     "Ticket volume per person",
                     "Ticket resolution time trends",
@@ -230,11 +225,10 @@ class CorporateDataSourceRegistry:
                     "Blocker frequency",
                     "Sprint commitment vs completion",
                     "Story point velocity changes",
-                    "Bug creation rate (quality stress)"
+                    "Bug creation rate (quality stress)",
                 ],
-                requires_consent=False
+                requires_consent=False,
             ),
-
             DataSourceType.GITHUB_COMMITS: DataSourceConfig(
                 source_type=DataSourceType.GITHUB_COMMITS,
                 enabled=True,
@@ -242,7 +236,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="oauth2",
                 sync_frequency_hours=2,
                 data_retention_days=365,
-                privacy_level='metadata_only',
+                privacy_level="metadata_only",
                 behavioral_signals=[
                     "Commit frequency patterns",
                     "Code review turnaround time",
@@ -253,11 +247,10 @@ class CorporateDataSourceRegistry:
                     "Branch lifecycle duration",
                     "Code churn (rewrites/deletions)",
                     "Review approval/rejection rates",
-                    "Collaboration breadth (cross-team PRs)"
+                    "Collaboration breadth (cross-team PRs)",
                 ],
-                requires_consent=False
+                requires_consent=False,
             ),
-
             DataSourceType.CONFLUENCE_EDITS: DataSourceConfig(
                 source_type=DataSourceType.CONFLUENCE_EDITS,
                 enabled=True,
@@ -265,7 +258,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=4,
                 data_retention_days=180,
-                privacy_level='metadata_only',
+                privacy_level="metadata_only",
                 behavioral_signals=[
                     "Documentation contribution rates",
                     "Knowledge sharing frequency",
@@ -274,15 +267,13 @@ class CorporateDataSourceRegistry:
                     "Edit frequency (knowledge churn)",
                     "Cross-team documentation access",
                     "Search patterns (information seeking)",
-                    "Outdated content indicators"
+                    "Outdated content indicators",
                 ],
-                requires_consent=False
+                requires_consent=False,
             ),
-
             # ============================================
             # 3. HR SYSTEMS & EMPLOYEE DATA
             # ============================================
-
             DataSourceType.WORKDAY_DATA: DataSourceConfig(
                 source_type=DataSourceType.WORKDAY_DATA,
                 enabled=True,
@@ -290,7 +281,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="oauth2",
                 sync_frequency_hours=24,
                 data_retention_days=730,
-                privacy_level='full',
+                privacy_level="full",
                 behavioral_signals=[
                     "Tenure and turnover risk",
                     "Promotion history and cadence",
@@ -301,11 +292,10 @@ class CorporateDataSourceRegistry:
                     "Organization structure changes",
                     "Reporting line stability",
                     "Role changes frequency",
-                    "Team size fluctuations"
+                    "Team size fluctuations",
                 ],
-                requires_consent=False  # HR data with proper governance
+                requires_consent=False,  # HR data with proper governance
             ),
-
             DataSourceType.BAMBOO_HR: DataSourceConfig(
                 source_type=DataSourceType.BAMBOO_HR,
                 enabled=True,
@@ -313,7 +303,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=24,
                 data_retention_days=730,
-                privacy_level='full',
+                privacy_level="full",
                 behavioral_signals=[
                     "Time-off request patterns",
                     "Time-off approval/denial rates",
@@ -324,11 +314,10 @@ class CorporateDataSourceRegistry:
                     "Emergency contact updates",
                     "Address changes (life events)",
                     "Dependent changes",
-                    "Direct deposit changes"
+                    "Direct deposit changes",
                 ],
-                requires_consent=False
+                requires_consent=False,
             ),
-
             DataSourceType.TIME_TRACKING: DataSourceConfig(
                 source_type=DataSourceType.TIME_TRACKING,
                 enabled=True,
@@ -336,7 +325,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=2,
                 data_retention_days=365,
-                privacy_level='metadata_only',
+                privacy_level="metadata_only",
                 behavioral_signals=[
                     "Actual hours worked vs expected",
                     "Overtime frequency",
@@ -347,11 +336,10 @@ class CorporateDataSourceRegistry:
                     "Task switching frequency",
                     "Break patterns",
                     "Continuous work stretches",
-                    "Multi-project allocation stress"
+                    "Multi-project allocation stress",
                 ],
-                requires_consent=True
+                requires_consent=True,
             ),
-
             DataSourceType.PERFORMANCE_REVIEWS: DataSourceConfig(
                 source_type=DataSourceType.PERFORMANCE_REVIEWS,
                 enabled=True,
@@ -359,7 +347,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=168,  # Weekly
                 data_retention_days=1095,  # 3 years
-                privacy_level='anonymized',
+                privacy_level="anonymized",
                 behavioral_signals=[
                     "Rating trends over time",
                     "Goal achievement rates",
@@ -370,15 +358,13 @@ class CorporateDataSourceRegistry:
                     "Career progression trajectory",
                     "Performance improvement plans",
                     "Recognition frequency",
-                    "360 feedback consistency"
+                    "360 feedback consistency",
                 ],
-                requires_consent=True
+                requires_consent=True,
             ),
-
             # ============================================
             # 4. SURVEYS & FEEDBACK MECHANISMS
             # ============================================
-
             DataSourceType.PULSE_SURVEYS: DataSourceConfig(
                 source_type=DataSourceType.PULSE_SURVEYS,
                 enabled=True,
@@ -386,7 +372,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=24,
                 data_retention_days=365,
-                privacy_level='anonymized',
+                privacy_level="anonymized",
                 behavioral_signals=[
                     "Employee satisfaction scores",
                     "Engagement levels",
@@ -397,11 +383,10 @@ class CorporateDataSourceRegistry:
                     "Stress level self-assessments",
                     "Company culture sentiment",
                     "Career development satisfaction",
-                    "Response rate patterns (engagement)"
+                    "Response rate patterns (engagement)",
                 ],
-                requires_consent=False  # Anonymous surveys
+                requires_consent=False,  # Anonymous surveys
             ),
-
             DataSourceType.ENGAGEMENT_SURVEYS: DataSourceConfig(
                 source_type=DataSourceType.ENGAGEMENT_SURVEYS,
                 enabled=True,
@@ -409,7 +394,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=168,  # Weekly
                 data_retention_days=730,
-                privacy_level='anonymized',
+                privacy_level="anonymized",
                 behavioral_signals=[
                     "eNPS (Employee Net Promoter Score)",
                     "Retention risk indicators",
@@ -420,11 +405,10 @@ class CorporateDataSourceRegistry:
                     "Resource availability",
                     "Professional growth opportunities",
                     "Psychological safety indicators",
-                    "Inclusion and belonging scores"
+                    "Inclusion and belonging scores",
                 ],
-                requires_consent=False
+                requires_consent=False,
             ),
-
             DataSourceType.EXIT_INTERVIEWS: DataSourceConfig(
                 source_type=DataSourceType.EXIT_INTERVIEWS,
                 enabled=True,
@@ -432,7 +416,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=168,
                 data_retention_days=1095,
-                privacy_level='anonymized',
+                privacy_level="anonymized",
                 behavioral_signals=[
                     "Departure reasons (categorized)",
                     "Manager relationship quality",
@@ -443,11 +427,10 @@ class CorporateDataSourceRegistry:
                     "Team dynamics problems",
                     "Burnout indicators",
                     "Toxic behavior reports",
-                    "Company culture misalignment"
+                    "Company culture misalignment",
                 ],
-                requires_consent=True
+                requires_consent=True,
             ),
-
             DataSourceType.ONE_ON_ONE_NOTES: DataSourceConfig(
                 source_type=DataSourceType.ONE_ON_ONE_NOTES,
                 enabled=True,
@@ -455,7 +438,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=24,
                 data_retention_days=365,
-                privacy_level='anonymized',
+                privacy_level="anonymized",
                 behavioral_signals=[
                     "Meeting frequency (manager attention)",
                     "Topic patterns (recurring issues)",
@@ -466,15 +449,13 @@ class CorporateDataSourceRegistry:
                     "Development discussion frequency",
                     "Recognition mentions",
                     "Relationship quality indicators",
-                    "Sentiment in notes"
+                    "Sentiment in notes",
                 ],
-                requires_consent=True
+                requires_consent=True,
             ),
-
             # ============================================
             # 5. WELLNESS & BIOMETRIC DATA
             # ============================================
-
             DataSourceType.WEARABLE_DATA: DataSourceConfig(
                 source_type=DataSourceType.WEARABLE_DATA,
                 enabled=True,
@@ -482,7 +463,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="oauth2",
                 sync_frequency_hours=2,
                 data_retention_days=90,
-                privacy_level='anonymized',
+                privacy_level="anonymized",
                 behavioral_signals=[
                     "Heart rate variability (stress)",
                     "Sleep quality and duration",
@@ -493,11 +474,10 @@ class CorporateDataSourceRegistry:
                     "Sleep disruption patterns",
                     "Recovery scores",
                     "Stress level estimates",
-                    "Cardio fitness trends"
+                    "Cardio fitness trends",
                 ],
-                requires_consent=True  # Highly sensitive
+                requires_consent=True,  # Highly sensitive
             ),
-
             DataSourceType.WELLNESS_APP_DATA: DataSourceConfig(
                 source_type=DataSourceType.WELLNESS_APP_DATA,
                 enabled=True,
@@ -505,7 +485,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="oauth2",
                 sync_frequency_hours=24,
                 data_retention_days=180,
-                privacy_level='anonymized',
+                privacy_level="anonymized",
                 behavioral_signals=[
                     "Meditation/mindfulness usage",
                     "Mental health check-in scores",
@@ -516,11 +496,10 @@ class CorporateDataSourceRegistry:
                     "Fitness challenge participation",
                     "Nutrition tracking",
                     "Stress management tool usage",
-                    "Sleep app usage patterns"
+                    "Sleep app usage patterns",
                 ],
-                requires_consent=True
+                requires_consent=True,
             ),
-
             DataSourceType.MENTAL_HEALTH_CHECKS: DataSourceConfig(
                 source_type=DataSourceType.MENTAL_HEALTH_CHECKS,
                 enabled=True,
@@ -528,7 +507,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=24,
                 data_retention_days=365,
-                privacy_level='anonymized',
+                privacy_level="anonymized",
                 behavioral_signals=[
                     "PHQ-9 depression screening scores",
                     "GAD-7 anxiety scores",
@@ -539,15 +518,13 @@ class CorporateDataSourceRegistry:
                     "Sleep quality self-reports",
                     "Energy level tracking",
                     "Mood tracking trends",
-                    "Crisis support usage"
+                    "Crisis support usage",
                 ],
-                requires_consent=True
+                requires_consent=True,
             ),
-
             # ============================================
             # 6. SYSTEM & ACCESS LOGS
             # ============================================
-
             DataSourceType.VPN_LOGS: DataSourceConfig(
                 source_type=DataSourceType.VPN_LOGS,
                 enabled=True,
@@ -555,7 +532,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=1,
                 data_retention_days=90,
-                privacy_level='metadata_only',
+                privacy_level="metadata_only",
                 behavioral_signals=[
                     "Remote work patterns",
                     "Connection time distributions",
@@ -566,11 +543,10 @@ class CorporateDataSourceRegistry:
                     "Continuous connection duration",
                     "Disconnection patterns",
                     "Multi-location work (nomadic)",
-                    "Time zone challenges"
+                    "Time zone challenges",
                 ],
-                requires_consent=False  # IT security logs
+                requires_consent=False,  # IT security logs
             ),
-
             DataSourceType.BADGE_SWIPES: DataSourceConfig(
                 source_type=DataSourceType.BADGE_SWIPES,
                 enabled=True,
@@ -578,7 +554,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=2,
                 data_retention_days=180,
-                privacy_level='metadata_only',
+                privacy_level="metadata_only",
                 behavioral_signals=[
                     "Office presence patterns",
                     "Early arrival frequency",
@@ -589,11 +565,10 @@ class CorporateDataSourceRegistry:
                     "Floor/area access patterns",
                     "Remote vs office balance",
                     "Commute consistency",
-                    "After-hours building access"
+                    "After-hours building access",
                 ],
-                requires_consent=False
+                requires_consent=False,
             ),
-
             DataSourceType.SYSTEM_LOGIN_TIMES: DataSourceConfig(
                 source_type=DataSourceType.SYSTEM_LOGIN_TIMES,
                 enabled=True,
@@ -601,7 +576,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=1,
                 data_retention_days=90,
-                privacy_level='metadata_only',
+                privacy_level="metadata_only",
                 behavioral_signals=[
                     "First login time distribution",
                     "Last logout time patterns",
@@ -612,11 +587,10 @@ class CorporateDataSourceRegistry:
                     "Lock/unlock frequency",
                     "Application switching patterns",
                     "Peak productivity hours",
-                    "System usage volatility"
+                    "System usage volatility",
                 ],
-                requires_consent=False
+                requires_consent=False,
             ),
-
             DataSourceType.APPLICATION_USAGE: DataSourceConfig(
                 source_type=DataSourceType.APPLICATION_USAGE,
                 enabled=True,
@@ -624,7 +598,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=4,
                 data_retention_days=90,
-                privacy_level='metadata_only',
+                privacy_level="metadata_only",
                 behavioral_signals=[
                     "Communication tool usage patterns",
                     "Productivity tool engagement",
@@ -635,15 +609,13 @@ class CorporateDataSourceRegistry:
                     "Tool adoption rates",
                     "Collaboration tool balance",
                     "Learning platform usage",
-                    "Distraction app usage"
+                    "Distraction app usage",
                 ],
-                requires_consent=True
+                requires_consent=True,
             ),
-
             # ============================================
             # 7. FINANCIAL & COMPENSATION
             # ============================================
-
             DataSourceType.COMPENSATION_CHANGES: DataSourceConfig(
                 source_type=DataSourceType.COMPENSATION_CHANGES,
                 enabled=True,
@@ -651,7 +623,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=168,
                 data_retention_days=1095,
-                privacy_level='anonymized',
+                privacy_level="anonymized",
                 behavioral_signals=[
                     "Salary adjustment frequency",
                     "Promotion timing",
@@ -662,15 +634,13 @@ class CorporateDataSourceRegistry:
                     "Market adjustment patterns",
                     "Performance-pay correlation",
                     "Retention bonus usage",
-                    "Compensation review fairness"
+                    "Compensation review fairness",
                 ],
-                requires_consent=False
+                requires_consent=False,
             ),
-
             # ============================================
             # 8. LEARNING & DEVELOPMENT
             # ============================================
-
             DataSourceType.TRAINING_COMPLETIONS: DataSourceConfig(
                 source_type=DataSourceType.TRAINING_COMPLETIONS,
                 enabled=True,
@@ -678,7 +648,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=24,
                 data_retention_days=730,
-                privacy_level='metadata_only',
+                privacy_level="metadata_only",
                 behavioral_signals=[
                     "Training participation rates",
                     "Course completion velocity",
@@ -689,11 +659,10 @@ class CorporateDataSourceRegistry:
                     "Cross-functional learning",
                     "Leadership development engagement",
                     "Certificate achievement",
-                    "Learning time allocation"
+                    "Learning time allocation",
                 ],
-                requires_consent=False
+                requires_consent=False,
             ),
-
             DataSourceType.SKILL_ASSESSMENTS: DataSourceConfig(
                 source_type=DataSourceType.SKILL_ASSESSMENTS,
                 enabled=True,
@@ -701,7 +670,7 @@ class CorporateDataSourceRegistry:
                 authentication_method="api_token",
                 sync_frequency_hours=168,
                 data_retention_days=730,
-                privacy_level='metadata_only',
+                privacy_level="metadata_only",
                 behavioral_signals=[
                     "Skill proficiency trends",
                     "Skill gap identification",
@@ -712,14 +681,16 @@ class CorporateDataSourceRegistry:
                     "Certification preparation",
                     "Skill diversity",
                     "Role-skill alignment",
-                    "Future skill readiness"
+                    "Future skill readiness",
                 ],
-                requires_consent=False
-            )
+                requires_consent=False,
+            ),
         }
 
     @staticmethod
-    def get_recommended_sources_by_org_size(employee_count: int) -> List[DataSourceType]:
+    def get_recommended_sources_by_org_size(
+        employee_count: int,
+    ) -> List[DataSourceType]:
         """Get recommended data sources based on organization size"""
 
         # Core sources for all sizes
@@ -727,14 +698,14 @@ class CorporateDataSourceRegistry:
             DataSourceType.EMAIL_METADATA,
             DataSourceType.CALENDAR_EVENTS,
             DataSourceType.PULSE_SURVEYS,
-            DataSourceType.TIME_TRACKING
+            DataSourceType.TIME_TRACKING,
         ]
 
         if employee_count < 50:
             # Small companies - focus on essentials
             return core_sources + [
                 DataSourceType.SLACK_MESSAGES,
-                DataSourceType.ONE_ON_ONE_NOTES
+                DataSourceType.ONE_ON_ONE_NOTES,
             ]
 
         elif employee_count < 500:
@@ -745,7 +716,7 @@ class CorporateDataSourceRegistry:
                 DataSourceType.JIRA_ACTIVITY,
                 DataSourceType.GITHUB_COMMITS,
                 DataSourceType.PERFORMANCE_REVIEWS,
-                DataSourceType.ENGAGEMENT_SURVEYS
+                DataSourceType.ENGAGEMENT_SURVEYS,
             ]
 
         else:
@@ -764,7 +735,7 @@ class CorporateDataSourceRegistry:
                 DataSourceType.VPN_LOGS,
                 DataSourceType.BADGE_SWIPES,
                 DataSourceType.WELLNESS_APP_DATA,
-                DataSourceType.TRAINING_COMPLETIONS
+                DataSourceType.TRAINING_COMPLETIONS,
             ]
 
     @staticmethod
@@ -774,8 +745,9 @@ class CorporateDataSourceRegistry:
         all_sources = CorporateDataSourceRegistry.get_all_sources()
 
         return [
-            source_type for source_type, config in all_sources.items()
-            if config.privacy_level == 'metadata_only' and not config.requires_consent
+            source_type
+            for source_type, config in all_sources.items()
+            if config.privacy_level == "metadata_only" and not config.requires_consent
         ]
 
     @staticmethod
@@ -789,9 +761,8 @@ class CorporateDataSourceRegistry:
                 DataSourceType.ZOOM_TRANSCRIPTS,
                 DataSourceType.EXIT_INTERVIEWS,
                 DataSourceType.ONE_ON_ONE_NOTES,
-                DataSourceType.PERFORMANCE_REVIEWS
+                DataSourceType.PERFORMANCE_REVIEWS,
             ],
-
             "Burnout Prevention": [
                 DataSourceType.TIME_TRACKING,
                 DataSourceType.CALENDAR_EVENTS,
@@ -799,52 +770,47 @@ class CorporateDataSourceRegistry:
                 DataSourceType.SYSTEM_LOGIN_TIMES,
                 DataSourceType.EMAIL_METADATA,
                 DataSourceType.WEARABLE_DATA,
-                DataSourceType.MENTAL_HEALTH_CHECKS
+                DataSourceType.MENTAL_HEALTH_CHECKS,
             ],
-
             "Team Health": [
                 DataSourceType.PULSE_SURVEYS,
                 DataSourceType.ENGAGEMENT_SURVEYS,
                 DataSourceType.SLACK_MESSAGES,
                 DataSourceType.JIRA_ACTIVITY,
                 DataSourceType.GITHUB_COMMITS,
-                DataSourceType.ONE_ON_ONE_NOTES
+                DataSourceType.ONE_ON_ONE_NOTES,
             ],
-
             "Leadership Effectiveness": [
                 DataSourceType.ONE_ON_ONE_NOTES,
                 DataSourceType.PERFORMANCE_REVIEWS,
                 DataSourceType.ENGAGEMENT_SURVEYS,
                 DataSourceType.EXIT_INTERVIEWS,
-                DataSourceType.CALENDAR_EVENTS
+                DataSourceType.CALENDAR_EVENTS,
             ],
-
             "Retention Risk": [
                 DataSourceType.ENGAGEMENT_SURVEYS,
                 DataSourceType.PERFORMANCE_REVIEWS,
                 DataSourceType.COMPENSATION_CHANGES,
                 DataSourceType.TRAINING_COMPLETIONS,
                 DataSourceType.EMAIL_METADATA,
-                DataSourceType.SLACK_MESSAGES
+                DataSourceType.SLACK_MESSAGES,
             ],
-
             "Work-Life Balance": [
                 DataSourceType.TIME_TRACKING,
                 DataSourceType.CALENDAR_EVENTS,
                 DataSourceType.EMAIL_METADATA,
                 DataSourceType.VPN_LOGS,
                 DataSourceType.BADGE_SWIPES,
-                DataSourceType.PTO_REQUESTS
+                DataSourceType.PTO_REQUESTS,
             ],
-
             "Collaboration Quality": [
                 DataSourceType.SLACK_MESSAGES,
                 DataSourceType.TEAMS_MESSAGES,
                 DataSourceType.GITHUB_COMMITS,
                 DataSourceType.JIRA_ACTIVITY,
                 DataSourceType.CONFLUENCE_EDITS,
-                DataSourceType.CALENDAR_EVENTS
-            ]
+                DataSourceType.CALENDAR_EVENTS,
+            ],
         }
 
 
@@ -853,29 +819,26 @@ INTEGRATION_PRIORITY = {
     "Must Have (MVP)": [
         DataSourceType.EMAIL_METADATA,
         DataSourceType.CALENDAR_EVENTS,
-        DataSourceType.PULSE_SURVEYS
+        DataSourceType.PULSE_SURVEYS,
     ],
-
     "High Priority": [
         DataSourceType.SLACK_MESSAGES,
         DataSourceType.TEAMS_MESSAGES,
         DataSourceType.TIME_TRACKING,
-        DataSourceType.ENGAGEMENT_SURVEYS
+        DataSourceType.ENGAGEMENT_SURVEYS,
     ],
-
     "Medium Priority": [
         DataSourceType.JIRA_ACTIVITY,
         DataSourceType.GITHUB_COMMITS,
         DataSourceType.PERFORMANCE_REVIEWS,
         DataSourceType.ONE_ON_ONE_NOTES,
-        DataSourceType.VPN_LOGS
+        DataSourceType.VPN_LOGS,
     ],
-
     "Nice to Have": [
         DataSourceType.ZOOM_TRANSCRIPTS,
         DataSourceType.WEARABLE_DATA,
         DataSourceType.WELLNESS_APP_DATA,
         DataSourceType.BADGE_SWIPES,
-        DataSourceType.TRAINING_COMPLETIONS
-    ]
+        DataSourceType.TRAINING_COMPLETIONS,
+    ],
 }

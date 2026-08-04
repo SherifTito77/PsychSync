@@ -14,38 +14,44 @@ Exit Codes:
     2: Warnings detected (non-critical)
 """
 
-import sys
-import os
 import asyncio
 import logging
-from typing import List, Tuple, Dict, Any
+import os
+import sys
 from datetime import datetime
+from typing import Any, Dict, List, Tuple
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
+    from fastapi.testclient import TestClient
+
     from app.core.config import settings
     from app.core.password_validator import password_validator
     from app.core.secure_logging import security_logger
     from app.main import app
-    from fastapi.testclient import TestClient
 except ImportError as e:
     print(f"❌ CRITICAL: Failed to import required modules: {e}")
-    print("Make sure you're running this from the project root with dependencies installed.")
+    print(
+        "Make sure you're running this from the project root with dependencies installed."
+    )
     sys.exit(1)
 
 # Verification results
 results: List[Dict[str, Any]] = []
 
+
 class Colors:
     """ANSI color codes for terminal output"""
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    BOLD = '\033[1m'
-    END = '\033[0m'
+
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    BOLD = "\033[1m"
+    END = "\033[0m"
+
 
 def print_header(text: str):
     """Print section header"""
@@ -53,31 +59,39 @@ def print_header(text: str):
     print(f"{Colors.BLUE}{Colors.BOLD}{text:^70}{Colors.END}")
     print(f"{Colors.BLUE}{Colors.BOLD}{'=' * 70}{Colors.END}\n")
 
+
 def print_success(text: str):
     """Print success message"""
     print(f"{Colors.GREEN}✅ {text}{Colors.END}")
+
 
 def print_error(text: str):
     """Print error message"""
     print(f"{Colors.RED}❌ {text}{Colors.END}")
 
+
 def print_warning(text: str):
     """Print warning message"""
     print(f"{Colors.YELLOW}⚠️  {text}{Colors.END}")
+
 
 def print_info(text: str):
     """Print info message"""
     print(f"{Colors.BLUE}ℹ️  {text}{Colors.END}")
 
+
 def add_result(check_name: str, passed: bool, critical: bool, details: str = ""):
     """Add verification result"""
-    results.append({
-        "check": check_name,
-        "passed": passed,
-        "critical": critical,
-        "details": details,
-        "timestamp": datetime.utcnow().isoformat()
-    })
+    results.append(
+        {
+            "check": check_name,
+            "passed": passed,
+            "critical": critical,
+            "details": details,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    )
+
 
 def verify_configuration_security() -> bool:
     """Verify security configuration settings"""
@@ -93,8 +107,12 @@ def verify_configuration_security() -> bool:
             print_success(f"SECRET_KEY is sufficiently long ({key_length} characters)")
             add_result("SECRET_KEY_LENGTH", True, True, f"{key_length} characters")
         else:
-            print_error(f"SECRET_KEY is too short ({key_length} characters, minimum 128 recommended)")
-            add_result("SECRET_KEY_LENGTH", False, True, f"{key_length} characters (< 128)")
+            print_error(
+                f"SECRET_KEY is too short ({key_length} characters, minimum 128 recommended)"
+            )
+            add_result(
+                "SECRET_KEY_LENGTH", False, True, f"{key_length} characters (< 128)"
+            )
             all_passed = False
     else:
         print_error("SECRET_KEY is not set!")
@@ -107,7 +125,9 @@ def verify_configuration_security() -> bool:
         print_success(f"Running in {settings.ENVIRONMENT} mode")
         add_result("ENVIRONMENT", True, True, settings.ENVIRONMENT)
     else:
-        print_warning(f"Running in {settings.ENVIRONMENT} mode (should be 'production' for production deployment)")
+        print_warning(
+            f"Running in {settings.ENVIRONMENT} mode (should be 'production' for production deployment)"
+        )
         add_result("ENVIRONMENT", False, False, f"Running as {settings.ENVIRONMENT}")
 
     # Check debug mode
@@ -121,6 +141,7 @@ def verify_configuration_security() -> bool:
         all_passed = False
 
     return all_passed
+
 
 def verify_password_validator() -> bool:
     """Verify password validator is working"""
@@ -141,7 +162,9 @@ def verify_password_validator() -> bool:
 
     # Test strong password acceptance
     print_info("Testing strong password acceptance...")
-    is_valid, errors = password_validator.validate_password("Str0ng!Pass1234WithMoreChars!!")
+    is_valid, errors = password_validator.validate_password(
+        "Str0ng!Pass1234WithMoreChars!!"
+    )
     if is_valid:
         print_success("Strong passwords are properly accepted")
         add_result("STRONG_PASSWORD_ACCEPTANCE", True, True)
@@ -153,13 +176,16 @@ def verify_password_validator() -> bool:
     print_info("Testing password entropy calculation...")
     result = password_validator.assess_strength("Tr0ub4dor&3Horse!")
     if result.entropy_bits >= 60:
-        print_success(f"Password entropy calculation working: {result.entropy_bits:.1f} bits")
+        print_success(
+            f"Password entropy calculation working: {result.entropy_bits:.1f} bits"
+        )
         add_result("PASSWORD_ENTROPY", True, True, f"{result.entropy_bits:.1f} bits")
     else:
         print_warning(f"Password entropy seems low: {result.entropy_bits:.1f} bits")
         add_result("PASSWORD_ENTROPY", False, False, f"{result.entropy_bits:.1f} bits")
 
     return all_passed
+
 
 def verify_security_headers() -> bool:
     """Verify security headers are configured"""
@@ -178,7 +204,7 @@ def verify_security_headers() -> bool:
             "X-Content-Type-Options": "nosniff",
             "X-Frame-Options": "DENY",
             "Strict-Transport-Security": "max-age=31536000",
-            "X-Frame-Options": "DENY"
+            "X-Frame-Options": "DENY",
         }
 
         for header, expected_value in required_headers.items():
@@ -188,8 +214,15 @@ def verify_security_headers() -> bool:
                     print_success(f"{header}: {actual_value}")
                     add_result(f"HEADER_{header}", True, True, actual_value)
                 else:
-                    print_warning(f"{header}: Expected '{expected_value}', got '{actual_value}'")
-                    add_result(f"HEADER_{header}", False, False, f"Expected: {expected_value}, Got: {actual_value}")
+                    print_warning(
+                        f"{header}: Expected '{expected_value}', got '{actual_value}'"
+                    )
+                    add_result(
+                        f"HEADER_{header}",
+                        False,
+                        False,
+                        f"Expected: {expected_value}, Got: {actual_value}",
+                    )
             else:
                 print_error(f"{header} is missing!")
                 add_result(f"HEADER_{header}", False, True, "Missing")
@@ -208,7 +241,7 @@ def verify_security_headers() -> bool:
             if "unsafe-eval" in csp:
                 errors.append("unsafe-eval present")
             print_warning(f"CSP contains: {', '.join(errors)}")
-            add_result("CSP_NO_UNSAFE_INLINE", False, False, ', '.join(errors))
+            add_result("CSP_NO_UNSAFE_INLINE", False, False, ", ".join(errors))
 
         # Check for HSTS preload
         if "preload" in csp:
@@ -225,6 +258,7 @@ def verify_security_headers() -> bool:
 
     return all_passed
 
+
 def verify_logging_security() -> bool:
     """Verify secure logging is configured"""
     print_header("SECURE LOGGING VERIFICATION")
@@ -235,6 +269,7 @@ def verify_logging_security() -> bool:
     print_info("Testing sensitive data redaction in logs...")
 
     import io
+
     from app.core.secure_logging import SensitiveDataFilter
 
     # Create a test logger with the filter
@@ -244,7 +279,7 @@ def verify_logging_security() -> bool:
     # Add string handler to capture log output
     string_stream = io.StringIO()
     handler = logging.StreamHandler(string_stream)
-    handler.setFormatter(logging.Formatter('%(message)s'))
+    handler.setFormatter(logging.Formatter("%(message)s"))
     handler.addFilter(SensitiveDataFilter())
     test_logger.addHandler(handler)
 
@@ -257,7 +292,11 @@ def verify_logging_security() -> bool:
     log_output = string_stream.getvalue()
 
     # Check for redaction
-    if "***REDACTED***" in log_output or "***JWT***" in log_output or "***CARD***" in log_output:
+    if (
+        "***REDACTED***" in log_output
+        or "***JWT***" in log_output
+        or "***CARD***" in log_output
+    ):
         print_success("Sensitive data is being redacted in logs")
         add_result("LOG_REDACTION", True, True)
     else:
@@ -269,6 +308,7 @@ def verify_logging_security() -> bool:
 
     return all_passed
 
+
 def verify_cors_configuration() -> bool:
     """Verify CORS configuration is secure"""
     print_header("CORS CONFIGURATION VERIFICATION")
@@ -277,14 +317,16 @@ def verify_cors_configuration() -> bool:
 
     print_info("Checking CORS allowed origins...")
 
-    if hasattr(settings, 'CORS_ORIGINS'):
+    if hasattr(settings, "CORS_ORIGINS"):
         cors_origins = settings.CORS_ORIGINS
         if cors_origins:
             print_info(f"CORS origins configured: {len(cors_origins)} origins")
 
             # Check for wildcard (dangerous in production)
             if "*" in cors_origins:
-                print_error("CORS allows all origins (*) - this is dangerous in production!")
+                print_error(
+                    "CORS allows all origins (*) - this is dangerous in production!"
+                )
                 add_result("CORS_WILDCARD", False, True, "Wildcard origin allowed")
                 all_passed = False
             else:
@@ -292,10 +334,17 @@ def verify_cors_configuration() -> bool:
                 add_result("CORS_WILDCARD", True, True, "No wildcard")
 
             # Check for localhost only (should be limited in production)
-            localhost_count = sum(1 for origin in cors_origins if 'localhost' in origin)
+            localhost_count = sum(1 for origin in cors_origins if "localhost" in origin)
             if settings.ENVIRONMENT == "production" and localhost_count > 0:
-                print_warning(f"Localhost origins found in production ({localhost_count} origins)")
-                add_result("CORS_LOCALHOST_IN_PROD", False, False, f"{localhost_count} localhost origins")
+                print_warning(
+                    f"Localhost origins found in production ({localhost_count} origins)"
+                )
+                add_result(
+                    "CORS_LOCALHOST_IN_PROD",
+                    False,
+                    False,
+                    f"{localhost_count} localhost origins",
+                )
             else:
                 print_success("CORS origins are appropriately configured")
                 add_result("CORS_LOCALHOST_IN_PROD", True, True)
@@ -306,6 +355,7 @@ def verify_cors_configuration() -> bool:
         print_info("CORS configuration not checked (CORS_ORIGINS not in settings)")
 
     return all_passed
+
 
 def generate_report() -> Tuple[int, int]:
     """Generate verification report"""
@@ -341,6 +391,7 @@ def generate_report() -> Tuple[int, int]:
 
     return critical_passed, critical_total
 
+
 def main():
     """Main verification function"""
     print(f"{Colors.BOLD}{Colors.BLUE}")
@@ -365,7 +416,9 @@ def main():
     print_header("FINAL VERDICT")
 
     if critical_passed == critical_total:
-        print(f"{Colors.GREEN}{Colors.BOLD}✅ ALL CRITICAL SECURITY CHECKS PASSED{Colors.END}\n")
+        print(
+            f"{Colors.GREEN}{Colors.BOLD}✅ ALL CRITICAL SECURITY CHECKS PASSED{Colors.END}\n"
+        )
         print("Your application is properly configured for production deployment.")
         print("Remember to:")
         print("  1. Monitor security logs regularly")
@@ -374,9 +427,14 @@ def main():
         print("  4. Review rate limiting and lockout metrics")
         sys.exit(0)
     else:
-        print(f"{Colors.RED}{Colors.BOLD}❌ CRITICAL SECURITY ISSUES DETECTED{Colors.END}\n")
-        print("Please address the critical issues above before deploying to production.")
+        print(
+            f"{Colors.RED}{Colors.BOLD}❌ CRITICAL SECURITY ISSUES DETECTED{Colors.END}\n"
+        )
+        print(
+            "Please address the critical issues above before deploying to production."
+        )
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

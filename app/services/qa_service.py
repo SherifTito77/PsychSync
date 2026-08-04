@@ -3,10 +3,10 @@ Manual QA & Testing Service
 Provides comprehensive testing frameworks for manual QA, UAT, and accessibility testing
 """
 
-from datetime import datetime
-from enum import Enum
 import json
 import logging
+from datetime import datetime
+from enum import Enum
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -168,7 +168,10 @@ class QATestPlan:
             "skipped": skipped_tests,
             "pass_rate": (passed_tests / total_tests) * 100,
             "failure_rate": (failed_tests / total_tests) * 100,
-            "execution_rate": ((passed_tests + failed_tests + blocked_tests) / total_tests) * 100,
+            "execution_rate": (
+                (passed_tests + failed_tests + blocked_tests) / total_tests
+            )
+            * 100,
         }
 
 
@@ -887,7 +890,9 @@ class ManualQAService:
         for category in TestCategory:
             category_tests = plan.get_test_cases_by_category(category)
             if category_tests:
-                passed = len([t for t in category_tests if t.status == TestStatus.PASSED])
+                passed = len(
+                    [t for t in category_tests if t.status == TestStatus.PASSED]
+                )
                 total = len(category_tests)
                 category_breakdown[category.value] = {
                     "total": total,
@@ -901,7 +906,9 @@ class ManualQAService:
             if priority_tests:
                 status_counts = {}
                 for test in priority_tests:
-                    status_counts[test.status.value] = status_counts.get(test.status.value, 0) + 1
+                    status_counts[test.status.value] = (
+                        status_counts.get(test.status.value, 0) + 1
+                    )
                 priority_breakdown[priority.value] = {
                     "total": len(priority_tests),
                     "status_counts": status_counts,

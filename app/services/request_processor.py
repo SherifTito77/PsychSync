@@ -5,19 +5,19 @@ Performance improvement: 1000% faster request processing
 """
 
 import asyncio
-from collections.abc import Callable
-from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
 import gzip
 import hashlib
 import json
 import logging
 import time
-from typing import Any, TypeVar
 import uuid
 import zlib
+from collections.abc import Callable
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any, TypeVar
 
 import brotli
 from fastapi import Request, Response
@@ -27,23 +27,29 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
+
 class CompressionType(str, Enum):
     """Supported compression algorithms"""
+
     GZIP = "gzip"
     DEFLATE = "deflate"
     BROTLI = "br"
     NONE = "none"
 
+
 class RequestPriority(str, Enum):
     """Request processing priority levels"""
+
     LOW = "low"
     NORMAL = "normal"
     HIGH = "high"
     CRITICAL = "critical"
 
+
 @dataclass
 class RequestContext:
     """Rich context for request processing"""
+
     request_id: str
     timestamp: datetime
     client_ip: str
@@ -58,9 +64,11 @@ class RequestContext:
     processing_start_time: float = field(default_factory=time.time)
     metadata: dict[str, Any] = field(default_factory=dict)
 
+
 @dataclass
 class ProcessingResult:
     """Result of request processing"""
+
     success: bool
     data: Any
     status_code: int = 200
@@ -69,6 +77,7 @@ class ProcessingResult:
     cache_hit: bool = False
     compression_used: CompressionType | None = None
     warnings: list[str] = field(default_factory=list)
+
 
 class RequestProcessor:
     """
@@ -100,7 +109,7 @@ class RequestProcessor:
             "compression_saved_bytes": 0,
             "avg_processing_time": 0.0,
             "active_concurrent": 0,
-            "max_concurrent": 0
+            "max_concurrent": 0,
         }
 
         # Configuration
@@ -146,16 +155,20 @@ class RequestProcessor:
             headers=dict(request.headers),
             user_id=user_id,
             user_tier=user_tier,
-            priority=priority
+            priority=priority,
         )
 
         # Add to active requests
         self.active_requests[request_id] = context
 
-        logger.debug(f"Created request context: {request_id} for {request.method} {request.url.path}")
+        logger.debug(
+            f"Created request context: {request_id} for {request.method} {request.url.path}"
+        )
         return context
 
-    def _determine_request_priority(self, request: Request, user_tier: str) -> RequestPriority:
+    def _determine_request_priority(
+        self, request: Request, user_tier: str
+    ) -> RequestPriority:
         """
         Determine processing priority based on request characteristics
 
@@ -179,7 +192,9 @@ class RequestProcessor:
             return RequestPriority.HIGH
 
         # Data-intensive operations get lower priority
-        if any(path in request.url.path for path in ["/analytics", "/reports", "/export"]):
+        if any(
+            path in request.url.path for path in ["/analytics", "/reports", "/export"]
+        ):
             return RequestPriority.LOW
 
         return RequestPriority.NORMAL
@@ -205,8 +220,7 @@ class RequestProcessor:
         # Update concurrent request count
         self.stats["active_concurrent"] += 1
         self.stats["max_concurrent"] = max(
-            self.stats["max_concurrent"],
-            self.stats["active_concurrent"]
+            self.stats["max_concurrent"], self.stats["active_concurrent"]
         )
 
         try:
@@ -252,7 +266,9 @@ class RequestProcessor:
         # Update average processing time
         total = self.stats["total_processed"]
         current_avg = self.stats["avg_processing_time"]
-        self.stats["avg_processing_time"] = ((current_avg * (total - 1)) + processing_time) / total
+        self.stats["avg_processing_time"] = (
+            (current_avg * (total - 1)) + processing_time
+        ) / total
 
         logger.debug(
             f"Request {context.request_id} processed in {processing_time:.2f}ms "
@@ -262,7 +278,7 @@ class RequestProcessor:
     async def compress_response(
         self,
         data: str | bytes | dict[str, Any],
-        compression_types: list[CompressionType] = None
+        compression_types: list[CompressionType] = None,
     ) -> tuple[bytes, CompressionType]:
         """
         Compress response data using the best available algorithm
@@ -275,7 +291,11 @@ class RequestProcessor:
             Tuple of (compressed_data, compression_type_used)
         """
         if compression_types is None:
-            compression_types = [CompressionType.BROTLI, CompressionType.GZIP, CompressionType.DEFLATE]
+            compression_types = [
+                CompressionType.BROTLI,
+                CompressionType.GZIP,
+                CompressionType.DEFLATE,
+            ]
 
         # Convert to bytes if needed
         if isinstance(data, (dict, list)):
@@ -300,7 +320,9 @@ class RequestProcessor:
         for comp_type in compression_types:
             try:
                 if comp_type == CompressionType.GZIP:
-                    compressed = gzip.compress(data_str.encode("utf-8"), compresslevel=9)
+                    compressed = gzip.compress(
+                        data_str.encode("utf-8"), compresslevel=9
+                    )
                 elif comp_type == CompressionType.DEFLATE:
                     compressed = zlib.compress(data_str.encode("utf-8"), level=9)
                 elif comp_type == CompressionType.BROTLI:
@@ -334,7 +356,7 @@ class RequestProcessor:
         data: Any,
         context: RequestContext,
         status_code: int = 200,
-        additional_headers: dict[str, str] = None
+        additional_headers: dict[str, str] = None,
     ) -> JSONResponse:
         """
         Create optimized JSON response with compression and caching
@@ -353,7 +375,7 @@ class RequestProcessor:
             "X-Request-ID": context.request_id,
             "X-Processing-Time": f"{(time.time() - context.processing_start_time) * 1000:.2f}ms",
             "X-Cache-Status": "HIT" if context.metadata.get("cache_hit") else "MISS",
-            "Content-Type": "application/json; charset=utf-8"
+            "Content-Type": "application/json; charset=utf-8",
         }
 
         # Add additional headers
@@ -362,7 +384,9 @@ class RequestProcessor:
 
         # Compress response if beneficial
         try:
-            compressed_data, compression_type = asyncio.run(self.compress_response(data))
+            compressed_data, compression_type = asyncio.run(
+                self.compress_response(data)
+            )
 
             if compression_type != CompressionType.NONE:
                 headers["Content-Encoding"] = compression_type.value
@@ -373,32 +397,25 @@ class RequestProcessor:
                     content=compressed_data,
                     status_code=status_code,
                     headers=headers,
-                    media_type="application/json"
+                    media_type="application/json",
                 )
             else:
                 # No compression, use regular JSON response
                 response = JSONResponse(
-                    content=data,
-                    status_code=status_code,
-                    headers=headers
+                    content=data, status_code=status_code, headers=headers
                 )
 
         except Exception as e:
             logger.error(f"Response optimization failed: {e}")
             # Fallback to regular response
             response = JSONResponse(
-                content=data,
-                status_code=status_code,
-                headers=headers
+                content=data, status_code=status_code, headers=headers
             )
 
         return response
 
     async def deduplicate_request(
-        self,
-        context: RequestContext,
-        cache_key: str,
-        ttl_seconds: int = 30
+        self, context: RequestContext, cache_key: str, ttl_seconds: int = 30
     ) -> Any | None:
         """
         Prevent duplicate requests by checking cache
@@ -419,7 +436,7 @@ class RequestProcessor:
             # Connect to Redis
             redis_client = redis.from_url(
                 f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
-                decode_responses=True
+                decode_responses=True,
             )
 
             # Check if request is already being processed
@@ -442,7 +459,9 @@ class RequestProcessor:
                     await asyncio.sleep(0.1)
                     cached_result = await redis_client.get(result_key)
                     if cached_result:
-                        logger.info(f"Request deduplication wait success: {context.request_id}")
+                        logger.info(
+                            f"Request deduplication wait success: {context.request_id}"
+                        )
                         context.metadata["cache_hit"] = True
                         self.stats["cache_hits"] += 1
                         return json.loads(cached_result)
@@ -460,10 +479,7 @@ class RequestProcessor:
             return None
 
     async def cache_deduplication_result(
-        self,
-        cache_key: str,
-        result: Any,
-        ttl_seconds: int = 30
+        self, cache_key: str, result: Any, ttl_seconds: int = 30
     ) -> None:
         """
         Cache result for request deduplication
@@ -480,7 +496,7 @@ class RequestProcessor:
 
             redis_client = redis.from_url(
                 f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
-                decode_responses=True
+                decode_responses=True,
             )
 
             # Cache the result
@@ -488,9 +504,7 @@ class RequestProcessor:
             processing_key = f"processing:{cache_key}"
 
             await redis_client.setex(
-                result_key,
-                ttl_seconds,
-                json.dumps(result, default=str)
+                result_key, ttl_seconds, json.dumps(result, default=str)
             )
 
             # Remove processing marker
@@ -517,8 +531,11 @@ class RequestProcessor:
             "path": context.path,
             "user_id": context.user_id,
             # Include only safe query parameters (exclude pagination, timestamps)
-            "query": {k: v for k, v in context.query_params.items()
-                    if k not in ["page", "size", "offset", "limit", "timestamp"]}
+            "query": {
+                k: v
+                for k, v in context.query_params.items()
+                if k not in ["page", "size", "offset", "limit", "timestamp"]
+            },
         }
 
         # Create hash
@@ -528,9 +545,7 @@ class RequestProcessor:
         return f"req:{key_hash}"
 
     async def batch_process_requests(
-        self,
-        contexts: list[RequestContext],
-        processor_func: Callable
+        self, contexts: list[RequestContext], processor_func: Callable
     ) -> list[ProcessingResult]:
         """
         Process multiple requests in batch for efficiency
@@ -550,11 +565,11 @@ class RequestProcessor:
                     result = await processor_func(context)
                     results.append(result)
                 except Exception as e:
-                    results.append(ProcessingResult(
-                        success=False,
-                        data={"error": str(e)},
-                        status_code=500
-                    ))
+                    results.append(
+                        ProcessingResult(
+                            success=False, data={"error": str(e)}, status_code=500
+                        )
+                    )
             return results
 
         # Batch processing
@@ -573,20 +588,23 @@ class RequestProcessor:
                     return await task
 
             # Wait for all tasks to complete
-            results = await asyncio.gather(*[
-                process_with_semaphore(ctx, task)
-                for ctx, task in zip(contexts, tasks)
-            ], return_exceptions=True)
+            results = await asyncio.gather(
+                *[
+                    process_with_semaphore(ctx, task)
+                    for ctx, task in zip(contexts, tasks)
+                ],
+                return_exceptions=True,
+            )
 
             # Convert exceptions to error results
             processed_results = []
             for i, result in enumerate(results):
                 if isinstance(result, Exception):
-                    processed_results.append(ProcessingResult(
-                        success=False,
-                        data={"error": str(result)},
-                        status_code=500
-                    ))
+                    processed_results.append(
+                        ProcessingResult(
+                            success=False, data={"error": str(result)}, status_code=500
+                        )
+                    )
                 else:
                     processed_results.append(result)
 
@@ -610,7 +628,8 @@ class RequestProcessor:
             Dictionary of processing statistics
         """
         cache_hit_rate = (
-            self.stats["cache_hits"] / max(1, self.stats["cache_hits"] + self.stats["cache_misses"])
+            self.stats["cache_hits"]
+            / max(1, self.stats["cache_hits"] + self.stats["cache_misses"])
         ) * 100
 
         return {
@@ -622,7 +641,7 @@ class RequestProcessor:
             "cache_misses": self.stats["cache_misses"],
             "compression_saved_bytes": self.stats["compression_saved_bytes"],
             "avg_processing_time_ms": round(self.stats["avg_processing_time"], 2),
-            "active_requests": len(self.active_requests)
+            "active_requests": len(self.active_requests),
         }
 
     async def cleanup_expired_contexts(self, max_age_seconds: int = 300) -> int:
@@ -651,8 +670,10 @@ class RequestProcessor:
 
         return len(expired_keys)
 
+
 # Singleton instance
 request_processor = RequestProcessor()
+
 
 # Decorators for easy use
 def process_request(priority: RequestPriority = None):
@@ -662,6 +683,7 @@ def process_request(priority: RequestPriority = None):
     Args:
         priority: Override processing priority
     """
+
     def decorator(func):
         async def wrapper(request: Request, *args, **kwargs):
             async with request_processor.process_request(request, priority):
@@ -671,13 +693,15 @@ def process_request(priority: RequestPriority = None):
                 context = getattr(request.state, "context", None)
                 if context and isinstance(result, (dict, list)):
                     return request_processor.create_optimized_response(
-                        data=result,
-                        context=context
+                        data=result, context=context
                     )
 
                 return result
+
         return wrapper
+
     return decorator
+
 
 def deduplicate_request(ttl_seconds: int = 30):
     """
@@ -686,6 +710,7 @@ def deduplicate_request(ttl_seconds: int = 30):
     Args:
         ttl_seconds: Time-to-live for deduplication cache
     """
+
     def decorator(func):
         async def wrapper(request: Request, *args, **kwargs):
             context = request.state.context
@@ -703,8 +728,7 @@ def deduplicate_request(ttl_seconds: int = 30):
 
             if cached_result is not None:
                 return request_processor.create_optimized_response(
-                    data=cached_result,
-                    context=context
+                    data=cached_result, context=context
                 )
 
             # Process request
@@ -716,11 +740,13 @@ def deduplicate_request(ttl_seconds: int = 30):
             )
 
             return request_processor.create_optimized_response(
-                data=result,
-                context=context
+                data=result, context=context
             )
+
         return wrapper
+
     return decorator
+
 
 # Middleware integration
 async def request_processing_middleware(request: Request, call_next):

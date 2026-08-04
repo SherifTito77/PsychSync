@@ -6,8 +6,10 @@ Populates your async cache with requests to build hit rate
 
 import subprocess
 import time
-import requests
 from datetime import datetime
+
+import requests
+
 
 def make_request(url):
     """Make a request to the API"""
@@ -17,14 +19,23 @@ def make_request(url):
     except Exception as e:
         return None
 
+
 def warm_cache():
     """Warm up the cache by making requests"""
     base_url = "http://localhost:8000"
 
-    print("╔══════════════════════════════════════════════════════════════════════════════╗")
-    print("║                    🔥 CACHE WARMER                                            ║")
-    print("║           Populating cache to build hit rate...                            ║")
-    print("╚══════════════════════════════════════════════════════════════════════════════╝")
+    print(
+        "╔══════════════════════════════════════════════════════════════════════════════╗"
+    )
+    print(
+        "║                    🔥 CACHE WARMER                                            ║"
+    )
+    print(
+        "║           Populating cache to build hit rate...                            ║"
+    )
+    print(
+        "╚══════════════════════════════════════════════════════════════════════════════╝"
+    )
     print()
 
     # Check if server is running
@@ -63,6 +74,7 @@ def warm_cache():
     print()
     print("Or run the monitor:")
     print("   python3 scripts/cache-monitor.py")
+
 
 if __name__ == "__main__":
     warm_cache()

@@ -8,15 +8,20 @@ After: 15 lines - clean, readable endpoint
 """
 
 from typing import Optional
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_active_user, get_db
 from app.api.v1.endpoints.assessments.query_builder import (
-    AssessmentQueryBuilder,
     AssessmentFilters,
+    AssessmentQueryBuilder,
 )
-from app.core.api_utils import PaginationParams, SortParams, create_paginated_list_response
+from app.core.api_utils import (
+    PaginationParams,
+    SortParams,
+    create_paginated_list_response,
+)
 from app.db.models.assessment import Assessment
 from app.db.models.user import User
 

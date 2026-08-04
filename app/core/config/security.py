@@ -43,7 +43,9 @@ class SecurityConfig:
         env="SECRET_KEY",
     )
     ALGORITHM: str = Field(default="HS256", env="ALGORITHM")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES"
+    )
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7, env="REFRESH_TOKEN_EXPIRE_DAYS")
 
     # Rate limiting settings
@@ -55,11 +57,15 @@ class SecurityConfig:
     # Session security
     SESSION_TIMEOUT_MINUTES: int = Field(default=120, env="SESSION_TIMEOUT_MINUTES")
     MAX_CONCURRENT_SESSIONS: int = Field(default=3, env="MAX_CONCURRENT_SESSIONS")
-    DEVICE_FINGERPRINTING_ENABLED: bool = Field(default=True, env="DEVICE_FINGERPRINTING_ENABLED")
+    DEVICE_FINGERPRINTING_ENABLED: bool = Field(
+        default=True, env="DEVICE_FINGERPRINTING_ENABLED"
+    )
 
     # Password security
     MIN_PASSWORD_LENGTH: int = Field(default=12, env="MIN_PASSWORD_LENGTH")
-    REQUIRE_PASSWORD_COMPLEXITY: bool = Field(default=True, env="REQUIRE_PASSWORD_COMPLEXITY")
+    REQUIRE_PASSWORD_COMPLEXITY: bool = Field(
+        default=True, env="REQUIRE_PASSWORD_COMPLEXITY"
+    )
     PASSWORD_HISTORY_COUNT: int = Field(default=5, env="PASSWORD_HISTORY_COUNT")
     ACCOUNT_LOCKOUT_ATTEMPTS: int = Field(default=5, env="ACCOUNT_LOCKOUT_ATTEMPTS")
     ACCOUNT_LOCKOUT_MINUTES: int = Field(default=15, env="ACCOUNT_LOCKOUT_MINUTES")
@@ -120,7 +126,9 @@ class SecurityConfig:
         # Environment-specific requirements
         if environment == "production":
             if len(v) < 128:
-                raise ValueError("SECRET_KEY must be at least 128 characters in production")
+                raise ValueError(
+                    "SECRET_KEY must be at least 128 characters in production"
+                )
         elif len(v) < 64:
             raise ValueError("SECRET_KEY must be at least 64 characters in development")
 
@@ -345,10 +353,14 @@ class SecurityConfig:
                 raise RuntimeError("Token blacklist must be enabled in production")
 
             if not self.DEVICE_FINGERPRINTING_ENABLED:
-                raise RuntimeError("Device fingerprinting should be enabled in production")
+                raise RuntimeError(
+                    "Device fingerprinting should be enabled in production"
+                )
 
             if self.MIN_PASSWORD_LENGTH < 12:
-                raise RuntimeError("Minimum password length should be at least 12 in production")
+                raise RuntimeError(
+                    "Minimum password length should be at least 12 in production"
+                )
 
         # Log configuration
         security_config_logger.info(

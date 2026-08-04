@@ -20,6 +20,7 @@ router = APIRouter()
 
 class ClientErrorReport(BaseModel):
     """Client error report model from ErrorBoundary"""
+
     errorId: str = Field(..., description="Unique error identifier")
     message: str = Field(..., description="Error message")
     stack: Optional[str] = Field(None, description="Stack trace")
@@ -29,7 +30,9 @@ class ClientErrorReport(BaseModel):
     url: Optional[str] = Field(None, description="Page URL where error occurred")
     userId: Optional[str] = Field(None, description="User ID if authenticated")
     retryCount: Optional[int] = Field(0, description="Number of retry attempts")
-    buildVersion: Optional[str] = Field("unknown", description="Application build version")
+    buildVersion: Optional[str] = Field(
+        "unknown", description="Application build version"
+    )
 
 
 @router.post(
@@ -104,7 +107,11 @@ async def receive_client_error_report(
         logger.error(
             f"Failed to process client error report: {e}",
             extra={
-                "error_report": error_report.dict() if hasattr(error_report, 'dict') else str(error_report),
+                "error_report": (
+                    error_report.dict()
+                    if hasattr(error_report, "dict")
+                    else str(error_report)
+                ),
                 "error": str(e),
             },
             exc_info=True,

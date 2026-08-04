@@ -18,17 +18,19 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
+import logging
+import os
+import secrets
+import time
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 # Standard library imports
 from datetime import datetime
-import logging
-import os
-import secrets
-import time
 from typing import Any
+
+import uvicorn
 
 # Third-party imports
 from dotenv import load_dotenv
@@ -42,7 +44,6 @@ from slowapi.util import get_remote_address
 from sqlalchemy.exc import SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
-import uvicorn
 
 from app.core.cors import configure_cors
 
@@ -73,10 +74,6 @@ security_config = SecurityConfig()
 
 # Local application imports
 from app.core.account_lockout import get_lockout_manager, init_lockout_manager
-
-# ENTERPRISE SECURITY MODULES (Phase 3 - Comprehensive Security Transformation)
-# Using unified rate limiter with strategy pattern
-from app.core.rate_limiter_unified import UnifiedRateLimiter, RateLimitConfig, RateLimitStrategy, StorageBackend
 from app.core.config import settings
 from app.core.constants import AppInfo
 from app.core.csrf import CSRFMiddleware
@@ -89,13 +86,22 @@ from app.core.handlers import (
     validation_exception_handler,
 )
 from app.core.logging_config import setup_logging
-from app.core.secure_logging import configure_secure_logging, security_logger
 
-# UNIFIED SECURITY MIDDLEWARE (Consolidates all security middleware)
-from app.middleware.security_unified import UnifiedSecurityMiddleware, SecurityConfig
+# ENTERPRISE SECURITY MODULES (Phase 3 - Comprehensive Security Transformation)
+# Using unified rate limiter with strategy pattern
+from app.core.rate_limiter_unified import (
+    RateLimitConfig,
+    RateLimitStrategy,
+    StorageBackend,
+    UnifiedRateLimiter,
+)
+from app.core.secure_logging import configure_secure_logging, security_logger
 from app.middleware.input_validation_middleware import SecurityValidationMiddleware
 from app.middleware.logging import StructuredLoggingMiddleware
 from app.middleware.security import SecurityMiddleware
+
+# UNIFIED SECURITY MIDDLEWARE (Consolidates all security middleware)
+from app.middleware.security_unified import SecurityConfig, UnifiedSecurityMiddleware
 
 # PERFORMANCE OPTIMIZATION IMPORTS
 # ================================
@@ -120,7 +126,6 @@ from app.api.v1.api import api_router
 
 # Import enhanced clinical analytics router
 from app.api.v1.endpoints import enhanced_clinical_analytics
-
 from app.middleware.response_compression import (
     RequestTrackingMiddleware,
     ResponseCompressionMiddleware,
@@ -129,7 +134,9 @@ from app.middleware.response_compression import (
 
 if settings.SENTRY_DSN:
     sentry_sdk.init(
-        dsn=settings.SENTRY_DSN, traces_sample_rate=1.0, environment=settings.ENVIRONMENT
+        dsn=settings.SENTRY_DSN,
+        traces_sample_rate=1.0,
+        environment=settings.ENVIRONMENT,
     )
 
 # --- Initial Setup ---
@@ -140,12 +147,15 @@ logger = logging.getLogger(__name__)
 # --- Rate Limiting Setup ---
 # Basic rate limiting for backward compatibility
 limiter = Limiter(
-    key_func=get_remote_address, default_limits=[f"{settings.RATE_LIMIT_PER_MINUTE}/minute"]
+    key_func=get_remote_address,
+    default_limits=[f"{settings.RATE_LIMIT_PER_MINUTE}/minute"],
 )
 
 # Unified rate limiting (ENTERPRISE MODULE - initialized in lifespan)
 # Uses the new unified rate limiter with strategy pattern and Redis backing
-unified_rate_limiter: UnifiedRateLimiter | None = None  # Will be initialized in lifespan
+unified_rate_limiter: UnifiedRateLimiter | None = (
+    None  # Will be initialized in lifespan
+)
 
 
 class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
@@ -347,7 +357,8 @@ class EnterpriseSecurityMiddleware(BaseHTTPMiddleware):
                     },
                 )
                 raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Rate limit exceeded"
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Rate limit exceeded",
                 )
 
             # Increment counter
@@ -490,11 +501,17 @@ async def lifespan(app: FastAPI):
                 # Initialize account lockout manager
                 app_security_logger.info("Initializing account lockout manager...")
                 await init_lockout_manager(redis_url)
-                app_security_logger.info("✅ Progressive account lockout active (5/10/15 attempts)")
+                app_security_logger.info(
+                    "✅ Progressive account lockout active (5/10/15 attempts)"
+                )
 
             except Exception as e:
-                app_security_logger.warning(f"⚠️ Redis security modules initialization failed: {e}")
-                app_security_logger.warning("Security modules will operate in degraded mode")
+                app_security_logger.warning(
+                    f"⚠️ Redis security modules initialization failed: {e}"
+                )
+                app_security_logger.warning(
+                    "Security modules will operate in degraded mode"
+                )
 
         # 3. Validate security configuration
         if settings.ENVIRONMENT == "production":
@@ -504,7 +521,9 @@ async def lifespan(app: FastAPI):
 
             # Validate critical security settings
             if not settings.SECRET_KEY or len(settings.SECRET_KEY) < 128:
-                app_security_logger.critical("CRITICAL: Insufficient SECRET_KEY for production")
+                app_security_logger.critical(
+                    "CRITICAL: Insufficient SECRET_KEY for production"
+                )
                 raise RuntimeError("Production security requirements not met")
 
         # 4. Initialize cache and connections with security validation
@@ -516,7 +535,9 @@ async def lifespan(app: FastAPI):
                     "✅ Security cache initialization successful (cache skipped)"
                 )
             except Exception as e:
-                app_security_logger.error(f"❌ Security cache initialization failed: {e}")
+                app_security_logger.error(
+                    f"❌ Security cache initialization failed: {e}"
+                )
 
         # 5. Database security validation
         try:
@@ -524,7 +545,10 @@ async def lifespan(app: FastAPI):
 
             if await check_db_health():
                 security_logger.log_auth_event(
-                    user_id="system", action="database_check", success=True, client_ip="localhost"
+                    user_id="system",
+                    action="database_check",
+                    success=True,
+                    client_ip="localhost",
                 )
                 app_security_logger.info("✅ Database security validation passed")
             else:
@@ -534,7 +558,10 @@ async def lifespan(app: FastAPI):
 
         # 6. Database error monitoring initialization
         try:
-            from app.monitoring.database_error_monitor import db_monitor, start_database_error_monitoring
+            from app.monitoring.database_error_monitor import (
+                db_monitor,
+                start_database_error_monitoring,
+            )
 
             # Start background database error monitoring
             asyncio.create_task(
@@ -543,16 +570,22 @@ async def lifespan(app: FastAPI):
                     alert_on_patterns=True,
                 )
             )
-            app_security_logger.info("✅ Database error monitoring initialized (reports every 60 min)")
+            app_security_logger.info(
+                "✅ Database error monitoring initialized (reports every 60 min)"
+            )
         except Exception as e:
-            app_security_logger.warning(f"⚠️ Database monitoring initialization failed: {e}")
+            app_security_logger.warning(
+                f"⚠️ Database monitoring initialization failed: {e}"
+            )
 
         # 7. Performance security initialization
         try:
             # Initialize performance security monitoring
             app_security_logger.info("✅ Performance security monitoring initialized")
         except Exception as e:
-            app_security_logger.warning(f"⚠️ Performance security initialization failed: {e}")
+            app_security_logger.warning(
+                f"⚠️ Performance security initialization failed: {e}"
+            )
 
         app_security_logger.info(
             "🎯 PsychSync AI security initialization complete - All systems operational"
@@ -593,13 +626,15 @@ from app.core.application_factory import create_application_for_environment
 
 # Create application using factory pattern with dependency injection
 app = create_application_for_environment(
-    swagger_ui_init_oauth={
-        "clientId": "psychsync-client",
-        "appName": "PsychSync API",
-        "usePkceWithAuthorizationCodeGrant": True,
-    }
-    if settings.DEBUG
-    else None,
+    swagger_ui_init_oauth=(
+        {
+            "clientId": "psychsync-client",
+            "appName": "PsychSync API",
+            "usePkceWithAuthorizationCodeGrant": True,
+        }
+        if settings.DEBUG
+        else None
+    ),
 )
 
 # --- ENTERPRISE SECURITY MIDDLEWARE CONFIGURATION ---
@@ -622,11 +657,15 @@ try:
     if use_strict:
         # For production - use strict middleware
         app.add_middleware(StrictHostValidationMiddleware)
-        app_security_logger.info("Strict Host validation middleware enabled (production mode)")
+        app_security_logger.info(
+            "Strict Host validation middleware enabled (production mode)"
+        )
     else:
         # For development/testing - use standard middleware
         app.add_middleware(HostValidationMiddleware)
-        app_security_logger.info("Host validation middleware enabled (development mode)")
+        app_security_logger.info(
+            "Host validation middleware enabled (development mode)"
+        )
 
 except Exception as e:
     app_security_logger.warning(f"Failed to configure Host validation middleware: {e}")
@@ -657,7 +696,9 @@ except Exception as e:
 
 # 5.1. Comprehensive Security Headers (Second layer - after CORS)
 try:
-    csrf_secret_key = os.getenv("CSRF_SECRET_KEY", os.getenv("SECRET_KEY", secrets.token_hex(32)))
+    csrf_secret_key = os.getenv(
+        "CSRF_SECRET_KEY", os.getenv("SECRET_KEY", secrets.token_hex(32))
+    )
     # UNIFIED SECURITY MIDDLEWARE (Consolidates all security middleware)
     # This replaces: ComprehensiveSecurityHeadersMiddleware, XSSProtectionMiddleware,
     #               ContentSecurityPolicyMiddleware, CSRFProtectionMiddleware, SecurityMiddleware
@@ -668,27 +709,22 @@ try:
         ip_blocking_enabled=True,
         attack_detection_enabled=True,
         request_logging_enabled=False,  # Set to True for debugging
-
         # Security headers configuration
         hsts_max_age=31536000,  # 1 year
         hsts_include_subdomains=True,
         hsts_preload=True,
         csp_level="medium",  # medium supports Swagger UI
-
         # CSRF configuration
         csrf_cookie_name="csrf_token",
         csrf_header_name="X-CSRF-Token",
         csrf_token_expiry=3600,  # 1 hour
-
         # IP blocking configuration
         failed_login_threshold=5,
         ip_block_duration=900,  # 15 minutes
         max_requests_per_minute=60,
-
         # Attack detection
         block_known_attack_tools=True,
         log_suspicious_paths=True,
-
         # Exclusions (health endpoints, docs, etc.)
         exclude_paths={
             "/health",
@@ -702,7 +738,9 @@ try:
     )
 
     app.add_middleware(UnifiedSecurityMiddleware, config=unified_security_config)
-    app_security_logger.info("✅ Unified security middleware enabled (consolidates all security features)")
+    app_security_logger.info(
+        "✅ Unified security middleware enabled (consolidates all security features)"
+    )
 except Exception as e:
     app_security_logger.warning(f"Failed to enable unified security middleware: {e}")
 
@@ -813,7 +851,9 @@ except Exception as e:
 # except Exception as e:
 #     app_security_logger.warning(f"Failed to enable CSRF protection middleware: {e}")
 
-app_security_logger.info("✅ Comprehensive security middleware chain configured successfully")
+app_security_logger.info(
+    "✅ Comprehensive security middleware chain configured successfully"
+)
 
 # 6. Existing CSRF Protection Middleware (legacy - keep for compatibility)
 # DISABLED: Now handled by UnifiedSecurityMiddleware
@@ -927,11 +967,15 @@ async def add_additional_security_headers(request: Request, call_next):
     # Additional security headers
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    response.headers["Strict-Transport-Security"] = (
+        "max-age=31536000; includeSubDomains; preload"
+    )
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=(), payment=()"
+    response.headers["Permissions-Policy"] = (
+        "geolocation=(), microphone=(), camera=(), payment=()"
+    )
 
     # CSP header is now handled by ContentSecurityPolicyMiddleware above
     # to avoid conflicts and allow Swagger UI to load properly
@@ -987,6 +1031,7 @@ app.include_router(enhanced_clinical_analytics.router, prefix="/api/v1")
 # --- WebSocket Routes ---
 # Import and include WebSocket routers
 from app.api.v1.endpoints.health_monitoring_ws import ws_router
+
 app.include_router(ws_router)
 
 
@@ -1025,7 +1070,11 @@ async def health_check_main() -> dict[str, Any]:
         "status": "healthy",
         "version": AppInfo.VERSION,
         "timestamp": datetime.utcnow().isoformat(),
-        "services": {"database": db_status, "redis": redis_status, "ai_engine": "ready"},
+        "services": {
+            "database": db_status,
+            "redis": redis_status,
+            "ai_engine": "ready",
+        },
         "performance": {
             "cache_healthy": not cache_service.circuit_breaker_open,
             "memory_monitoring": memory_service.monitoring_enabled,
@@ -1042,7 +1091,9 @@ async def get_performance_metrics() -> dict[str, Any]:
     """
     try:
         # Get performance monitoring stats
-        system_stats = await performance_monitoring_service.get_system_performance_stats()
+        system_stats = (
+            await performance_monitoring_service.get_system_performance_stats()
+        )
 
         # Get cache metrics
         cache_metrics = cache_service.get_metrics()
@@ -1061,7 +1112,11 @@ async def get_performance_metrics() -> dict[str, Any]:
 
     except Exception as e:
         logger.error(f"Performance metrics collection failed: {e}")
-        return {"timestamp": datetime.utcnow().isoformat(), "error": str(e), "status": "error"}
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "error": str(e),
+            "status": "error",
+        }
 
 
 # --- Uvicorn Runner ---
@@ -1088,8 +1143,12 @@ if __name__ == "__main__":
             access_log=True,
         )
     else:
-        logger.warning("⚠️  SSL certificates not valid - falling back to HTTP development mode")
+        logger.warning(
+            "⚠️  SSL certificates not valid - falling back to HTTP development mode"
+        )
         logger.warning(f"SSL Issues: {ssl_verification.get('issues', 'Unknown')}")
 
         # Development configuration (HTTP only)
-        uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
+        uvicorn.run(
+            "app.main:app", host="0.0.0.0", port=8000, reload=True, log_level="info"
+        )

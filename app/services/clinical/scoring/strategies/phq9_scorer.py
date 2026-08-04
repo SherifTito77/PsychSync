@@ -10,12 +10,13 @@ This module demonstrates the refactored scoring approach using:
 Complexity reduced from 72 lines to ~40 lines through better separation.
 """
 
-from typing import Dict
 import logging
-from .base import BaseScoringStrategy, ScoringResult
-from ..config import PHQ9_CONFIG
+from typing import Dict
+
 from ..classifiers.severity_classifier import SeverityClassifier
+from ..config import PHQ9_CONFIG
 from ..detectors.crisis_detector import CrisisDetector
+from .base import BaseScoringStrategy, ScoringResult
 
 logger = logging.getLogger(__name__)
 

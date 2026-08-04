@@ -8,8 +8,8 @@ IceHRM: Lightweight HRIS for startups & SMBs
 API Documentation: https://icehrm.com/explore/documentation/
 """
 
-from datetime import date, datetime
 import logging
+from datetime import date, datetime
 
 import pymysql
 
@@ -55,7 +55,10 @@ class IceHRMConnector(HRISConnector):
         # Setup API authentication
         if self.api_key:
             self.session.headers.update(
-                {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+                {
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                }
             )
 
     def _get_db_connection(self):
@@ -110,11 +113,15 @@ class IceHRMConnector(HRISConnector):
                 phone=item.get("mobile_phone"),
                 department=item.get("department"),
                 position=item.get("job_title"),
-                hire_date=datetime.strptime(item["joined_date"], "%Y-%m-%d").date()
-                if item.get("joined_date")
-                else None,
+                hire_date=(
+                    datetime.strptime(item["joined_date"], "%Y-%m-%d").date()
+                    if item.get("joined_date")
+                    else None
+                ),
                 employment_status=item.get("employment_status", "active"),
-                manager_id=str(item.get("supervisor")) if item.get("supervisor") else None,
+                manager_id=(
+                    str(item.get("supervisor")) if item.get("supervisor") else None
+                ),
                 location=item.get("work_location"),
             )
 
@@ -200,11 +207,15 @@ class IceHRMConnector(HRISConnector):
                     phone=item.get("mobile_phone"),
                     department=item.get("department"),
                     position=item.get("job_title"),
-                    hire_date=datetime.strptime(item["joined_date"], "%Y-%m-%d").date()
-                    if item.get("joined_date")
-                    else None,
+                    hire_date=(
+                        datetime.strptime(item["joined_date"], "%Y-%m-%d").date()
+                        if item.get("joined_date")
+                        else None
+                    ),
                     employment_status=item.get("employment_status", "active"),
-                    manager_id=str(item.get("supervisor")) if item.get("supervisor") else None,
+                    manager_id=(
+                        str(item.get("supervisor")) if item.get("supervisor") else None
+                    ),
                     location=item.get("work_location"),
                 )
 

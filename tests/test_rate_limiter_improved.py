@@ -1,17 +1,26 @@
 """Improved tests for rate_limiter - Security Critical"""
 
-import pytest
-from unittest.mock import Mock, patch
 import sys
-from pathlib import Path
 import time
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 try:
-    from app.core.rate_limiter_unified import RateLimitConfig, RateLimitExceeded, TokenBucket, RateLimitMiddleware, EndpointRateLimiter, RateLimitStrategy
+    from app.core.rate_limiter_unified import (
+        EndpointRateLimiter,
+        RateLimitConfig,
+        RateLimitExceeded,
+        RateLimitMiddleware,
+        RateLimitStrategy,
+        TokenBucket,
+    )
+
     IMPORTS_AVAILABLE = True
 except ImportError:
     IMPORTS_AVAILABLE = False
@@ -30,18 +39,19 @@ class TestRateLimiter:
         """Setup test environment"""
         pass
 
-    @pytest.mark.skipif(not IMPORTS_AVAILABLE, reason="Rate limiter imports not available")
+    @pytest.mark.skipif(
+        not IMPORTS_AVAILABLE, reason="Rate limiter imports not available"
+    )
     def test_rate_limit_config_initialization(self, setup_test_env):
         """Test RateLimitConfig initialization"""
         # TODO(human): Implement test for RateLimitConfig initialization
-        config = RateLimitConfig(
-            requests_per_minute=60,
-            burst_size=10
-        )
+        config = RateLimitConfig(requests_per_minute=60, burst_size=10)
         assert config.requests_per_minute == 60
         assert config.burst_size == 10
 
-    @pytest.mark.skipif(not IMPORTS_AVAILABLE, reason="Rate limiter imports not available")
+    @pytest.mark.skipif(
+        not IMPORTS_AVAILABLE, reason="Rate limiter imports not available"
+    )
     def test_token_bucket_basic_functionality(self, setup_test_env):
         """Test TokenBucket basic functionality"""
         # TODO(human): Implement TokenBucket functionality test
@@ -51,14 +61,18 @@ class TestRateLimiter:
         assert bucket.capacity == 10
         assert bucket.refill_rate == 1
 
-    @pytest.mark.skipif(not IMPORTS_AVAILABLE, reason="Rate limiter imports not available")
+    @pytest.mark.skipif(
+        not IMPORTS_AVAILABLE, reason="Rate limiter imports not available"
+    )
     def test_rate_limit_exceeded_exception(self, setup_test_env):
         """Test RateLimitExceeded exception"""
         # TODO(human): Implement RateLimitExceeded exception test
         with pytest.raises(RateLimitExceeded):
             raise RateLimitExceeded("Rate limit exceeded")
 
-    @pytest.mark.skipif(not IMPORTS_AVAILABLE, reason="Rate limiter imports not available")
+    @pytest.mark.skipif(
+        not IMPORTS_AVAILABLE, reason="Rate limiter imports not available"
+    )
     def test_rate_limit_middleware_integration(self, setup_test_env):
         """Test RateLimitMiddleware integration"""
         # TODO(human): Implement middleware integration test
@@ -70,16 +84,14 @@ class TestRateLimiter:
         assert middleware.app == mock_app
         assert middleware.requests_per_minute == 60
 
-    @pytest.mark.skipif(not IMPORTS_AVAILABLE, reason="Rate limiter imports not available")
+    @pytest.mark.skipif(
+        not IMPORTS_AVAILABLE, reason="Rate limiter imports not available"
+    )
     def test_endpoint_rate_limiter_configuration(self, setup_test_env):
         """Test EndpointRateLimiter configuration"""
         # TODO(human): Implement endpoint rate limiter configuration test
         limiter = EndpointUnifiedRateLimiter(
-            default_limit=100,
-            endpoints={
-                "/api/v1/login": 10,
-                "/api/v1/register": 5
-            }
+            default_limit=100, endpoints={"/api/v1/login": 10, "/api/v1/register": 5}
         )
         assert limiter.default_limit == 100
         assert limiter.endpoints["/api/v1/login"] == 10
@@ -96,7 +108,9 @@ class TestRateLimiter:
 
         assert end_time > start_time  # Basic time flow test
 
-    @pytest.mark.skipif(not IMPORTS_AVAILABLE, reason="Rate limiter imports not available")
+    @pytest.mark.skipif(
+        not IMPORTS_AVAILABLE, reason="Rate limiter imports not available"
+    )
     def test_rate_limiting_concurrent_requests(self, setup_test_env):
         """Test rate limiting with concurrent requests"""
         # TODO(human): Implement concurrent requests test

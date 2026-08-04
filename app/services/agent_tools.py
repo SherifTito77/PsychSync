@@ -170,7 +170,11 @@ async def email_draft_create_impl(
     # Create draft
     email_service = EmailService()
     draft_id = await email_service.create_draft(
-        user_id=user_id, to=to_email, subject=subject, body=body, template_id=template_id
+        user_id=user_id,
+        to=to_email,
+        subject=subject,
+        body=body,
+        template_id=template_id,
     )
 
     return {
@@ -221,14 +225,23 @@ async def email_send_verified_impl(
         template_id=template_id, to=to_email, data=template_data
     )
 
-    return {"email_id": result.get("email_id"), "status": "sent", "template_used": template_id}
+    return {
+        "email_id": result.get("email_id"),
+        "status": "sent",
+        "template_used": template_id,
+    }
 
 
 # ============================================================================
 # File System Tools
 # ============================================================================
 
-ALLOWED_READ_DIRS = ["/app/public/", "/app/templates/", "/app/docs/", "/var/assessment-exports/"]
+ALLOWED_READ_DIRS = [
+    "/app/public/",
+    "/app/templates/",
+    "/app/docs/",
+    "/var/assessment-exports/",
+]
 
 ALLOWED_WRITE_DIRS = ["/var/assessment-exports/", "/var/tmp/", "/var/user-uploads/"]
 
@@ -377,4 +390,9 @@ async def api_external_call_impl(
         response_data = await response.text()
         response_status = response.status
 
-    return {"url": url, "status_code": response_status, "response": response_data, "domain": domain}
+    return {
+        "url": url,
+        "status_code": response_status,
+        "response": response_data,
+        "domain": domain,
+    }

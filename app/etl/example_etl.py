@@ -16,22 +16,22 @@ Usage:
 
 import asyncio
 from datetime import datetime, timedelta
-from uuid import UUID
 from typing import List
+from uuid import UUID
 
-from app.core.database import get_async_db
-from app.db.models.user import User
-from app.db.models.team import Team
-from app.db.models.assessment import Assessment, AssessmentResponse
 from app.analytics.dimensional_models import (
+    DimAssessment,
     DimOrganization,
     DimTeam,
     DimUser,
-    DimAssessment,
-    FactTeamMemberCount,
     FactAssessmentCompletion,
-    FactUserEngagement
+    FactTeamMemberCount,
+    FactUserEngagement,
 )
+from app.core.database import get_async_db
+from app.db.models.assessment import Assessment, AssessmentResponse
+from app.db.models.team import Team
+from app.db.models.user import User
 
 
 class DataWarehouseETL:
@@ -43,11 +43,11 @@ class DataWarehouseETL:
     async def extract_organizations(self) -> List[dict]:
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -77,11 +77,11 @@ Returns:
     async def extract_teams(self) -> List[dict]:
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -115,11 +115,11 @@ Returns:
     async def extract_users(self) -> List[dict]:
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -154,11 +154,11 @@ Returns:
     async def extract_assessments(self) -> List[dict]:
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -195,11 +195,11 @@ Returns:
     async def extract_assessment_responses(self) -> List[dict]:
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -235,11 +235,11 @@ Returns:
     async def load_dim_organization(self, orgs: List[dict]):
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -256,7 +256,7 @@ Returns:
             # Check if already exists
             existing = await self.db.execute(
                 "SELECT id FROM dim_organization WHERE id = :org_id",
-                {"org_id": org['id']}
+                {"org_id": org["id"]},
             )
             if existing.first():
                 # Update
@@ -267,7 +267,7 @@ Returns:
                         updated_at = NOW()
                     WHERE id = :id
                     """,
-                    org
+                    org,
                 )
             else:
                 # Insert
@@ -276,7 +276,7 @@ Returns:
                     INSERT INTO dim_organization (id, name, created_at, updated_at)
                     VALUES (:id, :name, :created_at, :updated_at)
                     """,
-                    org
+                    org,
                 )
 
         await self.db.commit()
@@ -285,11 +285,11 @@ Returns:
     async def load_dim_team(self, teams: List[dict]):
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -304,8 +304,7 @@ Returns:
 
         for team in teams:
             existing = await self.db.execute(
-                "SELECT id FROM dim_team WHERE id = :team_id",
-                {"team_id": team['id']}
+                "SELECT id FROM dim_team WHERE id = :team_id", {"team_id": team["id"]}
             )
             if existing.first():
                 await self.db.execute(
@@ -316,7 +315,7 @@ Returns:
                         updated_at = NOW()
                     WHERE id = :id
                     """,
-                    team
+                    team,
                 )
             else:
                 await self.db.execute(
@@ -324,7 +323,7 @@ Returns:
                     INSERT INTO dim_team (id, name, organization_id, created_at, updated_at)
                     VALUES (:id, :name, :organization_id, :created_at, :updated_at)
                     """,
-                    team
+                    team,
                 )
 
         await self.db.commit()
@@ -333,11 +332,11 @@ Returns:
     async def load_dim_user(self, users: List[dict]):
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -352,8 +351,7 @@ Returns:
 
         for user in users:
             existing = await self.db.execute(
-                "SELECT id FROM dim_user WHERE id = :user_id",
-                {"user_id": user['id']}
+                "SELECT id FROM dim_user WHERE id = :user_id", {"user_id": user["id"]}
             )
             if existing.first():
                 await self.db.execute(
@@ -367,7 +365,7 @@ Returns:
                         updated_at = NOW()
                     WHERE id = :id
                     """,
-                    user
+                    user,
                 )
             else:
                 await self.db.execute(
@@ -376,7 +374,7 @@ Returns:
                     (id, email, full_name, organization_id, current_team_id, team_role, created_at, updated_at)
                     VALUES (:id, :email, :full_name, :organization_id, :team_id, :team_role, :created_at, :updated_at)
                     """,
-                    user
+                    user,
                 )
 
         await self.db.commit()
@@ -385,11 +383,11 @@ Returns:
     async def load_dim_assessment(self, assessments: List[dict]):
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -405,7 +403,7 @@ Returns:
         for assessment in assessments:
             existing = await self.db.execute(
                 "SELECT id FROM dim_assessment WHERE id = :assessment_id",
-                {"assessment_id": assessment['id']}
+                {"assessment_id": assessment["id"]},
             )
             if existing.first():
                 await self.db.execute(
@@ -418,7 +416,7 @@ Returns:
                         updated_at = NOW()
                     WHERE id = :id
                     """,
-                    assessment
+                    assessment,
                 )
             else:
                 await self.db.execute(
@@ -427,7 +425,7 @@ Returns:
                     (id, title, framework_code, organization_id, team_id, created_by, created_at, updated_at)
                     VALUES (:id, :title, :framework_code, :organization_id, :team_id, :created_by, :created_at, :updated_at)
                     """,
-                    assessment
+                    assessment,
                 )
 
         await self.db.commit()
@@ -436,11 +434,11 @@ Returns:
     async def load_fact_team_member_count(self, teams: List[dict]):
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -462,8 +460,8 @@ Returns:
                 FROM team_members
                 WHERE team_id = :team_id
             """
-            result = await self.db.execute(count_query, {"team_id": team['id']})
-            member_count = result.first()['member_count']
+            result = await self.db.execute(count_query, {"team_id": team["id"]})
+            member_count = result.first()["member_count"]
 
             # Insert or update fact
             existing = await self.db.execute(
@@ -471,7 +469,7 @@ Returns:
                 SELECT id FROM fact_team_member_count
                 WHERE team_id = :team_id AND date = :date
                 """,
-                {"team_id": team['id'], "date": today}
+                {"team_id": team["id"], "date": today},
             )
 
             if existing.first():
@@ -482,7 +480,11 @@ Returns:
                         updated_at = NOW()
                     WHERE team_id = :team_id AND date = :date
                     """,
-                    {"team_id": team['id'], "date": today, "member_count": member_count}
+                    {
+                        "team_id": team["id"],
+                        "date": today,
+                        "member_count": member_count,
+                    },
                 )
             else:
                 await self.db.execute(
@@ -490,7 +492,11 @@ Returns:
                     INSERT INTO fact_team_member_count (team_id, date, member_count)
                     VALUES (:team_id, :date, :member_count)
                     """,
-                    {"team_id": team['id'], "date": today, "member_count": member_count}
+                    {
+                        "team_id": team["id"],
+                        "date": today,
+                        "member_count": member_count,
+                    },
                 )
 
         await self.db.commit()
@@ -499,11 +505,11 @@ Returns:
     async def load_fact_assessment_completion(self, responses: List[dict]):
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -517,14 +523,14 @@ Returns:
         print("\n📥 Loading FactAssessmentCompletion...")
 
         for response in responses:
-            completed_date = response['completed_at'].date()
+            completed_date = response["completed_at"].date()
 
             existing = await self.db.execute(
                 """
                 SELECT id FROM fact_assessment_completion
                 WHERE assessment_id = :assessment_id AND date = :date
                 """,
-                {"assessment_id": response['assessment_id'], "date": completed_date}
+                {"assessment_id": response["assessment_id"], "date": completed_date},
             )
 
             if existing.first():
@@ -536,7 +542,10 @@ Returns:
                         updated_at = NOW()
                     WHERE assessment_id = :assessment_id AND date = :date
                     """,
-                    {"assessment_id": response['assessment_id'], "date": completed_date}
+                    {
+                        "assessment_id": response["assessment_id"],
+                        "date": completed_date,
+                    },
                 )
             else:
                 # Insert new record
@@ -546,7 +555,10 @@ Returns:
                     (assessment_id, date, completion_count)
                     VALUES (:assessment_id, :date, 1)
                     """,
-                    {"assessment_id": response['assessment_id'], "date": completed_date}
+                    {
+                        "assessment_id": response["assessment_id"],
+                        "date": completed_date,
+                    },
                 )
 
         await self.db.commit()
@@ -555,11 +567,11 @@ Returns:
     async def load_fact_user_engagement(self):
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -597,16 +609,16 @@ Returns:
                 SELECT id FROM fact_user_engagement
                 WHERE user_id = :user_id AND date = :date
                 """,
-                {"user_id": user['user_id'], "date": today}
+                {"user_id": user["user_id"], "date": today},
             )
 
             engagement_data = {
-                "user_id": user['user_id'],
+                "user_id": user["user_id"],
                 "date": today,
-                "assessments_completed": user['assessments_completed'] or 0,
-                "total_responses": user['total_responses'] or 0,
-                "avg_score": float(user['avg_score']) if user['avg_score'] else 0.0,
-                "last_active_at": datetime.now()
+                "assessments_completed": user["assessments_completed"] or 0,
+                "total_responses": user["total_responses"] or 0,
+                "avg_score": float(user["avg_score"]) if user["avg_score"] else 0.0,
+                "last_active_at": datetime.now(),
             }
 
             if existing.first():
@@ -620,7 +632,7 @@ Returns:
                         updated_at = NOW()
                     WHERE user_id = :user_id AND date = :date
                     """,
-                    engagement_data
+                    engagement_data,
                 )
             else:
                 await self.db.execute(
@@ -629,7 +641,7 @@ Returns:
                     (user_id, date, assessments_completed, total_responses, avg_score, last_active_at)
                     VALUES (:user_id, :date, :assessments_completed, :total_responses, :avg_score, :last_active_at)
                     """,
-                    engagement_data
+                    engagement_data,
                 )
 
         await self.db.commit()
@@ -638,11 +650,11 @@ Returns:
     async def run_full_etl(self):
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -653,9 +665,9 @@ Returns:
     Operation result
         """
         """Run complete ETL process."""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("DATA WAREHOUSE ETL - PsychSync Team Analytics")
-        print("="*80)
+        print("=" * 80)
 
         start_time = datetime.now()
 
@@ -682,9 +694,9 @@ Returns:
 
         elapsed = (datetime.now() - start_time).total_seconds()
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print(f"✅ ETL Complete! ({elapsed:.2f}s)")
-        print("="*80)
+        print("=" * 80)
         print("\n📊 Data Warehouse Stats:")
         print(f"   Organizations: {len(orgs)}")
         print(f"   Teams: {len(teams)}")
@@ -701,11 +713,11 @@ Returns:
 async def main():
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 
@@ -728,4 +740,5 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ ETL Error: {e}")
         import traceback
+
         traceback.print_exc()

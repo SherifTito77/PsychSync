@@ -4,15 +4,16 @@ API Authentication Security Fix Script
 Ensures all API endpoints have proper authentication implemented
 """
 
-import re
 import ast
-from pathlib import Path
-from typing import List, Dict, Any, Set
 import logging
+import re
+from pathlib import Path
+from typing import Any, Dict, List, Set
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
+
 
 class APIAuthenticationFixer:
     def __init__(self):
@@ -26,7 +27,7 @@ class APIAuthenticationFixer:
         endpoints = []
 
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 content = f.read()
 
             # Parse the Python file
@@ -34,7 +35,11 @@ class APIAuthenticationFixer:
                 tree = ast.parse(content)
             except SyntaxError as e:
                 issues.append(f"Syntax error in file: {e}")
-                return {"file": str(file_path), "issues": issues, "endpoints": endpoints}
+                return {
+                    "file": str(file_path),
+                    "issues": issues,
+                    "endpoints": endpoints,
+                }
 
             # Find all route decorators and check authentication
             for node in ast.walk(tree):
@@ -45,36 +50,44 @@ class APIAuthenticationFixer:
 
                     for decorator in node.decorator_list:
                         # Check for @router.get, @router.post, etc.
-                        if (isinstance(decorator, ast.Attribute) and
-                            isinstance(decorator.value, ast.Name) and
-                            decorator.value.id == 'router'):
+                        if (
+                            isinstance(decorator, ast.Attribute)
+                            and isinstance(decorator.value, ast.Name)
+                            and decorator.value.id == "router"
+                        ):
                             route_decorators.append(ast.unparse(decorator))
 
                     # Check function arguments for authentication
                     for arg in node.args.args:
-                        if (arg.annotation and
-                            isinstance(arg.annotation, ast.Attribute) and
-                            'get_current' in ast.unparse(arg.annotation)):
+                        if (
+                            arg.annotation
+                            and isinstance(arg.annotation, ast.Attribute)
+                            and "get_current" in ast.unparse(arg.annotation)
+                        ):
                             auth_dependencies.append(ast.unparse(arg.annotation))
 
                     # If it has route decorators but no auth dependencies, it's a security issue
                     if route_decorators and not auth_dependencies:
                         # Skip if function name suggests it's for authentication itself
-                        if not any(skip_word in node.name.lower()
-                                 for skip_word in ['login', 'token', 'auth', 'register']):
+                        if not any(
+                            skip_word in node.name.lower()
+                            for skip_word in ["login", "token", "auth", "register"]
+                        ):
                             endpoint_info = {
                                 "function": node.name,
                                 "routes": route_decorators,
                                 "file": str(file_path.relative_to(Path.cwd())),
-                                "line": node.lineno
+                                "line": node.lineno,
                             }
                             endpoints.append(endpoint_info)
-                            issues.append(f"Endpoint '{node.name}' has routes but no authentication")
+                            issues.append(
+                                f"Endpoint '{node.name}' has routes but no authentication"
+                            )
 
             return {
                 "file": str(file_path.relative_to(Path.cwd())),
                 "issues": issues,
-                "endpoints": endpoints
+                "endpoints": endpoints,
             }
 
         except Exception as e:
@@ -91,8 +104,11 @@ class APIAuthenticationFixer:
         for file_path in endpoint_files:
             # Skip certain files that are meant to be public or for testing
             skip_files = [
-                'auth.py', 'auth_fixed.py', 'auth_original_backup.py',
-                'standalone_auth.py', 'simple_auth.py'
+                "auth.py",
+                "auth_fixed.py",
+                "auth_original_backup.py",
+                "standalone_auth.py",
+                "simple_auth.py",
             ]
 
             if file_path.name in skip_files:
@@ -117,12 +133,18 @@ class APIAuthenticationFixer:
         report.append("")
 
         total_files = len(issues)
-        total_endpoints_without_auth = sum(len(issue.get("endpoints", [])) for issue in issues)
+        total_endpoints_without_auth = sum(
+            len(issue.get("endpoints", [])) for issue in issues
+        )
 
         report.append(f"📊 SUMMARY:")
         report.append(f"   Files with issues: {total_files}")
-        report.append(f"   Endpoints without authentication: {total_endpoints_without_auth}")
-        report.append(f"   Risk Level: {'HIGH' if total_endpoints_without_auth > 0 else 'LOW'}")
+        report.append(
+            f"   Endpoints without authentication: {total_endpoints_without_auth}"
+        )
+        report.append(
+            f"   Risk Level: {'HIGH' if total_endpoints_without_auth > 0 else 'LOW'}"
+        )
         report.append("")
 
         if issues:
@@ -134,10 +156,14 @@ class APIAuthenticationFixer:
                     report.append(f"📁 FILE: {file_issue['file']}")
 
                     for endpoint in file_issue["endpoints"]:
-                        report.append(f"   ❌ Endpoint: {endpoint['function']} (line {endpoint['line']})")
+                        report.append(
+                            f"   ❌ Endpoint: {endpoint['function']} (line {endpoint['line']})"
+                        )
                         for route in endpoint["routes"]:
                             report.append(f"      Route: {route}")
-                        report.append(f"      Fix: Add 'current_user: User = Depends(get_current_active_user)' parameter")
+                        report.append(
+                            f"      Fix: Add 'current_user: User = Depends(get_current_active_user)' parameter"
+                        )
 
                     report.append("")
         else:
@@ -164,7 +190,9 @@ class APIAuthenticationFixer:
         template.append('"""')
         template.append("")
         template.append("# Add these imports to files that need authentication:")
-        template.append("from app.api.v1.deps import get_current_active_user, get_current_admin_user")
+        template.append(
+            "from app.api.v1.deps import get_current_active_user, get_current_admin_user"
+        )
         template.append("from app.db.models.user import User")
         template.append("")
         template.append("# Example fixes for endpoints missing authentication:")
@@ -185,10 +213,14 @@ class APIAuthenticationFixer:
                     template.append(f"# async def {endpoint['function']}(")
                     template.append("#     request: Request")
                     template.append("#     db: AsyncSession = Depends(get_db)")
-                    template.append("#     current_user: User = Depends(get_current_active_user)")
+                    template.append(
+                        "#     current_user: User = Depends(get_current_active_user)"
+                    )
                     template.append("")
 
-        template.append("# Apply these changes manually or use automated refactoring tools")
+        template.append(
+            "# Apply these changes manually or use automated refactoring tools"
+        )
         template.append("# Test all endpoints after applying authentication fixes")
 
         return "\n".join(template)
@@ -212,7 +244,9 @@ class APIAuthenticationFixer:
             f.write(fix_template)
 
         # Display summary
-        total_endpoints_without_auth = sum(len(issue.get("endpoints", [])) for issue in issues)
+        total_endpoints_without_auth = sum(
+            len(issue.get("endpoints", [])) for issue in issues
+        )
 
         print("\n" + "=" * 60)
         print("🔐 API AUTHENTICATION SECURITY AUDIT RESULTS")
@@ -223,7 +257,9 @@ class APIAuthenticationFixer:
         print(f"📊 Risk Level: {'HIGH' if total_endpoints_without_auth > 0 else 'LOW'}")
 
         if total_endpoints_without_auth > 0:
-            print(f"\n🚨 CRITICAL: Found {total_endpoints_without_auth} endpoints without authentication!")
+            print(
+                f"\n🚨 CRITICAL: Found {total_endpoints_without_auth} endpoints without authentication!"
+            )
             print(f"📄 Detailed report saved to: api_authentication_audit_report.txt")
             print(f"🔧 Fix template saved to: api_authentication_fix_template.py")
         else:
@@ -233,18 +269,23 @@ class APIAuthenticationFixer:
 
         return issues
 
+
 def main():
     """Main execution function"""
     fixer = APIAuthenticationFixer()
     issues = fixer.run_security_audit()
 
     if issues:
-        logger.warning("⚠️  Authentication issues found - please review the generated reports")
+        logger.warning(
+            "⚠️  Authentication issues found - please review the generated reports"
+        )
         return 1
     else:
         logger.info("✅ No authentication issues found")
         return 0
 
+
 if __name__ == "__main__":
     from datetime import datetime
+
     exit(main())

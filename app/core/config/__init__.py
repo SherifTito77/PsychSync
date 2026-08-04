@@ -26,7 +26,13 @@ def get_database_url(async_driver: bool = True, test_mode: bool = False) -> str:
     return settings.get_database_url(async_driver=async_driver, test_mode=test_mode)
 
 
-__all__ = ["Settings", "get_database_url", "get_settings", "reload_settings", "settings"]
+__all__ = [
+    "Settings",
+    "get_database_url",
+    "get_settings",
+    "reload_settings",
+    "settings",
+]
 
 # Module information
 __version__ = "2.0.0"

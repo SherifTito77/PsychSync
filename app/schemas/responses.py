@@ -4,8 +4,9 @@ Standardized response schemas for PsychSync API
 Provides consistent API response format across all endpoints
 """
 
-from typing import Any, Dict, List, Optional, Union, Generic, TypeVar
 from datetime import datetime
+from typing import Any, Dict, Generic, List, Optional, TypeVar, Union
+
 from pydantic import BaseModel, Field
 from pydantic.generics import GenericModel
 
@@ -13,11 +14,12 @@ from pydantic.generics import GenericModel
 # TYPE VARIABLES
 # =============================================================================
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 # =============================================================================
 # BASE RESPONSE MODELS
 # =============================================================================
+
 
 class BaseResponse(GenericModel, Generic[T]):
     """
@@ -28,7 +30,9 @@ class BaseResponse(GenericModel, Generic[T]):
     success: bool = Field(..., description="Whether the request was successful")
     message: str = Field(..., description="Response message")
     data: Optional[T] = Field(None, description="Response data payload")
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Response timestamp")
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow, description="Response timestamp"
+    )
     request_id: Optional[str] = Field(None, description="Unique request identifier")
 
 
@@ -40,7 +44,9 @@ class SuccessResponse(BaseResponse[T]):
 
     success: bool = Field(True, description="Request was successful")
     error_code: Optional[str] = Field(None, description="Error code (null for success)")
-    metadata: Optional[Dict[str, Any]] = Field(None, description="Additional response metadata")
+    metadata: Optional[Dict[str, Any]] = Field(
+        None, description="Additional response metadata"
+    )
 
 
 class ErrorResponse(BaseResponse[None]):
@@ -51,13 +57,18 @@ class ErrorResponse(BaseResponse[None]):
 
     success: bool = Field(False, description="Request failed")
     error_code: str = Field(..., description="Standardized error code")
-    details: Optional[Dict[str, Any]] = Field(None, description="Additional error details")
-    stack_trace: Optional[str] = Field(None, description="Stack trace (development only)")
+    details: Optional[Dict[str, Any]] = Field(
+        None, description="Additional error details"
+    )
+    stack_trace: Optional[str] = Field(
+        None, description="Stack trace (development only)"
+    )
 
 
 # =============================================================================
 # PAGINATION MODELS
 # =============================================================================
+
 
 class PaginationInfo(BaseModel):
     """Pagination information for list responses"""
@@ -85,13 +96,16 @@ class PaginatedResponse(BaseResponse[List[T]]):
 # SPECIFIC RESPONSE MODELS
 # =============================================================================
 
+
 class TokenResponse(BaseModel):
     """Authentication token response"""
 
     access_token: str = Field(..., description="JWT access token")
     refresh_token: str = Field(..., write_only=True, description="JWT refresh token")
     token_type: str = Field("bearer", description="Token type")
-    expires_in: Optional[int] = Field(None, description="Token expiration time in seconds")
+    expires_in: Optional[int] = Field(
+        None, description="Token expiration time in seconds"
+    )
 
 
 class AuthResponse(SuccessResponse[TokenResponse]):
@@ -122,8 +136,7 @@ class ValidationErrorResponse(ErrorResponse):
     """Validation error response with field-level details"""
 
     validation_errors: List[ValidationErrorDetail] = Field(
-        default_factory=list,
-        description="List of validation errors"
+        default_factory=list, description="List of validation errors"
     )
 
 
@@ -131,11 +144,12 @@ class ValidationErrorResponse(ErrorResponse):
 # RESPONSE FACTORY FUNCTIONS
 # =============================================================================
 
+
 def create_success_response(
     data: Optional[T] = None,
     message: str = "Success",
     request_id: Optional[str] = None,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
 ) -> SuccessResponse[T]:
     """
     Create a standardized success response
@@ -150,10 +164,7 @@ def create_success_response(
         SuccessResponse instance
     """
     return SuccessResponse(
-        message=message,
-        data=data,
-        request_id=request_id,
-        metadata=metadata
+        message=message, data=data, request_id=request_id, metadata=metadata
     )
 
 
@@ -162,7 +173,7 @@ def create_error_response(
     message: str,
     details: Optional[Dict[str, Any]] = None,
     request_id: Optional[str] = None,
-    stack_trace: Optional[str] = None
+    stack_trace: Optional[str] = None,
 ) -> ErrorResponse:
     """
     Create a standardized error response
@@ -183,7 +194,7 @@ def create_error_response(
         error_code=error_code,
         details=details,
         request_id=request_id,
-        stack_trace=stack_trace
+        stack_trace=stack_trace,
     )
 
 
@@ -193,7 +204,7 @@ def create_paginated_response(
     page_size: int,
     total_items: int,
     message: str = "Success",
-    request_id: Optional[str] = None
+    request_id: Optional[str] = None,
 ) -> PaginatedResponse[T]:
     """
     Create a standardized paginated response
@@ -219,7 +230,7 @@ def create_paginated_response(
         total_items=total_items,
         total_pages=total_pages,
         has_next=has_next,
-        has_prev=has_prev
+        has_prev=has_prev,
     )
 
     return PaginatedResponse(
@@ -228,14 +239,14 @@ def create_paginated_response(
         timestamp=datetime.utcnow(),
         request_id=request_id,
         pagination=pagination,
-        error_code=None
+        error_code=None,
     )
 
 
 def create_validation_error_response(
     validation_errors: List[ValidationErrorDetail],
     message: str = "Validation failed",
-    request_id: Optional[str] = None
+    request_id: Optional[str] = None,
 ) -> ValidationErrorResponse:
     """
     Create a validation error response
@@ -254,7 +265,7 @@ def create_validation_error_response(
         error_code="VALIDATION_ERROR",
         validation_errors=validation_errors,
         request_id=request_id,
-        timestamp=datetime.utcnow()
+        timestamp=datetime.utcnow(),
     )
 
 
@@ -262,21 +273,28 @@ def create_validation_error_response(
 # COMMON RESPONSE TEMPLATES
 # =============================================================================
 
+
 class CommonResponses:
     """Common response templates"""
 
     @staticmethod
-    def created(data: Optional[T] = None, message: str = "Resource created successfully") -> SuccessResponse[T]:
+    def created(
+        data: Optional[T] = None, message: str = "Resource created successfully"
+    ) -> SuccessResponse[T]:
         """Created resource response"""
         return create_success_response(data=data, message=message)
 
     @staticmethod
-    def updated(data: Optional[T] = None, message: str = "Resource updated successfully") -> SuccessResponse[T]:
+    def updated(
+        data: Optional[T] = None, message: str = "Resource updated successfully"
+    ) -> SuccessResponse[T]:
         """Updated resource response"""
         return create_success_response(data=data, message=message)
 
     @staticmethod
-    def deleted(message: str = "Resource deleted successfully") -> SuccessResponse[None]:
+    def deleted(
+        message: str = "Resource deleted successfully",
+    ) -> SuccessResponse[None]:
         """Deleted resource response"""
         return create_success_response(data=None, message=message)
 
@@ -286,48 +304,39 @@ class CommonResponses:
         return create_error_response(
             error_code="NOT_FOUND",
             message=f"{resource} not found",
-            details={"resource_type": resource}
+            details={"resource_type": resource},
         )
 
     @staticmethod
     def unauthorized(message: str = "Authentication required") -> ErrorResponse:
         """Unauthorized error response"""
-        return create_error_response(
-            error_code="UNAUTHORIZED",
-            message=message
-        )
+        return create_error_response(error_code="UNAUTHORIZED", message=message)
 
     @staticmethod
     def forbidden(message: str = "Access denied") -> ErrorResponse:
         """Forbidden error response"""
-        return create_error_response(
-            error_code="FORBIDDEN",
-            message=message
-        )
+        return create_error_response(error_code="FORBIDDEN", message=message)
 
     @staticmethod
-    def validation_failed(validation_errors: List[ValidationErrorDetail]) -> ValidationErrorResponse:
+    def validation_failed(
+        validation_errors: List[ValidationErrorDetail],
+    ) -> ValidationErrorResponse:
         """Validation failed response"""
         return create_validation_error_response(
-            validation_errors=validation_errors,
-            message="Validation failed"
+            validation_errors=validation_errors, message="Validation failed"
         )
 
     @staticmethod
     def internal_error(message: str = "Internal server error") -> ErrorResponse:
         """Internal server error response"""
         return create_error_response(
-            error_code="INTERNAL_SERVER_ERROR",
-            message=message
+            error_code="INTERNAL_SERVER_ERROR", message=message
         )
 
     @staticmethod
     def rate_limited(message: str = "Rate limit exceeded") -> ErrorResponse:
         """Rate limited response"""
-        return create_error_response(
-            error_code="RATE_LIMIT_EXCEEDED",
-            message=message
-        )
+        return create_error_response(error_code="RATE_LIMIT_EXCEEDED", message=message)
 
 
 # =============================================================================

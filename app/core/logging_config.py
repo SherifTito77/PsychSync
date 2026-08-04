@@ -1,7 +1,7 @@
 # app/core/logging_config.py
 import logging
-from pathlib import Path
 import sys
+from pathlib import Path
 
 from app.core.log_sanitizer import SensitiveDataFilter
 
@@ -55,7 +55,9 @@ def setup_logging():
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # Configure logging format
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
     # Create sensitive data filter
     sensitive_filter = SensitiveDataFilter(redaction_string="[REDACTED]")

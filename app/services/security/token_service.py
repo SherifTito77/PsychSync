@@ -34,7 +34,6 @@ from jose import JWTError
 
 from app.core.config import settings
 
-
 # =============================================================================
 # Data Classes & Enums
 # =============================================================================
@@ -42,6 +41,7 @@ from app.core.config import settings
 
 class TokenType(Enum):
     """Token types for different purposes"""
+
     ACCESS = "access"
     REFRESH = "refresh"
     PASSWORD_RESET = "password_reset"
@@ -51,6 +51,7 @@ class TokenType(Enum):
 
 class SecurityEventType(Enum):
     """Security event types for audit logging"""
+
     TOKEN_CREATED = "token_created"
     TOKEN_VERIFIED = "token_verified"
     TOKEN_REVOKED = "token_revoked"
@@ -63,6 +64,7 @@ class SecurityEventType(Enum):
 @dataclass
 class TokenMetadata:
     """Token metadata for enhanced security tracking"""
+
     token_type: TokenType
     user_id: str
     issued_at: datetime
@@ -77,6 +79,7 @@ class TokenMetadata:
 @dataclass
 class TokenPayload:
     """Decoded token payload"""
+
     sub: str  # Subject (user ID or email)
     exp: datetime  # Expiration time
     iat: datetime  # Issued at time
@@ -90,6 +93,7 @@ class TokenPayload:
 @dataclass
 class TokenPair:
     """Access and refresh token pair"""
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -99,6 +103,7 @@ class TokenPair:
 @dataclass
 class VerificationResult:
     """Token verification result"""
+
     is_valid: bool
     subject: str | None
     payload: TokenPayload | None
@@ -158,11 +163,11 @@ class TokenService:
         """
         self.secret_key = secret_key or settings.jwt_secret
         self.algorithm = algorithm or settings.JWT_ALGORITHM
-        self.access_token_expire_minutes = (
-            access_token_expire_minutes or getattr(settings, "ACCESS_TOKEN_EXPIRE_MINUTES", 30)
+        self.access_token_expire_minutes = access_token_expire_minutes or getattr(
+            settings, "ACCESS_TOKEN_EXPIRE_MINUTES", 30
         )
-        self.refresh_token_expire_days = (
-            refresh_token_expire_days or getattr(settings, "REFRESH_TOKEN_EXPIRE_DAYS", 7)
+        self.refresh_token_expire_days = refresh_token_expire_days or getattr(
+            settings, "REFRESH_TOKEN_EXPIRE_DAYS", 7
         )
 
         # Cache prefixes
@@ -214,7 +219,9 @@ class TokenService:
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=self.access_token_expire_minutes)
+            expire = datetime.utcnow() + timedelta(
+                minutes=self.access_token_expire_minutes
+            )
 
         # Generate secure JWT ID for token tracking
         jti = secrets.token_urlsafe(32)
@@ -240,18 +247,24 @@ class TokenService:
             user_agent = request.headers.get("User-Agent", "unknown")
 
             # Create device fingerprint
-            device_fingerprint = await self._create_device_fingerprint(ip_address, user_agent)
+            device_fingerprint = await self._create_device_fingerprint(
+                ip_address, user_agent
+            )
 
             to_encode.update(
                 {
                     "ip": hashlib.sha256(ip_address.encode()).hexdigest()[:16],
-                    "device": hashlib.sha256(device_fingerprint.encode()).hexdigest()[:16],
+                    "device": hashlib.sha256(device_fingerprint.encode()).hexdigest()[
+                        :16
+                    ],
                 }
             )
 
         try:
             # Encode JWT token
-            encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
+            encoded_jwt = jwt.encode(
+                to_encode, self.secret_key, algorithm=self.algorithm
+            )
 
             # Create token metadata
             token_metadata = TokenMetadata(
@@ -259,10 +272,18 @@ class TokenService:
                 user_id=user_id or str(subject),
                 issued_at=datetime.utcnow(),
                 expires_at=expire,
-                ip_address=request.client.host if request and request.client else "unknown",
-                user_agent=request.headers.get("User-Agent", "unknown") if request else "unknown",
+                ip_address=(
+                    request.client.host if request and request.client else "unknown"
+                ),
+                user_agent=(
+                    request.headers.get("User-Agent", "unknown")
+                    if request
+                    else "unknown"
+                ),
                 device_fingerprint=device_fingerprint,
-                session_id=additional_claims.get("session_id") if additional_claims else None,
+                session_id=(
+                    additional_claims.get("session_id") if additional_claims else None
+                ),
             )
 
             # Cache token metadata (implementation depends on cache backend)
@@ -381,7 +402,9 @@ class TokenService:
     # Token Verification
     # =========================================================================
 
-    def verify_token(self, token: str, token_type: str = "access") -> VerificationResult:
+    def verify_token(
+        self, token: str, token_type: str = "access"
+    ) -> VerificationResult:
         """
         Verify and decode a JWT token.
 
@@ -401,7 +424,7 @@ class TokenService:
                     is_valid=False,
                     subject=None,
                     payload=None,
-                    error=f"Invalid token type: expected {token_type}, got {payload.get('type')}"
+                    error=f"Invalid token type: expected {token_type}, got {payload.get('type')}",
                 )
 
             # Extract subject
@@ -495,7 +518,11 @@ class TokenService:
 
         self._logger.info(
             f"Password reset token created for {email}",
-            extra={"email": email, "jti": jti, "event_type": "password_reset_requested"},
+            extra={
+                "email": email,
+                "jti": jti,
+                "event_type": "password_reset_requested",
+            },
         )
 
         return encoded_jwt
@@ -537,7 +564,11 @@ class TokenService:
 
         self._logger.info(
             f"Email verification token created for {email}",
-            extra={"email": email, "jti": jti, "event_type": "email_verification_requested"},
+            extra={
+                "email": email,
+                "jti": jti,
+                "event_type": "email_verification_requested",
+            },
         )
 
         return encoded_jwt
@@ -559,7 +590,9 @@ class TokenService:
     # Token Blacklisting & Revocation
     # =========================================================================
 
-    async def revoke_token(self, jti: str, reason: str = "user_logout", user_id: str | None = None) -> None:
+    async def revoke_token(
+        self, jti: str, reason: str = "user_logout", user_id: str | None = None
+    ) -> None:
         """
         Revoke a token by adding it to the blacklist.
 
@@ -603,7 +636,9 @@ class TokenService:
         # Example: return await cache.exists(f"{self.BLACKLIST_CACHE_PREFIX}:{jti}")
         return False
 
-    async def emergency_revoke_all_tokens(self, user_id: str, reason: str = "emergency_revocation") -> None:
+    async def emergency_revoke_all_tokens(
+        self, user_id: str, reason: str = "emergency_revocation"
+    ) -> None:
         """
         Emergency revocation of all tokens for a user.
 
@@ -684,6 +719,7 @@ def get_token_service() -> TokenService:
 # Convenience Functions (Backward Compatibility)
 # =============================================================================
 
+
 async def create_access_token(
     subject: str | Any,
     expires_delta: timedelta | None = None,
@@ -697,7 +733,9 @@ async def create_access_token(
     )
 
 
-def create_refresh_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
+def create_refresh_token(
+    subject: str | Any, expires_delta: timedelta | None = None
+) -> str:
     """Create refresh token using default service."""
     return get_token_service().create_refresh_token(subject, expires_delta)
 

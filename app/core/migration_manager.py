@@ -9,11 +9,11 @@ Features:
 - Zero-downtime migration strategies
 """
 
+import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import json
-import logging
 from typing import Any
 
 from sqlalchemy import text
@@ -86,7 +86,9 @@ class DatabaseMigrationManager:
         Returns:
             Migration execution results
         """
-        migration_id = f"migration_{plan.name}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        migration_id = (
+            f"migration_{plan.name}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        )
 
         try:
             logger.info(f"Starting migration: {plan.name} (ID: {migration_id})")
@@ -111,7 +113,9 @@ class DatabaseMigrationManager:
             # 3. Execute migration steps
             execution_results = []
             for step_index, step in enumerate(plan.steps):
-                logger.info(f"Executing step {step_index + 1}/{len(plan.steps)}: {step.name}")
+                logger.info(
+                    f"Executing step {step_index + 1}/{len(plan.steps)}: {step.name}"
+                )
 
                 step_result = await self.execute_migration_step(
                     step, step_index + 1, len(plan.steps), migration_id
@@ -121,7 +125,9 @@ class DatabaseMigrationManager:
                 if not step_result["success"]:
                     logger.error(f"Migration step failed: {step.name}")
                     await self.rollback_migration(migration_id, plan, backup_id)
-                    return self._create_failure_result(migration_id, plan, step_result, backup_id)
+                    return self._create_failure_result(
+                        migration_id, plan, step_result, backup_id
+                    )
 
             # 4. Post-migration verification
             logger.info("Running post-migration verification...")
@@ -146,16 +152,20 @@ class DatabaseMigrationManager:
                 "execution_results": execution_results,
                 "verification": verification_result,
                 "duration_minutes": (
-                    datetime.utcnow()
-                    - datetime.fromisoformat(
-                        execution_results[0]["start_time"]
-                        if execution_results
-                        else migration_id.split("_")[1] + "_" + migration_id.split("_")[2]
-                    )
-                ).total_seconds()
-                / 60
-                if execution_results
-                else 0,
+                    (
+                        datetime.utcnow()
+                        - datetime.fromisoformat(
+                            execution_results[0]["start_time"]
+                            if execution_results
+                            else migration_id.split("_")[1]
+                            + "_"
+                            + migration_id.split("_")[2]
+                        )
+                    ).total_seconds()
+                    / 60
+                    if execution_results
+                    else 0
+                ),
                 "timestamp": datetime.utcnow().isoformat(),
             }
 
@@ -169,7 +179,9 @@ class DatabaseMigrationManager:
             except Exception as rollback_error:
                 logger.error(f"Rollback failed: {rollback_error}")
 
-            return await self._create_failure_result(migration_id, plan, str(e), backup_id)
+            return await self._create_failure_result(
+                migration_id, plan, str(e), backup_id
+            )
 
     async def execute_migration_step(
         self, step: MigrationStep, step_number: int, total_steps: int, migration_id: str
@@ -182,12 +194,18 @@ class DatabaseMigrationManager:
         try:
             async with self.engine.begin() as conn:
                 # Log step start
-                await self.log_migration_step_start(migration_id, step, step_number, total_steps)
+                await self.log_migration_step_start(
+                    migration_id, step, step_number, total_steps
+                )
 
                 # Execute pre-step verification
                 if step.verification_query:
-                    verification_result = await conn.execute(text(step.verification_query))
-                    logger.info(f"Pre-step verification: {verification_result.rowcount} rows")
+                    verification_result = await conn.execute(
+                        text(step.verification_query)
+                    )
+                    logger.info(
+                        f"Pre-step verification: {verification_result.rowcount} rows"
+                    )
 
                 # Execute migration SQL
                 if step.batch_size and step.batch_size > 0:
@@ -199,8 +217,12 @@ class DatabaseMigrationManager:
 
                 # Verify execution
                 if step.verification_query:
-                    post_verification = await conn.execute(text(step.verification_query))
-                    logger.info(f"Post-step verification: {post_verification.rowcount} rows")
+                    post_verification = await conn.execute(
+                        text(step.verification_query)
+                    )
+                    logger.info(
+                        f"Post-step verification: {post_verification.rowcount} rows"
+                    )
 
                 end_time = datetime.utcnow()
                 duration_ms = (end_time - start_time).total_seconds() * 1000
@@ -215,9 +237,11 @@ class DatabaseMigrationManager:
                     "start_time": start_time.isoformat(),
                     "end_time": end_time.isoformat(),
                     "duration_ms": duration_ms,
-                    "rows_affected": "verification_completed"
-                    if step.verification_query
-                    else "not_verified",
+                    "rows_affected": (
+                        "verification_completed"
+                        if step.verification_query
+                        else "not_verified"
+                    ),
                 }
 
         except Exception as e:
@@ -302,10 +326,12 @@ class DatabaseMigrationManager:
 
                 # Check for long-running queries
                 long_queries = await conn.execute(
-                    text("""
+                    text(
+                        """
                     SELECT count(*) FROM pg_stat_activity
                     WHERE state = 'active' AND query_start < NOW() - INTERVAL '5 minutes'
-                """)
+                """
+                    )
                 )
 
                 if long_queries.scalar() > 0:
@@ -314,10 +340,12 @@ class DatabaseMigrationManager:
 
                 # Check table locks
                 table_locks = await conn.execute(
-                    text("""
+                    text(
+                        """
                     SELECT count(*) FROM pg_locks
                     WHERE NOT granted
-                """)
+                """
+                    )
                 )
 
                 if table_locks.scalar() > 0:
@@ -344,12 +372,14 @@ class DatabaseMigrationManager:
                         table_name = self.extract_table_name(step.sql)
                         if table_name:
                             table_exists = await conn.execute(
-                                text(f"""
+                                text(
+                                    f"""
                                 SELECT EXISTS (
                                     SELECT FROM information_schema.tables
                                     WHERE table_name = '{table_name}'
                                 )
-                            """)
+                            """
+                                )
                             )
 
                             verification_results.append(
@@ -369,7 +399,9 @@ class DatabaseMigrationManager:
                 "success": len(critical_failures) == 0,
                 "verification_results": verification_results,
                 "critical_failures": len(critical_failures),
-                "issues": [f"Missing critical table: {r['table']}" for r in critical_failures],
+                "issues": [
+                    f"Missing critical table: {r['table']}" for r in critical_failures
+                ],
             }
 
         except Exception as e:
@@ -478,7 +510,9 @@ class DatabaseMigrationManager:
         self, migration_id: str, plan: MigrationPlan, error: str, backup_id: str | None
     ) -> dict[str, Any]:
         """Create failure result"""
-        await self.record_migration_execution(migration_id, plan, [], backup_id, "failed")
+        await self.record_migration_execution(
+            migration_id, plan, [], backup_id, "failed"
+        )
 
         return {
             "migration_id": migration_id,
@@ -491,7 +525,9 @@ class DatabaseMigrationManager:
 
     async def get_migration_history(self, limit: int = 50) -> list[dict[str, Any]]:
         """Get recent migration history"""
-        return sorted(self.migration_history, key=lambda x: x["timestamp"], reverse=True)[:limit]
+        return sorted(
+            self.migration_history, key=lambda x: x["timestamp"], reverse=True
+        )[:limit]
 
     async def get_active_migrations(self) -> dict[str, str]:
         """Get currently active migrations"""

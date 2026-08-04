@@ -7,16 +7,24 @@ import asyncio
 import sys
 import traceback
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 
 # Test framework classes
 class ValidationResult:
-    def __init__(self, test_name: str, passed: bool, message: str = "", details: Dict[str, Any] = None):
+    def __init__(
+        self,
+        test_name: str,
+        passed: bool,
+        message: str = "",
+        details: Dict[str, Any] = None,
+    ):
         self.test_name = test_name
         self.passed = passed
         self.message = message
         self.details = details or {}
         self.timestamp = datetime.utcnow()
+
 
 class BackendValidator:
     """Comprehensive backend validation suite"""
@@ -58,19 +66,27 @@ class BackendValidator:
         try:
             # Test database imports
             from app.core.database import Base, get_async_db
+
             print("✓ Database imports successful")
 
             # Test configuration imports
             from app.core.config import settings
+
             print("✓ Configuration imports successful")
 
             # Test security imports
-            from app.services.security import verify_password, get_password_hash
+            from app.services.security import get_password_hash, verify_password
+
             print("✓ Security imports successful")
 
             self.add_result(test_name, True, "All core modules imported successfully")
         except Exception as e:
-            self.add_result(test_name, False, f"Import failed: {e}", {"traceback": traceback.format_exc()})
+            self.add_result(
+                test_name,
+                False,
+                f"Import failed: {e}",
+                {"traceback": traceback.format_exc()},
+            )
 
     async def test_database_imports(self):
         """Test database model imports"""
@@ -79,18 +95,18 @@ class BackendValidator:
         successful_imports = []
 
         models_to_test = [
-            'app.db.models.user.User',
-            'app.db.models.assessment.Assessment',
-            'app.db.models.response.Response',
-            'app.db.models.organization.Organization',
-            'app.db.models.team.Team',
-            'app.db.models.employee_safety.SafetyIncident',
-            'app.db.models.analytics.Analytics'
+            "app.db.models.user.User",
+            "app.db.models.assessment.Assessment",
+            "app.db.models.response.Response",
+            "app.db.models.organization.Organization",
+            "app.db.models.team.Team",
+            "app.db.models.employee_safety.SafetyIncident",
+            "app.db.models.analytics.Analytics",
         ]
 
         for model_path in models_to_test:
             try:
-                module_path, class_name = model_path.rsplit('.', 1)
+                module_path, class_name = model_path.rsplit(".", 1)
                 module = __import__(module_path, fromlist=[class_name])
                 model_class = getattr(module, class_name)
                 successful_imports.append(model_path)
@@ -104,23 +120,31 @@ class BackendValidator:
                 test_name,
                 False,
                 f"Failed to import {len(missing_models)} models",
-                {"missing": missing_models, "successful": successful_imports}
+                {"missing": missing_models, "successful": successful_imports},
             )
         else:
-            self.add_result(test_name, True, f"All {len(successful_imports)} models imported successfully")
+            self.add_result(
+                test_name,
+                True,
+                f"All {len(successful_imports)} models imported successfully",
+            )
 
     async def test_database_models(self):
         """Test database model relationships and structure"""
         test_name = "Database Model Structure"
         try:
-            from app.db.models.user import User
             from app.db.models.employee_safety import SafetyIncident
+            from app.db.models.user import User
 
             # Check User model has safety relationships
             user = User()
             relationship_attributes = [
-                'reported_incidents', 'involved_incidents', 'investigated_incidents',
-                'wellness_assessments', 'wellness_alerts', 'safety_training_completions'
+                "reported_incidents",
+                "involved_incidents",
+                "investigated_incidents",
+                "wellness_assessments",
+                "wellness_alerts",
+                "safety_training_completions",
             ]
 
             missing_relationships = []
@@ -132,10 +156,12 @@ class BackendValidator:
                 self.add_result(
                     test_name,
                     False,
-                    f"User model missing relationships: {missing_relationships}"
+                    f"User model missing relationships: {missing_relationships}",
                 )
             else:
-                self.add_result(test_name, True, "All User model relationships properly implemented")
+                self.add_result(
+                    test_name, True, "All User model relationships properly implemented"
+                )
 
         except Exception as e:
             self.add_result(test_name, False, f"Model structure test failed: {e}")
@@ -146,24 +172,29 @@ class BackendValidator:
         processors_tested = []
 
         processors_to_test = [
-            ('ai.processors.mbti_processor.MBTIProcessor', 'INTJ'),
-            ('ai.processors.big_five.BigFiveProcessor', {'openness': 0.8, 'conscientiousness': 0.7})
+            ("ai.processors.mbti_processor.MBTIProcessor", "INTJ"),
+            (
+                "ai.processors.big_five.BigFiveProcessor",
+                {"openness": 0.8, "conscientiousness": 0.7},
+            ),
         ]
 
         for processor_path, test_data in processors_to_test:
             try:
-                module_path, class_name = processor_path.rsplit('.', 1)
+                module_path, class_name = processor_path.rsplit(".", 1)
                 module = __import__(module_path, fromlist=[class_name])
                 processor_class = getattr(module, class_name)
 
                 processor = processor_class()
                 result = processor._safe_process(test_data)
 
-                if result.get('success', True) or result.get('fallback'):
+                if result.get("success", True) or result.get("fallback"):
                     processors_tested.append(processor_path)
                     print(f"✓ {processor_path} processed data successfully")
                 else:
-                    print(f"⚠ {processor_path} processing failed but handled gracefully")
+                    print(
+                        f"⚠ {processor_path} processing failed but handled gracefully"
+                    )
 
             except Exception as e:
                 print(f"✗ {processor_path}: {e}")
@@ -172,16 +203,22 @@ class BackendValidator:
             self.add_result(
                 test_name,
                 True,
-                f"Successfully tested {len(processors_tested)} processors"
+                f"Successfully tested {len(processors_tested)} processors",
             )
         else:
-            self.add_result(test_name, False, "No processors processed data successfully")
+            self.add_result(
+                test_name, False, "No processors processed data successfully"
+            )
 
     async def test_security_functions(self):
         """Test security utility functions"""
         test_name = "Security Functions"
         try:
-            from app.services.security import verify_password, get_password_hash, validate_password
+            from app.services.security import (
+                get_password_hash,
+                validate_password,
+                verify_password,
+            )
 
             # Test password hashing
             password = "SecureP@ss123!"
@@ -197,13 +234,13 @@ class BackendValidator:
             # Test password validation
             validation_result = validate_password(password)
 
-            if not validation_result.get('valid', False):
+            if not validation_result.get("valid", False):
                 self.add_result(test_name, False, "Password validation failed")
                 return
 
             # Test invalid password
             invalid_validation = validate_password("weak")
-            if invalid_validation.get('valid', False):
+            if invalid_validation.get("valid", False):
                 self.add_result(test_name, False, "Invalid password validation failed")
                 return
 
@@ -219,10 +256,10 @@ class BackendValidator:
         successful_imports = []
 
         endpoints_to_test = [
-            'app.api.v1.endpoints.auth',
-            'app.api.v1.endpoints.users',
-            'app.api.v1.endpoints.assessments',
-            'app.api.v1.endpoints.analytics'
+            "app.api.v1.endpoints.auth",
+            "app.api.v1.endpoints.users",
+            "app.api.v1.endpoints.assessments",
+            "app.api.v1.endpoints.analytics",
         ]
 
         for endpoint in endpoints_to_test:
@@ -239,16 +276,23 @@ class BackendValidator:
                 test_name,
                 False,
                 f"Failed to import {len(failed_imports)} endpoint modules",
-                {"failed": failed_imports, "successful": successful_imports}
+                {"failed": failed_imports, "successful": successful_imports},
             )
         else:
-            self.add_result(test_name, True, f"All {len(successful_imports)} endpoint modules imported successfully")
+            self.add_result(
+                test_name,
+                True,
+                f"All {len(successful_imports)} endpoint modules imported successfully",
+            )
 
     async def test_caching_system(self):
         """Test performance optimization and caching system"""
         test_name = "Performance & Caching System"
         try:
-            from app.core.api_performance_optimizer import get_performance_monitor, get_cache_manager
+            from app.core.api_performance_optimizer import (
+                get_cache_manager,
+                get_performance_monitor,
+            )
 
             monitor = get_performance_monitor()
             cache_manager = get_cache_manager()
@@ -256,14 +300,12 @@ class BackendValidator:
             # Test cache manager
             cache_stats = cache_manager.get_cache_stats()
 
-            required_stats = ['hits', 'misses', 'sets', 'hit_rate_percent']
+            required_stats = ["hits", "misses", "sets", "hit_rate_percent"]
             missing_stats = [stat for stat in required_stats if stat not in cache_stats]
 
             if missing_stats:
                 self.add_result(
-                    test_name,
-                    False,
-                    f"Cache manager missing stats: {missing_stats}"
+                    test_name, False, f"Cache manager missing stats: {missing_stats}"
                 )
                 return
 
@@ -277,13 +319,15 @@ class BackendValidator:
             self.add_result(
                 test_name,
                 True,
-                "Performance optimization and caching system operational"
+                "Performance optimization and caching system operational",
             )
 
         except Exception as e:
             self.add_result(test_name, False, f"Caching system test failed: {e}")
 
-    def add_result(self, test_name: str, passed: bool, message: str, details: Dict[str, Any] = None):
+    def add_result(
+        self, test_name: str, passed: bool, message: str, details: Dict[str, Any] = None
+    ):
         """Add test result"""
         result = ValidationResult(test_name, passed, message, details)
         self.results.append(result)
@@ -338,13 +382,21 @@ class BackendValidator:
             for result in self.results:
                 if not result.passed:
                     if "import" in result.test_name.lower():
-                        print("   📦 Check module dependencies and Python path configuration.")
+                        print(
+                            "   📦 Check module dependencies and Python path configuration."
+                        )
                     elif "security" in result.test_name.lower():
-                        print("   🔐 Review security implementation and encryption settings.")
+                        print(
+                            "   🔐 Review security implementation and encryption settings."
+                        )
                     elif "database" in result.test_name.lower():
-                        print("   🗄️ Verify database models and relationship configurations.")
+                        print(
+                            "   🗄️ Verify database models and relationship configurations."
+                        )
                     elif "api" in result.test_name.lower():
-                        print("   🌐 Validate API endpoint implementations and dependencies.")
+                        print(
+                            "   🌐 Validate API endpoint implementations and dependencies."
+                        )
 
         # Production Readiness Score
         readiness_score = (self.passed_tests / self.total_tests) * 100
@@ -360,13 +412,17 @@ class BackendValidator:
             print("   ❌ POOR - Major issues must be resolved")
 
         print("\n" + "=" * 60)
-        print(f"Report generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+        print(
+            f"Report generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC"
+        )
         print("=" * 60)
+
 
 async def main():
     """Main validation function"""
     validator = BackendValidator()
     await validator.run_all_tests()
+
 
 if __name__ == "__main__":
     try:

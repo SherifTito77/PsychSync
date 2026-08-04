@@ -5,11 +5,11 @@ Minimal implementation without complex security dependencies
 Enhanced with structured logging and security audit trail
 """
 
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Form, HTTPException, Request, status
 import jwt
+from fastapi import APIRouter, Form, HTTPException, Request, status
 from sqlalchemy import text
 
 from app.core.audit_logger import AuditLogger, SecurityEventType
@@ -34,9 +34,7 @@ async def get_auth_db_session():
 
 @router.post("/simple-login")
 async def simple_login(
-    username: str = Form(...),
-    password: str = Form(...),
-    request: Request = None
+    username: str = Form(...), password: str = Form(...), request: Request = None
 ):
     """
     Simple login endpoint that works without complex dependencies.
@@ -67,8 +65,10 @@ async def simple_login(
 
             # Query user from database (include password_hash for verification)
             result = await db.execute(
-                text("SELECT id, email, full_name, password_hash FROM users WHERE email = :email"),
-                {"email": username}
+                text(
+                    "SELECT id, email, full_name, password_hash FROM users WHERE email = :email"
+                ),
+                {"email": username},
             )
             user = result.fetchone()
 
@@ -98,12 +98,11 @@ async def simple_login(
                     additional_data={
                         "username": username,
                         "reason": "user_not_found",
-                    }
+                    },
                 )
 
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="User not found"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
                 )
 
             # ❌ BEFORE: print(f"✅ User found: {user.email}, attempting login...")
@@ -146,12 +145,11 @@ async def simple_login(
                         "email": user.email,
                         "user_id": str(user.id),
                         "reason": "invalid_password",
-                    }
+                    },
                 )
 
                 raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid password"
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password"
                 )
 
             # Password verified successfully - create JWT token
@@ -190,7 +188,7 @@ async def simple_login(
                 additional_data={
                     "email": user.email,
                     "full_name": user.full_name,
-                }
+                },
             )
 
             return {
@@ -200,7 +198,7 @@ async def simple_login(
                 "user": {
                     "id": str(user.id),
                     "email": user.email,
-                    "name": user.full_name
+                    "name": user.full_name,
                 },
             }
 
@@ -241,12 +239,12 @@ async def simple_login(
                 "username": username,
                 "error_type": type(e).__name__,
                 "error_message": str(e),
-            }
+            },
         )
 
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error"
+            detail="Internal server error",
         ) from e
 
 
@@ -321,7 +319,7 @@ async def get_current_user(request: Request):
 
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="No authentication token provided"
+                detail="No authentication token provided",
             )
 
         token = auth_header.split(" ")[1]
@@ -354,8 +352,7 @@ async def get_current_user(request: Request):
         # ❌ BEFORE: print(f"Me endpoint error: {e}"); raise HTTPException(...)
         # ✅ AFTER: Structured error logging
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expired"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
         )
 
     except jwt.InvalidTokenError as e:
@@ -369,6 +366,5 @@ async def get_current_user(request: Request):
         )
 
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         ) from e

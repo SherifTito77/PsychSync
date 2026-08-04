@@ -19,21 +19,22 @@ Security:
 - Rate limiting on authentication attempts
 """
 
-import logging
+import base64
 import json
+import logging
 import secrets
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 from uuid import UUID, uuid4
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa, padding
-from cryptography.hazmat.backends import default_backend
-import base64
 
-from app.db.models.user import User
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import settings
+from app.db.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +43,14 @@ logger = logging.getLogger(__name__)
 # Types and Enums
 # =============================================================================
 
+
 class BiometricType(str):
     """Supported biometric authentication types"""
 
-    FACE_ID = "face_id"          # iOS Face ID
-    TOUCH_ID = "touch_id"        # iOS Touch ID
+    FACE_ID = "face_id"  # iOS Face ID
+    TOUCH_ID = "touch_id"  # iOS Touch ID
     FINGERPRINT = "fingerprint"  # Android Fingerprint
-    IRIS = "iris"                # Samsung Iris Scan
+    IRIS = "iris"  # Samsung Iris Scan
     FACE_UNLOCK = "face_unlock"  # Android Face Unlock
 
 
@@ -69,6 +71,7 @@ class BiometricError(str):
 # =============================================================================
 # Main Service Class
 # =============================================================================
+
 
 class BiometricAuthService:
     """
@@ -133,7 +136,9 @@ class BiometricAuthService:
             # Check if user already has biometric on this device
             existing = await self._get_biometric_key(db, user_id, device_id)
             if existing and existing.is_active:
-                logger.warning(f"User {user_id} already has biometric registered on device {device_id}")
+                logger.warning(
+                    f"User {user_id} already has biometric registered on device {device_id}"
+                )
                 # Return existing registration info
                 return {
                     "already_registered": True,
@@ -156,7 +161,9 @@ class BiometricAuthService:
                 "created_at": datetime.utcnow().isoformat(),
             }
 
-            logger.info(f"Initiated biometric registration for user {user_id} on device {device_id}")
+            logger.info(
+                f"Initiated biometric registration for user {user_id} on device {device_id}"
+            )
 
             return {
                 "registration_challenge": challenge,
@@ -204,8 +211,7 @@ class BiometricAuthService:
             try:
                 public_key_bytes = base64.b64decode(public_key)
                 key = serialization.load_pem_public_key(
-                    public_key_bytes,
-                    backend=default_backend()
+                    public_key_bytes, backend=default_backend()
                 )
             except Exception as e:
                 raise ValueError(f"Invalid public key format: {str(e)}")
@@ -229,7 +235,9 @@ class BiometricAuthService:
             await db.commit()
             await db.refresh(biometric_key)
 
-            logger.info(f"Completed biometric registration for user {user_id} on device {device_id}")
+            logger.info(
+                f"Completed biometric registration for user {user_id} on device {device_id}"
+            )
 
             return {
                 "success": True,
@@ -294,14 +302,17 @@ class BiometricAuthService:
                 device_id=device_id,
                 key_id=biometric_key.key_id,
                 challenge=challenge,
-                expires_at=datetime.utcnow() + timedelta(seconds=self.challenge_expiry_seconds),
+                expires_at=datetime.utcnow()
+                + timedelta(seconds=self.challenge_expiry_seconds),
                 created_at=datetime.utcnow(),
             )
 
             db.add(biometric_challenge)
             await db.commit()
 
-            logger.info(f"Generated biometric challenge for user {user_id} on device {device_id}")
+            logger.info(
+                f"Generated biometric challenge for user {user_id} on device {device_id}"
+            )
 
             return {
                 "challenge": challenge,
@@ -365,7 +376,9 @@ class BiometricAuthService:
                 raise ValueError(BiometricError.CHALLENGE_EXPIRED)
 
             # Get biometric key
-            biometric_key = await self._get_biometric_key_by_key_id(db, challenge.key_id)
+            biometric_key = await self._get_biometric_key_by_key_id(
+                db, challenge.key_id
+            )
             if not biometric_key:
                 raise ValueError(BiometricError.KEY_INVALID)
 
@@ -373,21 +386,20 @@ class BiometricAuthService:
             try:
                 public_key_bytes = base64.b64decode(biometric_key.public_key)
                 public_key = serialization.load_pem_public_key(
-                    public_key_bytes,
-                    backend=default_backend()
+                    public_key_bytes, backend=default_backend()
                 )
 
                 signature_bytes = base64.b64decode(signature)
-                challenge_bytes = challenge.challenge.encode('utf-8')
+                challenge_bytes = challenge.challenge.encode("utf-8")
 
                 public_key.verify(
                     signature_bytes,
                     challenge_bytes,
                     padding.PSS(
                         mgf=padding.MGF1(hashes.SHA256()),
-                        salt_length=padding.PSS.MAX_LENGTH
+                        salt_length=padding.PSS.MAX_LENGTH,
                     ),
-                    hashes.SHA256()
+                    hashes.SHA256(),
                 )
 
             except Exception:
@@ -407,7 +419,9 @@ class BiometricAuthService:
 
             await db.commit()
 
-            logger.info(f"Successful biometric authentication for user {user_id} on device {device_id}")
+            logger.info(
+                f"Successful biometric authentication for user {user_id} on device {device_id}"
+            )
 
             # Generate authentication token
             # TODO: Integrate with JWT service
@@ -461,7 +475,9 @@ class BiometricAuthService:
 
             await db.commit()
 
-            logger.info(f"Revoked biometric authentication for user {user_id} on device {device_id}")
+            logger.info(
+                f"Revoked biometric authentication for user {user_id} on device {device_id}"
+            )
 
             return True
 
@@ -525,12 +541,16 @@ class BiometricAuthService:
         """Get biometric key for user and device"""
         from app.db.models.biometric import BiometricKey
 
-        query = select(BiometricKey).where(
-            and_(
-                BiometricKey.user_id == user_id,
-                BiometricKey.device_id == device_id,
+        query = (
+            select(BiometricKey)
+            .where(
+                and_(
+                    BiometricKey.user_id == user_id,
+                    BiometricKey.device_id == device_id,
+                )
             )
-        ).order_by(BiometricKey.created_at.desc())
+            .order_by(BiometricKey.created_at.desc())
+        )
 
         result = await db.execute(query)
         return result.scalar_one_or_none()

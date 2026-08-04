@@ -16,8 +16,8 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-from contextlib import asynccontextmanager
 import logging
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI
@@ -152,7 +152,9 @@ def create_application(
             "version",
             "lifespan",
         ]
-        filtered_kwargs = {k: v for k, v in kwargs.items() if k not in conflicting_params}
+        filtered_kwargs = {
+            k: v for k, v in kwargs.items() if k not in conflicting_params
+        }
 
         # Debug logging to see what parameters are causing conflicts
         if any(param in kwargs for param in conflicting_params):
@@ -169,11 +171,17 @@ def create_application(
             version=version or settings.APP_VERSION,
             lifespan=application_lifespan,
             debug=debug if debug is not None else settings.DEBUG,
-            docs_url="/docs" if (debug if debug is not None else settings.DEBUG) else None,
-            redoc_url="/redoc" if (debug if debug is not None else settings.DEBUG) else None,
-            openapi_url="/openapi.json"
-            if (debug if debug is not None else settings.DEBUG)
-            else None,
+            docs_url=(
+                "/docs" if (debug if debug is not None else settings.DEBUG) else None
+            ),
+            redoc_url=(
+                "/redoc" if (debug if debug is not None else settings.DEBUG) else None
+            ),
+            openapi_url=(
+                "/openapi.json"
+                if (debug if debug is not None else settings.DEBUG)
+                else None
+            ),
             **filtered_kwargs,
         )
 
@@ -226,8 +234,9 @@ def _configure_routes(app: FastAPI):
     """Configure application routes"""
     try:
         # Mount static files for local Swagger UI (no CDN dependencies)
-        from fastapi.staticfiles import StaticFiles
         from pathlib import Path
+
+        from fastapi.staticfiles import StaticFiles
 
         static_dir = Path(__file__).parent.parent / "static"
         if static_dir.exists():
@@ -335,7 +344,9 @@ def create_testing_application(**kwargs) -> FastAPI:
 
 
 # Environment-based application factory
-def create_application_for_environment(environment: str | None = None, **kwargs) -> FastAPI:
+def create_application_for_environment(
+    environment: str | None = None, **kwargs
+) -> FastAPI:
     """
     Create application based on environment
 

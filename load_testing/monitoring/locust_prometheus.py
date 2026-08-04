@@ -29,69 +29,58 @@ Grafana Dashboard:
     Import dashboard from: grafana_dashboard.json
 """
 
-from prometheus_client import Counter, Histogram, Gauge, start_http_server, REGISTRY
-from prometheus_client.exposition import generate_latest
-from locust import events
-from locust.runners import MasterRunner
 import logging
 import time
 from typing import Optional
+
+from locust import events
+from locust.runners import MasterRunner
+from prometheus_client import REGISTRY, Counter, Gauge, Histogram, start_http_server
+from prometheus_client.exposition import generate_latest
 
 logger = logging.getLogger(__name__)
 
 
 # Prometheus metrics
 REQUEST_COUNT = Counter(
-    'locust_requests_total',
-    'Total number of requests',
-    ['endpoint', 'method', 'status']
+    "locust_requests_total",
+    "Total number of requests",
+    ["endpoint", "method", "status"],
 )
 
 REQUEST_DURATION = Histogram(
-    'locust_request_duration_seconds',
-    'Request duration in seconds',
-    ['endpoint', 'method'],
-    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+    "locust_request_duration_seconds",
+    "Request duration in seconds",
+    ["endpoint", "method"],
+    buckets=[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
 )
 
-USER_COUNT = Gauge(
-    'locust_users',
-    'Current number of users'
-)
+USER_COUNT = Gauge("locust_users", "Current number of users")
 
 FAILURE_COUNT = Counter(
-    'locust_failures_total',
-    'Total number of failures',
-    ['endpoint', 'error']
+    "locust_failures_total", "Total number of failures", ["endpoint", "error"]
 )
 
-RPS = Gauge(
-    'locust_rps',
-    'Current requests per second'
-)
+RPS = Gauge("locust_rps", "Current requests per second")
 
 RESPONSE_TIME_P50 = Gauge(
-    'locust_response_time_p50_seconds',
-    'Median response time in seconds',
-    ['endpoint']
+    "locust_response_time_p50_seconds", "Median response time in seconds", ["endpoint"]
 )
 
 RESPONSE_TIME_P95 = Gauge(
-    'locust_response_time_p95_seconds',
-    '95th percentile response time in seconds',
-    ['endpoint']
+    "locust_response_time_p95_seconds",
+    "95th percentile response time in seconds",
+    ["endpoint"],
 )
 
 RESPONSE_TIME_P99 = Gauge(
-    'locust_response_time_p99_seconds',
-    '99th percentile response time in seconds',
-    ['endpoint']
+    "locust_response_time_p99_seconds",
+    "99th percentile response time in seconds",
+    ["endpoint"],
 )
 
 AVG_RESPONSE_TIME = Gauge(
-    'locust_response_time_avg_seconds',
-    'Average response time in seconds',
-    ['endpoint']
+    "locust_response_time_avg_seconds", "Average response time in seconds", ["endpoint"]
 )
 
 
@@ -116,8 +105,12 @@ class LocustPrometheusExporter:
         """Start Prometheus HTTP server"""
         try:
             start_http_server(self.port)
-            logger.info(f"✅ Prometheus exporter started on http://localhost:{self.port}")
-            logger.info("Metrics available at: http://localhost:{}/metrics".format(self.port))
+            logger.info(
+                f"✅ Prometheus exporter started on http://localhost:{self.port}"
+            )
+            logger.info(
+                "Metrics available at: http://localhost:{}/metrics".format(self.port)
+            )
         except Exception as e:
             logger.error(f"Failed to start Prometheus exporter: {e}")
             raise
@@ -130,13 +123,7 @@ class LocustPrometheusExporter:
         logger.info("✅ Prometheus event handlers registered")
 
     def on_request(
-        self,
-        request_type,
-        name,
-        response_time,
-        response_length,
-        exception,
-        **kwargs
+        self, request_type, name, response_time, response_length, exception, **kwargs
     ):
         """
         Handle request event and update Prometheus metrics.
@@ -153,17 +140,12 @@ class LocustPrometheusExporter:
 
         # Update request count
         status = "success" if exception is None else "failure"
-        REQUEST_COUNT.labels(
-            endpoint=name,
-            method=request_type,
-            status=status
-        ).inc()
+        REQUEST_COUNT.labels(endpoint=name, method=request_type, status=status).inc()
 
         # Update request duration histogram
-        REQUEST_DURATION.labels(
-            endpoint=name,
-            method=request_type
-        ).observe(duration_seconds)
+        REQUEST_DURATION.labels(endpoint=name, method=request_type).observe(
+            duration_seconds
+        )
 
     def on_test_stop(self, environment, **kwargs):
         """
@@ -205,14 +187,14 @@ class LocustPrometheusExporter:
 
 def update_user_count(environment):
     """Update user count metric"""
-    if hasattr(environment, 'runner') and environment.runner:
+    if hasattr(environment, "runner") and environment.runner:
         user_count = environment.runner.user_count
         USER_COUNT.set(user_count)
 
 
 def update_rps(environment):
     """Update requests per second metric"""
-    if hasattr(environment, 'stats'):
+    if hasattr(environment, "stats"):
         rps = environment.stats.total.total_rps
         RPS.set(rps)
 
@@ -283,7 +265,8 @@ if __name__ == "__main__":
     # Standalone Prometheus exporter (for testing)
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 9090
 
-    print(f"""
+    print(
+        f"""
 ╔══════════════════════════════════════════════════════════════════════╗
 ║              Locust Prometheus Exporter                               ║
 ╚══════════════════════════════════════════════════════════════════════╝
@@ -307,7 +290,8 @@ Grafana Dashboard:
 
 Press Ctrl+C to stop
 
-    """)
+    """
+    )
 
     try:
         start_http_server(port)

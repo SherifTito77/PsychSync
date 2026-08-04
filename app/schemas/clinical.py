@@ -9,16 +9,17 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, validator
 
-
 # ============================================================================
 # SPECIFIC SCREENING TOOL SCHEMAS
 # ============================================================================
+
 
 class PHQ9Request(BaseModel):
     """
     Patient Health Questionnaire-9 (Depression)
     9 items, 0-3 scale
     """
+
     q1_interest: int = Field(..., ge=0, le=3)
     q2_depressed: int = Field(..., ge=0, le=3)
     q3_sleep: int = Field(..., ge=0, le=3)
@@ -35,6 +36,7 @@ class GAD7Request(BaseModel):
     Generalized Anxiety Disorder-7
     7 items, 0-3 scale
     """
+
     q1_nervous: int = Field(..., ge=0, le=3)
     q2_control_worry: int = Field(..., ge=0, le=3)
     q3_worry_too_much: int = Field(..., ge=0, le=3)
@@ -49,6 +51,7 @@ class CSSRSRequest(BaseModel):
     Columbia-Suicide Severity Rating Scale
     CRITICAL: Any positive triggers crisis protocol
     """
+
     q1_wish_dead: bool
     q2_nonspecific_thoughts: bool
     q3_active_ideation: bool
@@ -66,6 +69,7 @@ class ASRSRequest(BaseModel):
     Part A: Inattention (Questions 1-9)
     Part B: Hyperactivity-Impulsivity (Questions 10-18)
     """
+
     # Part A: Inattention Symptoms (1-9)
     q1: int = Field(..., ge=0, le=4, description="Trouble wrapping up final details")
     q2: int = Field(..., ge=0, le=4, description="Difficulty getting things in order")
@@ -74,8 +78,12 @@ class ASRSRequest(BaseModel):
     q5: int = Field(..., ge=0, le=4, description="Fidget or squirm when sitting")
     q6: int = Field(..., ge=0, le=4, description="Feel overly active/driven by motor")
     q7: int = Field(..., ge=0, le=4, description="Make careless mistakes")
-    q8: int = Field(..., ge=0, le=4, description="Difficulty keeping attention on boring work")
-    q9: int = Field(..., ge=0, le=4, description="Difficulty concentrating when spoken to")
+    q8: int = Field(
+        ..., ge=0, le=4, description="Difficulty keeping attention on boring work"
+    )
+    q9: int = Field(
+        ..., ge=0, le=4, description="Difficulty concentrating when spoken to"
+    )
 
     # Part B: Hyperactivity-Impulsivity (10-18)
     q10: int = Field(..., ge=0, le=4, description="Leave seat when expected to remain")
@@ -85,7 +93,9 @@ class ASRSRequest(BaseModel):
     q14: int = Field(..., ge=0, le=4, description="Finish others' sentences")
     q15: int = Field(..., ge=0, le=4, description="Difficulty waiting turn")
     q16: int = Field(..., ge=0, le=4, description="Interrupt others")
-    q17: int = Field(..., ge=0, le=4, description="Difficulty focusing with distractions")
+    q17: int = Field(
+        ..., ge=0, le=4, description="Difficulty focusing with distractions"
+    )
     q18: int = Field(..., ge=0, le=4, description="Misplace or lose things")
 
 
@@ -95,6 +105,7 @@ class ISIRequest(BaseModel):
     7 items, 0-4 scale (No problem to Very severe problem)
     Assesses insomnia severity and daytime impairment over past 2 weeks
     """
+
     q1: int = Field(..., ge=0, le=4, description="Difficulty falling asleep")
     q2: int = Field(..., ge=0, le=4, description="Difficulty staying asleep")
     q3: int = Field(..., ge=0, le=4, description="Problems waking up too early")
@@ -109,6 +120,7 @@ class ScreeningResponse(BaseModel):
     Standard response for all screening tools
     Includes scoring, risk assessment, and crisis alerts
     """
+
     id: UUID
     screening_type: str
     total_score: Optional[float] = None
@@ -265,13 +277,22 @@ class ClinicalResourceResponse(BaseModel):
 # ============================================================================
 
 from typing import Dict, Optional
+
 from pydantic import Field
 
 
 class LSASItemRequest(BaseModel):
     """Individual LSAS item with fear and avoidance ratings"""
-    fear: int = Field(..., ge=0, le=3, description="Fear level: 0=None, 1=Mild, 2=Moderate, 3=Severe")
-    avoidance: int = Field(..., ge=0, le=3, description="Avoidance level: 0=Never, 1=Occasionally, 2=Often, 3=Usually")
+
+    fear: int = Field(
+        ..., ge=0, le=3, description="Fear level: 0=None, 1=Mild, 2=Moderate, 3=Severe"
+    )
+    avoidance: int = Field(
+        ...,
+        ge=0,
+        le=3,
+        description="Avoidance level: 0=Never, 1=Occasionally, 2=Often, 3=Usually",
+    )
 
 
 class LSASRequest(BaseModel):
@@ -279,6 +300,7 @@ class LSASRequest(BaseModel):
     Liebowitz Social Anxiety Scale Request
     24 items, each with fear and avoidance ratings
     """
+
     item_1: LSASItemRequest
     item_2: LSASItemRequest
     item_3: LSASItemRequest
@@ -307,7 +329,10 @@ class LSASRequest(BaseModel):
 
 class EAT26BehavioralQuestions(BaseModel):
     """EAT-26 Behavioral questions for referral determination"""
-    weight_loss_6months: bool = Field(False, description="Lost 20+ lbs in past 6 months")
+
+    weight_loss_6months: bool = Field(
+        False, description="Lost 20+ lbs in past 6 months"
+    )
     binge_eating: str = Field("never", description="Binge eating frequency")
     vomiting: str = Field("never", description="Self-induced vomiting frequency")
     laxatives: str = Field("never", description="Laxative use frequency")
@@ -320,6 +345,7 @@ class EAT26Request(BaseModel):
     Eating Attitudes Test-26 Request
     26 items, 6-point scale (Always to Never)
     """
+
     responses: Dict[int, int] = Field(..., description="Item responses 1-26, scale 0-5")
     behavioral_questions: Optional[EAT26BehavioralQuestions] = None
 
@@ -329,6 +355,7 @@ class YBOCSRequest(BaseModel):
     Yale-Brown Obsessive Compulsive Scale Request
     10 items (5 obsessions, 5 compulsions), 0-4 scale each
     """
+
     item_1_time_obsessions: int = Field(..., ge=0, le=4)
     item_2_interference_obsessions: int = Field(..., ge=0, le=4)
     item_3_distress_obsessions: int = Field(..., ge=0, le=4)
@@ -345,8 +372,10 @@ class YBOCSRequest(BaseModel):
 # NOTIFICATION SYSTEM SCHEMAS
 # ============================================================================
 
+
 class NotificationPreferenceCreate(BaseModel):
     """Create or update notification preferences"""
+
     email_enabled: bool = True
     push_enabled: bool = False
     sms_enabled: bool = False
@@ -363,16 +392,17 @@ class NotificationPreferenceCreate(BaseModel):
     timezone: str = "America/New_York"
     bypass_quiet_hours_for_critical: bool = True
 
-    @validator('min_severity_for_notification')
+    @validator("min_severity_for_notification")
     def validate_severity(cls, v):
-        valid_levels = ['low', 'moderate', 'high', 'critical']
+        valid_levels = ["low", "moderate", "high", "critical"]
         if v not in valid_levels:
-            raise ValueError(f'must be one of {valid_levels}')
+            raise ValueError(f"must be one of {valid_levels}")
         return v
 
 
 class NotificationPreferenceResponse(BaseModel):
     """Notification preferences response"""
+
     id: UUID
     user_id: UUID
     email_enabled: bool
@@ -399,6 +429,7 @@ class NotificationPreferenceResponse(BaseModel):
 
 class NotificationResponse(BaseModel):
     """Notification response"""
+
     id: UUID
     recipient_id: UUID
     notification_type: str
@@ -422,6 +453,7 @@ class NotificationResponse(BaseModel):
 
 class NotificationListResponse(BaseModel):
     """Paginated notification list"""
+
     notifications: List[NotificationResponse]
     total: int
     unread_count: int
@@ -429,6 +461,7 @@ class NotificationListResponse(BaseModel):
 
 class NotificationStatsResponse(BaseModel):
     """Notification statistics"""
+
     total_sent: int
     total_delivered: int
     total_failed: int

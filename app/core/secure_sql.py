@@ -33,23 +33,77 @@ VALID_IDENTIFIER_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]{0,62}$")
 
 # Reserved SQL keywords that should never be used as table names
 RESERVED_KEYWORDS: set[str] = {
-    "select", "insert", "update", "delete", "drop", "create", "alter",
-    "truncate", "grant", "revoke", "union", "where", "from", "join",
-    "and", "or", "not", "in", "like", "between", "null", "true", "false",
-    "table", "index", "view", "sequence", "database", "schema", "function",
-    "trigger", "constraint", "primary", "foreign", "key", "unique", "check",
-    "execute", "commit", "rollback", "transaction", "savepoint"
+    "select",
+    "insert",
+    "update",
+    "delete",
+    "drop",
+    "create",
+    "alter",
+    "truncate",
+    "grant",
+    "revoke",
+    "union",
+    "where",
+    "from",
+    "join",
+    "and",
+    "or",
+    "not",
+    "in",
+    "like",
+    "between",
+    "null",
+    "true",
+    "false",
+    "table",
+    "index",
+    "view",
+    "sequence",
+    "database",
+    "schema",
+    "function",
+    "trigger",
+    "constraint",
+    "primary",
+    "foreign",
+    "key",
+    "unique",
+    "check",
+    "execute",
+    "commit",
+    "rollback",
+    "transaction",
+    "savepoint",
 }
 
 # Known application tables (whitelist)
 # This should be updated when new tables are added
 KNOWN_TABLES: set[str] = {
-    "users", "organizations", "teams", "team_members", "assessments",
-    "assessment_templates", "assessment_questions", "assessment_responses",
-    "assessment_results", "response_answers", "invitations", "audit_logs",
-    "refresh_tokens", "password_resets", "email_verifications", "api_keys",
-    "webhooks", "webhook_events", "notifications", "user_sessions",
-    "role_permissions", "permissions", "user_roles", "team_permissions"
+    "users",
+    "organizations",
+    "teams",
+    "team_members",
+    "assessments",
+    "assessment_templates",
+    "assessment_questions",
+    "assessment_responses",
+    "assessment_results",
+    "response_answers",
+    "invitations",
+    "audit_logs",
+    "refresh_tokens",
+    "password_resets",
+    "email_verifications",
+    "api_keys",
+    "webhooks",
+    "webhook_events",
+    "notifications",
+    "user_sessions",
+    "role_permissions",
+    "permissions",
+    "user_roles",
+    "team_permissions",
 }
 
 
@@ -79,7 +133,9 @@ def is_valid_identifier(identifier: str) -> bool:
 
     # Check pattern (start with letter/underscore, alphanumeric + underscore)
     if not VALID_IDENTIFIER_PATTERN.match(identifier):
-        logger.warning(f"Invalid identifier: contains invalid characters - {identifier}")
+        logger.warning(
+            f"Invalid identifier: contains invalid characters - {identifier}"
+        )
         return False
 
     # Check for reserved keywords
@@ -145,12 +201,14 @@ async def get_validated_tables(session: AsyncSession) -> set[str]:
     """
     try:
         # Query information_schema for actual tables
-        query = text("""
+        query = text(
+            """
             SELECT table_name
             FROM information_schema.tables
             WHERE table_schema = 'public'
             AND table_type = 'BASE TABLE'
-        """)
+        """
+        )
 
         result = await session.execute(query)
         tables = {row[0] for row in result.fetchall()}

@@ -28,10 +28,10 @@ Version: 3.0.0 (Unified)
 Date: January 7, 2026
 """
 
-from datetime import UTC, datetime, timedelta
 import hashlib
 import logging
 import secrets
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -42,17 +42,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.core.atomic_lockout_tracker import atomic_lockout_tracker
 from app.core.config import settings
+from app.db.models.refresh_token import RefreshToken
+from app.db.models.user import User
 from app.schemas.auth_validation import LoginRequestValidator, MFALoginRequestValidator
+from app.services.email_service import EmailService
+from app.services.mfa_service import mfa_service
 from app.services.security import (
-create_access_token,
+    create_access_token,
     create_refresh_token,
     get_password_hash,
     verify_password,
 )
-from app.db.models.refresh_token import RefreshToken
-from app.db.models.user import User
-from app.services.email_service import EmailService
-from app.services.mfa_service import mfa_service
 
 logger = logging.getLogger(__name__)
 
@@ -63,11 +63,12 @@ router = APIRouter()
 # LOGIN ENDPOINT (with Account Lockout + MFA + Device Tracking)
 # ============================================================================
 
+
 @router.post("/login", response_model=dict)
 async def login(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Unified login endpoint with comprehensive security features.
@@ -94,29 +95,25 @@ async def login(
 
     # Validate input BEFORE any expensive operations (DoS prevention)
     try:
-        LoginRequestValidator(
-            username=form_data.username,
-            password=form_data.password
-        )
+        LoginRequestValidator(username=form_data.username, password=form_data.password)
     except ValueError as validation_error:
         logger.warning(
-            "Login validation failed from IP %s: %s",
-            client_ip,
-            str(validation_error)
+            "Login validation failed from IP %s: %s", client_ip, str(validation_error)
         )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(validation_error)
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(validation_error)
         )
 
     # Check if IP is banned
-    is_ip_banned, ip_ban_remaining = await atomic_lockout_tracker.is_ip_banned(client_ip)
+    is_ip_banned, ip_ban_remaining = await atomic_lockout_tracker.is_ip_banned(
+        client_ip
+    )
     if is_ip_banned:
         logger.warning("Login attempt from banned IP: %s", client_ip)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Too many failed attempts from your IP. Try again in "
-                   f"{ip_ban_remaining // 60} minutes."
+            f"{ip_ban_remaining // 60} minutes.",
         )
 
     # Find user by email
@@ -130,24 +127,25 @@ async def login(
         )
         if is_locked:
             raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=lockout_msg
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=lockout_msg
             )
 
         logger.warning("Login attempt with non-existent email: %s", form_data.username)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Incorrect email or password",
         )
 
     # Check if user account is locked
-    is_locked, lockout_remaining = await atomic_lockout_tracker.is_user_locked_out(str(user.id))
+    is_locked, lockout_remaining = await atomic_lockout_tracker.is_user_locked_out(
+        str(user.id)
+    )
     if is_locked:
         logger.warning("Login attempt for locked account: %s", user.email)
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Account locked due to too many failed attempts. "
-           f"Try again in {lockout_remaining // 60} minutes."
+            f"Try again in {lockout_remaining // 60} minutes.",
         )
 
     # Verify password
@@ -159,14 +157,13 @@ async def login(
 
         if is_locked:
             raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=lockout_msg
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=lockout_msg
             )
 
         logger.warning("Failed login attempt for user: %s", user.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Incorrect email or password",
         )
 
     # Check if user is active
@@ -174,7 +171,7 @@ async def login(
         logger.warning("Login attempt for inactive account: %s", user.email)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is inactive. Please contact support."
+            detail="Account is inactive. Please contact support.",
         )
 
     # Check if user is verified
@@ -182,7 +179,7 @@ async def login(
         logger.warning("Login attempt for unverified account: %s", user.email)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Please verify your email address before logging in."
+            detail="Please verify your email address before logging in.",
         )
 
     # Check if user has MFA enabled
@@ -193,10 +190,10 @@ async def login(
                 "sub": str(user.id),
                 "type": "mfa_challenge",
                 "exp": datetime.now(UTC) + timedelta(minutes=5),
-                "iat": datetime.now(UTC)
+                "iat": datetime.now(UTC),
             },
             settings.SECRET_KEY,
-            algorithm=settings.ALGORITHM
+            algorithm=settings.ALGORITHM,
         )
 
         # Store challenge token in Redis with automatic connection cleanup
@@ -208,40 +205,35 @@ async def login(
             async with await redis.from_url(
                 f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
                 decoding="utf-8",
-                health_check_interval=30  # Detect stale connections
+                health_check_interval=30,  # Detect stale connections
             ) as redis_client:
                 challenge_key = f"mfa_challenge:{str(user.id)}"
                 await redis_client.setex(
-                    challenge_key,
-                    300,  # 5 minutes
-                    mfa_challenge_token
+                    challenge_key, 300, mfa_challenge_token  # 5 minutes
                 )
 
-                logger.info(
-                    "MFA challenge issued for user: %s",
-                    user.email
-                )
+                logger.info("MFA challenge issued for user: %s", user.email)
 
         except redis.ConnectionError as conn_error:
             logger.error(
                 "Redis connection error while storing MFA challenge for user %s: %s",
                 user.email,
-                conn_error
+                conn_error,
             )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Authentication service temporarily unavailable"
+                detail="Authentication service temporarily unavailable",
             ) from conn_error
 
         except Exception as redis_error:
             logger.error(
                 "Failed to store MFA challenge in Redis for user %s: %s",
                 user.email,
-                redis_error
+                redis_error,
             )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to initiate MFA challenge"
+                detail="Failed to initiate MFA challenge",
             ) from redis_error
 
         # Return response indicating MFA is required
@@ -249,10 +241,7 @@ async def login(
             "requires_mfa": True,
             "mfa_challenge_token": mfa_challenge_token,
             "message": "MFA verification required",
-            "user": {
-                "id": str(user.id),
-                "email": user.email
-            }
+            "user": {"id": str(user.id), "email": user.email},
         }
 
     # Record successful attempt (clears failed attempts)
@@ -261,8 +250,7 @@ async def login(
     # Create tokens
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": str(user.id)},
-        expires_delta=access_token_expires
+        data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
 
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
@@ -283,7 +271,7 @@ async def login(
         ip_address=client_ip,
         created_at=datetime.now(UTC),
         expires_at=datetime.now(UTC) + timedelta(days=30),  # 30 day expiry
-        revoked=False
+        revoked=False,
     )
 
     db.add(refresh_token_record)
@@ -301,8 +289,8 @@ async def login(
             "email": user.email,
             "full_name": user.full_name,
             "is_active": user.is_active,
-            "mfa_enabled": user.two_factor_enabled
-        }
+            "mfa_enabled": user.two_factor_enabled,
+        },
     }
 
 
@@ -310,12 +298,13 @@ async def login(
 # MFA LOGIN VERIFICATION ENDPOINT
 # ============================================================================
 
+
 @router.post("/login/mfa/verify", response_model=dict)
 async def login_verify_mfa(
     request: Request,
     mfa_challenge_token: str,
     totp_code: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Verify MFA code during login and issue access tokens.
@@ -342,18 +331,14 @@ async def login_verify_mfa(
     # Validate input BEFORE any expensive operations
     try:
         MFALoginRequestValidator(
-            mfa_challenge_token=mfa_challenge_token,
-            totp_code=totp_code
+            mfa_challenge_token=mfa_challenge_token, totp_code=totp_code
         )
     except ValueError as validation_error:
         logger.warning(
-            "MFA validation failed from IP %s: %s",
-            client_ip,
-            str(validation_error)
+            "MFA validation failed from IP %s: %s", client_ip, str(validation_error)
         )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(validation_error)
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(validation_error)
         )
 
     try:
@@ -362,36 +347,35 @@ async def login_verify_mfa(
             payload = jwt.decode(
                 mfa_challenge_token,
                 settings.SECRET_KEY,
-                algorithms=[settings.ALGORITHM]
+                algorithms=[settings.ALGORITHM],
             )
             user_id = payload.get("sub")
             token_type = payload.get("type")
 
             if not user_id or token_type != "mfa_challenge":
-                logger.warning("Invalid MFA challenge token format from IP: %s", client_ip)
+                logger.warning(
+                    "Invalid MFA challenge token format from IP: %s", client_ip
+                )
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid MFA challenge token"
+                    detail="Invalid MFA challenge token",
                 )
 
         except jwt.ExpiredSignatureError as exp_error:
-            logger.warning(
-                "Expired MFA challenge token from IP: %s",
-                client_ip
-            )
+            logger.warning("Expired MFA challenge token from IP: %s", client_ip)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="MFA challenge token has expired"
+                detail="MFA challenge token has expired",
             ) from exp_error
         except jwt.InvalidTokenError as decode_error:
             logger.warning(
                 "Failed to decode MFA challenge token from IP %s: %s",
                 client_ip,
-                decode_error
+                decode_error,
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid MFA challenge token"
+                detail="Invalid MFA challenge token",
             ) from decode_error
 
         # Verify challenge token exists in Redis with automatic connection cleanup
@@ -402,7 +386,7 @@ async def login_verify_mfa(
             async with await redis.from_url(
                 f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
                 decoding="utf-8",
-                health_check_interval=30
+                health_check_interval=30,
             ) as redis_client:
                 challenge_key = f"mfa_challenge:{user_id}"
                 stored_token = await redis_client.get(challenge_key)
@@ -411,11 +395,11 @@ async def login_verify_mfa(
                     logger.warning(
                         "MFA challenge token not found or invalid for user %s from IP: %s",
                         user_id,
-                        client_ip
+                        client_ip,
                     )
                     raise HTTPException(
                         status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="Invalid or expired MFA challenge token"
+                        detail="Invalid or expired MFA challenge token",
                     )
 
                 # Delete the challenge token (single-use)
@@ -425,16 +409,18 @@ async def login_verify_mfa(
         except HTTPException:
             raise
         except redis.ConnectionError as conn_error:
-            logger.error("Redis connection error during MFA verification: %s", conn_error)
+            logger.error(
+                "Redis connection error during MFA verification: %s", conn_error
+            )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Authentication service temporarily unavailable"
+                detail="Authentication service temporarily unavailable",
             ) from conn_error
         except Exception as redis_error:
             logger.error("Redis error during MFA verification: %s", redis_error)
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to verify MFA challenge"
+                detail="Failed to verify MFA challenge",
             ) from redis_error
 
         # Get user from database
@@ -444,11 +430,11 @@ async def login_verify_mfa(
         if not user or not user.is_active:
             logger.warning(
                 "MFA verification attempt for non-existent or inactive user: %s",
-                user_id
+                user_id,
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found or inactive"
+                detail="User not found or inactive",
             )
 
         # Verify TOTP code
@@ -459,11 +445,11 @@ async def login_verify_mfa(
                 "Failed MFA verification for user %s from IP %s: %s",
                 user.email,
                 client_ip,
-                mfa_error
+                mfa_error,
             )
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication code"
+                detail="Invalid authentication code",
             ) from mfa_error
 
         # Record successful attempt (clears failed attempts)
@@ -472,8 +458,7 @@ async def login_verify_mfa(
         # Create access and refresh tokens
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": str(user.id)},
-            expires_delta=access_token_expires
+            data={"sub": str(user.id)}, expires_delta=access_token_expires
         )
 
         refresh_token = create_refresh_token(data={"sub": str(user.id)})
@@ -490,16 +475,14 @@ async def login_verify_mfa(
             ip_address=client_ip,
             created_at=datetime.now(UTC),
             expires_at=datetime.now(UTC) + timedelta(days=30),
-            revoked=False
+            revoked=False,
         )
 
         db.add(refresh_token_record)
         await db.commit()
 
         logger.info(
-            "Successful MFA login for user: %s from IP: %s",
-            user.email,
-            client_ip
+            "Successful MFA login for user: %s from IP: %s", user.email, client_ip
         )
 
         return {
@@ -512,8 +495,8 @@ async def login_verify_mfa(
                 "email": user.email,
                 "full_name": user.full_name,
                 "is_active": user.is_active,
-                "mfa_enabled": user.two_factor_enabled
-            }
+                "mfa_enabled": user.two_factor_enabled,
+            },
         }
 
     except HTTPException:
@@ -522,7 +505,7 @@ async def login_verify_mfa(
         logger.error("Unexpected error during MFA verification: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An error occurred during MFA verification"
+            detail="An error occurred during MFA verification",
         ) from e
 
 
@@ -530,13 +513,14 @@ async def login_verify_mfa(
 # REGISTER ENDPOINT (with Security)
 # ============================================================================
 
+
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register(
     request: Request,
     email: str,
     password: str,
     full_name: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     User registration with comprehensive security features.
@@ -591,7 +575,7 @@ async def register(
             logger.warning(f"Rate limit exceeded for registration from IP: {client_ip}")
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many registration attempts from your IP. Please try again later."
+                detail="Too many registration attempts from your IP. Please try again later.",
             )
     finally:
         await redis_client.close()
@@ -623,8 +607,14 @@ async def register(
 
         # Check against common passwords
         common_passwords = [
-            "password123", "qwerty2024", "admin123", "letmein",
-            "password1", "12345678", "abc12345", "password123"
+            "password123",
+            "qwerty2024",
+            "admin123",
+            "letmein",
+            "password1",
+            "12345678",
+            "abc12345",
+            "password123",
         ]
 
         if password.lower() in [p.lower() for p in common_passwords]:
@@ -634,10 +624,7 @@ async def register(
 
     is_valid, error_msg = validate_password_strength(password)
     if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_msg
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
     # =======================================================================
     # SECURITY 3: Email validation
@@ -647,8 +634,7 @@ async def register(
     # Basic email format validation
     if not re.match(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$", email):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid email format"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid email format"
         )
 
     # Check if email already exists (rely on database constraint for thread-safety)
@@ -656,10 +642,11 @@ async def register(
     existing_user = result.scalar_one_or_none()
 
     if existing_user:
-        logger.warning(f"Registration attempt with existing email: {email} from IP: {client_ip}")
+        logger.warning(
+            f"Registration attempt with existing email: {email} from IP: {client_ip}"
+        )
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered"
         )
 
     # Create user
@@ -670,7 +657,7 @@ async def register(
         is_active=True,
         is_verified=False,  # Requires email verification
         created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC)
+        updated_at=datetime.now(UTC),
     )
 
     try:
@@ -688,8 +675,8 @@ async def register(
 
         # Store token in Redis with 24-hour expiry
         redis_client = await redis.asyncio.from_url(
-        settings.REDIS_URL, encoding="utf-8", decode_responses=True
-    )
+            settings.REDIS_URL, encoding="utf-8", decode_responses=True
+        )
         try:
             token_key = f"email_verification:{verification_token}"
             await redis_client.setex(token_key, 86400, str(user.id))  # 24 hours
@@ -702,21 +689,21 @@ async def register(
 
         try:
             await email_service.send_verification_email(
-                email=user.email,
-                token=verification_token,
-                name=user.full_name
+                email=user.email, token=verification_token, name=user.full_name
             )
             logger.info("Verification email sent to: %s", user.email)
         except Exception as email_error:
             # Log email error but don't fail registration
-            logger.warning("Failed to send verification email to %s: %s", user.email, email_error)
+            logger.warning(
+                "Failed to send verification email to %s: %s", user.email, email_error
+            )
             # Registration still succeeds, user can request resend
     except Exception as e:
         await db.rollback()
         logger.error(f"Failed to create user: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create account. Please try again."
+            detail="Failed to create account. Please try again.",
         ) from e
 
     return {
@@ -725,7 +712,7 @@ async def register(
         "full_name": user.full_name,
         "is_active": user.is_active,
         "is_verified": user.is_verified,
-        "message": "Account created successfully. Please verify your email address."
+        "message": "Account created successfully. Please verify your email address.",
     }
 
 
@@ -733,11 +720,9 @@ async def register(
 # VERIFY EMAIL ENDPOINT
 # ============================================================================
 
+
 @router.post("/verify-email", response_model=dict)
-async def verify_email(
-    token: str,
-    db: AsyncSession = Depends(get_db)
-):
+async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
     """
     Verify user email address.
 
@@ -768,7 +753,7 @@ async def verify_email(
             logger.warning("Invalid or expired verification token attempt")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid or expired verification token"
+                detail="Invalid or expired verification token",
             )
 
         # Get user from database
@@ -778,16 +763,13 @@ async def verify_email(
         if not user:
             logger.error(f"User not found for verification token: {user_id}")
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
             )
 
         # Check if already verified
         if user.is_verified:
             logger.info(f"Email already verified for user: {user.email}")
-            return {
-                "message": "Email already verified"
-            }
+            return {"message": "Email already verified"}
 
         # Mark user as verified
         user.is_verified = True
@@ -800,19 +782,14 @@ async def verify_email(
 
         logger.info(f"Email verified successfully for user: {user.email}")
 
-        return {
-            "message": "Email verified successfully. You can now login."
-        }
+        return {"message": "Email verified successfully. You can now login."}
 
     finally:
         await redis_client.close()
 
 
 @router.post("/resend-verification", response_model=dict)
-async def resend_verification_email(
-    email: str,
-    db: AsyncSession = Depends(get_db)
-):
+async def resend_verification_email(email: str, db: AsyncSession = Depends(get_db)):
     """
     Resend email verification link.
 
@@ -836,14 +813,12 @@ async def resend_verification_email(
 
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
     if user.is_verified:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already verified"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already verified"
         )
 
     # Generate new verification token
@@ -864,31 +839,28 @@ async def resend_verification_email(
 
     try:
         await email_service.send_verification_email(
-            email=user.email,
-            token=verification_token,
-            name=user.full_name
+            email=user.email, token=verification_token, name=user.full_name
         )
         logger.info("Resent verification email to: %s", user.email)
     except Exception as email_error:
-        logger.error("Failed to resend verification email to %s: %s", user.email, email_error)
+        logger.error(
+            "Failed to resend verification email to %s: %s", user.email, email_error
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to send verification email. Please try again later."
+            detail="Failed to send verification email. Please try again later.",
         ) from email_error
 
-    return {
-        "message": "Verification email sent successfully"
-    }
+    return {"message": "Verification email sent successfully"}
 
 
 # ============================================================================
 # GET CURRENT USER ENDPOINT
 # ============================================================================
 
+
 @router.get("/me", response_model=dict)
-async def get_current_user_info(
-    current_user: User = Depends(get_current_user)
-):
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """
     Get current user information.
 
@@ -905,8 +877,12 @@ async def get_current_user_info(
         "is_active": current_user.is_active,
         "is_verified": current_user.is_verified,
         "mfa_enabled": current_user.two_factor_enabled,
-        "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
-        "updated_at": current_user.updated_at.isoformat() if current_user.updated_at else None
+        "created_at": (
+            current_user.created_at.isoformat() if current_user.created_at else None
+        ),
+        "updated_at": (
+            current_user.updated_at.isoformat() if current_user.updated_at else None
+        ),
     }
 
 
@@ -914,11 +890,12 @@ async def get_current_user_info(
 # LOGOUT ENDPOINT
 # ============================================================================
 
+
 @router.post("/logout", response_model=dict)
 async def logout(
     request: Request,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Logout user and invalidate tokens.
@@ -953,20 +930,17 @@ async def logout(
 
     logger.info("User logged out: %s", current_user.email)
 
-    return {
-        "message": "Successfully logged out"
-    }
+    return {"message": "Successfully logged out"}
 
 
 # ============================================================================
 # REFRESH TOKEN ENDPOINT
 # ============================================================================
 
+
 @router.post("/refresh", response_model=dict)
 async def refresh_token(
-    request: Request,
-    refresh_token: str,
-    db: AsyncSession = Depends(get_db)
+    request: Request, refresh_token: str, db: AsyncSession = Depends(get_db)
 ):
     """
     Refresh access token using refresh token.
@@ -994,8 +968,7 @@ async def refresh_token(
     # Query database for token
     result = await db.execute(
         select(RefreshToken).where(
-            RefreshToken.token_hash == token_hash,
-            RefreshToken.revoked is False
+            RefreshToken.token_hash == token_hash, RefreshToken.revoked is False
         )
     )
     token_record = result.scalar_one_or_none()
@@ -1003,8 +976,7 @@ async def refresh_token(
     if not token_record or token_record.expires_at < datetime.now(UTC):
         logger.warning("Invalid or expired refresh token attempt")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
 
     # Get user from token record
@@ -1014,18 +986,20 @@ async def refresh_token(
 
     if not user or not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
 
     # Verify device fingerprint (optional security check)
     current_device = request.headers.get("user-agent", "")[:255]
-    if token_record.device_fingerprint and token_record.device_fingerprint != current_device:
+    if (
+        token_record.device_fingerprint
+        and token_record.device_fingerprint != current_device
+    ):
         logger.warning(
             "Refresh token device mismatch for user %s: expected=%s, got=%s",
             user.email,
             token_record.device_fingerprint[:50],
-            current_device[:50]
+            current_device[:50],
         )
         # Don't block, but log the suspicious activity
 
@@ -1037,8 +1011,7 @@ async def refresh_token(
     # Create new tokens
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     new_access_token = create_access_token(
-        data={"sub": str(user.id)},
-        expires_delta=access_token_expires
+        data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
 
     new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
@@ -1054,7 +1027,7 @@ async def refresh_token(
         ip_address=request.client.host if request.client else "unknown",
         created_at=datetime.now(UTC),
         expires_at=datetime.now(UTC) + timedelta(days=30),
-        revoked=False
+        revoked=False,
     )
 
     db.add(new_token_record)
@@ -1066,7 +1039,7 @@ async def refresh_token(
         "access_token": new_access_token,
         "refresh_token": new_refresh_token,
         "token_type": "bearer",
-        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }
 
 
@@ -1074,10 +1047,10 @@ async def refresh_token(
 # MFA SETUP ENDPOINT
 # ============================================================================
 
+
 @router.post("/mfa/setup", response_model=dict)
 async def setup_mfa(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Initiate MFA setup for user.
@@ -1088,8 +1061,7 @@ async def setup_mfa(
     # Check if MFA already enabled
     if current_user.two_factor_enabled:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="MFA is already enabled"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="MFA is already enabled"
         )
 
     # Setup MFA
@@ -1104,7 +1076,7 @@ async def setup_mfa(
 async def verify_mfa_setup(
     totp_code: str,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Verify MFA setup and enable MFA for user.
@@ -1122,20 +1094,17 @@ async def verify_mfa_setup(
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid authentication code"
+            detail="Invalid authentication code",
         )
 
     logger.info("MFA enabled for user: %s", current_user.email)
 
-    return {
-        "message": "MFA enabled successfully"
-    }
+    return {"message": "MFA enabled successfully"}
 
 
 @router.post("/mfa/disable", response_model=dict)
 async def disable_mfa(
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     """
     Disable MFA for user.
@@ -1147,14 +1116,13 @@ async def disable_mfa(
 
     logger.info("MFA disabled for user: %s", current_user.email)
 
-    return {
-        "message": "MFA disabled successfully"
-    }
+    return {"message": "MFA disabled successfully"}
 
 
 # ============================================================================
 # HEALTH CHECK ENDPOINT
 # ============================================================================
+
 
 @router.get("/health", response_model=dict)
 async def health_check():
@@ -1168,5 +1136,5 @@ async def health_check():
         "status": "healthy",
         "service": "authentication",
         "timestamp": datetime.now(UTC).isoformat(),
-        "version": "3.0.0-unified"
+        "version": "3.0.0-unified",
     }

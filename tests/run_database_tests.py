@@ -11,13 +11,14 @@ This script runs all database integrity tests with detailed reporting:
 """
 
 import asyncio
-import pytest
+import subprocess
 import sys
 import time
-import subprocess
-from pathlib import Path
-from typing import List, Dict, Any
 import traceback
+from pathlib import Path
+from typing import Any, Dict, List
+
+import pytest
 
 # Add the project root to Python path
 project_root = Path(__file__).parent
@@ -33,7 +34,7 @@ class DatabaseTestRunner:
             "test_database_integrity.py",
             "test_rapid_submission_handling.py",
             "test_transaction_rollback.py",
-            "test_audit_logging.py"
+            "test_audit_logging.py",
         ]
         self.results = {}
         self.start_time = time.time()
@@ -48,17 +49,20 @@ class DatabaseTestRunner:
 
         try:
             # Use pytest to run the test file
-            result = subprocess.run([
-                sys.executable, "-m", "pytest",
-                test_file,
-                "-v",  # Verbose output
-                "--tb=short",  # Short traceback format
-                "--color=yes",  # Colored output
-                f"--junit-xml=test-results-{test_file.replace('.py', '')}.xml",  # JUnit XML output
-            ],
-            capture_output=True,
-            text=True,
-            cwd=project_root
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pytest",
+                    test_file,
+                    "-v",  # Verbose output
+                    "--tb=short",  # Short traceback format
+                    "--color=yes",  # Colored output
+                    f"--junit-xml=test-results-{test_file.replace('.py', '')}.xml",  # JUnit XML output
+                ],
+                capture_output=True,
+                text=True,
+                cwd=project_root,
             )
 
             duration = time.time() - start_time
@@ -70,7 +74,7 @@ class DatabaseTestRunner:
                 "duration": duration,
                 "output": result.stdout,
                 "error": result.stderr if result.returncode != 0 else None,
-                "returncode": result.returncode
+                "returncode": result.returncode,
             }
 
         except Exception as e:
@@ -81,7 +85,7 @@ class DatabaseTestRunner:
                 "duration": duration,
                 "output": str(e),
                 "error": traceback.format_exc(),
-                "returncode": -1
+                "returncode": -1,
             }
 
     def run_all_tests(self) -> None:
@@ -124,13 +128,15 @@ class DatabaseTestRunner:
             print(f"  {test_file:<30} {status:<10} {duration:<10}")
 
         print(f"\n🔍 FAILED TESTS DETAILS:")
-        failed_tests_results = [result for result in self.results.values() if not result["success"]]
+        failed_tests_results = [
+            result for result in self.results.values() if not result["success"]
+        ]
 
         if failed_tests_results:
             for result in failed_tests_results:
                 print(f"\n❌ {result['file']}:")
                 print(f"   Return Code: {result['returncode']}")
-                if result['error']:
+                if result["error"]:
                     print(f"   Error: {result['error'][:200]}...")  # First 200 chars
                 print(f"   Output: {result['output'][-200:]}")  # Last 200 chars
         else:
@@ -169,16 +175,21 @@ class DatabaseTestRunner:
         report_data = {
             "timestamp": time.time(),
             "total_tests": len(self.results),
-            "passed_tests": sum(1 for result in self.results.values() if result["success"]),
-            "failed_tests": sum(1 for result in self.results.values() if not result["success"]),
+            "passed_tests": sum(
+                1 for result in self.results.values() if result["success"]
+            ),
+            "failed_tests": sum(
+                1 for result in self.results.values() if not result["success"]
+            ),
             "total_duration": time.time() - self.start_time,
             "test_results": self.results,
-            "recommendations": self._get_recommendations()
+            "recommendations": self._get_recommendations(),
         }
 
         try:
             import json
-            with open(report_file, 'w') as f:
+
+            with open(report_file, "w") as f:
                 json.dump(report_data, f, indent=2, default=str)
             print(f"\n📄 Detailed report saved to: {report_file}")
         except Exception as e:
@@ -188,22 +199,28 @@ class DatabaseTestRunner:
         """Get recommendations based on test results"""
         recommendations = []
 
-        failed_count = sum(1 for result in self.results.values() if not result["success"])
+        failed_count = sum(
+            1 for result in self.results.values() if not result["success"]
+        )
 
         if failed_count > 0:
-            recommendations.extend([
-                "Fix failing database tests before production deployment",
-                "Review database constraint definitions",
-                "Verify transaction rollback implementations",
-                "Check audit logging configuration"
-            ])
+            recommendations.extend(
+                [
+                    "Fix failing database tests before production deployment",
+                    "Review database constraint definitions",
+                    "Verify transaction rollback implementations",
+                    "Check audit logging configuration",
+                ]
+            )
         else:
-            recommendations.extend([
-                "Database integrity tests passed - system is stable",
-                "Consider adding performance load testing",
-                "Implement automated database backups",
-                "Set up database monitoring and alerts"
-            ])
+            recommendations.extend(
+                [
+                    "Database integrity tests passed - system is stable",
+                    "Consider adding performance load testing",
+                    "Implement automated database backups",
+                    "Set up database monitoring and alerts",
+                ]
+            )
 
         return recommendations
 
@@ -219,7 +236,9 @@ def main():
         runner.save_report_to_file()
 
         # Exit with appropriate code
-        failed_count = sum(1 for result in runner.results.values() if not result["success"])
+        failed_count = sum(
+            1 for result in runner.results.values() if not result["success"]
+        )
         if failed_count > 0:
             sys.exit(1)
         else:

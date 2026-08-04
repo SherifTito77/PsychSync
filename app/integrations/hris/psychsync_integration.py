@@ -5,15 +5,20 @@ Combines all features: connectors, webhooks, scheduling, multi-format exports.
 File: app/integrations/hris/psychsync_integration.py
 """
 
+import logging
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-import logging
 from typing import Any
 
 from .export_manager import ExportManager
 from .extended_models import EmployeeExtended
 from .integration_manager import HRISIntegrationManager
-from .webhook_scheduler import SyncScheduler, WebhookEvent, WebhookReceiver, WebhookSender
+from .webhook_scheduler import (
+    SyncScheduler,
+    WebhookEvent,
+    WebhookReceiver,
+    WebhookSender,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +46,9 @@ class IntegrationConfig:
     # Scheduling Settings
     enable_scheduling: bool = True
     sync_schedule: str = "every day at 02:00"
-    sync_types: list[str] = field(default_factory=lambda: ["employees", "attendance", "leaves"])
+    sync_types: list[str] = field(
+        default_factory=lambda: ["employees", "attendance", "leaves"]
+    )
 
     # Database Settings
     enable_database_sync: bool = False
@@ -127,16 +134,23 @@ class PsychSyncIntegration:
         )
 
         # Register default handlers
-        self.webhook_receiver.register_handler("employee.created", self._handle_employee_created)
-        self.webhook_receiver.register_handler("employee.updated", self._handle_employee_updated)
-        self.webhook_receiver.register_handler("leave.requested", self._handle_leave_requested)
+        self.webhook_receiver.register_handler(
+            "employee.created", self._handle_employee_created
+        )
+        self.webhook_receiver.register_handler(
+            "employee.updated", self._handle_employee_updated
+        )
+        self.webhook_receiver.register_handler(
+            "leave.requested", self._handle_leave_requested
+        )
 
         logger.info("✓ Webhook receiver configured")
 
         # Sender
         if self.config.outbound_webhooks:
             self.webhook_sender = WebhookSender(
-                webhook_urls=self.config.outbound_webhooks, secret_key=self.config.webhook_secret
+                webhook_urls=self.config.outbound_webhooks,
+                secret_key=self.config.webhook_secret,
             )
             logger.info("✓ Webhook sender configured")
 
@@ -189,7 +203,9 @@ class PsychSyncIntegration:
                 # Send notification to outbound webhooks
                 if self.webhook_sender:
                     self.webhook_sender.send_webhook(
-                        event_type="employee.created", data=employee.to_dict(), source="psychsync"
+                        event_type="employee.created",
+                        data=employee.to_dict(),
+                        source="psychsync",
                     )
                     self.stats["webhooks_sent"] += 1
 
@@ -321,7 +337,9 @@ class PsychSyncIntegration:
                         data_list, self.config.s3_bucket, s3_key, format="parquet"
                     )
                     if success:
-                        exports[f"{data_type}_s3"] = f"s3://{self.config.s3_bucket}/{s3_key}"
+                        exports[f"{data_type}_s3"] = (
+                            f"s3://{self.config.s3_bucket}/{s3_key}"
+                        )
 
         logger.info(f"✓ Exported to {len(exports)} locations")
 
@@ -345,7 +363,10 @@ class PsychSyncIntegration:
                 if data_list:
                     table_name = f"hris_{data_type}"
                     success = self.export_manager.export_to_sql(
-                        data_list, table_name, self.config.database_url, if_exists="replace"
+                        data_list,
+                        table_name,
+                        self.config.database_url,
+                        if_exists="replace",
                     )
                     if success:
                         logger.info(f"✓ Synced {data_type} to database")

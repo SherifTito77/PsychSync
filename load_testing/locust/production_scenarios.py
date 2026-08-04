@@ -30,26 +30,22 @@ For distributed testing with multiple workers:
     locust -f production_scenarios.py --worker --host https://api.psychsync.com
 """
 
-from locust import HttpUser, task, between, events
-from locust.runners import MasterRunner
 import logging
 import random
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
-from locust_config import (
-    LoadTestConfig,
-    get_headers,
-    test_data_manager,
-)
+from locust import HttpUser, between, events, task
+from locust.runners import MasterRunner
+from locust_config import LoadTestConfig, get_headers, test_data_manager
 
 logger = logging.getLogger(__name__)
 
 
 # Production SLA Thresholds
 PRODUCTION_SLA = {
-    "p50": 300,   # 50th percentile: < 300ms
-    "p95": 500,   # 95th percentile: < 500ms
+    "p50": 300,  # 50th percentile: < 300ms
+    "p95": 500,  # 95th percentile: < 500ms
     "p99": 1000,  # 99th percentile: < 1000ms
     "max_error_rate": 1.0,  # Max 1% error rate
     "min_throughput": 500,  # Min 500 requests/second
@@ -58,9 +54,9 @@ PRODUCTION_SLA = {
 
 # User type weights
 USER_TYPE_WEIGHTS = {
-    "regular": 0.70,   # 70% regular users
-    "team_lead": 0.20, # 20% team leads
-    "admin": 0.10      # 10% admins
+    "regular": 0.70,  # 70% regular users
+    "team_lead": 0.20,  # 20% team leads
+    "admin": 0.10,  # 10% admins
 }
 
 
@@ -312,10 +308,7 @@ class ProductionUser(HttpUser):
         with self.client.post(
             f"/api/v1/teams/{self.team_id}/assessments",
             headers=get_headers(self.token),
-            json={
-                "assessment_id": self.assessment_id,
-                "due_date": "2025-12-31"
-            },
+            json={"assessment_id": self.assessment_id, "due_date": "2025-12-31"},
             catch_response=True,
             name="[Team Lead] Assign Assessment",
         ) as response:
@@ -480,6 +473,7 @@ class ProductionUser(HttpUser):
 
 # ==================== PRODUCTION VALIDATION ====================
 
+
 @events.test_stop.add_hook
 def validate_production_sla(environment, **kwargs):
     """
@@ -545,16 +539,24 @@ def validate_production_sla(environment, **kwargs):
 
     # Check error rate
     if error_rate <= PRODUCTION_SLA["max_error_rate"]:
-        print(f"  ✅ Error Rate: {error_rate:.2f}% <= {PRODUCTION_SLA['max_error_rate']}%")
+        print(
+            f"  ✅ Error Rate: {error_rate:.2f}% <= {PRODUCTION_SLA['max_error_rate']}%"
+        )
     else:
-        print(f"  ❌ Error Rate: {error_rate:.2f}% > {PRODUCTION_SLA['max_error_rate']}%")
+        print(
+            f"  ❌ Error Rate: {error_rate:.2f}% > {PRODUCTION_SLA['max_error_rate']}%"
+        )
         sla_passed = False
 
     # Check throughput
     if rps >= PRODUCTION_SLA["min_throughput"]:
-        print(f"  ✅ Throughput: {rps:.2f} req/s >= {PRODUCTION_SLA['min_throughput']} req/s")
+        print(
+            f"  ✅ Throughput: {rps:.2f} req/s >= {PRODUCTION_SLA['min_throughput']} req/s"
+        )
     else:
-        print(f"  ❌ Throughput: {rps:.2f} req/s < {PRODUCTION_SLA['min_throughput']} req/s")
+        print(
+            f"  ❌ Throughput: {rps:.2f} req/s < {PRODUCTION_SLA['min_throughput']} req/s"
+        )
         sla_passed = False
 
     # Overall result
@@ -572,8 +574,7 @@ def validate_production_sla(environment, **kwargs):
     user_types = ["Regular", "Team Lead", "Admin", "Auth", "Shared"]
     for user_type in user_types:
         type_stats = [
-            s for s in stats.entries.values()
-            if user_type.lower() in s.name.lower()
+            s for s in stats.entries.values() if user_type.lower() in s.name.lower()
         ]
         if type_stats:
             total_rps = sum(s.total_rps for s in type_stats)
@@ -590,9 +591,11 @@ def validate_production_sla(environment, **kwargs):
 
     for i, entry in enumerate(sorted_stats, 1):
         print(f"  {i}. {entry.name}:")
-        print(f"     Avg: {entry.avg_response_time:.0f}ms, "
-              f"p95: {entry.get_response_time_percentile(0.95):.0f}ms, "
-              f"Count: {entry.num_requests:,}")
+        print(
+            f"     Avg: {entry.avg_response_time:.0f}ms, "
+            f"p95: {entry.get_response_time_percentile(0.95):.0f}ms, "
+            f"Count: {entry.num_requests:,}"
+        )
 
     # Top 5 highest throughput endpoints
     print("\nTop 5 Highest Throughput Endpoints:")
@@ -604,15 +607,19 @@ def validate_production_sla(environment, **kwargs):
 
     for i, entry in enumerate(sorted_by_rps, 1):
         print(f"  {i}. {entry.name}:")
-        print(f"     RPS: {entry.total_rps:.1f}, "
-              f"Avg: {entry.avg_response_time:.0f}ms, "
-              f"Count: {entry.num_requests:,}")
+        print(
+            f"     RPS: {entry.total_rps:.1f}, "
+            f"Avg: {entry.avg_response_time:.0f}ms, "
+            f"Count: {entry.num_requests:,}"
+        )
 
     print("\n" + "=" * 80 + "\n")
 
 
 @events.request.add_hook
-def log_performance_issues(request_type, name, response_time, response_length, exception, **kwargs):
+def log_performance_issues(
+    request_type, name, response_time, response_length, exception, **kwargs
+):
     """Log performance issues and anomalies"""
     if exception:
         logger.error(f"Request failed: {name} - {exception}")
@@ -633,7 +640,8 @@ def on_spawning_complete(user_count, **kwargs):
 if __name__ == "__main__":
     import sys
 
-    print("""
+    print(
+        """
 ╔══════════════════════════════════════════════════════════════════════╗
 ║        PRODUCTION READINESS LOAD TEST - PsychSync                   ║
 ╚══════════════════════════════════════════════════════════════════════╝
@@ -672,7 +680,8 @@ Usage:
   # Workers (run on 4 separate machines):
   locust -f production_scenarios.py --worker --host https://api.psychsync.com
 
-    """)
+    """
+    )
 
     if len(sys.argv) > 1:
         users = int(sys.argv[1])

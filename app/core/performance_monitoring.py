@@ -10,14 +10,14 @@ Features:
 """
 
 import asyncio
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
-from enum import Enum
-from functools import wraps
 import json
 import logging
 import statistics
 import time
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
+from functools import wraps
 from typing import Any
 
 from app.core.redis_client import redis_set
@@ -99,7 +99,13 @@ class PerformanceMonitor:
             "error_rate_threshold": 0.05,  # 5%
             "slow_request_threshold": 0.1,  # 10% of requests
         }
-        self.performance_windows = {"1m": 60, "5m": 300, "15m": 900, "1h": 3600, "24h": 86400}
+        self.performance_windows = {
+            "1m": 60,
+            "5m": 300,
+            "15m": 900,
+            "1h": 3600,
+            "24h": 86400,
+        }
 
     async def record_metric(self, metric: PerformanceMetric) -> bool:
         """
@@ -159,7 +165,12 @@ class PerformanceMonitor:
                 "total_requests": 0,
                 "success_rate": 0.0,
                 "average_duration_ms": 0.0,
-                "performance_levels": {"excellent": 0, "good": 0, "acceptable": 0, "poor": 0},
+                "performance_levels": {
+                    "excellent": 0,
+                    "good": 0,
+                    "acceptable": 0,
+                    "poor": 0,
+                },
             }
 
         # Calculate statistics
@@ -211,7 +222,9 @@ class PerformanceMonitor:
         cutoff_time = datetime.utcnow() - timedelta(minutes=window_minutes)
 
         slow_metrics = [
-            m for m in self.metrics if (m.timestamp >= cutoff_time and m.duration_ms > threshold_ms)
+            m
+            for m in self.metrics
+            if (m.timestamp >= cutoff_time and m.duration_ms > threshold_ms)
         ]
 
         # Sort by duration (slowest first) and limit
@@ -240,7 +253,9 @@ class PerformanceMonitor:
             bucket_start = cutoff_time + timedelta(minutes=i)
             bucket_end = bucket_start + timedelta(minutes=bucket_minutes)
 
-            bucket_metrics = [m for m in self.metrics if bucket_start <= m.timestamp < bucket_end]
+            bucket_metrics = [
+                m for m in self.metrics if bucket_start <= m.timestamp < bucket_end
+            ]
 
             if bucket_metrics:
                 error_count = sum(1 for m in bucket_metrics if not m.success)
@@ -334,7 +349,9 @@ class PerformanceMonitor:
         except Exception as e:
             logger.error(f"Failed to check error patterns: {e}")
 
-    async def _trigger_alert(self, alert_type: str, message: str, metadata: dict[str, Any]):
+    async def _trigger_alert(
+        self, alert_type: str, message: str, metadata: dict[str, Any]
+    ):
         """Trigger performance alert"""
         try:
             alert_data = {
@@ -425,7 +442,9 @@ def measure_performance(
                 # Prepare metadata
                 metadata = {}
                 if include_args:
-                    metadata.update({"args_count": len(args), "kwargs_keys": list(kwargs.keys())})
+                    metadata.update(
+                        {"args_count": len(args), "kwargs_keys": list(kwargs.keys())}
+                    )
 
                 if error_message:
                     metadata["error_message"] = error_message
@@ -501,7 +520,11 @@ class PerformanceMiddleware:
                     success=200 <= status_code < 400,
                     request_id=request_id,
                     endpoint=f"{method} {path}{query_string if query_string else ''}",
-                    metadata={"method": method, "path": path, "status_code": status_code},
+                    metadata={
+                        "method": method,
+                        "path": path,
+                        "status_code": status_code,
+                    },
                 )
 
                 # Record metric asynchronously
@@ -529,12 +552,16 @@ class PerformanceReporter:
             "generated_at": datetime.utcnow().isoformat(),
             "summary": monitor.get_metrics_summary(window_minutes=1440),  # 24 hours
             "slow_requests": monitor.get_slow_requests(threshold_ms=1000, limit=50),
-            "error_trend": monitor.get_error_rate_trend(window_minutes=1440, bucket_minutes=60),
+            "error_trend": monitor.get_error_rate_trend(
+                window_minutes=1440, bucket_minutes=60
+            ),
             "alerts": [],
         }
 
         # Add recommendations
-        report["recommendations"] = PerformanceReporter._generate_recommendations(report)
+        report["recommendations"] = PerformanceReporter._generate_recommendations(
+            report
+        )
 
         return report
 

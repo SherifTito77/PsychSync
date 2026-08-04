@@ -5,17 +5,24 @@ Analyzes customer usage and behavior to recommend optimal subscription tiers
 """
 
 import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
-from .pricing_service import PricingService, SubscriptionTier, BillingCycle, Subscription
+from .pricing_service import (
+    BillingCycle,
+    PricingService,
+    Subscription,
+    SubscriptionTier,
+)
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class UsagePattern:
     """Customer usage patterns for recommendation analysis"""
+
     revenue_growth_rate: float
     team_growth_rate: float
     incident_frequency: float
@@ -23,9 +30,11 @@ class UsagePattern:
     business_impact_score: float
     engagement_level: str  # low, medium, high
 
+
 @dataclass
 class UpgradeRecommendation:
     """Personalized upgrade recommendation"""
+
     customer_id: str
     current_tier: SubscriptionTier
     recommended_tier: SubscriptionTier
@@ -37,26 +46,29 @@ class UpgradeRecommendation:
     personalized_message: str
     estimated_roi: float
 
+
 class UpgradeRecommendationService:
     """Analyzes usage patterns and generates personalized upgrade recommendations"""
 
     def __init__(self, pricing_service: PricingService):
         self.pricing_service = pricing_service
 
-    async def analyze_usage_patterns(self, customer_id: str, metrics: Dict[str, Any], historical_data: List[Dict[str, Any]] = None) -> UsagePattern:
+    async def analyze_usage_patterns(
+        self,
+        customer_id: str,
+        metrics: Dict[str, Any],
+        historical_data: List[Dict[str, Any]] = None,
+    ) -> UsagePattern:
         """Analyze customer usage patterns from metrics and historical data"""
         try:
             # Calculate revenue growth rate
             revenue_growth_rate = self._calculate_growth_rate(
-                metrics.get("monthly_revenue", 0),
-                historical_data
+                metrics.get("monthly_revenue", 0), historical_data
             )
 
             # Calculate team growth rate
             team_growth_rate = self._calculate_growth_rate(
-                metrics.get("team_size", 1),
-                historical_data,
-                key="team_size"
+                metrics.get("team_size", 1), historical_data, key="team_size"
             )
 
             # Assess incident frequency
@@ -79,7 +91,7 @@ class UpgradeRecommendationService:
                 incident_frequency=incident_frequency,
                 feature_adoption_score=feature_adoption,
                 business_impact_score=business_impact,
-                engagement_level=engagement_level
+                engagement_level=engagement_level,
             )
 
         except Exception as e:
@@ -91,23 +103,29 @@ class UpgradeRecommendationService:
         customer_id: str,
         subscription: Subscription,
         current_metrics: Dict[str, Any],
-        usage_patterns: UsagePattern
+        usage_patterns: UsagePattern,
     ) -> UpgradeRecommendation:
         """Generate personalized upgrade recommendation"""
         try:
             # Get recommended tier based on current metrics
-            recommended_tier = self.pricing_service.get_recommended_tier(current_metrics)
+            recommended_tier = self.pricing_service.get_recommended_tier(
+                current_metrics
+            )
 
             # Skip if already on recommended tier
             if recommended_tier == subscription.tier:
-                return self._create_maintenance_recommendation(customer_id, subscription, current_metrics)
+                return self._create_maintenance_recommendation(
+                    customer_id, subscription, current_metrics
+                )
 
             # Calculate urgency and confidence scores
             urgency_score = self._calculate_urgency_score(
                 subscription.tier, recommended_tier, usage_patterns, current_metrics
             )
 
-            confidence_score = self._calculate_confidence_score(usage_patterns, current_metrics)
+            confidence_score = self._calculate_confidence_score(
+                usage_patterns, current_metrics
+            )
 
             # Generate value proposition
             value_proposition = self.pricing_service.calculate_tier_value_proposition(
@@ -137,17 +155,24 @@ class UpgradeRecommendationService:
                 urgency_score=urgency_score,
                 confidence_score=confidence_score,
                 value_proposition=value_proposition,
-                upgrade_triggers=[trigger.get("message", "") for trigger in upgrade_triggers],
+                upgrade_triggers=[
+                    trigger.get("message", "") for trigger in upgrade_triggers
+                ],
                 timeline_recommendation=timeline,
                 personalized_message=personalized_message,
-                estimated_roi=estimated_roi
+                estimated_roi=estimated_roi,
             )
 
         except Exception as e:
             logger.error(f"Error generating upgrade recommendation: {e}")
             return self._create_default_recommendation(customer_id, subscription)
 
-    def _calculate_growth_rate(self, current_value: float, historical_data: List[Dict[str, Any]], key: str = "monthly_revenue") -> float:
+    def _calculate_growth_rate(
+        self,
+        current_value: float,
+        historical_data: List[Dict[str, Any]],
+        key: str = "monthly_revenue",
+    ) -> float:
         """Calculate growth rate from historical data"""
         if not historical_data or len(historical_data) < 2:
             return 0.0
@@ -176,8 +201,12 @@ class UpgradeRecommendationService:
         try:
             features_used = metrics.get("features_used", [])
             available_features = [
-                "team_analytics", "custom_assessments", "advanced_reports",
-                "slack_integration", "predictive_analytics", "custom_metrics"
+                "team_analytics",
+                "custom_assessments",
+                "advanced_reports",
+                "slack_integration",
+                "predictive_analytics",
+                "custom_metrics",
             ]
 
             if not available_features:
@@ -224,7 +253,9 @@ class UpgradeRecommendationService:
         except Exception:
             return 0.0
 
-    def _determine_engagement_level(self, feature_adoption: float, business_impact: float, metrics: Dict[str, Any]) -> str:
+    def _determine_engagement_level(
+        self, feature_adoption: float, business_impact: float, metrics: Dict[str, Any]
+    ) -> str:
         """Determine customer engagement level"""
         combined_score = (feature_adoption + business_impact) / 2
 
@@ -240,7 +271,7 @@ class UpgradeRecommendationService:
         current_tier: SubscriptionTier,
         recommended_tier: SubscriptionTier,
         usage_patterns: UsagePattern,
-        metrics: Dict[str, Any]
+        metrics: Dict[str, Any],
     ) -> float:
         """Calculate upgrade urgency score (0-100)"""
         try:
@@ -250,7 +281,7 @@ class UpgradeRecommendationService:
             tier_jump = {
                 (SubscriptionTier.FREE, SubscriptionTier.GROWTH): 20,
                 (SubscriptionTier.FREE, SubscriptionTier.ENTERPRISE): 30,
-                (SubscriptionTier.GROWTH, SubscriptionTier.ENTERPRISE): 25
+                (SubscriptionTier.GROWTH, SubscriptionTier.ENTERPRISE): 25,
             }
             tier_urgency = tier_jump.get((current_tier, recommended_tier), 10)
             urgency_factors.append(tier_urgency)
@@ -282,7 +313,9 @@ class UpgradeRecommendationService:
         except Exception:
             return 0.0
 
-    def _calculate_confidence_score(self, usage_patterns: UsagePattern, metrics: Dict[str, Any]) -> float:
+    def _calculate_confidence_score(
+        self, usage_patterns: UsagePattern, metrics: Dict[str, Any]
+    ) -> float:
         """Calculate confidence in recommendation (0-100)"""
         try:
             confidence_factors = []
@@ -316,7 +349,9 @@ class UpgradeRecommendationService:
         except Exception:
             return 0.0
 
-    def _check_approaching_limits(self, current_tier: SubscriptionTier, metrics: Dict[str, Any]) -> float:
+    def _check_approaching_limits(
+        self, current_tier: SubscriptionTier, metrics: Dict[str, Any]
+    ) -> float:
         """Check if customer is approaching tier limits (0-1)"""
         try:
             tier_config = self.pricing_service.tiers[current_tier]
@@ -342,17 +377,24 @@ class UpgradeRecommendationService:
         """Assess quality of metrics data (0-1)"""
         try:
             required_fields = [
-                "monthly_revenue", "team_size", "assessment_completion_rate",
-                "support_ticket_count", "critical_incidents_per_month"
+                "monthly_revenue",
+                "team_size",
+                "assessment_completion_rate",
+                "support_ticket_count",
+                "critical_incidents_per_month",
             ]
 
-            present_fields = sum(1 for field in required_fields if metrics.get(field) is not None)
+            present_fields = sum(
+                1 for field in required_fields if metrics.get(field) is not None
+            )
             return present_fields / len(required_fields)
 
         except Exception:
             return 0.0
 
-    def _determine_upgrade_timeline(self, urgency_score: float, usage_patterns: UsagePattern) -> str:
+    def _determine_upgrade_timeline(
+        self, urgency_score: float, usage_patterns: UsagePattern
+    ) -> str:
         """Determine recommended upgrade timeline"""
         if urgency_score >= 80:
             return "Immediate - Critical business value at stake"
@@ -370,7 +412,7 @@ class UpgradeRecommendationService:
         current_tier: SubscriptionTier,
         recommended_tier: SubscriptionTier,
         usage_patterns: UsagePattern,
-        upgrade_triggers: List[Dict[str, Any]]
+        upgrade_triggers: List[Dict[str, Any]],
     ) -> str:
         """Generate personalized upgrade message"""
         try:
@@ -401,7 +443,9 @@ class UpgradeRecommendationService:
         except Exception:
             return f"Upgrade to {self.pricing_service.tiers[recommended_tier].name} tier to unlock advanced features and protect your business."
 
-    def _create_maintenance_recommendation(self, customer_id: str, subscription: Subscription, metrics: Dict[str, Any]) -> UpgradeRecommendation:
+    def _create_maintenance_recommendation(
+        self, customer_id: str, subscription: Subscription, metrics: Dict[str, Any]
+    ) -> UpgradeRecommendation:
         """Create recommendation for customers on optimal tier"""
         return UpgradeRecommendation(
             customer_id=customer_id,
@@ -413,10 +457,12 @@ class UpgradeRecommendationService:
             upgrade_triggers=[],
             timeline_recommendation="You're on the optimal tier for your current usage",
             personalized_message="You're currently on the best tier for your usage patterns. Keep up the great work!",
-            estimated_roi=0
+            estimated_roi=0,
         )
 
-    def _create_default_recommendation(self, customer_id: str, subscription: Subscription) -> UpgradeRecommendation:
+    def _create_default_recommendation(
+        self, customer_id: str, subscription: Subscription
+    ) -> UpgradeRecommendation:
         """Create default recommendation when analysis fails"""
         return UpgradeRecommendation(
             customer_id=customer_id,
@@ -428,8 +474,9 @@ class UpgradeRecommendationService:
             upgrade_triggers=[],
             timeline_recommendation="Contact us for personalized recommendation",
             personalized_message="We're analyzing your usage patterns to provide personalized recommendations.",
-            estimated_roi=0
+            estimated_roi=0,
         )
+
 
 # Global upgrade recommendation service
 upgrade_recommendation_service = UpgradeRecommendationService(pricing_service)

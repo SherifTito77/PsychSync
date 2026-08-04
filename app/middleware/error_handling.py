@@ -14,7 +14,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
-from app.core.exceptions import PsychSyncException, ErrorCode
+from app.core.exceptions import ErrorCode, PsychSyncException
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +62,10 @@ async def psychsync_exception_handler(
     }
 
     # Add retry_after if rate limit error
-    if exc.error_code in [ErrorCode.RATE_LIMIT_EXCEEDED_AUTH, ErrorCode.RATE_LIMIT_EXCEEDED]:
+    if exc.error_code in [
+        ErrorCode.RATE_LIMIT_EXCEEDED_AUTH,
+        ErrorCode.RATE_LIMIT_EXCEEDED,
+    ]:
         error_response["retry_after"] = exc.details.get("retry_after", 60)
 
     # Add documentation URL
@@ -134,11 +137,11 @@ async def validation_exception_handler(
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """
     Handle all other unhandled exceptions
@@ -172,7 +175,9 @@ Returns:
         "message": "An unexpected error occurred. Please try again later.",
         "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
         "details": (
-            {"exception_type": type(exc).__name__} if logger.level <= logging.DEBUG else {}
+            {"exception_type": type(exc).__name__}
+            if logger.level <= logging.DEBUG
+            else {}
         ),
         "timestamp": datetime.utcnow().isoformat(),
         "request_id": request_id,
@@ -193,11 +198,11 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         # Generate unique request ID
         request_id = str(uuid.uuid4())

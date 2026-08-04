@@ -1,0 +1,64 @@
+{
+  "timestamp": "2025-11-23T16:29:01.478453",
+  "database_metrics": {
+    "total_connections": 0,
+    "active_connections": 0,
+    "idle_connections": 0,
+    "cache_hit_ratio": 0.0,
+    "avg_query_time": 0.0,
+    "slow_queries_count": 0,
+    "database_size_gb": 0.0,
+    "index_size_gb": 0.0
+  },
+  "performance_score": 10,
+  "optimization_score": 100,
+  "slow_queries_analysis": [
+    {
+      "query_text": "ANALYZE",
+      "execution_time": 261.31755325,
+      "rows_examined": 0,
+      "rows_returned": 0,
+      "index_usage": [],
+      "query_type": "OTHER",
+      "optimization_suggestions": [
+        "Empty result set taking too long - check query logic and indexes"
+      ],
+      "performance_grade": "D"
+    },
+    {
+      "query_text": "ALTER SYSTEM SET ssl_key_file = '/tmp/postgres_ssl/server.key'",
+      "execution_time": 226.348598,
+      "rows_examined": 0,
+      "rows_returned": 0,
+      "index_usage": [],
+      "query_type": "OTHER",
+      "optimization_suggestions": [
+        "Low buffer cache hit ratio - query may be reading too many disk pages",
+        "Empty result set taking too long - check query logic and indexes"
+      ],
+      "performance_grade": "D"
+    },
+    {
+      "query_text": "ALTER SYSTEM SET ssl = on",
+      "execution_time": 193.68027,
+      "rows_examined": 0,
+      "rows_returned": 0,
+      "index_usage": [],
+      "query_type": "OTHER",
+      "optimization_suggestions": [
+        "Low buffer cache hit ratio - query may be reading too many disk pages",
+        "Empty result set taking too long - check query logic and indexes"
+      ],
+      "performance_grade": "D"
+    }
+  ],
+  "index_usage_analysis": [],
+  "missing_indexes": [],
+  "n1_query_issues": [],
+  "critical_recommendations": [
+    "CRITICAL: Low cache hit ratio (0.00%). Consider increasing shared_buffers or optimizing queries."
+  ],
+  "high_priority_recommendations": [],
+  "medium_priority_recommendations": [],
+  "overall_grade": "F"
+}

@@ -67,7 +67,9 @@ class KafkaDeadLetterTask(Base):
 
     # Timestamps
     created_at = Column(DateTime, nullable=False, server_default=func.now(), index=True)
-    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
+    updated_at = Column(
+        DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
+    )
 
     # Indexes for common queries
     __table_args__ = (
@@ -130,7 +132,9 @@ class KafkaDeadLetterTask(Base):
             "retry_count": self.retry_count,
             "max_retries": self.max_retries,
             "can_retry": self.can_retry(),
-            "next_retry_at": self.next_retry_at.isoformat() if self.next_retry_at else None,
+            "next_retry_at": (
+                self.next_retry_at.isoformat() if self.next_retry_at else None
+            ),
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
         }

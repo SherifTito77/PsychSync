@@ -4,13 +4,13 @@ Provides comprehensive NLP capabilities including text processing,
 sentiment analysis, theme extraction, and language understanding.
 """
 
+import logging
+import re
+import string
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import logging
-import re
-import string
 from typing import Any
 
 # Try to import NLP libraries, provide fallbacks if not available
@@ -209,7 +209,9 @@ class NLPService:
         self._initialize_nlp_models()
         self._initialize_resources()
 
-        logger.info(f"NLP Service initialized with preferred model: {preferred_model.value}")
+        logger.info(
+            f"NLP Service initialized with preferred model: {preferred_model.value}"
+        )
 
     def _initialize_nlp_models(self) -> None:
         """Initialize available NLP models"""
@@ -233,11 +235,15 @@ class NLPService:
                         import ssl
 
                         try:
-                            _create_unverified_https_context = ssl._create_unverified_context
+                            _create_unverified_https_context = (
+                                ssl._create_unverified_context
+                            )
                         except AttributeError:
                             pass
                         else:
-                            ssl._create_default_https_context = _create_unverified_https_context
+                            ssl._create_default_https_context = (
+                                _create_unverified_https_context
+                            )
                     except ImportError:
                         pass
 
@@ -245,7 +251,12 @@ class NLPService:
                     import nltk
 
                     # Download required NLTK data with error handling
-                    required_data = ["punkt", "stopwords", "wordnet", "averaged_perceptron_tagger"]
+                    required_data = [
+                        "punkt",
+                        "stopwords",
+                        "wordnet",
+                        "averaged_perceptron_tagger",
+                    ]
                     downloaded_data = []
 
                     for data_name in required_data:
@@ -270,7 +281,9 @@ class NLPService:
                             elif data_name == "averaged_perceptron_tagger":
                                 import nltk
 
-                                nltk.data.load("taggers/averaged_perceptron_tagger.pickle")
+                                nltk.data.load(
+                                    "taggers/averaged_perceptron_tagger.pickle"
+                                )
                                 available_data.append(data_name)
                         except Exception as verify_error:
                             logger.warning(
@@ -281,7 +294,9 @@ class NLPService:
                         self.nlp_models["nltk"] = True
                         if "wordnet" in available_data:
                             self.lemmatizer = WordNetLemmatizer()
-                        logger.info(f"NLTK resources loaded successfully: {available_data}")
+                        logger.info(
+                            f"NLTK resources loaded successfully: {available_data}"
+                        )
                     else:
                         self.nlp_models["nltk"] = None
                         logger.warning(
@@ -316,7 +331,9 @@ class NLPService:
                 try:
                     self.stop_words = set(stopwords.words("english"))
                 except Exception as stopwords_error:
-                    logger.warning(f"Failed to load NLTK stopwords: {stopwords_error!s}")
+                    logger.warning(
+                        f"Failed to load NLTK stopwords: {stopwords_error!s}"
+                    )
                     self.stop_words = self._get_basic_stopwords()
             else:
                 # Basic stop words list
@@ -483,7 +500,9 @@ class NLPService:
             word_count = len(text.split())
             sentence_count = self._count_sentences(text)
             readability_score = self._calculate_readability(text)
-            complexity = self._determine_complexity(readability_score, word_count, sentence_count)
+            complexity = self._determine_complexity(
+                readability_score, word_count, sentence_count
+            )
 
             # Sentiment analysis
             sentiment = SentimentScore(0.0, 0.0, 0.0, SentimentLabel.NEUTRAL)
@@ -526,7 +545,9 @@ class NLPService:
             logger.error(f"Text analysis failed: {e!s}")
             raise
 
-    async def analyze_sentiment(self, text: str, model: NLPModel | None = None) -> SentimentScore:
+    async def analyze_sentiment(
+        self, text: str, model: NLPModel | None = None
+    ) -> SentimentScore:
         """Analyze sentiment of text"""
         try:
             model = model or self.preferred_model
@@ -579,7 +600,9 @@ class NLPService:
                 return await self._extract_key_phrases_spacy(
                     text, num_phrases, min_length, max_length
                 )
-            return await self._extract_key_phrases_ngrams(text, num_phrases, min_length, max_length)
+            return await self._extract_key_phrases_ngrams(
+                text, num_phrases, min_length, max_length
+            )
 
         except Exception as e:
             logger.error(f"Key phrase extraction failed: {e!s}")
@@ -601,7 +624,9 @@ class NLPService:
                 for i, word in enumerate(words):
                     context_start = max(0, i - 3)
                     context_end = min(len(words), i + 4)
-                    context = [words[j] for j in range(context_start, context_end) if j != i]
+                    context = [
+                        words[j] for j in range(context_start, context_end) if j != i
+                    ]
                     word_contexts[word].extend(context)
 
             # Count frequencies
@@ -642,7 +667,9 @@ class NLPService:
     ) -> list[dict[str, Any]]:
         """Generate data for word cloud visualization"""
         try:
-            frequencies = await self.analyze_word_frequency(texts, normalize=True, min_frequency=1)
+            frequencies = await self.analyze_word_frequency(
+                texts, normalize=True, min_frequency=1
+            )
 
             # Filter and format for word cloud
             word_cloud_data = []
@@ -654,7 +681,8 @@ class NLPService:
                     {
                         "text": freq.word,
                         "value": freq.frequency,
-                        "weight": freq.normalized_frequency * 100,  # Scale for visualization
+                        "weight": freq.normalized_frequency
+                        * 100,  # Scale for visualization
                     }
                 )
 
@@ -695,25 +723,42 @@ class NLPService:
                 "worst",
             ]
 
-            positive_count = sum(1 for token in doc if token.text.lower() in positive_words)
-            negative_count = sum(1 for token in doc if token.text.lower() in negative_words)
+            positive_count = sum(
+                1 for token in doc if token.text.lower() in positive_words
+            )
+            negative_count = sum(
+                1 for token in doc if token.text.lower() in negative_words
+            )
             total_words = len(doc)
 
             polarity = (positive_count - negative_count) / max(total_words, 1)
-            subjectivity = min(0.5, (positive_count + negative_count) / max(total_words, 1))
+            subjectivity = min(
+                0.5, (positive_count + negative_count) / max(total_words, 1)
+            )
 
             # Determine sentiment label
             if polarity > 0.3:
-                label = SentimentLabel.POSITIVE if polarity < 0.7 else SentimentLabel.VERY_POSITIVE
+                label = (
+                    SentimentLabel.POSITIVE
+                    if polarity < 0.7
+                    else SentimentLabel.VERY_POSITIVE
+                )
             elif polarity < -0.3:
-                label = SentimentLabel.NEGATIVE if polarity > -0.7 else SentimentLabel.VERY_NEGATIVE
+                label = (
+                    SentimentLabel.NEGATIVE
+                    if polarity > -0.7
+                    else SentimentLabel.VERY_NEGATIVE
+                )
             else:
                 label = SentimentLabel.NEUTRAL
 
             confidence = abs(polarity)
 
             return SentimentScore(
-                polarity=polarity, subjectivity=subjectivity, confidence=confidence, label=label
+                polarity=polarity,
+                subjectivity=subjectivity,
+                confidence=confidence,
+                label=label,
             )
 
         except Exception as e:
@@ -729,9 +774,17 @@ class NLPService:
 
             # Determine sentiment label
             if polarity > 0.3:
-                label = SentimentLabel.POSITIVE if polarity < 0.7 else SentimentLabel.VERY_POSITIVE
+                label = (
+                    SentimentLabel.POSITIVE
+                    if polarity < 0.7
+                    else SentimentLabel.VERY_POSITIVE
+                )
             elif polarity < -0.3:
-                label = SentimentLabel.NEGATIVE if polarity > -0.7 else SentimentLabel.VERY_NEGATIVE
+                label = (
+                    SentimentLabel.NEGATIVE
+                    if polarity > -0.7
+                    else SentimentLabel.VERY_NEGATIVE
+                )
             else:
                 label = SentimentLabel.NEUTRAL
 
@@ -743,9 +796,11 @@ class NLPService:
                 confidence=confidence,
                 label=label,
                 details={
-                    "assessments": blob.sentiment_assessments.assessments
-                    if hasattr(blob.sentiment_assessments, "assessments")
-                    else []
+                    "assessments": (
+                        blob.sentiment_assessments.assessments
+                        if hasattr(blob.sentiment_assessments, "assessments")
+                        else []
+                    )
                 },
             )
 
@@ -767,9 +822,17 @@ class NLPService:
 
             # Determine sentiment label
             if polarity > 0.05:
-                label = SentimentLabel.POSITIVE if polarity < 0.5 else SentimentLabel.VERY_POSITIVE
+                label = (
+                    SentimentLabel.POSITIVE
+                    if polarity < 0.5
+                    else SentimentLabel.VERY_POSITIVE
+                )
             elif polarity < -0.05:
-                label = SentimentLabel.NEGATIVE if polarity > -0.5 else SentimentLabel.VERY_NEGATIVE
+                label = (
+                    SentimentLabel.NEGATIVE
+                    if polarity > -0.5
+                    else SentimentLabel.VERY_NEGATIVE
+                )
             else:
                 label = SentimentLabel.NEUTRAL
 
@@ -834,27 +897,42 @@ class NLPService:
             total_words = len(words)
 
             polarity = (positive_count - negative_count) / max(total_words, 1)
-            subjectivity = min(0.5, (positive_count + negative_count) / max(total_words, 1))
+            subjectivity = min(
+                0.5, (positive_count + negative_count) / max(total_words, 1)
+            )
 
             # Determine sentiment label
             if polarity > 0.1:
-                label = SentimentLabel.POSITIVE if polarity < 0.5 else SentimentLabel.VERY_POSITIVE
+                label = (
+                    SentimentLabel.POSITIVE
+                    if polarity < 0.5
+                    else SentimentLabel.VERY_POSITIVE
+                )
             elif polarity < -0.1:
-                label = SentimentLabel.NEGATIVE if polarity > -0.5 else SentimentLabel.VERY_NEGATIVE
+                label = (
+                    SentimentLabel.NEGATIVE
+                    if polarity > -0.5
+                    else SentimentLabel.VERY_NEGATIVE
+                )
             else:
                 label = SentimentLabel.NEUTRAL
 
             confidence = min(abs(polarity) * 2, 1.0)
 
             return SentimentScore(
-                polarity=polarity, subjectivity=subjectivity, confidence=confidence, label=label
+                polarity=polarity,
+                subjectivity=subjectivity,
+                confidence=confidence,
+                label=label,
             )
 
         except Exception as e:
             logger.error(f"Simple sentiment analysis failed: {e!s}")
             return SentimentScore(0.0, 0.0, 0.0, SentimentLabel.NEUTRAL)
 
-    async def _extract_themes_frequency(self, text: str, num_themes: int) -> list[Theme]:
+    async def _extract_themes_frequency(
+        self, text: str, num_themes: int
+    ) -> list[Theme]:
         """Extract themes based on word frequency"""
         try:
             # Process text
@@ -865,7 +943,9 @@ class NLPService:
             themes = []
             processed_words = set()
 
-            for word, freq in word_freq.most_common(num_themes * 3):  # Get more to find themes
+            for word, freq in word_freq.most_common(
+                num_themes * 3
+            ):  # Get more to find themes
                 if word in processed_words or word in self.stop_words:
                     continue
 
@@ -875,7 +955,8 @@ class NLPService:
                     if other_word not in processed_words and other_word != word:
                         # Check if words are similar (same starting letters or common patterns)
                         if (
-                            other_word.startswith(word[:3]) or word.startswith(other_word[:3])
+                            other_word.startswith(word[:3])
+                            or word.startswith(other_word[:3])
                         ) and other_freq >= 2:
                             related_words.append(other_word)
                             processed_words.add(other_word)
@@ -927,7 +1008,9 @@ class NLPService:
             # Prepare documents (split text into chunks)
             sentences = self._split_into_sentences(text)
             documents = [
-                self._preprocess_text(sent) for sent in sentences if len(sent.strip()) > 10
+                self._preprocess_text(sent)
+                for sent in sentences
+                if len(sent.strip()) > 10
             ]
 
             if len(documents) < num_themes:
@@ -957,7 +1040,9 @@ class NLPService:
                     topic_words.append(word)
 
                 # Calculate theme frequency
-                theme_freq = sum(1 for doc in documents if any(word in doc for word in topic_words))
+                theme_freq = sum(
+                    1 for doc in documents if any(word in doc for word in topic_words)
+                )
                 relevance_score = theme_freq / len(documents)
 
                 # Find examples
@@ -993,7 +1078,14 @@ class NLPService:
 
             entities = []
             for ent in doc.ents:
-                if ent.label_ in ["PERSON", "ORG", "GPE", "PRODUCT", "EVENT", "WORK_OF_ART"]:
+                if ent.label_ in [
+                    "PERSON",
+                    "ORG",
+                    "GPE",
+                    "PRODUCT",
+                    "EVENT",
+                    "WORK_OF_ART",
+                ]:
                     entities.append(ent.text)
 
             # Remove duplicates while preserving order
@@ -1018,9 +1110,21 @@ class NLPService:
             entities = re.findall(capitalized_pattern, text)
 
             # Filter out common words
-            common_words = {"This", "That", "The", "It", "He", "She", "They", "We", "You"}
+            common_words = {
+                "This",
+                "That",
+                "The",
+                "It",
+                "He",
+                "She",
+                "They",
+                "We",
+                "You",
+            }
             entities = [
-                entity for entity in entities if entity not in common_words and len(entity) > 2
+                entity
+                for entity in entities
+                if entity not in common_words and len(entity) > 2
             ]
 
             # Remove duplicates
@@ -1049,7 +1153,11 @@ class NLPService:
             # Additional phrases based on POS patterns
             for i in range(len(doc)):
                 # Find adjective-noun patterns
-                if i < len(doc) - 1 and doc[i].pos_ == "ADJ" and doc[i + 1].pos_ == "NOUN":
+                if (
+                    i < len(doc) - 1
+                    and doc[i].pos_ == "ADJ"
+                    and doc[i + 1].pos_ == "NOUN"
+                ):
                     phrase = f"{doc[i].text} {doc[i + 1].text}"
                     if min_length <= len(phrase.split()) <= max_length:
                         phrases.append(phrase)
@@ -1064,7 +1172,9 @@ class NLPService:
                 if (
                     len(clean_phrase) > 5
                     and clean_phrase not in seen
-                    and not all(word in self.stop_words for word in clean_phrase.split())
+                    and not all(
+                        word in self.stop_words for word in clean_phrase.split()
+                    )
                 ):
                     seen.add(clean_phrase)
                     filtered_phrases.append(phrase)
@@ -1073,7 +1183,9 @@ class NLPService:
 
         except Exception as e:
             logger.error(f"spaCy key phrase extraction failed: {e!s}")
-            return await self._extract_key_phrases_ngrams(text, num_phrases, min_length, max_length)
+            return await self._extract_key_phrases_ngrams(
+                text, num_phrases, min_length, max_length
+            )
 
     async def _extract_key_phrases_ngrams(
         self, text: str, num_phrases: int, min_length: int, max_length: int
@@ -1113,7 +1225,11 @@ class NLPService:
             text = text.translate(str.maketrans("", "", string.punctuation))
 
             # Tokenize with fallback
-            if NLTK_AVAILABLE and self.nlp_models.get("nltk") and "punkt" in str(nltk.data.path):
+            if (
+                NLTK_AVAILABLE
+                and self.nlp_models.get("nltk")
+                and "punkt" in str(nltk.data.path)
+            ):
                 try:
                     words = word_tokenize(text)
                 except Exception as tokenize_error:
@@ -1123,7 +1239,9 @@ class NLPService:
                 words = text.split()
 
             # Remove stop words and short words
-            words = [word for word in words if word not in self.stop_words and len(word) > 2]
+            words = [
+                word for word in words if word not in self.stop_words and len(word) > 2
+            ]
 
             # Lemmatize if available
             if self.lemmatizer:
@@ -1141,7 +1259,9 @@ class NLPService:
             try:
                 text = text.lower().translate(str.maketrans("", "", string.punctuation))
                 return [
-                    word for word in text.split() if len(word) > 2 and word not in self.stop_words
+                    word
+                    for word in text.split()
+                    if len(word) > 2 and word not in self.stop_words
                 ]
             except Exception:
                 return []
@@ -1150,7 +1270,11 @@ class NLPService:
         """Count number of sentences in text"""
         try:
             # Try NLTK sentence tokenization first
-            if NLTK_AVAILABLE and self.nlp_models.get("nltk") and "punkt" in str(nltk.data.path):
+            if (
+                NLTK_AVAILABLE
+                and self.nlp_models.get("nltk")
+                and "punkt" in str(nltk.data.path)
+            ):
                 try:
                     return len(sent_tokenize(text))
                 except Exception as nltk_error:
@@ -1167,7 +1291,11 @@ class NLPService:
         """Split text into sentences with fallback methods"""
         try:
             # Try NLTK sentence tokenization first
-            if NLTK_AVAILABLE and self.nlp_models.get("nltk") and "punkt" in str(nltk.data.path):
+            if (
+                NLTK_AVAILABLE
+                and self.nlp_models.get("nltk")
+                and "punkt" in str(nltk.data.path)
+            ):
                 try:
                     return sent_tokenize(text)
                 except Exception as nltk_error:
@@ -1282,7 +1410,10 @@ class NLPService:
         """Analyze multiple texts in batch"""
         try:
             if text_ids is None:
-                text_ids = [f"batch_{i}_{datetime.utcnow().timestamp()}" for i in range(len(texts))]
+                text_ids = [
+                    f"batch_{i}_{datetime.utcnow().timestamp()}"
+                    for i in range(len(texts))
+                ]
 
             analyses = []
             for text, text_id in zip(texts, text_ids):

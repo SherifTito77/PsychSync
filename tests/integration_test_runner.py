@@ -5,16 +5,26 @@ Tests complete user workflows between frontend (port 5174) and backend (port 800
 """
 
 import asyncio
-import aiohttp
 import json
 import sys
 import time
-from pathlib import Path
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from pathlib import Path
+from typing import Any, Dict, List
+
+import aiohttp
+
 
 class IntegrationTestResult:
-    def __init__(self, test_name: str, success: bool, duration: float, details: str = "", error: str = None, response_code: int = None):
+    def __init__(
+        self,
+        test_name: str,
+        success: bool,
+        duration: float,
+        details: str = "",
+        error: str = None,
+        response_code: int = None,
+    ):
         self.test_name = test_name
         self.success = success
         self.duration = duration
@@ -22,6 +32,7 @@ class IntegrationTestResult:
         self.error = error
         self.response_code = response_code
         self.timestamp = datetime.now(timezone.utc)
+
 
 class IntegrationTestRunner:
     def __init__(self):
@@ -52,7 +63,7 @@ class IntegrationTestRunner:
                         "Backend Health Check",
                         True,
                         duration,
-                        f"Backend healthy - {data.get('application', 'Unknown')} v{data.get('version', 'Unknown')}"
+                        f"Backend healthy - {data.get('application', 'Unknown')} v{data.get('version', 'Unknown')}",
                     )
                 else:
                     return IntegrationTestResult(
@@ -60,11 +71,13 @@ class IntegrationTestRunner:
                         False,
                         duration,
                         f"Unexpected response: {data}",
-                        response_code=response.status
+                        response_code=response.status,
                     )
         except Exception as e:
             duration = time.time() - start_time
-            return IntegrationTestResult("Backend Health Check", False, duration, str(e), str(e))
+            return IntegrationTestResult(
+                "Backend Health Check", False, duration, str(e), str(e)
+            )
 
     async def test_frontend_accessibility(self):
         """Test frontend accessibility"""
@@ -80,7 +93,7 @@ class IntegrationTestRunner:
                             "Frontend Accessibility",
                             True,
                             duration,
-                            "Frontend accessible and loading correctly"
+                            "Frontend accessible and loading correctly",
                         )
                     else:
                         return IntegrationTestResult(
@@ -88,7 +101,7 @@ class IntegrationTestRunner:
                             False,
                             duration,
                             "Frontend accessible but content unexpected",
-                            response_code=response.status
+                            response_code=response.status,
                         )
                 else:
                     return IntegrationTestResult(
@@ -96,25 +109,25 @@ class IntegrationTestRunner:
                         False,
                         duration,
                         f"Frontend returned status {response.status}",
-                        response_code=response.status
+                        response_code=response.status,
                     )
         except Exception as e:
             duration = time.time() - start_time
-            return IntegrationTestResult("Frontend Accessibility", False, duration, str(e), str(e))
+            return IntegrationTestResult(
+                "Frontend Accessibility", False, duration, str(e), str(e)
+            )
 
     async def test_api_endpoints_structure(self):
         """Test API endpoints availability"""
         start_time = time.time()
-        endpoints_to_test = [
-            "/docs",
-            "/redoc",
-            "/openapi.json"
-        ]
+        endpoints_to_test = ["/docs", "/redoc", "/openapi.json"]
 
         working_endpoints = []
         for endpoint in endpoints_to_test:
             try:
-                async with self.session.get(f"{self.backend_url}{endpoint}") as response:
+                async with self.session.get(
+                    f"{self.backend_url}{endpoint}"
+                ) as response:
                     if response.status == 200:
                         working_endpoints.append(endpoint)
             except Exception as e:
@@ -126,14 +139,14 @@ class IntegrationTestRunner:
                 "API Endpoints Structure",
                 True,
                 duration,
-                f"Working endpoints: {', '.join(working_endpoints)}"
+                f"Working endpoints: {', '.join(working_endpoints)}",
             )
         else:
             return IntegrationTestResult(
                 "API Endpoints Structure",
                 False,
                 duration,
-                "No API documentation endpoints accessible"
+                "No API documentation endpoints accessible",
             )
 
     async def test_authentication_flow(self):
@@ -146,30 +159,33 @@ class IntegrationTestRunner:
             "email": test_email,
             "password": "test_password_123",
             "full_name": "Integration Test User",
-            "role": "user"
+            "role": "user",
         }
 
         try:
             # Try to register user
             async with self.session.post(
-                f"{self.backend_url}/api/v1/register",
-                json=registration_data
+                f"{self.backend_url}/api/v1/register", json=registration_data
             ) as response:
                 registration_status = response.status
-                registration_data_response = await response.json() if response.content_type == 'application/json' else {}
+                registration_data_response = (
+                    await response.json()
+                    if response.content_type == "application/json"
+                    else {}
+                )
 
             # Try to login user
-            login_data = {
-                "username": test_email,
-                "password": "test_password_123"
-            }
+            login_data = {"username": test_email, "password": "test_password_123"}
 
             async with self.session.post(
-                f"{self.backend_url}/api/v1/token-login",
-                json=login_data
+                f"{self.backend_url}/api/v1/token-login", json=login_data
             ) as response:
                 login_status = response.status
-                login_response = await response.json() if response.content_type == 'application/json' else {}
+                login_response = (
+                    await response.json()
+                    if response.content_type == "application/json"
+                    else {}
+                )
 
                 if login_status == 200 and "access_token" in login_response:
                     self.auth_token = login_response["access_token"]
@@ -177,7 +193,7 @@ class IntegrationTestRunner:
                         "Authentication Flow",
                         True,
                         time.time() - start_time,
-                        f"Registration: {registration_status}, Login successful, token received"
+                        f"Registration: {registration_status}, Login successful, token received",
                     )
                 else:
                     return IntegrationTestResult(
@@ -185,12 +201,14 @@ class IntegrationTestRunner:
                         False,
                         time.time() - start_time,
                         f"Registration: {registration_status}, Login failed: {login_response}",
-                        response_code=login_status
+                        response_code=login_status,
                     )
 
         except Exception as e:
             duration = time.time() - start_time
-            return IntegrationTestResult("Authentication Flow", False, duration, str(e), str(e))
+            return IntegrationTestResult(
+                "Authentication Flow", False, duration, str(e), str(e)
+            )
 
     async def test_authenticated_endpoints(self):
         """Test authenticated API endpoints"""
@@ -199,7 +217,7 @@ class IntegrationTestRunner:
                 "Authenticated Endpoints",
                 False,
                 0,
-                "No authentication token available - skipping authenticated endpoint tests"
+                "No authentication token available - skipping authenticated endpoint tests",
             )
 
         start_time = time.time()
@@ -208,18 +226,21 @@ class IntegrationTestRunner:
         # Test user profile endpoint
         try:
             async with self.session.get(
-                f"{self.backend_url}/api/v1/api/v1/me",
-                headers=headers
+                f"{self.backend_url}/api/v1/api/v1/me", headers=headers
             ) as response:
                 user_profile_status = response.status
-                user_data = await response.json() if response.content_type == 'application/json' else {}
+                user_data = (
+                    await response.json()
+                    if response.content_type == "application/json"
+                    else {}
+                )
 
                 if user_profile_status == 200:
                     return IntegrationTestResult(
                         "Authenticated Endpoints",
                         True,
                         time.time() - start_time,
-                        f"User profile accessible: {user_data.get('email', 'Unknown email')}"
+                        f"User profile accessible: {user_data.get('email', 'Unknown email')}",
                     )
                 else:
                     return IntegrationTestResult(
@@ -227,12 +248,14 @@ class IntegrationTestRunner:
                         False,
                         time.time() - start_time,
                         f"User profile access failed: {user_data}",
-                        response_code=user_profile_status
+                        response_code=user_profile_status,
                     )
 
         except Exception as e:
             duration = time.time() - start_time
-            return IntegrationTestResult("Authenticated Endpoints", False, duration, str(e), str(e))
+            return IntegrationTestResult(
+                "Authenticated Endpoints", False, duration, str(e), str(e)
+            )
 
     async def test_assessment_system(self):
         """Test assessment system functionality"""
@@ -241,7 +264,7 @@ class IntegrationTestRunner:
                 "Assessment System",
                 False,
                 0,
-                "No authentication token available - skipping assessment system tests"
+                "No authentication token available - skipping assessment system tests",
             )
 
         start_time = time.time()
@@ -250,28 +273,38 @@ class IntegrationTestRunner:
         try:
             # Test getting available assessments
             async with self.session.get(
-                f"{self.backend_url}/api/v1/assessments",
-                headers=headers
+                f"{self.backend_url}/api/v1/assessments", headers=headers
             ) as response:
                 assessments_status = response.status
-                assessments_data = await response.json() if response.content_type == 'application/json' else {}
+                assessments_data = (
+                    await response.json()
+                    if response.content_type == "application/json"
+                    else {}
+                )
 
                 # Test clinical assessment endpoint (the one we fixed)
                 async with self.session.get(
-                    f"{self.backend_url}/api/v1/clinical/consent",
-                    headers=headers
+                    f"{self.backend_url}/api/v1/clinical/consent", headers=headers
                 ) as clinical_response:
                     clinical_status = clinical_response.status
-                    clinical_data = await clinical_response.json() if clinical_response.content_type == 'application/json' else {}
+                    clinical_data = (
+                        await clinical_response.json()
+                        if clinical_response.content_type == "application/json"
+                        else {}
+                    )
 
                     duration = time.time() - start_time
 
-                    if assessments_status == 200 or clinical_status in [200, 401, 403]:  # 401/403 might be expected for clinical
+                    if assessments_status == 200 or clinical_status in [
+                        200,
+                        401,
+                        403,
+                    ]:  # 401/403 might be expected for clinical
                         return IntegrationTestResult(
                             "Assessment System",
                             True,
                             duration,
-                            f"Assessments API: {assessments_status}, Clinical API: {clinical_status} - System accessible"
+                            f"Assessments API: {assessments_status}, Clinical API: {clinical_status} - System accessible",
                         )
                     else:
                         return IntegrationTestResult(
@@ -279,12 +312,14 @@ class IntegrationTestRunner:
                             False,
                             duration,
                             f"Assessments API failed: {assessments_status}, Clinical API: {clinical_status}",
-                            response_code=assessments_status
+                            response_code=assessments_status,
                         )
 
         except Exception as e:
             duration = time.time() - start_time
-            return IntegrationTestResult("Assessment System", False, duration, str(e), str(e))
+            return IntegrationTestResult(
+                "Assessment System", False, duration, str(e), str(e)
+            )
 
     async def test_rapid_submission_handling(self):
         """Test rapid form submission handling"""
@@ -293,7 +328,7 @@ class IntegrationTestRunner:
                 "Rapid Submission Handling",
                 False,
                 0,
-                "No authentication token available - skipping rapid submission tests"
+                "No authentication token available - skipping rapid submission tests",
             )
 
         start_time = time.time()
@@ -303,7 +338,7 @@ class IntegrationTestRunner:
             # Simulate rapid submissions (this would typically be assessment responses)
             submission_data = {
                 "assessment_type": "mbti",
-                "responses": {"question_1": "A", "question_2": "B"}
+                "responses": {"question_1": "A", "question_2": "B"},
             }
 
             successful_submissions = 0
@@ -313,9 +348,13 @@ class IntegrationTestRunner:
                 async with self.session.post(
                     f"{self.backend_url}/api/v1/responses",
                     json=submission_data,
-                    headers=headers
+                    headers=headers,
                 ) as response:
-                    if response.status in [200, 201, 400]:  # 400 might be expected for duplicate submissions
+                    if response.status in [
+                        200,
+                        201,
+                        400,
+                    ]:  # 400 might be expected for duplicate submissions
                         successful_submissions += 1
                     # Small delay to simulate rapid submissions
                     await asyncio.sleep(0.01)
@@ -325,12 +364,14 @@ class IntegrationTestRunner:
                 "Rapid Submission Handling",
                 True,
                 duration,
-                f"Successfully handled {successful_submissions}/{total_submissions} rapid submissions"
+                f"Successfully handled {successful_submissions}/{total_submissions} rapid submissions",
             )
 
         except Exception as e:
             duration = time.time() - start_time
-            return IntegrationTestResult("Rapid Submission Handling", False, duration, str(e), str(e))
+            return IntegrationTestResult(
+                "Rapid Submission Handling", False, duration, str(e), str(e)
+            )
 
     async def run_all_tests(self):
         """Run all integration tests"""
@@ -348,7 +389,7 @@ class IntegrationTestRunner:
             self.test_authentication_flow,
             self.test_authenticated_endpoints,
             self.test_assessment_system,
-            self.test_rapid_submission_handling
+            self.test_rapid_submission_handling,
         ]
 
         # Run each test
@@ -405,7 +446,9 @@ class IntegrationTestRunner:
                 if result.details:
                     print(f"   Details: {result.details}")
         else:
-            print("\n✅ All integration tests passed! Frontend-backend communication verified.")
+            print(
+                "\n✅ All integration tests passed! Frontend-backend communication verified."
+            )
 
         print(f"\n📝 RECOMMENDATIONS:")
         if failed_tests > 0:
@@ -426,6 +469,7 @@ class IntegrationTestRunner:
         print("🎉 INTEGRATION TESTING COMPLETE")
         print(f"{'='*80}")
 
+
 async def main():
     """Main test runner"""
     try:
@@ -445,6 +489,7 @@ async def main():
     except Exception as e:
         print(f"\n💥 Unexpected error: {e}")
         sys.exit(2)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

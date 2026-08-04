@@ -26,8 +26,9 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+
 from app.core.config import settings
 
 
@@ -38,8 +39,7 @@ class QueryOptimizationValidator:
         """Initialize validator with database connection."""
         self.database_url = database_url or settings.DATABASE_URL
         self.sync_engine = create_engine(
-            self.database_url.replace("+asyncpg", ""),
-            echo=False
+            self.database_url.replace("+asyncpg", ""), echo=False
         )
 
     def check_composite_indexes(self) -> dict[str, Any]:
@@ -94,12 +94,17 @@ class QueryOptimizationValidator:
                     results["total_expected"] += 1
 
                     # Check if index exists
-                    result = conn.execute(text("""
+                    result = conn.execute(
+                        text(
+                            """
                         SELECT indexname
                         FROM pg_indexes
                         WHERE tablename = :table_name
                         AND indexname = :index_name
-                    """), {"table_name": table_name, "index_name": index_name})
+                    """
+                        ),
+                        {"table_name": table_name, "index_name": index_name},
+                    )
 
                     exists = result.fetchone() is not None
 
@@ -111,7 +116,9 @@ class QueryOptimizationValidator:
                         results["missing_indexes"].append(f"{table_name}.{index_name}")
                         print(f"  ❌ {table_name}.{index_name} (MISSING)")
 
-        print(f"\nSummary: {results['total_found']}/{results['total_expected']} indexes found")
+        print(
+            f"\nSummary: {results['total_found']}/{results['total_expected']} indexes found"
+        )
 
         if results["missing_indexes"]:
             print(f"\n⚠️  Missing indexes: {len(results['missing_indexes'])}")
@@ -132,7 +139,9 @@ class QueryOptimizationValidator:
 
         with self.sync_engine.connect() as conn:
             # Get index usage statistics
-            result = conn.execute(text("""
+            result = conn.execute(
+                text(
+                    """
                 SELECT
                     schemaname,
                     relname as tablename,
@@ -144,7 +153,9 @@ class QueryOptimizationValidator:
                 WHERE indexrelname LIKE 'idx_%'
                 ORDER BY idx_scan DESC
                 LIMIT 20
-            """))
+            """
+                )
+            )
 
             rows = result.fetchall()
 
@@ -257,21 +268,24 @@ class QueryOptimizationValidator:
         checks = 0
 
         for py_file in endpoints_dir.glob("*.py"):
-            with open(py_file, 'r') as f:
+            with open(py_file, "r") as f:
                 content = f.read()
 
             # Check for high pagination limits (only for actual pagination parameters)
             # Look for patterns like "limit.*Query.*le=" or "skip.*Query.*le="
             import re
+
             pagination_pattern = re.compile(
-                r'(limit|skip|offset)\s*:\s*int\s*(?:=\s*Query\(|.*=.*Query\()[^)]*le\s*=\s*(1000|500)',
-                re.MULTILINE
+                r"(limit|skip|offset)\s*:\s*int\s*(?:=\s*Query\(|.*=.*Query\()[^)]*le\s*=\s*(1000|500)",
+                re.MULTILINE,
             )
 
             matches = pagination_pattern.findall(content)
             for match in matches:
                 param_name, limit_value = match
-                issues.append(f"{py_file.name}: Found pagination parameter '{param_name}' with le={limit_value}")
+                issues.append(
+                    f"{py_file.name}: Found pagination parameter '{param_name}' with le={limit_value}"
+                )
                 checks += 1
 
         if issues:
@@ -297,7 +311,9 @@ class QueryOptimizationValidator:
         print("\n" + "=" * 80)
         print("DATABASE QUERY OPTIMIZATION VALIDATION")
         print("=" * 80)
-        print(f"Database: {self.database_url.split('@')[-1] if '@' in self.database_url else 'local'}")
+        print(
+            f"Database: {self.database_url.split('@')[-1] if '@' in self.database_url else 'local'}"
+        )
 
         results = {
             "timestamp": time.time(),
@@ -343,13 +359,17 @@ class QueryOptimizationValidator:
                 print(f"❌ Indexes: {len(index_results['missing_indexes'])} missing")
                 overall_status = "⚠️  WARNING"
             else:
-                print(f"✅ Indexes: All {index_results['total_expected']} indexes present")
+                print(
+                    f"✅ Indexes: All {index_results['total_expected']} indexes present"
+                )
 
         # Check pagination
         if "pagination" in results["validations"]:
             pagination_results = results["validations"]["pagination"]
             if pagination_results.get("issues_found", 0) > 0:
-                print(f"⚠️  Pagination: {pagination_results['issues_found']} high limits found")
+                print(
+                    f"⚠️  Pagination: {pagination_results['issues_found']} high limits found"
+                )
                 overall_status = "⚠️  WARNING"
             else:
                 print(f"✅ Pagination: All limits acceptable")

@@ -13,8 +13,8 @@ import asyncio
 import signal
 from datetime import datetime
 
-from app.events.consumer import KafkaEventConsumer, EventHandler
-from app.events.schemas import EventType, CloudEvent
+from app.events.consumer import EventHandler, KafkaEventConsumer
+from app.events.schemas import CloudEvent, EventType
 
 
 class AssessmentEventHandler(EventHandler):
@@ -23,11 +23,11 @@ class AssessmentEventHandler(EventHandler):
     async def handle(self, event: CloudEvent, db=None):
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -72,11 +72,11 @@ class UserEventHandler(EventHandler):
     async def handle(self, event: CloudEvent, db=None):
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -102,11 +102,11 @@ class TeamEventHandler(EventHandler):
     async def handle(self, event: CloudEvent, db=None):
         """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+        Args:
+            **kwargs: Input parameters
 
-Returns:
-    Operation result
+        Returns:
+            Operation result
         """
         """Perform operation.
 
@@ -141,11 +141,11 @@ class SignalHandler:
 async def main():
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 
@@ -157,9 +157,9 @@ Returns:
     """
     """Consume events from Kafka."""
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("KAFKA EVENT CONSUMER - PsychSync")
-    print("="*80)
+    print("=" * 80)
     print("\nListening for events...")
     print("Press Ctrl+C to stop\n")
 
@@ -173,10 +173,10 @@ Returns:
             "analytics-events",
             "billing-events",
             "notification-events",
-            "system-events"
+            "system-events",
         ],
         group_id="psychsync-example-consumer",
-        auto_offset_reset="earliest"
+        auto_offset_reset="earliest",
     )
 
     # Register event handlers
@@ -189,6 +189,7 @@ Returns:
     # Setup signal handler for graceful shutdown
     signal_handler = SignalHandler()
     import signal
+
     signal.signal(signal.SIGINT, signal_handler.signal_handler)
     signal.signal(signal.SIGTERM, signal_handler.signal_handler)
 
@@ -203,9 +204,9 @@ Returns:
         print(f"\n❌ Error consuming events: {e}")
     finally:
         await consumer.stop()
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("✅ Consumer stopped")
-        print("="*80)
+        print("=" * 80)
 
 
 if __name__ == "__main__":

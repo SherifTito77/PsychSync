@@ -18,20 +18,22 @@ Version: 1.0.0
 import hashlib
 import json
 import logging
-import requests
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Set, Tuple
-from enum import Enum
-from pathlib import Path
 import re
 from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+import requests
 
 logger = logging.getLogger(__name__)
 
 
 class VulnerabilitySeverity(Enum):
     """Vulnerability severity levels."""
+
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
@@ -42,6 +44,7 @@ class VulnerabilitySeverity(Enum):
 @dataclass
 class Dependency:
     """Represents a software dependency."""
+
     name: str
     version: str
     purl: Optional[str] = None  # Package URL
@@ -59,6 +62,7 @@ class Dependency:
 @dataclass
 class VulnerabilityInfo:
     """Vulnerability information from NVD or other sources."""
+
     cve_id: str
     severity: VulnerabilitySeverity
     cvss_score: Optional[float] = None
@@ -73,6 +77,7 @@ class VulnerabilityInfo:
 @dataclass
 class ImpactAssessment:
     """Impact assessment for a compromised dependency."""
+
     dependency: Dependency
     severity: VulnerabilitySeverity
     affected_services: List[str]
@@ -89,6 +94,7 @@ class ImpactAssessment:
 @dataclass
 class SBOMAnalysisReport:
     """Complete SBOM analysis report."""
+
     sbom_id: str
     analysis_timestamp: str
     total_dependencies: int
@@ -104,40 +110,43 @@ class SBOMAnalysisReport:
 
     def to_json(self) -> str:
         """Convert report to JSON."""
-        return json.dumps({
-            'sbom_id': self.sbom_id,
-            'analysis_timestamp': self.analysis_timestamp,
-            'total_dependencies': self.total_dependencies,
-            'transitive_dependencies': self.transitive_dependencies,
-            'vulnerabilities_found': self.vulnerabilities_found,
-            'critical_vulnerabilities': self.critical_vulnerabilities,
-            'license_violations': self.license_violations,
-            'hash_mismatches': self.hash_mismatches,
-            'impact_assessments': [
-                {
-                    'dependency': {
-                        'name': i.dependency.name,
-                        'version': i.dependency.version,
-                        'purl': i.dependency.purl,
-                        'type': i.dependency.type
-                    },
-                    'severity': i.severity.value,
-                    'affected_services': i.affected_services,
-                    'affected_environments': i.affected_environments,
-                    'exploit_available': i.exploit_available,
-                    'exploit_maturity': i.exploit_maturity,
-                    'has_patch': i.has_patch,
-                    'patch_version': i.patch_version,
-                    'cvss_score': i.cvss_score,
-                    'attack_vector': i.attack_vector,
-                    'recommendations': i.recommendations
-                }
-                for i in self.impact_assessments
-            ],
-            'dependency_tree': self.dependency_tree,
-            'compliance_status': self.compliance_status,
-            'recommendations': self.recommendations
-        }, indent=2)
+        return json.dumps(
+            {
+                "sbom_id": self.sbom_id,
+                "analysis_timestamp": self.analysis_timestamp,
+                "total_dependencies": self.total_dependencies,
+                "transitive_dependencies": self.transitive_dependencies,
+                "vulnerabilities_found": self.vulnerabilities_found,
+                "critical_vulnerabilities": self.critical_vulnerabilities,
+                "license_violations": self.license_violations,
+                "hash_mismatches": self.hash_mismatches,
+                "impact_assessments": [
+                    {
+                        "dependency": {
+                            "name": i.dependency.name,
+                            "version": i.dependency.version,
+                            "purl": i.dependency.purl,
+                            "type": i.dependency.type,
+                        },
+                        "severity": i.severity.value,
+                        "affected_services": i.affected_services,
+                        "affected_environments": i.affected_environments,
+                        "exploit_available": i.exploit_available,
+                        "exploit_maturity": i.exploit_maturity,
+                        "has_patch": i.has_patch,
+                        "patch_version": i.patch_version,
+                        "cvss_score": i.cvss_score,
+                        "attack_vector": i.attack_vector,
+                        "recommendations": i.recommendations,
+                    }
+                    for i in self.impact_assessments
+                ],
+                "dependency_tree": self.dependency_tree,
+                "compliance_status": self.compliance_status,
+                "recommendations": self.recommendations,
+            },
+            indent=2,
+        )
 
 
 class SBOMAnalyzer:
@@ -159,21 +168,26 @@ class SBOMAnalyzer:
 
     # License compliance (example allowlist)
     ALLOWED_LICENSES = {
-        "MIT", "Apache-2.0", "Apache-1.1", "BSD-2-Clause", "BSD-3-Clause",
-        "ISC", "Python-2.0", "PSF-2.0", "0BSD"
+        "MIT",
+        "Apache-2.0",
+        "Apache-1.1",
+        "BSD-2-Clause",
+        "BSD-3-Clause",
+        "ISC",
+        "Python-2.0",
+        "PSF-2.0",
+        "0BSD",
     }
 
     # Prohibited licenses (copyleft that requires source disclosure)
-    PROHIBITED_LICENSES = {
-        "GPL-3.0", "AGPL-3.0", "SSPL", "MPL-2.0", "CDDL-1.0"
-    }
+    PROHIBITED_LICENSES = {"GPL-3.0", "AGPL-3.0", "SSPL", "MPL-2.0", "CDDL-1.0"}
 
     def __init__(
         self,
         enable_vuln_scan: bool = True,
         enable_license_check: bool = True,
         enable_hash_verify: bool = True,
-        nvd_api_key: Optional[str] = None
+        nvd_api_key: Optional[str] = None,
     ):
         """
         Initialize SBOM analyzer.
@@ -197,7 +211,7 @@ class SBOMAnalyzer:
         self,
         sbom_path: str,
         deployment_manifest: Optional[str] = None,
-        baseline_sbom: Optional[str] = None
+        baseline_sbom: Optional[str] = None,
     ) -> SBOMAnalysisReport:
         """
         Analyze SBOM for security issues and impact.
@@ -237,7 +251,7 @@ class SBOMAnalyzer:
                         impact = self._assess_impact(
                             dependency=dep,
                             vulnerability=vuln,
-                            deployment_manifest=deployment_manifest
+                            deployment_manifest=deployment_manifest,
                         )
                         impact_assessments.append(impact)
 
@@ -247,8 +261,8 @@ class SBOMAnalyzer:
 
         if self.enable_license_check:
             license_check = self._check_licenses(dependencies)
-            license_violations = license_check['violations']
-            compliance_status['license'] = license_check['compliant']
+            license_violations = license_check["violations"]
+            compliance_status["license"] = license_check["compliant"]
 
         # Check hash integrity
         hash_mismatches = 0
@@ -257,20 +271,20 @@ class SBOMAnalyzer:
             baseline = self._load_sbom(baseline_sbom)
             baseline_deps = self._parse_dependencies(baseline)
             hash_check = self._verify_hashes(dependencies, baseline_deps)
-            hash_mismatches = hash_check['mismatches']
-            compliance_status['integrity'] = hash_check['verified']
+            hash_mismatches = hash_check["mismatches"]
+            compliance_status["integrity"] = hash_check["verified"]
 
         # Generate recommendations
         recommendations = self._generate_recommendations(
             vuln_count=vuln_count,
             critical_count=critical_count,
             license_violations=license_violations,
-            hash_mismatches=hash_mismatches
+            hash_mismatches=hash_mismatches,
         )
 
         # Create report
         report = SBOMAnalysisReport(
-            sbom_id=sbom.get('bom-id', sbom.get('SPDXID', 'unknown')),
+            sbom_id=sbom.get("bom-id", sbom.get("SPDXID", "unknown")),
             analysis_timestamp=datetime.utcnow().isoformat(),
             total_dependencies=len(dependencies),
             transitive_dependencies=sum(len(deps) for deps in dependency_tree.values()),
@@ -281,25 +295,27 @@ class SBOMAnalyzer:
             impact_assessments=impact_assessments,
             dependency_tree=dependency_tree,
             compliance_status=compliance_status,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
-        logger.info(f"SBOM analysis complete: {vuln_count} vulnerabilities, "
-                   f"{critical_count} critical")
+        logger.info(
+            f"SBOM analysis complete: {vuln_count} vulnerabilities, "
+            f"{critical_count} critical"
+        )
 
         return report
 
     def _load_sbom(self, sbom_path: str) -> Dict[str, Any]:
         """Load SBOM from file (CycloneDX or SPDX)."""
-        with open(sbom_path, 'r') as f:
+        with open(sbom_path, "r") as f:
             data = json.load(f)
 
         # Detect format
-        if 'bomFormat' in data or 'components' in data:
+        if "bomFormat" in data or "components" in data:
             # CycloneDX format
             logger.debug("Detected CycloneDX format")
             return data
-        elif 'SPDXID' in data or 'spdxVersion' in data:
+        elif "SPDXID" in data or "spdxVersion" in data:
             # SPDX format
             logger.debug("Detected SPDX format")
             return data
@@ -311,34 +327,51 @@ class SBOMAnalyzer:
         dependencies = []
 
         # CycloneDX format
-        if 'components' in sbom:
-            for comp in sbom['components']:
+        if "components" in sbom:
+            for comp in sbom["components"]:
                 dep = Dependency(
-                    name=comp.get('name', ''),
-                    version=comp.get('version', ''),
-                    purl=comp.get('purl'),
-                    type=comp.get('type', 'library'),
+                    name=comp.get("name", ""),
+                    version=comp.get("version", ""),
+                    purl=comp.get("purl"),
+                    type=comp.get("type", "library"),
                     licenses=self._extract_licenses(comp),
-                    supplier=comp.get('supplier', {}).get('name') if 'supplier' in comp else None,
-                    download_location=comp.get('externalReferences', [{}])[0].get('url') if comp.get('externalReferences') else None,
+                    supplier=(
+                        comp.get("supplier", {}).get("name")
+                        if "supplier" in comp
+                        else None
+                    ),
+                    download_location=(
+                        comp.get("externalReferences", [{}])[0].get("url")
+                        if comp.get("externalReferences")
+                        else None
+                    ),
                     hashes=self._extract_hashes(comp),
-                    dependencies=[]  # Will fill later
+                    dependencies=[],  # Will fill later
                 )
                 dependencies.append(dep)
 
         # SPDX format
-        elif 'packages' in sbom:
-            for pkg in sbom['packages']:
+        elif "packages" in sbom:
+            for pkg in sbom["packages"]:
                 dep = Dependency(
-                    name=pkg.get('name', ''),
-                    version=pkg.get('versionInfo', pkg.get('downloadLocation', '').split('@')[-1] if pkg.get('downloadLocation') else ''),
-                    purl=pkg.get('downloadLocation'),  # SPDX uses downloadLocation as purl
-                    type='library',
+                    name=pkg.get("name", ""),
+                    version=pkg.get(
+                        "versionInfo",
+                        (
+                            pkg.get("downloadLocation", "").split("@")[-1]
+                            if pkg.get("downloadLocation")
+                            else ""
+                        ),
+                    ),
+                    purl=pkg.get(
+                        "downloadLocation"
+                    ),  # SPDX uses downloadLocation as purl
+                    type="library",
                     licenses=self._extract_spdx_licenses(pkg),
-                    supplier=pkg.get('supplier'),
-                    download_location=pkg.get('downloadLocation'),
+                    supplier=pkg.get("supplier"),
+                    download_location=pkg.get("downloadLocation"),
                     hashes={},  # SPDX format different
-                    dependencies=[]
+                    dependencies=[],
                 )
                 dependencies.append(dep)
 
@@ -348,12 +381,12 @@ class SBOMAnalyzer:
         """Extract license information from CycloneDX component."""
         licenses = []
 
-        if 'licenses' in comp:
-            for lic in comp['licenses']:
-                if 'expression' in lic:
-                    licenses.append(lic['expression'])
-                elif 'license' in lic:
-                    licenses.append(lic['license'].get('id', ''))
+        if "licenses" in comp:
+            for lic in comp["licenses"]:
+                if "expression" in lic:
+                    licenses.append(lic["expression"])
+                elif "license" in lic:
+                    licenses.append(lic["license"].get("id", ""))
 
         return licenses
 
@@ -361,11 +394,11 @@ class SBOMAnalyzer:
         """Extract license information from SPDX package."""
         licenses = []
 
-        if 'licenseDeclared' in pkg:
-            licenses.append(pkg['licenseDeclared'])
+        if "licenseDeclared" in pkg:
+            licenses.append(pkg["licenseDeclared"])
 
-        if 'licenseConcluded' in pkg:
-            licenses.append(pkg['licenseConcluded'])
+        if "licenseConcluded" in pkg:
+            licenses.append(pkg["licenseConcluded"])
 
         return licenses
 
@@ -373,17 +406,16 @@ class SBOMAnalyzer:
         """Extract hash information from CycloneDX component."""
         hashes = {}
 
-        if 'hashes' in comp:
-            for h in comp['hashes']:
-                alg = h.get('alg', '').lower()
-                content = h.get('content', '')
+        if "hashes" in comp:
+            for h in comp["hashes"]:
+                alg = h.get("alg", "").lower()
+                content = h.get("content", "")
                 hashes[alg] = content
 
         return hashes
 
     def _build_dependency_tree(
-        self,
-        dependencies: List[Dependency]
+        self, dependencies: List[Dependency]
     ) -> Dict[str, List[str]]:
         """Build dependency tree showing relationships."""
         tree = defaultdict(list)
@@ -395,10 +427,7 @@ class SBOMAnalyzer:
 
         return dict(tree)
 
-    def _check_vulnerabilities(
-        self,
-        dependency: Dependency
-    ) -> List[VulnerabilityInfo]:
+    def _check_vulnerabilities(self, dependency: Dependency) -> List[VulnerabilityInfo]:
         """Check for vulnerabilities in a dependency."""
         vulnerabilities = []
 
@@ -411,13 +440,19 @@ class SBOMAnalyzer:
 
         # Query GitHub Security Advisories
         try:
-            advisories = self._query_github_advisories(dependency.name, dependency.version)
+            advisories = self._query_github_advisories(
+                dependency.name, dependency.version
+            )
             vulnerabilities.extend(advisories)
         except Exception as e:
             logger.warning(f"GitHub advisory query failed for {dependency.name}: {e}")
 
         # Query PyPI for Python packages
-        if dependency.type == "library" or dependency.purl and "pypi" in dependency.purl:
+        if (
+            dependency.type == "library"
+            or dependency.purl
+            and "pypi" in dependency.purl
+        ):
             try:
                 pysec = self._query_pypi(dependency.name, dependency.version)
                 vulnerabilities.extend(pysec)
@@ -426,11 +461,7 @@ class SBOMAnalyzer:
 
         return vulnerabilities
 
-    def _query_nvd(
-        self,
-        package_name: str,
-        version: str
-    ) -> List[VulnerabilityInfo]:
+    def _query_nvd(self, package_name: str, version: str) -> List[VulnerabilityInfo]:
         """Query NVD for CVEs affecting this package version."""
         vulnerabilities = []
 
@@ -439,50 +470,43 @@ class SBOMAnalyzer:
 
         try:
             # Search for CVEs
-            params = {
-                'cpeName': cpe_string,
-                'resultsPerPage': 20
-            }
+            params = {"cpeName": cpe_string, "resultsPerPage": 20}
 
-            response = self.session.get(
-                self.NVD_API_URL,
-                params=params,
-                timeout=10
-            )
+            response = self.session.get(self.NVD_API_URL, params=params, timeout=10)
             response.raise_for_status()
 
             data = response.json()
 
-            if 'vulnerabilities' in data:
-                for vuln_data in data['vulnerabilities']:
-                    cve = vuln_data['cve']
-                    metrics = vuln_data.get('metrics', [])
+            if "vulnerabilities" in data:
+                for vuln_data in data["vulnerabilities"]:
+                    cve = vuln_data["cve"]
+                    metrics = vuln_data.get("metrics", [])
 
                     # Extract CVSS score
                     cvss_score = None
                     severity = VulnerabilitySeverity.UNKNOWN
 
                     for metric in metrics:
-                        if 'cvssMetricV31' in metric:
-                            cvss_data = metric['cvssMetricV31'][0]['cvssData']
-                            cvss_score = cvss_data.get('baseScore')
-                            severity_str = cvss_data.get('baseSeverity', 'UNKNOWN')
+                        if "cvssMetricV31" in metric:
+                            cvss_data = metric["cvssMetricV31"][0]["cvssData"]
+                            cvss_score = cvss_data.get("baseScore")
+                            severity_str = cvss_data.get("baseSeverity", "UNKNOWN")
                             severity = VulnerabilitySeverity(severity_str)
-                        elif 'cvssMetricV2' in metric:
-                            cvss_data = metric['cvssMetricV2'][0]['cvssData']
+                        elif "cvssMetricV2" in metric:
+                            cvss_data = metric["cvssMetricV2"][0]["cvssData"]
                             if not cvss_score:
-                                cvss_score = cvss_data.get('baseScore')
-                            severity_str = cvss_data.get('baseSeverity', 'UNKNOWN')
+                                cvss_score = cvss_data.get("baseScore")
+                            severity_str = cvss_data.get("baseSeverity", "UNKNOWN")
                             if severity == VulnerabilitySeverity.UNKNOWN:
                                 severity = VulnerabilitySeverity(severity_str)
 
                     vuln = VulnerabilityInfo(
-                        cve_id=cve['id'],
+                        cve_id=cve["id"],
                         severity=severity,
                         cvss_score=cvss_score,
-                        description=cve.get('descriptions', [{}])[0].get('value', ''),
-                        published_date=cve.get('published'),
-                        modified_date=cve.get('lastModified')
+                        description=cve.get("descriptions", [{}])[0].get("value", ""),
+                        published_date=cve.get("published"),
+                        modified_date=cve.get("lastModified"),
                     )
                     vulnerabilities.append(vuln)
 
@@ -492,45 +516,40 @@ class SBOMAnalyzer:
         return vulnerabilities
 
     def _query_github_advisories(
-        self,
-        package_name: str,
-        version: str
+        self, package_name: str, version: str
     ) -> List[VulnerabilityInfo]:
         """Query GitHub Security Advisories."""
         # This would require GitHub GraphQL API
         # Placeholder for now
         return []
 
-    def _query_pypi(
-        self,
-        package_name: str,
-        version: str
-    ) -> List[VulnerabilityInfo]:
+    def _query_pypi(self, package_name: str, version: str) -> List[VulnerabilityInfo]:
         """Query PyPI for package vulnerabilities."""
         vulnerabilities = []
 
         try:
             response = self.session.get(
-                f"https://pypi.org/pypi/{package_name}/json",
-                timeout=10
+                f"https://pypi.org/pypi/{package_name}/json", timeout=10
             )
             response.raise_for_status()
 
             data = response.json()
 
             # Check for vulnerabilities in metadata
-            vuln_data = data.get('vulnerabilities', [])
+            vuln_data = data.get("vulnerabilities", [])
 
             for vuln in vuln_data:
                 # Parse PyPI vulnerability format
-                vulnerabilities.append(VulnerabilityInfo(
-                    cve_id=vuln.get('aliases', ['UNKNOWN'])[0],
-                    severity=VulnerabilitySeverity(vuln.get('details', 'UNKNOWN')),
-                    cvss_score=None,
-                    description=vuln.get('summary', vuln.get('details', '')),
-                    affected_versions=vuln.get('affected_versions', []),
-                    patched_versions=vuln.get('fixed_versions', [])
-                ))
+                vulnerabilities.append(
+                    VulnerabilityInfo(
+                        cve_id=vuln.get("aliases", ["UNKNOWN"])[0],
+                        severity=VulnerabilitySeverity(vuln.get("details", "UNKNOWN")),
+                        cvss_score=None,
+                        description=vuln.get("summary", vuln.get("details", "")),
+                        affected_versions=vuln.get("affected_versions", []),
+                        patched_versions=vuln.get("fixed_versions", []),
+                    )
+                )
 
         except Exception as e:
             logger.error(f"PyPI query error: {e}")
@@ -541,7 +560,7 @@ class SBOMAnalyzer:
         self,
         dependency: Dependency,
         vulnerability: VulnerabilityInfo,
-        deployment_manifest: Optional[str] = None
+        deployment_manifest: Optional[str] = None,
     ) -> ImpactAssessment:
         """Assess the impact of a vulnerability."""
         # Determine affected services
@@ -551,8 +570,7 @@ class SBOMAnalyzer:
         if deployment_manifest:
             # Parse deployment manifest to find services using this dependency
             affected_services = self._find_affected_services(
-                dependency,
-                deployment_manifest
+                dependency, deployment_manifest
             )
 
         # Determine exploit availability
@@ -569,7 +587,9 @@ class SBOMAnalyzer:
             recommendations.append("🚨 CRITICAL: Apply patch immediately")
 
         if has_patch:
-            recommendations.append(f"✅ Patch available: {vulnerability.patched_versions[0]}")
+            recommendations.append(
+                f"✅ Patch available: {vulnerability.patched_versions[0]}"
+            )
             recommendations.append("🔄 Update to patched version")
         else:
             recommendations.append("⚠️  No patch available")
@@ -587,32 +607,24 @@ class SBOMAnalyzer:
             patch_version=vulnerability.patched_versions[0] if has_patch else None,
             cvss_score=vulnerability.cvss_score,
             attack_vector=None,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
     def _find_affected_services(
-        self,
-        dependency: Dependency,
-        deployment_manifest: str
+        self, dependency: Dependency, deployment_manifest: str
     ) -> List[str]:
         """Find services affected by a dependency."""
         # Placeholder implementation
         # In production, would parse K8s manifests, docker-compose, etc.
         return []
 
-    def _check_exploit_available(
-        self,
-        vulnerability: VulnerabilityInfo
-    ) -> bool:
+    def _check_exploit_available(self, vulnerability: VulnerabilityInfo) -> bool:
         """Check if exploit code is publicly available."""
         # This would integrate with exploit databases
         # Placeholder for now
         return False
 
-    def _check_licenses(
-        self,
-        dependencies: List[Dependency]
-    ) -> Dict[str, Any]:
+    def _check_licenses(self, dependencies: List[Dependency]) -> Dict[str, Any]:
         """Check license compliance."""
         violations = 0
         compliant = True
@@ -626,24 +638,19 @@ class SBOMAnalyzer:
                     logger.warning(f"Prohibited license found: {dep.name} - {lic}")
                     compliant = False
 
-        return {
-            'violations': violations,
-            'compliant': compliant
-        }
+        return {"violations": violations, "compliant": compliant}
 
     def _normalize_license(self, license_str: str) -> str:
         """Normalize license string."""
         # Remove common variations
         license_str = license_str.upper()
-        license_str = re.sub(r'\s+', '-', license_str)
-        license_str = re.sub(r'^[-*]', '', license_str)
-        license_str = license_str.split(' OR ')[0]  # Take first if multiple
+        license_str = re.sub(r"\s+", "-", license_str)
+        license_str = re.sub(r"^[-*]", "", license_str)
+        license_str = license_str.split(" OR ")[0]  # Take first if multiple
         return license_str
 
     def _verify_hashes(
-        self,
-        current_deps: List[Dependency],
-        baseline_deps: List[Dependency]
+        self, current_deps: List[Dependency], baseline_deps: List[Dependency]
     ) -> Dict[str, Any]:
         """Verify hash integrity against baseline."""
         mismatches = 0
@@ -661,38 +668,47 @@ class SBOMAnalyzer:
                 for alg, hash_value in dep.hashes.items():
                     if baseline_dep.hashes.get(alg) != hash_value:
                         mismatches += 1
-                        logger.error(f"Hash mismatch for {dep.name}@{dep.version}: {alg}")
+                        logger.error(
+                            f"Hash mismatch for {dep.name}@{dep.version}: {alg}"
+                        )
                         verified = False
 
-        return {
-            'mismatches': mismatches,
-            'verified': verified
-        }
+        return {"mismatches": mismatches, "verified": verified}
 
     def _generate_recommendations(
         self,
         vuln_count: int,
         critical_count: int,
         license_violations: int,
-        hash_mismatches: int
+        hash_mismatches: int,
     ) -> List[str]:
         """Generate actionable recommendations."""
         recommendations = []
 
         if critical_count > 0:
-            recommendations.append(f"🚨 {critical_count} CRITICAL vulnerabilities require immediate patching")
+            recommendations.append(
+                f"🚨 {critical_count} CRITICAL vulnerabilities require immediate patching"
+            )
 
         if vuln_count > 10:
-            recommendations.append(f"⚠️  {vuln_count} total vulnerabilities found - prioritize patching")
+            recommendations.append(
+                f"⚠️  {vuln_count} total vulnerabilities found - prioritize patching"
+            )
 
         if license_violations > 0:
-            recommendations.append(f"📜 {license_violations} license violations require legal review")
+            recommendations.append(
+                f"📜 {license_violations} license violations require legal review"
+            )
 
         if hash_mismatches > 0:
-            recommendations.append(f"🔐 {hash_mismatches} hash mismatches indicate supply chain tampering")
+            recommendations.append(
+                f"🔐 {hash_mismatches} hash mismatches indicate supply chain tampering"
+            )
 
         if not any([critical_count, vuln_count, license_violations, hash_mismatches]):
-            recommendations.append("✅ No critical issues found - continue regular monitoring")
+            recommendations.append(
+                "✅ No critical issues found - continue regular monitoring"
+            )
 
         recommendations.append("📊 Generate SBOM for all builds")
         recommendations.append("🔍 Implement automated dependency scanning")
@@ -709,32 +725,12 @@ def main():
     parser = argparse.ArgumentParser(
         description="Analyze SBOM for security vulnerabilities"
     )
-    parser.add_argument(
-        '--sbom',
-        required=True,
-        help='Path to SBOM file'
-    )
-    parser.add_argument(
-        '--deployment',
-        help='Path to deployment manifest'
-    )
-    parser.add_argument(
-        '--baseline',
-        help='Path to baseline SBOM'
-    )
-    parser.add_argument(
-        '--output',
-        help='Output path for report (JSON)'
-    )
-    parser.add_argument(
-        '--nvd-key',
-        help='NVD API key (for higher rate limits)'
-    )
-    parser.add_argument(
-        '--verbose',
-        action='store_true',
-        help='Enable verbose logging'
-    )
+    parser.add_argument("--sbom", required=True, help="Path to SBOM file")
+    parser.add_argument("--deployment", help="Path to deployment manifest")
+    parser.add_argument("--baseline", help="Path to baseline SBOM")
+    parser.add_argument("--output", help="Output path for report (JSON)")
+    parser.add_argument("--nvd-key", help="NVD API key (for higher rate limits)")
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 
@@ -748,12 +744,12 @@ def main():
     report = analyzer.analyze_sbom(
         sbom_path=args.sbom,
         deployment_manifest=args.deployment,
-        baseline_sbom=args.baseline
+        baseline_sbom=args.baseline,
     )
 
     # Output report
     if args.output:
-        with open(args.output, 'w') as f:
+        with open(args.output, "w") as f:
             f.write(report.to_json())
         print(f"Report saved to {args.output}")
 

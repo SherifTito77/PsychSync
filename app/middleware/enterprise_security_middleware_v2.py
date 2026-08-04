@@ -9,10 +9,10 @@ This refactored version uses:
 Complexity reduced from 602 lines to ~300 lines through separation of concerns.
 """
 
-from datetime import datetime
 import logging
 import secrets
 import time
+from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException, Request, Response
@@ -20,9 +20,15 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from app.core.config import settings
-from app.core.security.redis_connection_manager import RedisConnectionManager, RedisConnectionError
-from app.core.security.rate_limiting_strategies import RateLimiterFactory, RateLimitStrategy
 from app.core.enterprise_security import ComplianceStandard, SecurityEvent
+from app.core.security.rate_limiting_strategies import (
+    RateLimiterFactory,
+    RateLimitStrategy,
+)
+from app.core.security.redis_connection_manager import (
+    RedisConnectionError,
+    RedisConnectionManager,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +65,7 @@ class EnterpriseSecurityMiddlewareV2(BaseHTTPMiddleware):
             try:
                 allow_fallback = settings.ENVIRONMENT != "production"
                 self.rate_limiter = RateLimiterFactory.create(
-                    self.redis_manager,
-                    allow_fallback=allow_fallback
+                    self.redis_manager, allow_fallback=allow_fallback
                 )
             except Exception as e:
                 logger.error(f"Failed to create rate limiter: {e}")
@@ -112,7 +117,9 @@ class EnterpriseSecurityMiddlewareV2(BaseHTTPMiddleware):
 
         # Check IP blocking
         if await self._is_ip_blocked(client_ip):
-            raise HTTPException(status_code=403, detail="Access denied: IP address blocked")
+            raise HTTPException(
+                status_code=403, detail="Access denied: IP address blocked"
+            )
 
         # Validate request size
         self._validate_request_size(request)
@@ -136,7 +143,7 @@ class EnterpriseSecurityMiddlewareV2(BaseHTTPMiddleware):
             request,
             "API_REQUEST",
             f"Request processed in {processing_time:.3f}s",
-            event_outcome
+            event_outcome,
         )
 
         # Monitor slow requests
@@ -145,7 +152,7 @@ class EnterpriseSecurityMiddlewareV2(BaseHTTPMiddleware):
                 request,
                 "SLOW_REQUEST",
                 f"Request took {processing_time:.2f} seconds",
-                False
+                False,
             )
 
     def _get_client_ip(self, request: Request) -> str:
@@ -189,17 +196,11 @@ class EnterpriseSecurityMiddlewareV2(BaseHTTPMiddleware):
         endpoint = request.url.path
 
         # Global rate limit
-        self.rate_limiter.check_rate_limit(
-            f"global:{client_ip}",
-            limit=100,
-            window=60
-        )
+        self.rate_limiter.check_rate_limit(f"global:{client_ip}", limit=100, window=60)
 
         # Endpoint-specific rate limit
         self.rate_limiter.check_rate_limit(
-            f"endpoint:{client_ip}:{endpoint}",
-            limit=50,
-            window=60
+            f"endpoint:{client_ip}:{endpoint}", limit=50, window=60
         )
 
     def _get_security_headers(self) -> dict:
@@ -241,7 +242,7 @@ class EnterpriseSecurityMiddlewareV2(BaseHTTPMiddleware):
                 action=request.method,
                 outcome="success" if outcome else "failure",
                 compliance_standards=[ComplianceStandard.SOC_2_TYPE_II],
-                metadata={"details": details}
+                metadata={"details": details},
             )
 
             # Log event (would use security manager if available)

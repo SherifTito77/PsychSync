@@ -10,14 +10,12 @@ Modules:
 HIPAA Compliance: All services handle Protected Health Information (PHI)
 """
 
+from app.services.clinical.crisis_intervention import CrisisInterventionService
 from app.services.clinical.scoring_algorithms import (
-    PHQ9Scorer,
-    GAD7Scorer,
     CSSRSScorer,
-    get_scorer
-)
-from app.services.clinical.crisis_intervention import (
-    CrisisInterventionService
+    GAD7Scorer,
+    PHQ9Scorer,
+    get_scorer,
 )
 
 __all__ = [

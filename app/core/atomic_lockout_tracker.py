@@ -18,7 +18,7 @@ Date: 2025-01-19
 
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
 import redis.asyncio as redis
@@ -64,7 +64,7 @@ class AtomicLockoutTracker:
                 self._redis_client = await redis.from_url(
                     f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
                     decoding="utf-8",
-                    health_check_interval=30
+                    health_check_interval=30,
                 )
                 logger.info("Atomic lockout tracker connected to Redis")
             except Exception as e:
@@ -84,7 +84,7 @@ class AtomicLockoutTracker:
         self,
         user_id: str,
         ip_address: str,
-        db=None  # Unused, kept for backward compatibility
+        db=None,  # Unused, kept for backward compatibility
     ) -> Tuple[bool, Optional[str]]:
         """
         Record a failed login attempt atomically using Redis INCR.
@@ -124,9 +124,7 @@ class AtomicLockoutTracker:
                 # Set lockout flag with expiry
                 lockout_key = f"locked:user:{user_id}"
                 await redis_client.setex(
-                    lockout_key,
-                    self.LOCKOUT_DURATION_SECONDS,
-                    "1"
+                    lockout_key, self.LOCKOUT_DURATION_SECONDS, "1"
                 )
 
                 remaining_time = self.LOCKOUT_DURATION_SECONDS
@@ -134,7 +132,7 @@ class AtomicLockoutTracker:
                     "User %s locked out after %d failed attempts from IP %s",
                     user_id,
                     user_attempts,
-                    ip_address
+                    ip_address,
                 )
 
                 return True, (
@@ -154,17 +152,11 @@ class AtomicLockoutTracker:
             if ip_attempts >= self.MAX_IP_FAILED_ATTEMPTS:
                 # Set IP ban flag with expiry
                 ip_ban_key = f"banned:ip:{ip_address}"
-                await redis_client.setex(
-                    ip_ban_key,
-                    self.IP_BAN_DURATION_SECONDS,
-                    "1"
-                )
+                await redis_client.setex(ip_ban_key, self.IP_BAN_DURATION_SECONDS, "1")
 
                 remaining_time = self.IP_BAN_DURATION_SECONDS
                 logger.warning(
-                    "IP %s banned after %d failed attempts",
-                    ip_address,
-                    ip_attempts
+                    "IP %s banned after %d failed attempts", ip_address, ip_attempts
                 )
 
                 return True, (
@@ -179,7 +171,7 @@ class AtomicLockoutTracker:
                 user_id,
                 ip_address,
                 user_attempts,
-                ip_attempts
+                ip_attempts,
             )
 
             return False, None
@@ -197,7 +189,7 @@ class AtomicLockoutTracker:
         self,
         user_id: str,
         ip_address: str,
-        db=None  # Unused, kept for backward compatibility
+        db=None,  # Unused, kept for backward compatibility
     ) -> None:
         """
         Record a successful login attempt by clearing failed attempt counters.
@@ -224,18 +216,14 @@ class AtomicLockoutTracker:
                     # Reduce by half (minimum 1)
                     new_attempts = max(1, attempts_int // 2)
                     await redis_client.setex(
-                        ip_key,
-                        self.FAILED_ATTEMPT_WINDOW_SECONDS,
-                        str(new_attempts)
+                        ip_key, self.FAILED_ATTEMPT_WINDOW_SECONDS, str(new_attempts)
                     )
                 except ValueError:
                     # If not an integer, delete the key
                     await redis_client.delete(ip_key)
 
             logger.info(
-                "Successful login recorded for user %s from IP %s",
-                user_id,
-                ip_address
+                "Successful login recorded for user %s from IP %s", user_id, ip_address
             )
 
         except Exception as e:
@@ -299,9 +287,7 @@ class AtomicLockoutTracker:
             return False, 0
 
     async def get_failed_attempt_counts(
-        self,
-        user_id: str,
-        ip_address: str
+        self, user_id: str, ip_address: str
     ) -> Tuple[int, int]:
         """
         Get current failed attempt counts for monitoring/debugging.

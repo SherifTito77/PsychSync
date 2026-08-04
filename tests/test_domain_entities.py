@@ -16,13 +16,18 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
+
+import pytest
 
 from app.domain.entities.user import (
-    User, EmailAddress, UserPreferences, UserSecurityMetadata,
-    UserRole, UserStatus
+    EmailAddress,
+    User,
+    UserPreferences,
+    UserRole,
+    UserSecurityMetadata,
+    UserStatus,
 )
 
 
@@ -35,7 +40,7 @@ class TestEmailAddress:
             "user@example.com",
             "test.email@domain.co.uk",
             "user+tag@example.org",
-            "user123@test-domain.com"
+            "user123@test-domain.com",
         ]
 
         for email in valid_emails:
@@ -52,7 +57,7 @@ class TestEmailAddress:
             "user..name@example.com",
             "user@.com",
             "",
-            "plainaddress"
+            "plainaddress",
         ]
 
         for email in invalid_emails:
@@ -113,7 +118,7 @@ class TestUserPreferences:
             timezone="America/New_York",
             language="es",
             notifications_enabled=False,
-            two_factor_enabled=True
+            two_factor_enabled=True,
         )
         assert prefs.timezone == "America/New_York"
         assert prefs.language == "es"
@@ -163,7 +168,7 @@ class TestUserEntity:
             email=email,
             full_name="Test User",
             role=UserRole.USER,
-            status=UserStatus.ACTIVE
+            status=UserStatus.ACTIVE,
         )
 
         assert user.email == email
@@ -178,21 +183,14 @@ class TestUserEntity:
         email = EmailAddress(value="user@example.com")
 
         with pytest.raises(ValueError, match="Invalid phone number format"):
-            User(
-                email=email,
-                full_name="Test User",
-                phone="invalid-phone"
-            )
+            User(email=email, full_name="Test User", phone="invalid-phone")
 
     def test_user_creation_with_short_name(self):
         """Test user creation fails with short name"""
         email = EmailAddress(value="user@example.com")
 
         with pytest.raises(ValueError, match="Full name must be at least 2 characters"):
-            User(
-                email=email,
-                full_name="A"  # Too short
-            )
+            User(email=email, full_name="A")  # Too short
 
     def test_user_security_score(self):
         """Test user security score calculation"""
@@ -292,9 +290,7 @@ class TestUserEntity:
         """Test email verification process"""
         email = EmailAddress(value="user@example.com")
         user = User(
-            email=email,
-            full_name="Test User",
-            status=UserStatus.PENDING_VERIFICATION
+            email=email, full_name="Test User", status=UserStatus.PENDING_VERIFICATION
         )
 
         # Initially pending verification
@@ -320,15 +316,20 @@ class TestUserEntity:
         roles_permissions = [
             (UserRole.USER, ["read_profile", "update_profile"]),
             (UserRole.MODERATOR, ["read_profile", "update_profile", "manage_users"]),
-            (UserRole.MANAGER, ["read_profile", "update_profile", "manage_users", "view_reports"]),
-            (UserRole.ADMIN, ["all"])
+            (
+                UserRole.MANAGER,
+                ["read_profile", "update_profile", "manage_users", "view_reports"],
+            ),
+            (UserRole.ADMIN, ["all"]),
         ]
 
         for role, expected_permissions in roles_permissions:
             user = User(email=email, role=role)
 
             for permission in expected_permissions:
-                assert user.has_role_permission(permission), f"Role {role} should have permission {permission}"
+                assert user.has_role_permission(
+                    permission
+                ), f"Role {role} should have permission {permission}"
 
     def test_user_admin_and_manager_checks(self):
         """Test admin and manager role checks"""
@@ -338,7 +339,7 @@ class TestUserEntity:
             (UserRole.USER, False, False),
             (UserRole.MODERATOR, False, False),
             (UserRole.MANAGER, False, True),
-            (UserRole.ADMIN, True, True)
+            (UserRole.ADMIN, True, True),
         ]
 
         for role, is_admin, is_manager in roles:
@@ -403,10 +404,7 @@ class TestUserEntity:
         now = datetime.utcnow()
         email = EmailAddress(value="user@example.com")
         user = User(
-            email=email,
-            full_name="Test User",
-            role=UserRole.USER,
-            created_at=now
+            email=email, full_name="Test User", role=UserRole.USER, created_at=now
         )
 
         # Record login
@@ -443,7 +441,7 @@ class TestUserEntity:
             status=UserStatus.ACTIVE,
             organization_id="org_123",
             phone="+1234567890",
-            created_at=now
+            created_at=now,
         )
 
         user_dict = user.to_dict()
@@ -477,26 +475,41 @@ class TestUserEntity:
 
         # Test role change permissions
         assert user.can_update_role(UserRole.USER, UserRole.USER)
-        assert user.can_update_role(UserRole.USER, UserRole.MODERATOR)  # User can be upgraded to moderator
-        assert not user.can_update_role(UserRole.ADMIN, UserRole.USER)  # Admin can't be demoted by non-admin
-        assert not user.can_update_role(UserRole.ADMIN, UserRole.USER)  # Users can't change their own role to admin
+        assert user.can_update_role(
+            UserRole.USER, UserRole.MODERATOR
+        )  # User can be upgraded to moderator
+        assert not user.can_update_role(
+            UserRole.ADMIN, UserRole.USER
+        )  # Admin can't be demoted by non-admin
+        assert not user.can_update_role(
+            UserRole.ADMIN, UserRole.USER
+        )  # Users can't change their own role to admin
 
         # Test user deletion permissions
         assert not user.can_be_deleted_by(UserRole.USER)  # Users can't delete users
-        assert user.can_be_deleted_by(UserRole.MANAGER)  # Managers can delete non-admin users
-        assert user.can_be_deleted_by(UserRole.ADMIN)    # Admins can delete anyone
+        assert user.can_be_deleted_by(
+            UserRole.MANAGER
+        )  # Managers can delete non-admin users
+        assert user.can_be_deleted_by(UserRole.ADMIN)  # Admins can delete anyone
 
         # Test admin deletion protection
-        admin_user = User(email=EmailAddress(value="admin@example.com"), role=UserRole.ADMIN)
-        assert not admin_user.can_be_deleted_by(UserRole.MANAGER)  # Managers can't delete admins
-        assert admin_user.can_be_deleted_by(UserRole.ADMIN)        # Admins can delete admins
+        admin_user = User(
+            email=EmailAddress(value="admin@example.com"), role=UserRole.ADMIN
+        )
+        assert not admin_user.can_be_deleted_by(
+            UserRole.MANAGER
+        )  # Managers can't delete admins
+        assert admin_user.can_be_deleted_by(UserRole.ADMIN)  # Admins can delete admins
 
-    @pytest.mark.parametrize("status,can_login_expected", [
-        (UserStatus.ACTIVE, False),  # Email not verified yet
-        (UserStatus.INACTIVE, False),
-        (UserStatus.SUSPENDED, False),
-        (UserStatus.PENDING_VERIFICATION, False)
-    ])
+    @pytest.mark.parametrize(
+        "status,can_login_expected",
+        [
+            (UserStatus.ACTIVE, False),  # Email not verified yet
+            (UserStatus.INACTIVE, False),
+            (UserStatus.SUSPENDED, False),
+            (UserStatus.PENDING_VERIFICATION, False),
+        ],
+    )
     def test_user_can_login_by_status(self, status, can_login_expected):
         """Test can_login logic based on user status"""
         email = EmailAddress(value="user@example.com")

@@ -44,8 +44,8 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
             "Host validation middleware initialized",
             extra={
                 "allowed_hosts": self.allowed_hosts,
-                "wildcard_allowed": "*" in self.allowed_hosts
-            }
+                "wildcard_allowed": "*" in self.allowed_hosts,
+            },
         )
 
     def _get_allowed_hosts(self) -> list[str]:
@@ -75,7 +75,7 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
                 "0.0.0.0",
                 "*.localhost",
                 "localhost:*",
-                "127.0.0.1:*"
+                "127.0.0.1:*",
             ]
         # Testing/staging allows wildcard
         return ["*"]
@@ -103,7 +103,7 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
             if self.enable_logging:
                 logger.debug(
                     f"Skipping host validation for path: {request.url.path}",
-                    extra={"host": host, "path": request.url.path}
+                    extra={"host": host, "path": request.url.path},
                 )
             return await call_next(request)
 
@@ -119,16 +119,16 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
                     "path": request.url.path,
                     "client_ip": request.client.host if request.client else "unknown",
                     "user_agent": request.headers.get("User-Agent", "unknown"),
-                    "reason": validation_result["reason"]
-                }
+                    "reason": validation_result["reason"],
+                },
             )
 
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={
                     "detail": "Invalid Host header",
-                    "error": validation_result["reason"]
-                }
+                    "error": validation_result["reason"],
+                },
             )
 
         # Valid host - continue processing
@@ -168,15 +168,13 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
             True if validation should be skipped
         """
         # Paths that always skip validation
-        exempt_paths = [
-            "/health",
-            "/metrics",
-            "/ping"
-        ]
+        exempt_paths = ["/health", "/metrics", "/ping"]
 
         # Skip for health checks in development/testing
-        if (settings.ENVIRONMENT in ["development", "testing"] and
-            request.url.path in exempt_paths):
+        if (
+            settings.ENVIRONMENT in ["development", "testing"]
+            and request.url.path in exempt_paths
+        ):
             return True
 
         return False
@@ -202,10 +200,7 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
 
         # Empty allowed hosts means nothing is allowed (security by default)
         if not self.allowed_hosts:
-            return {
-                "valid": False,
-                "reason": "No hosts configured in ALLOWED_HOSTS"
-            }
+            return {"valid": False, "reason": "No hosts configured in ALLOWED_HOSTS"}
 
         # Check for exact match
         if host in self.allowed_hosts:
@@ -221,6 +216,7 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
 
         # Check for IP addresses
         import ipaddress
+
         try:
             ipaddress.ip_address(host)
             # It's a valid IP, check if it's localhost
@@ -228,10 +224,7 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
                 # Allow localhost in non-production
                 if settings.ENVIRONMENT != "production":
                     return {"valid": True}
-                return {
-                    "valid": False,
-                    "reason": "localhost not allowed in production"
-                }
+                return {"valid": False, "reason": "localhost not allowed in production"}
         except ValueError:
             pass  # Not an IP address
 
@@ -244,7 +237,7 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
             "xss",
             "script",
             "<script",
-            "javascript:"
+            "javascript:",
         ]
 
         host_lower = host.lower()
@@ -252,14 +245,11 @@ class HostValidationMiddleware(BaseHTTPMiddleware):
             if pattern in host_lower:
                 return {
                     "valid": False,
-                    "reason": f"Suspicious pattern detected: {pattern}"
+                    "reason": f"Suspicious pattern detected: {pattern}",
                 }
 
         # Host not in allowed list
-        return {
-            "valid": False,
-            "reason": f"Host '{host}' not in allowed hosts list"
-        }
+        return {"valid": False, "reason": f"Host '{host}' not in allowed hosts list"}
 
 
 class StrictHostValidationMiddleware(HostValidationMiddleware):
@@ -303,15 +293,17 @@ class StrictHostValidationMiddleware(HostValidationMiddleware):
                     "host": host,
                     "path": request.url.path,
                     "method": request.method,
-                    "client_ip": request.client.host if request.client else "unknown"
-                }
+                    "client_ip": request.client.host if request.client else "unknown",
+                },
             )
 
         return await super().dispatch(request, call_next)
 
 
 # Convenience function to create appropriate middleware
-def create_host_validation_middleware(app, strict: bool = False) -> HostValidationMiddleware:
+def create_host_validation_middleware(
+    app, strict: bool = False
+) -> HostValidationMiddleware:
     """
     Create host validation middleware based on environment
 

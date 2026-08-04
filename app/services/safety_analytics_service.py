@@ -3,23 +3,32 @@ Safety Analytics Service
 Advanced analytics for safety incidents, wellness trends, and compliance reporting
 """
 
-import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-from uuid import UUID
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, desc, func, case, extract
-from dataclasses import dataclass
 import json
+import logging
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional, Tuple
+from uuid import UUID
+
+from sqlalchemy import and_, case, desc, extract, func, or_
+from sqlalchemy.orm import Session
 
 from app.db.models.employee_safety import (
-    SafetyIncident, SafetyFollowUpAction, WellnessAssessment, WellnessAlert,
-    SafetyResource, SafetyTraining, SafetyTrainingCompletion,
-    SafetyIncidentType, IncidentSeverity, IncidentStatus, AlertLevel
+    AlertLevel,
+    IncidentSeverity,
+    IncidentStatus,
+    SafetyFollowUpAction,
+    SafetyIncident,
+    SafetyIncidentType,
+    SafetyResource,
+    SafetyTraining,
+    SafetyTrainingCompletion,
+    WellnessAlert,
+    WellnessAssessment,
 )
-from app.db.models.user import User
 from app.db.models.organization import Organization
 from app.db.models.team import Team
+from app.db.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +36,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SafetyMetrics:
     """Safety metrics data structure"""
+
     total_incidents: int
     incident_rate: float  # Incidents per 100 employees per month
     severity_distribution: Dict[str, int]
@@ -40,6 +50,7 @@ class SafetyMetrics:
 @dataclass
 class WellnessMetrics:
     """Wellness metrics data structure"""
+
     total_assessments: int
     average_wellness_score: float
     high_risk_percentage: float  # Percentage of high/critical risk assessments
@@ -52,6 +63,7 @@ class WellnessMetrics:
 @dataclass
 class ComplianceReport:
     """Compliance report data structure"""
+
     report_period: Tuple[datetime, datetime]
     total_incidents: int
     reportable_incidents: int  # Incidents requiring external reporting
@@ -70,17 +82,21 @@ class SafetyAnalyticsService:
 
         # Industry benchmarks and thresholds
         self.benchmarks = {
-            'incident_rate': 2.5,  # Industry average: 2.5 incidents per 100 employees per month
-            'resolution_time': 7.0,  # Target: 7 days average resolution
-            'compliance_rate': 95.0,  # Target: 95% compliance reporting
-            'training_completion': 90.0,  # Target: 90% training completion
-            'wellness_score': 70.0,  # Target: 70 average wellness score
+            "incident_rate": 2.5,  # Industry average: 2.5 incidents per 100 employees per month
+            "resolution_time": 7.0,  # Target: 7 days average resolution
+            "compliance_rate": 95.0,  # Target: 95% compliance reporting
+            "training_completion": 90.0,  # Target: 90% training completion
+            "wellness_score": 70.0,  # Target: 70 average wellness score
         }
 
     # Safety Incident Analytics
 
-    def get_safety_metrics(self, organization_id: UUID, team_id: Optional[UUID] = None,
-                          date_range: Optional[Tuple[datetime, datetime]] = None) -> SafetyMetrics:
+    def get_safety_metrics(
+        self,
+        organization_id: UUID,
+        team_id: Optional[UUID] = None,
+        date_range: Optional[Tuple[datetime, datetime]] = None,
+    ) -> SafetyMetrics:
         """Calculate comprehensive safety metrics"""
         try:
             # Default to last 90 days if no date range provided
@@ -95,7 +111,7 @@ class SafetyAnalyticsService:
             query = self.db.query(SafetyIncident).filter(
                 SafetyIncident.organization_id == organization_id,
                 SafetyIncident.date_reported >= start_date,
-                SafetyIncident.date_reported <= end_date
+                SafetyIncident.date_reported <= end_date,
             )
 
             if team_id:
@@ -109,13 +125,17 @@ class SafetyAnalyticsService:
             # Calculate incident rate (per 100 employees per month)
             months_in_period = (end_date - start_date).days / 30.44
             employee_count = self._get_employee_count(organization_id, team_id)
-            incident_rate = (total_incidents / max(employee_count, 1) / max(months_in_period, 1)) * 100
+            incident_rate = (
+                total_incidents / max(employee_count, 1) / max(months_in_period, 1)
+            ) * 100
 
             # Severity distribution
             severity_distribution = {}
             for incident in incidents:
                 severity = incident.severity.value
-                severity_distribution[severity] = severity_distribution.get(severity, 0) + 1
+                severity_distribution[severity] = (
+                    severity_distribution.get(severity, 0) + 1
+                )
 
             # Type distribution
             type_distribution = {}
@@ -136,12 +156,18 @@ class SafetyAnalyticsService:
 
             # Repeat incident rate
             repeat_incidents = self._identify_repeat_incidents(incidents)
-            repeat_incident_rate = (len(repeat_incidents) / max(total_incidents, 1)) * 100
+            repeat_incident_rate = (
+                len(repeat_incidents) / max(total_incidents, 1)
+            ) * 100
 
             # Compliance rate
             reportable_incidents = [inc for inc in incidents if inc.compliance_required]
-            compliant_incidents = [inc for inc in reportable_incidents if inc.compliance_reported]
-            compliance_rate = (len(compliant_incidents) / max(len(reportable_incidents), 1)) * 100
+            compliant_incidents = [
+                inc for inc in reportable_incidents if inc.compliance_reported
+            ]
+            compliance_rate = (
+                len(compliant_incidents) / max(len(reportable_incidents), 1)
+            ) * 100
 
             # Training completion rate
             training_completion_rate = self._calculate_training_completion_rate(
@@ -156,15 +182,16 @@ class SafetyAnalyticsService:
                 resolution_time_avg=resolution_time_avg,
                 repeat_incident_rate=repeat_incident_rate,
                 compliance_rate=compliance_rate,
-                training_completion_rate=training_completion_rate
+                training_completion_rate=training_completion_rate,
             )
 
         except Exception as e:
             logger.error(f"Error calculating safety metrics: {str(e)}")
             return SafetyMetrics(0, 0.0, {}, {}, 0.0, 0.0, 0.0, 0.0)
 
-    def get_incident_trends(self, organization_id: UUID, team_id: Optional[UUID] = None,
-                           days: int = 180) -> Dict[str, Any]:
+    def get_incident_trends(
+        self, organization_id: UUID, team_id: Optional[UUID] = None, days: int = 180
+    ) -> Dict[str, Any]:
         """Analyze incident trends over time"""
         try:
             end_date = datetime.utcnow()
@@ -172,38 +199,53 @@ class SafetyAnalyticsService:
 
             # Weekly incident counts
             weekly_data = self.db.query(
-                extract('year', SafetyIncident.date_reported).label('year'),
-                extract('week', SafetyIncident.date_reported).label('week'),
-                func.count(SafetyIncident.id).label('incident_count'),
-                func.sum(case([(SafetyIncident.severity == IncidentSeverity.CRITICAL, 1)], else_=0)).label('critical_count')
+                extract("year", SafetyIncident.date_reported).label("year"),
+                extract("week", SafetyIncident.date_reported).label("week"),
+                func.count(SafetyIncident.id).label("incident_count"),
+                func.sum(
+                    case(
+                        [(SafetyIncident.severity == IncidentSeverity.CRITICAL, 1)],
+                        else_=0,
+                    )
+                ).label("critical_count"),
             ).filter(
                 SafetyIncident.organization_id == organization_id,
                 SafetyIncident.date_reported >= start_date,
-                SafetyIncident.date_reported <= end_date
+                SafetyIncident.date_reported <= end_date,
             )
 
             if team_id:
                 weekly_data = weekly_data.filter(SafetyIncident.team_id == team_id)
 
-            weekly_data = weekly_data.group_by(
-                extract('year', SafetyIncident.date_reported),
-                extract('week', SafetyIncident.date_reported)
-            ).order_by('year', 'week').all()
+            weekly_data = (
+                weekly_data.group_by(
+                    extract("year", SafetyIncident.date_reported),
+                    extract("week", SafetyIncident.date_reported),
+                )
+                .order_by("year", "week")
+                .all()
+            )
 
             # Process weekly data
             trend_data = []
             for year, week, count, critical_count in weekly_data:
                 week_date = datetime.strptime(f"{year}-{int(week)}-1", "%Y-%W-%w")
-                trend_data.append({
-                    "week": week_date.strftime("%Y-%m-%d"),
-                    "total_incidents": count,
-                    "critical_incidents": critical_count or 0
-                })
+                trend_data.append(
+                    {
+                        "week": week_date.strftime("%Y-%m-%d"),
+                        "total_incidents": count,
+                        "critical_incidents": critical_count or 0,
+                    }
+                )
 
             # Calculate trend direction
             if len(trend_data) >= 4:
                 recent_counts = [d["total_incidents"] for d in trend_data[-4:]]
-                earlier_counts = [d["total_incidents"] for d in trend_data[-8:-4]] if len(trend_data) >= 8 else recent_counts
+                earlier_counts = (
+                    [d["total_incidents"] for d in trend_data[-8:-4]]
+                    if len(trend_data) >= 8
+                    else recent_counts
+                )
 
                 recent_avg = sum(recent_counts) / len(recent_counts)
                 earlier_avg = sum(earlier_counts) / len(earlier_counts)
@@ -220,7 +262,7 @@ class SafetyAnalyticsService:
             return {
                 "trend_data": trend_data,
                 "trend_direction": trend_direction,
-                "analysis_period": f"{days} days"
+                "analysis_period": f"{days} days",
             }
 
         except Exception as e:
@@ -229,8 +271,12 @@ class SafetyAnalyticsService:
 
     # Wellness Analytics
 
-    def get_wellness_metrics(self, organization_id: UUID, team_id: Optional[UUID] = None,
-                           date_range: Optional[Tuple[datetime, datetime]] = None) -> WellnessMetrics:
+    def get_wellness_metrics(
+        self,
+        organization_id: UUID,
+        team_id: Optional[UUID] = None,
+        date_range: Optional[Tuple[datetime, datetime]] = None,
+    ) -> WellnessMetrics:
         """Calculate comprehensive wellness metrics"""
         try:
             # Default to last 30 days if no date range provided
@@ -245,7 +291,7 @@ class SafetyAnalyticsService:
             query = self.db.query(WellnessAssessment).filter(
                 WellnessAssessment.organization_id == organization_id,
                 WellnessAssessment.assessment_date >= start_date,
-                WellnessAssessment.assessment_date <= end_date
+                WellnessAssessment.assessment_date <= end_date,
             )
 
             if team_id:
@@ -259,15 +305,22 @@ class SafetyAnalyticsService:
                 return WellnessMetrics(0, 0.0, 0.0, "no_data", [], {}, 0.0)
 
             # Average wellness score
-            scores = [a.overall_wellness_score for a in assessments if a.overall_wellness_score is not None]
+            scores = [
+                a.overall_wellness_score
+                for a in assessments
+                if a.overall_wellness_score is not None
+            ]
             average_wellness_score = sum(scores) / len(scores) if scores else 0.0
 
             # High risk percentage
             high_risk_assessments = [
-                a for a in assessments
+                a
+                for a in assessments
                 if a.alert_level in [AlertLevel.HIGH, AlertLevel.CRITICAL]
             ]
-            high_risk_percentage = (len(high_risk_assessments) / total_assessments) * 100
+            high_risk_percentage = (
+                len(high_risk_assessments) / total_assessments
+            ) * 100
 
             # Trend analysis
             trend_direction = self._analyze_wellness_trends(assessments)
@@ -290,7 +343,7 @@ class SafetyAnalyticsService:
                 trend_direction=trend_direction,
                 key_risk_factors=risk_factors,
                 department_breakdown=department_breakdown,
-                intervention_effectiveness=intervention_effectiveness
+                intervention_effectiveness=intervention_effectiveness,
             )
 
         except Exception as e:
@@ -299,8 +352,12 @@ class SafetyAnalyticsService:
 
     # Compliance and Reporting
 
-    def generate_compliance_report(self, organization_id: UUID, team_id: Optional[UUID] = None,
-                                 report_period: Optional[Tuple[datetime, datetime]] = None) -> ComplianceReport:
+    def generate_compliance_report(
+        self,
+        organization_id: UUID,
+        team_id: Optional[UUID] = None,
+        report_period: Optional[Tuple[datetime, datetime]] = None,
+    ) -> ComplianceReport:
         """Generate comprehensive compliance report"""
         try:
             # Default to last 90 days if no period provided
@@ -315,7 +372,7 @@ class SafetyAnalyticsService:
             query = self.db.query(SafetyIncident).filter(
                 SafetyIncident.organization_id == organization_id,
                 SafetyIncident.date_reported >= start_date,
-                SafetyIncident.date_reported <= end_date
+                SafetyIncident.date_reported <= end_date,
             )
 
             if team_id:
@@ -326,19 +383,27 @@ class SafetyAnalyticsService:
 
             # Identify reportable incidents
             reportable_incidents = [
-                inc for inc in incidents
-                if inc.compliance_required or inc.severity in [IncidentSeverity.HIGH, IncidentSeverity.CRITICAL]
+                inc
+                for inc in incidents
+                if inc.compliance_required
+                or inc.severity in [IncidentSeverity.HIGH, IncidentSeverity.CRITICAL]
             ]
 
             # Compliance status
-            compliant_incidents = [inc for inc in reportable_incidents if inc.compliance_reported]
-            compliance_rate = (len(compliant_incidents) / max(len(reportable_incidents), 1)) * 100
+            compliant_incidents = [
+                inc for inc in reportable_incidents if inc.compliance_reported
+            ]
+            compliance_rate = (
+                len(compliant_incidents) / max(len(reportable_incidents), 1)
+            ) * 100
 
             # Overdue reports
             overdue_incidents = [
-                inc for inc in reportable_incidents
-                if not inc.compliance_reported and
-                inc.date_reported < datetime.utcnow() - timedelta(days=7)  # 7-day reporting window
+                inc
+                for inc in reportable_incidents
+                if not inc.compliance_reported
+                and inc.date_reported
+                < datetime.utcnow() - timedelta(days=7)  # 7-day reporting window
             ]
 
             # Critical incidents requiring immediate attention
@@ -350,7 +415,7 @@ class SafetyAnalyticsService:
                     "date_reported": inc.date_reported.isoformat(),
                     "status": inc.status.value,
                     "compliance_required": inc.compliance_required,
-                    "compliance_reported": inc.compliance_reported
+                    "compliance_reported": inc.compliance_reported,
                 }
                 for inc in incidents
                 if inc.severity == IncidentSeverity.CRITICAL
@@ -372,7 +437,7 @@ class SafetyAnalyticsService:
                 overdue_reports=len(overdue_incidents),
                 critical_incidents=critical_incidents,
                 recommendations=recommendations,
-                next_review_date=next_review_date
+                next_review_date=next_review_date,
             )
 
         except Exception as e:
@@ -385,7 +450,7 @@ class SafetyAnalyticsService:
                 overdue_reports=0,
                 critical_incidents=[],
                 recommendations=["Error generating report"],
-                next_review_date=datetime.utcnow()
+                next_review_date=datetime.utcnow(),
             )
 
     def get_safety_benchmarks(self, organization_id: UUID) -> Dict[str, Any]:
@@ -397,64 +462,129 @@ class SafetyAnalyticsService:
             date_range = (start_date, end_date)
 
             current_metrics = self.get_safety_metrics(organization_id, None, date_range)
-            current_wellness = self.get_wellness_metrics(organization_id, None, date_range)
+            current_wellness = self.get_wellness_metrics(
+                organization_id, None, date_range
+            )
 
             # Compare with benchmarks
             benchmark_comparison = {
                 "incident_rate": {
                     "current": current_metrics.incident_rate,
-                    "benchmark": self.benchmarks['incident_rate'],
-                    "performance": "better" if current_metrics.incident_rate < self.benchmarks['incident_rate'] else "worse",
-                    "percentage_difference": ((self.benchmarks['incident_rate'] - current_metrics.incident_rate) /
-                                            self.benchmarks['incident_rate']) * 100
+                    "benchmark": self.benchmarks["incident_rate"],
+                    "performance": (
+                        "better"
+                        if current_metrics.incident_rate
+                        < self.benchmarks["incident_rate"]
+                        else "worse"
+                    ),
+                    "percentage_difference": (
+                        (
+                            self.benchmarks["incident_rate"]
+                            - current_metrics.incident_rate
+                        )
+                        / self.benchmarks["incident_rate"]
+                    )
+                    * 100,
                 },
                 "resolution_time": {
                     "current": current_metrics.resolution_time_avg,
-                    "benchmark": self.benchmarks['resolution_time'],
-                    "performance": "better" if current_metrics.resolution_time_avg < self.benchmarks['resolution_time'] else "worse",
-                    "percentage_difference": ((self.benchmarks['resolution_time'] - current_metrics.resolution_time_avg) /
-                                            self.benchmarks['resolution_time']) * 100
+                    "benchmark": self.benchmarks["resolution_time"],
+                    "performance": (
+                        "better"
+                        if current_metrics.resolution_time_avg
+                        < self.benchmarks["resolution_time"]
+                        else "worse"
+                    ),
+                    "percentage_difference": (
+                        (
+                            self.benchmarks["resolution_time"]
+                            - current_metrics.resolution_time_avg
+                        )
+                        / self.benchmarks["resolution_time"]
+                    )
+                    * 100,
                 },
                 "compliance_rate": {
                     "current": current_metrics.compliance_rate,
-                    "benchmark": self.benchmarks['compliance_rate'],
-                    "performance": "better" if current_metrics.compliance_rate > self.benchmarks['compliance_rate'] else "worse",
-                    "percentage_difference": ((current_metrics.compliance_rate - self.benchmarks['compliance_rate']) /
-                                            self.benchmarks['compliance_rate']) * 100
+                    "benchmark": self.benchmarks["compliance_rate"],
+                    "performance": (
+                        "better"
+                        if current_metrics.compliance_rate
+                        > self.benchmarks["compliance_rate"]
+                        else "worse"
+                    ),
+                    "percentage_difference": (
+                        (
+                            current_metrics.compliance_rate
+                            - self.benchmarks["compliance_rate"]
+                        )
+                        / self.benchmarks["compliance_rate"]
+                    )
+                    * 100,
                 },
                 "training_completion": {
                     "current": current_metrics.training_completion_rate,
-                    "benchmark": self.benchmarks['training_completion'],
-                    "performance": "better" if current_metrics.training_completion_rate > self.benchmarks['training_completion'] else "worse",
-                    "percentage_difference": ((current_metrics.training_completion_rate - self.benchmarks['training_completion']) /
-                                            self.benchmarks['training_completion']) * 100
+                    "benchmark": self.benchmarks["training_completion"],
+                    "performance": (
+                        "better"
+                        if current_metrics.training_completion_rate
+                        > self.benchmarks["training_completion"]
+                        else "worse"
+                    ),
+                    "percentage_difference": (
+                        (
+                            current_metrics.training_completion_rate
+                            - self.benchmarks["training_completion"]
+                        )
+                        / self.benchmarks["training_completion"]
+                    )
+                    * 100,
                 },
                 "wellness_score": {
                     "current": current_wellness.average_wellness_score,
-                    "benchmark": self.benchmarks['wellness_score'],
-                    "performance": "better" if current_wellness.average_wellness_score > self.benchmarks['wellness_score'] else "worse",
-                    "percentage_difference": ((current_wellness.average_wellness_score - self.benchmarks['wellness_score']) /
-                                            self.benchmarks['wellness_score']) * 100
-                }
+                    "benchmark": self.benchmarks["wellness_score"],
+                    "performance": (
+                        "better"
+                        if current_wellness.average_wellness_score
+                        > self.benchmarks["wellness_score"]
+                        else "worse"
+                    ),
+                    "percentage_difference": (
+                        (
+                            current_wellness.average_wellness_score
+                            - self.benchmarks["wellness_score"]
+                        )
+                        / self.benchmarks["wellness_score"]
+                    )
+                    * 100,
+                },
             }
 
             # Calculate overall performance score
-            better_count = sum(1 for metric in benchmark_comparison.values() if metric["performance"] == "better")
+            better_count = sum(
+                1
+                for metric in benchmark_comparison.values()
+                if metric["performance"] == "better"
+            )
             total_metrics = len(benchmark_comparison)
             overall_performance = (better_count / total_metrics) * 100
 
             return {
                 "benchmark_comparison": benchmark_comparison,
                 "overall_performance_score": overall_performance,
-                "performance_grade": self._calculate_performance_grade(overall_performance),
+                "performance_grade": self._calculate_performance_grade(
+                    overall_performance
+                ),
                 "improvement_areas": [
-                    metric_name for metric_name, data in benchmark_comparison.items()
+                    metric_name
+                    for metric_name, data in benchmark_comparison.items()
                     if data["performance"] == "worse"
                 ],
                 "strength_areas": [
-                    metric_name for metric_name, data in benchmark_comparison.items()
+                    metric_name
+                    for metric_name, data in benchmark_comparison.items()
                     if data["performance"] == "better"
-                ]
+                ],
             }
 
         except Exception as e:
@@ -463,12 +593,13 @@ class SafetyAnalyticsService:
 
     # Helper Methods
 
-    def _get_employee_count(self, organization_id: UUID, team_id: Optional[UUID] = None) -> int:
+    def _get_employee_count(
+        self, organization_id: UUID, team_id: Optional[UUID] = None
+    ) -> int:
         """Get employee count for organization or team"""
         try:
             query = self.db.query(func.count(User.id)).filter(
-                User.organization_id == organization_id,
-                User.is_active == True
+                User.organization_id == organization_id, User.is_active == True
             )
 
             if team_id:
@@ -480,18 +611,26 @@ class SafetyAnalyticsService:
         except Exception:
             return 0
 
-    def _identify_repeat_incidents(self, incidents: List[SafetyIncident]) -> List[SafetyIncident]:
+    def _identify_repeat_incidents(
+        self, incidents: List[SafetyIncident]
+    ) -> List[SafetyIncident]:
         """Identify repeat incidents (same type, same user/team within 30 days)"""
         repeat_incidents = []
 
         for incident in incidents:
             # Look for similar incidents within 30 days
             similar_incidents = [
-                inc for inc in incidents
-                if (inc.incident_type == incident.incident_type and
-                    inc.date_reported < incident.date_reported and
-                    (incident.date_reported - inc.date_reported).days <= 30 and
-                    (inc.affected_user_id == incident.affected_user_id or inc.team_id == incident.team_id))
+                inc
+                for inc in incidents
+                if (
+                    inc.incident_type == incident.incident_type
+                    and inc.date_reported < incident.date_reported
+                    and (incident.date_reported - inc.date_reported).days <= 30
+                    and (
+                        inc.affected_user_id == incident.affected_user_id
+                        or inc.team_id == incident.team_id
+                    )
+                )
             ]
 
             if similar_incidents:
@@ -499,17 +638,25 @@ class SafetyAnalyticsService:
 
         return repeat_incidents
 
-    def _calculate_training_completion_rate(self, organization_id: UUID, date_range: Tuple[datetime, datetime],
-                                          team_id: Optional[UUID] = None) -> float:
+    def _calculate_training_completion_rate(
+        self,
+        organization_id: UUID,
+        date_range: Tuple[datetime, datetime],
+        team_id: Optional[UUID] = None,
+    ) -> float:
         """Calculate safety training completion rate"""
         try:
             start_date, end_date = date_range
 
             # Get required training completions in period
-            query = self.db.query(SafetyTrainingCompletion).join(SafetyTraining).filter(
-                SafetyTraining.organization_id == organization_id,
-                SafetyTrainingCompletion.completion_date >= start_date,
-                SafetyTrainingCompletion.completion_date <= end_date
+            query = (
+                self.db.query(SafetyTrainingCompletion)
+                .join(SafetyTraining)
+                .filter(
+                    SafetyTraining.organization_id == organization_id,
+                    SafetyTrainingCompletion.completion_date >= start_date,
+                    SafetyTrainingCompletion.completion_date <= end_date,
+                )
             )
 
             # Get total required training assignments
@@ -519,7 +666,9 @@ class SafetyAnalyticsService:
                 return 100.0  # No training required in period
 
             # Get passed completions
-            passed_assignments = query.filter(SafetyTrainingCompletion.passed == True).count()
+            passed_assignments = query.filter(
+                SafetyTrainingCompletion.passed == True
+            ).count()
 
             return (passed_assignments / total_assignments) * 100
 
@@ -541,8 +690,14 @@ class SafetyAnalyticsService:
             second_half = assessments[mid_point:]
 
             # Calculate average scores
-            first_avg = sum(a.overall_wellness_score for a in first_half if a.overall_wellness_score) / len(first_half)
-            second_avg = sum(a.overall_wellness_score for a in second_half if a.overall_wellness_score) / len(second_half)
+            first_avg = sum(
+                a.overall_wellness_score for a in first_half if a.overall_wellness_score
+            ) / len(first_half)
+            second_avg = sum(
+                a.overall_wellness_score
+                for a in second_half
+                if a.overall_wellness_score
+            ) / len(second_half)
 
             # Determine trend
             if second_avg > first_avg * 1.05:
@@ -555,7 +710,9 @@ class SafetyAnalyticsService:
         except Exception:
             return "error"
 
-    def _identify_key_risk_factors(self, assessments: List[WellnessAssessment]) -> List[str]:
+    def _identify_key_risk_factors(
+        self, assessments: List[WellnessAssessment]
+    ) -> List[str]:
         """Identify most common risk factors across assessments"""
         try:
             risk_factor_counts = {}
@@ -563,16 +720,22 @@ class SafetyAnalyticsService:
             for assessment in assessments:
                 if assessment.risk_factors:
                     for factor in assessment.risk_factors:
-                        risk_factor_counts[factor] = risk_factor_counts.get(factor, 0) + 1
+                        risk_factor_counts[factor] = (
+                            risk_factor_counts.get(factor, 0) + 1
+                        )
 
             # Sort by frequency and return top 5
-            sorted_factors = sorted(risk_factor_counts.items(), key=lambda x: x[1], reverse=True)
+            sorted_factors = sorted(
+                risk_factor_counts.items(), key=lambda x: x[1], reverse=True
+            )
             return [factor for factor, count in sorted_factors[:5]]
 
         except Exception:
             return []
 
-    def _calculate_department_wellness(self, assessments: List[WellnessAssessment]) -> Dict[str, float]:
+    def _calculate_department_wellness(
+        self, assessments: List[WellnessAssessment]
+    ) -> Dict[str, float]:
         """Calculate average wellness scores by department"""
         try:
             department_scores = {}
@@ -581,7 +744,9 @@ class SafetyAnalyticsService:
             for assessment in assessments:
                 if assessment.overall_wellness_score:
                     # Get department name from team or user
-                    dept_name = "General"  # Default - would need to implement department lookup
+                    dept_name = (
+                        "General"  # Default - would need to implement department lookup
+                    )
 
                     if dept_name not in department_scores:
                         department_scores[dept_name] = 0
@@ -600,8 +765,12 @@ class SafetyAnalyticsService:
         except Exception:
             return {}
 
-    def _calculate_intervention_effectiveness(self, organization_id: UUID, date_range: Tuple[datetime, datetime],
-                                            team_id: Optional[UUID] = None) -> float:
+    def _calculate_intervention_effectiveness(
+        self,
+        organization_id: UUID,
+        date_range: Tuple[datetime, datetime],
+        team_id: Optional[UUID] = None,
+    ) -> float:
         """Calculate effectiveness of wellness interventions"""
         try:
             # This would involve tracking wellness before and after interventions
@@ -610,27 +779,49 @@ class SafetyAnalyticsService:
         except Exception:
             return 0.0
 
-    def _generate_compliance_recommendations(self, incidents: List[SafetyIncident],
-                                           compliance_rate: float, overdue_count: int) -> List[str]:
+    def _generate_compliance_recommendations(
+        self,
+        incidents: List[SafetyIncident],
+        compliance_rate: float,
+        overdue_count: int,
+    ) -> List[str]:
         """Generate compliance improvement recommendations"""
         recommendations = []
 
         if compliance_rate < 80:
             recommendations.append("Implement automated compliance reporting system")
-            recommendations.append("Schedule regular compliance training for safety managers")
+            recommendations.append(
+                "Schedule regular compliance training for safety managers"
+            )
 
         if overdue_count > 0:
-            recommendations.append(f"Address {overdue_count} overdue compliance reports immediately")
-            recommendations.append("Establish compliance reporting reminders and escalation procedures")
+            recommendations.append(
+                f"Address {overdue_count} overdue compliance reports immediately"
+            )
+            recommendations.append(
+                "Establish compliance reporting reminders and escalation procedures"
+            )
 
-        critical_incidents = [inc for inc in incidents if inc.severity == IncidentSeverity.CRITICAL]
+        critical_incidents = [
+            inc for inc in incidents if inc.severity == IncidentSeverity.CRITICAL
+        ]
         if len(critical_incidents) > 0:
-            recommendations.append("Review and update critical incident response procedures")
-            recommendations.append("Conduct root cause analysis for all critical incidents")
+            recommendations.append(
+                "Review and update critical incident response procedures"
+            )
+            recommendations.append(
+                "Conduct root cause analysis for all critical incidents"
+            )
 
-        high_severity_incidents = [inc for inc in incidents if inc.severity == IncidentSeverity.HIGH]
-        if len(high_severity_incidents) > len(incidents) * 0.2:  # More than 20% high severity
-            recommendations.append("Implement additional preventive measures for high-risk activities")
+        high_severity_incidents = [
+            inc for inc in incidents if inc.severity == IncidentSeverity.HIGH
+        ]
+        if (
+            len(high_severity_incidents) > len(incidents) * 0.2
+        ):  # More than 20% high severity
+            recommendations.append(
+                "Implement additional preventive measures for high-risk activities"
+            )
             recommendations.append("Review safety protocols and PPE requirements")
 
         if not recommendations:

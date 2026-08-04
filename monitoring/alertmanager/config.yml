@@ -1,0 +1,145 @@
+# AlertManager Configuration for PsychSync
+#
+# This configuration routes alerts from Prometheus to appropriate
+# notification channels (Slack, Email, etc.)
+#
+# Author: Infrastructure Team
+# Version: 1.0.0
+# Date: February 10, 2026
+
+global:
+  # Global timeout for resolving alerts
+  resolve_timeout: 5m
+
+  # Slack configuration (read from environment)
+  slack_api_url: 'YOUR_SLACK_WEBHOOK_URL'
+
+  # SMTP configuration for email alerts
+  smtp_smarthost: 'smtp.gmail.com:587'
+  smtp_from: 'alerts@psychsync.io'
+  smtp_auth_username: 'alerts@psychsync.io'
+  smtp_auth_password: 'YOUR_EMAIL_PASSWORD'
+
+# Route configuration - defines how alerts are grouped and routed
+route:
+  # Default receiver for all alerts
+  receiver: 'default'
+
+  # Group alerts by these labels
+  group_by: ['alertname', 'cluster', 'service']
+
+  # Wait time before sending first notification for a new group
+  group_wait: 10s
+
+  # Wait time before sending notification about new alerts in an existing group
+  group_interval: 5m
+
+  # Wait time before re-sending a notification after it's been resolved
+  repeat_interval: 12h
+
+  # Child routes for specific alert types
+  routes:
+    # Critical alerts go to critical channel with immediate notification
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 0s  # Send immediately
+      continue: true
+
+    # DLQ alerts go to the DLQ team channel
+    - match:
+        alert_type: dlq
+      receiver: 'dlq-team'
+      group_by: ['alertname', 'component']
+
+    # Consumer lag alerts go to the operations team
+    - match:
+        alert_type: consumer
+      receiver: 'operations-team'
+
+    # Message loss alerts are critical
+    - match:
+        alert_type: data_loss
+      receiver: 'critical-alerts'
+      group_wait: 0s
+
+    # Queue health alerts go to operations
+    - match:
+        alert_type: health
+      receiver: 'operations-team'
+
+# Receivers - define where notifications are sent
+receivers:
+  # Default receiver - general alerts channel
+  - name: 'default'
+    slack_configs:
+      - channel: '#psychsync-alerts'
+        title: 'PsychSync Alert'
+        text: |
+          *Summary:* {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}
+          *Description:* {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
+          *Severity:* {{ .CommonLabels.severity }}
+        color: '{{ if eq .CommonLabels.severity "critical" }}danger{{ else }}warning{{ end }}'
+        send_resolved: true
+
+  # Critical alerts - urgent notification channel
+  - name: 'critical-alerts'
+    slack_configs:
+      - channel: '#psychsync-critical'
+        title: '🔴 CRITICAL: PsychSync Alert'
+        text: |
+          *Alert:* {{ .CommonLabels.alertname }}
+          *Severity:* {{ .CommonLabels.severity }}
+          *Description:* {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
+          *Runbook:* {{ range .Alerts }}{{ .Annotations.runbook_url }}{{ end }}
+        color: 'danger'
+        send_resolved: true
+    email_configs:
+      - to: 'ops@psychsync.io,devops@psychsync.io'
+        subject: '🔴 CRITICAL: {{ .GroupLabels.alertname }}'
+        body: |
+          Alert: {{ .CommonLabels.alertname }}
+          Severity: {{ .CommonLabels.severity }}
+          Description: {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
+          Runbook: {{ range .Alerts }}{{ .Annotations.runbook_url }}{{ end }}
+        send_resolved: true
+
+  # DLQ team - dedicated DLQ monitoring channel
+  - name: 'dlq-team'
+    slack_configs:
+      - channel: '#psychsync-dlq'
+        title: 'Dead Letter Queue Alert'
+        text: |
+          *Component:* {{ .CommonLabels.component }}
+          *Summary:* {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}
+          *Description:* {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
+        color: 'warning'
+        send_resolved: true
+
+  # Operations team - general operations alerts
+  - name: 'operations-team'
+    slack_configs:
+      - channel: '#psychsync-ops'
+        title: 'Operations Alert'
+        text: |
+          *Alert:* {{ .CommonLabels.alertname }}
+          *Component:* {{ .CommonLabels.component }}
+          *Description:* {{ range .Alerts }}{{ .Annotations.description }}{{ end }}
+        color: 'warning'
+        send_resolved: true
+
+# Inhibition rules - suppress certain alerts when others are firing
+inhibit_rules:
+  # Inhibit warning alerts if critical alert is already firing for the same component
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'component']
+
+  # Inhibit DLQ size warning if DLQ size critical is firing
+  - source_match:
+      alertname: 'KafkaDLQSizeCritical'
+    target_match:
+      alertname: 'KafkaDLQSizeWarning'
+    equal: ['component']

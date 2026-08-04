@@ -3,9 +3,9 @@ Employee Safety Service
 Comprehensive safety management, incident tracking, and wellness monitoring service
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-import logging
 from typing import Any
 from uuid import UUID
 
@@ -79,14 +79,26 @@ class EmployeeSafetyService:
         self.wellness_thresholds = {
             "stress_level": {"elevated": 7.0, "high": 8.5, "critical": 9.5},
             "burnout_risk": {"elevated": 0.6, "high": 0.8, "critical": 0.9},
-            "work_life_balance": {"elevated": 4.0, "high": 3.0, "critical": 2.0},  # Lower is worse
+            "work_life_balance": {
+                "elevated": 4.0,
+                "high": 3.0,
+                "critical": 2.0,
+            },  # Lower is worse
             "mental_health_score": {
                 "elevated": 5.0,
                 "high": 4.0,
                 "critical": 3.0,
             },  # Lower is worse
-            "sleep_quality": {"elevated": 5.0, "high": 4.0, "critical": 3.0},  # Lower is worse
-            "engagement_level": {"elevated": 5.0, "high": 4.0, "critical": 3.0},  # Lower is worse
+            "sleep_quality": {
+                "elevated": 5.0,
+                "high": 4.0,
+                "critical": 3.0,
+            },  # Lower is worse
+            "engagement_level": {
+                "elevated": 5.0,
+                "high": 4.0,
+                "critical": 3.0,
+            },  # Lower is worse
         }
 
     # Incident Reporting and Management
@@ -135,7 +147,9 @@ class EmployeeSafetyService:
                 ]
                 and incident_data.affected_user_id
             ):
-                await self._trigger_wellness_assessment(incident_data.affected_user_id, incident.id)
+                await self._trigger_wellness_assessment(
+                    incident_data.affected_user_id, incident.id
+                )
 
             # Send notifications
             await self._send_incident_notifications(incident)
@@ -155,9 +169,15 @@ class EmployeeSafetyService:
             self.db.rollback()
             return {"success": False, "error": f"Failed to report incident: {e!s}"}
 
-    async def get_incident(self, incident_id: UUID, user_id: UUID) -> dict[str, Any] | None:
+    async def get_incident(
+        self, incident_id: UUID, user_id: UUID
+    ) -> dict[str, Any] | None:
         """Get incident details with appropriate access control"""
-        incident = self.db.query(SafetyIncident).filter(SafetyIncident.id == incident_id).first()
+        incident = (
+            self.db.query(SafetyIncident)
+            .filter(SafetyIncident.id == incident_id)
+            .first()
+        )
 
         if not incident:
             return None
@@ -178,7 +198,9 @@ class EmployeeSafetyService:
         """Update incident status during investigation"""
         try:
             incident = (
-                self.db.query(SafetyIncident).filter(SafetyIncident.id == incident_id).first()
+                self.db.query(SafetyIncident)
+                .filter(SafetyIncident.id == incident_id)
+                .first()
             )
 
             if not incident:
@@ -259,7 +281,9 @@ class EmployeeSafetyService:
 
             # Recent incidents (last 7 days)
             seven_days_ago = datetime.utcnow() - timedelta(days=7)
-            recent_incidents = [inc for inc in incidents if inc.date_reported >= seven_days_ago]
+            recent_incidents = [
+                inc for inc in incidents if inc.date_reported >= seven_days_ago
+            ]
 
             # Critical incidents requiring attention
             critical_incidents = [
@@ -332,7 +356,9 @@ class EmployeeSafetyService:
 
             # Create alerts if needed
             if alert_level in [AlertLevel.HIGH, AlertLevel.CRITICAL]:
-                await self._create_wellness_alerts(assessment, alert_level, risk_factors)
+                await self._create_wellness_alerts(
+                    assessment, alert_level, risk_factors
+                )
 
             logger.info(
                 f"Wellness assessment created for user {assessment_data.user_id}: score {overall_score}"
@@ -387,7 +413,9 @@ class EmployeeSafetyService:
 
             # High-risk employees
             high_risk_assessments = [
-                a for a in assessments if a.alert_level in [AlertLevel.HIGH, AlertLevel.CRITICAL]
+                a
+                for a in assessments
+                if a.alert_level in [AlertLevel.HIGH, AlertLevel.CRITICAL]
             ]
 
             # Trends over time
@@ -395,7 +423,9 @@ class EmployeeSafetyService:
 
             return {
                 "total_assessments": total_assessments,
-                "high_risk_employees": len(set(a.user_id for a in high_risk_assessments)),
+                "high_risk_employees": len(
+                    set(a.user_id for a in high_risk_assessments)
+                ),
                 "average_scores": average_scores,
                 "alert_breakdown": alert_breakdown,
                 "weekly_trends": weekly_trends,
@@ -413,7 +443,9 @@ class EmployeeSafetyService:
     ) -> list[dict[str, Any]]:
         """Get wellness assessment history for a specific employee"""
         try:
-            query = self.db.query(WellnessAssessment).filter(WellnessAssessment.user_id == user_id)
+            query = self.db.query(WellnessAssessment).filter(
+                WellnessAssessment.user_id == user_id
+            )
 
             if date_range:
                 start_date, end_date = date_range
@@ -457,7 +489,8 @@ class EmployeeSafetyService:
                 is_public=is_public,
                 tags=tags or [],
                 last_reviewed=datetime.utcnow(),
-                next_review_date=datetime.utcnow() + timedelta(days=365),  # Annual review
+                next_review_date=datetime.utcnow()
+                + timedelta(days=365),  # Annual review
             )
 
             self.db.add(resource)
@@ -552,7 +585,9 @@ class EmployeeSafetyService:
                 self.db.query(Team)
                 .filter(
                     Team.id == incident.team_id,
-                    Team.members.any(user_id=user_id),  # Assuming members relationship exists
+                    Team.members.any(
+                        user_id=user_id
+                    ),  # Assuming members relationship exists
                 )
                 .first()
             )
@@ -573,24 +608,32 @@ class EmployeeSafetyService:
             "title": incident.title,
             "description": incident.description,
             "location": incident.location,
-            "date_occurred": incident.date_occurred.isoformat() if incident.date_occurred else None,
-            "date_reported": incident.date_reported.isoformat() if incident.date_reported else None,
+            "date_occurred": (
+                incident.date_occurred.isoformat() if incident.date_occurred else None
+            ),
+            "date_reported": (
+                incident.date_reported.isoformat() if incident.date_reported else None
+            ),
             "reporter_id": str(incident.reporter_id) if incident.reporter_id else None,
-            "affected_user_id": str(incident.affected_user_id)
-            if incident.affected_user_id
-            else None,
+            "affected_user_id": (
+                str(incident.affected_user_id) if incident.affected_user_id else None
+            ),
             "organization_id": str(incident.organization_id),
             "team_id": str(incident.team_id) if incident.team_id else None,
             "witnesses": incident.witnesses,
             "evidence_files": incident.evidence_files,
             "immediate_actions": incident.immediate_actions,
-            "investigator_id": str(incident.investigator_id) if incident.investigator_id else None,
+            "investigator_id": (
+                str(incident.investigator_id) if incident.investigator_id else None
+            ),
             "investigation_notes": incident.investigation_notes,
             "root_cause": incident.root_cause,
             "prevention_measures": incident.prevention_measures,
-            "resolution_date": incident.resolution_date.isoformat()
-            if incident.resolution_date
-            else None,
+            "resolution_date": (
+                incident.resolution_date.isoformat()
+                if incident.resolution_date
+                else None
+            ),
             "resolution_details": incident.resolution_details,
             "lessons_learned": incident.lessons_learned,
             "compliance_required": incident.compliance_required,
@@ -599,7 +642,9 @@ class EmployeeSafetyService:
             "updated_at": incident.updated_at.isoformat(),
         }
 
-    def _serialize_wellness_assessment(self, assessment: WellnessAssessment) -> dict[str, Any]:
+    def _serialize_wellness_assessment(
+        self, assessment: WellnessAssessment
+    ) -> dict[str, Any]:
         """Serialize wellness assessment for API response"""
         return {
             "id": str(assessment.id),
@@ -648,17 +693,25 @@ class EmployeeSafetyService:
             "tags": resource.tags,
             "language": resource.language,
             "view_count": resource.view_count,
-            "last_accessed": resource.last_accessed.isoformat() if resource.last_accessed else None,
-            "last_reviewed": resource.last_reviewed.isoformat() if resource.last_reviewed else None,
-            "next_review_date": resource.next_review_date.isoformat()
-            if resource.next_review_date
-            else None,
+            "last_accessed": (
+                resource.last_accessed.isoformat() if resource.last_accessed else None
+            ),
+            "last_reviewed": (
+                resource.last_reviewed.isoformat() if resource.last_reviewed else None
+            ),
+            "next_review_date": (
+                resource.next_review_date.isoformat()
+                if resource.next_review_date
+                else None
+            ),
             "created_at": resource.created_at.isoformat(),
         }
 
     # Private helper methods for wellness calculations
 
-    def _calculate_wellness_score(self, assessment_data: WellnessAssessmentData) -> float:
+    def _calculate_wellness_score(
+        self, assessment_data: WellnessAssessmentData
+    ) -> float:
         """Calculate overall wellness score from individual metrics"""
         metrics = [
             assessment_data.stress_level,
@@ -723,14 +776,24 @@ class EmployeeSafetyService:
                         max_alert_level = max(
                             max_alert_level,
                             AlertLevel.HIGH,
-                            key=lambda x: ["normal", "elevated", "high", "critical"].index(x.value),
+                            key=lambda x: [
+                                "normal",
+                                "elevated",
+                                "high",
+                                "critical",
+                            ].index(x.value),
                         )
                     elif value <= thresholds["elevated"]:
                         risk_factors.append(f"Elevated {metric_name.replace('_', ' ')}")
                         max_alert_level = max(
                             max_alert_level,
                             AlertLevel.ELEVATED,
-                            key=lambda x: ["normal", "elevated", "high", "critical"].index(x.value),
+                            key=lambda x: [
+                                "normal",
+                                "elevated",
+                                "high",
+                                "critical",
+                            ].index(x.value),
                         )
                 # For metrics where higher is worse (stress, burnout)
                 elif value >= thresholds["critical"]:
@@ -741,18 +804,25 @@ class EmployeeSafetyService:
                     max_alert_level = max(
                         max_alert_level,
                         AlertLevel.HIGH,
-                        key=lambda x: ["normal", "elevated", "high", "critical"].index(x.value),
+                        key=lambda x: ["normal", "elevated", "high", "critical"].index(
+                            x.value
+                        ),
                     )
                 elif value >= thresholds["elevated"]:
                     risk_factors.append(f"Elevated {metric_name.replace('_', ' ')}")
                     max_alert_level = max(
                         max_alert_level,
                         AlertLevel.ELEVATED,
-                        key=lambda x: ["normal", "elevated", "high", "critical"].index(x.value),
+                        key=lambda x: ["normal", "elevated", "high", "critical"].index(
+                            x.value
+                        ),
                     )
 
         # Additional risk factors
-        if assessment_data.work_hours_per_week and assessment_data.work_hours_per_week > 55:
+        if (
+            assessment_data.work_hours_per_week
+            and assessment_data.work_hours_per_week > 55
+        ):
             risk_factors.append("Excessive work hours")
             max_alert_level = max(
                 max_alert_level,
@@ -834,7 +904,10 @@ class EmployeeSafetyService:
         return insights, recommendations
 
     async def _create_wellness_alerts(
-        self, assessment: WellnessAssessment, alert_level: AlertLevel, risk_factors: list[str]
+        self,
+        assessment: WellnessAssessment,
+        alert_level: AlertLevel,
+        risk_factors: list[str],
     ) -> None:
         """Create wellness alerts for high-risk assessments"""
         try:
@@ -848,7 +921,9 @@ class EmployeeSafetyService:
                     title=f"Wellness Alert: {risk_factor}",
                     message=f"Concern detected in {risk_factor.lower()}. Immediate attention recommended.",
                     trigger_metrics={
-                        risk_factor.lower(): getattr(assessment, risk_factor.lower(), None)
+                        risk_factor.lower(): getattr(
+                            assessment, risk_factor.lower(), None
+                        )
                     },
                     recommended_actions=[
                         "Schedule check-in with manager",
@@ -872,7 +947,9 @@ class EmployeeSafetyService:
         """Escalate critical incidents to appropriate personnel"""
         # Implementation for incident escalation
 
-    async def _trigger_wellness_assessment(self, user_id: UUID, incident_id: UUID) -> None:
+    async def _trigger_wellness_assessment(
+        self, user_id: UUID, incident_id: UUID
+    ) -> None:
         """Trigger wellness assessment after psychological incident"""
         # Implementation for wellness assessment trigger
 
@@ -917,16 +994,24 @@ class EmployeeSafetyService:
 
         averages = {}
         for metric in metrics:
-            values = [getattr(a, metric) for a in assessments if getattr(a, metric) is not None]
+            values = [
+                getattr(a, metric)
+                for a in assessments
+                if getattr(a, metric) is not None
+            ]
             if values:
                 averages[metric] = round(sum(values) / len(values), 2)
 
         # Add overall score
         overall_scores = [
-            a.overall_wellness_score for a in assessments if a.overall_wellness_score is not None
+            a.overall_wellness_score
+            for a in assessments
+            if a.overall_wellness_score is not None
         ]
         if overall_scores:
-            averages["overall_score"] = round(sum(overall_scores) / len(overall_scores), 2)
+            averages["overall_score"] = round(
+                sum(overall_scores) / len(overall_scores), 2
+            )
 
         return averages
 

@@ -7,18 +7,21 @@ All actions must be logged and verified
 """
 
 import logging
-from typing import List, Dict, Optional
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional
 from uuid import uuid4
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from fastapi import BackgroundTasks
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.clinical_screening import ClinicalAlert, ClinicalReferral, ClinicalAuditLog
 from app.core.config import settings
+from app.db.models.clinical_screening import (
+    ClinicalAlert,
+    ClinicalAuditLog,
+    ClinicalReferral,
+)
 from app.services.email_service import EmailService
-
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +53,7 @@ class CrisisInterventionService:
         org_id: uuid4,
         risk_level: str,
         risk_flags: List[str],
-        screening_data: Dict
+        screening_data: Dict,
     ) -> ClinicalAlert:
         """
         Create clinical crisis alert
@@ -80,7 +83,7 @@ class CrisisInterventionService:
             alert_type=alert_type,
             severity=risk_level,
             alert_message=alert_message,
-            resolution_status="pending"
+            resolution_status="pending",
         )
 
         self.db.add(alert)
@@ -95,11 +98,13 @@ class CrisisInterventionService:
             details={
                 "risk_level": risk_level,
                 "risk_flags": risk_flags,
-                "screening_type": screening_data.get("screening_type")
-            }
+                "screening_type": screening_data.get("screening_type"),
+            },
         )
 
-        logger.critical(f"Crisis alert created: {alert.id} for user {user_id} - Risk: {risk_level}")
+        logger.critical(
+            f"Crisis alert created: {alert.id} for user {user_id} - Risk: {risk_level}"
+        )
 
         return alert
 
@@ -108,7 +113,7 @@ class CrisisInterventionService:
         alert: ClinicalAlert,
         background_tasks: BackgroundTasks,
         user_email: Optional[str] = None,
-        user_name: Optional[str] = None
+        user_name: Optional[str] = None,
     ):
         """
         Activate appropriate crisis protocol based on risk level
@@ -122,20 +127,28 @@ class CrisisInterventionService:
         risk_level = alert.severity.upper()
 
         if risk_level == "CRITICAL":
-            await self._activate_level_1_protocol(alert, user_email, user_name, background_tasks)
+            await self._activate_level_1_protocol(
+                alert, user_email, user_name, background_tasks
+            )
         elif risk_level == "HIGH":
-            await self._activate_level_2_protocol(alert, user_email, user_name, background_tasks)
+            await self._activate_level_2_protocol(
+                alert, user_email, user_name, background_tasks
+            )
         elif risk_level == "MODERATE":
-            await self._activate_level_3_protocol(alert, user_email, user_name, background_tasks)
+            await self._activate_level_3_protocol(
+                alert, user_email, user_name, background_tasks
+            )
         else:
-            await self._activate_level_4_protocol(alert, user_email, user_name, background_tasks)
+            await self._activate_level_4_protocol(
+                alert, user_email, user_name, background_tasks
+            )
 
     async def _activate_level_1_protocol(
         self,
         alert: ClinicalAlert,
         user_email: Optional[str],
         user_name: Optional[str],
-        background_tasks: BackgroundTasks
+        background_tasks: BackgroundTasks,
     ):
         """
         Level 1: IMMEDIATE DANGER (Minutes)
@@ -159,14 +172,12 @@ class CrisisInterventionService:
                 self._send_crisis_notification,
                 user_email,
                 user_name or "there",
-                alert.alert_message
+                alert.alert_message,
             )
 
         # 2. Page on-call clinician (implement based on your notification system)
         background_tasks.add_task(
-            self._page_on_call_clinician,
-            alert.id,
-            alert.severity
+            self._page_on_call_clinician, alert.id, alert.severity
         )
 
         # 3. Create emergency referral
@@ -178,7 +189,7 @@ class CrisisInterventionService:
             urgency="emergency",
             status="pending",
             follow_up_required=True,
-            follow_up_date=datetime.utcnow() + timedelta(hours=24)
+            follow_up_date=datetime.utcnow() + timedelta(hours=24),
         )
         self.db.add(referral)
         await self.db.commit()
@@ -194,9 +205,9 @@ class CrisisInterventionService:
                     "User notified with crisis resources",
                     "On-call clinician paged",
                     "Emergency referral created",
-                    "Crisis hotline information provided"
-                ]
-            }
+                    "Crisis hotline information provided",
+                ],
+            },
         )
 
     async def _activate_level_2_protocol(
@@ -204,7 +215,7 @@ class CrisisInterventionService:
         alert: ClinicalAlert,
         user_email: Optional[str],
         user_name: Optional[str],
-        background_tasks: BackgroundTasks
+        background_tasks: BackgroundTasks,
     ):
         """
         Level 2: HIGH RISK (Hours)
@@ -223,15 +234,13 @@ class CrisisInterventionService:
                 self._send_mental_health_resources,
                 user_email,
                 user_name or "there",
-                alert.alert_message
+                alert.alert_message,
             )
 
         # 2. Schedule clinician outreach (within 2 hours)
         # Implementation depends on your scheduling system
         await self._schedule_clinician_outreach(
-            alert.user_id,
-            within_hours=2,
-            priority="high"
+            alert.user_id, within_hours=2, priority="high"
         )
 
         # 3. Create urgent referral
@@ -243,7 +252,7 @@ class CrisisInterventionService:
             urgency="urgent",
             status="pending",
             follow_up_required=True,
-            follow_up_date=datetime.utcnow() + timedelta(hours=48)
+            follow_up_date=datetime.utcnow() + timedelta(hours=48),
         )
         self.db.add(referral)
         await self.db.commit()
@@ -252,7 +261,7 @@ class CrisisInterventionService:
             entity_type="alert",
             entity_id=alert.id,
             action="high_risk_protocol_activated",
-            details={"level": 2}
+            details={"level": 2},
         )
 
     async def _activate_level_3_protocol(
@@ -260,7 +269,7 @@ class CrisisInterventionService:
         alert: ClinicalAlert,
         user_email: Optional[str],
         user_name: Optional[str],
-        background_tasks: BackgroundTasks
+        background_tasks: BackgroundTasks,
     ):
         """
         Level 3: MODERATE RISK (Days)
@@ -274,9 +283,7 @@ class CrisisInterventionService:
 
         if user_email:
             background_tasks.add_task(
-                self._send_wellness_resources,
-                user_email,
-                user_name or "there"
+                self._send_wellness_resources, user_email, user_name or "there"
             )
 
         # Create routine referral
@@ -288,7 +295,7 @@ class CrisisInterventionService:
             urgency="routine",
             status="pending",
             follow_up_required=True,
-            follow_up_date=datetime.utcnow() + timedelta(days=7)
+            follow_up_date=datetime.utcnow() + timedelta(days=7),
         )
         self.db.add(referral)
         await self.db.commit()
@@ -298,7 +305,7 @@ class CrisisInterventionService:
         alert: ClinicalAlert,
         user_email: Optional[str],
         user_name: Optional[str],
-        background_tasks: BackgroundTasks
+        background_tasks: BackgroundTasks,
     ):
         """
         Level 4: LOW RISK / MONITORING (Weeks)
@@ -311,9 +318,7 @@ class CrisisInterventionService:
 
         if user_email:
             background_tasks.add_task(
-                self._send_self_help_resources,
-                user_email,
-                user_name or "there"
+                self._send_self_help_resources, user_email, user_name or "there"
             )
 
     # ==========================================================================
@@ -321,10 +326,7 @@ class CrisisInterventionService:
     # ==========================================================================
 
     async def _send_crisis_notification(
-        self,
-        email: str,
-        name: str,
-        alert_message: str
+        self, email: str, name: str, alert_message: str
     ):
         """Send crisis notification with immediate resources"""
         subject = "🚨 Immediate Support Available"
@@ -348,19 +350,14 @@ Please reach out to one of these resources now. They are trained to help.
 
         try:
             await self.email_service.send_email(
-                email_to=email,
-                subject=subject,
-                body=resources
+                email_to=email, subject=subject, body=resources
             )
             logger.info(f"Crisis notification sent to {email}")
         except Exception as e:
             logger.error(f"Failed to send crisis notification: {e}")
 
     async def _send_mental_health_resources(
-        self,
-        email: str,
-        name: str,
-        alert_message: str
+        self, email: str, name: str, alert_message: str
     ):
         """Send mental health resources for high risk"""
         subject = "Mental Health Resources Available"
@@ -382,7 +379,9 @@ We recommend connecting with a mental health professional within the next 48 hou
 You don't have to face this alone.
         """
 
-        await self.email_service.send_email(email_to=email, subject=subject, body=resources)
+        await self.email_service.send_email(
+            email_to=email, subject=subject, body=resources
+        )
 
     async def _send_wellness_resources(self, email: str, name: str):
         """Send wellness resources for moderate risk"""
@@ -401,7 +400,7 @@ Here are some resources that might help:
 • Support Groups: NAMI (nami.org)
 
 Taking care of your mental health is important. Consider reaching out to a professional.
-            """
+            """,
         )
 
     async def _send_self_help_resources(self, email: str, name: str):
@@ -421,7 +420,7 @@ Here are some resources for maintaining good mental health:
 • Apps: Moodfit, Sanvello, Woebot
 
 Remember to take breaks, stay connected, and reach out if you need support.
-            """
+            """,
         )
 
     # ==========================================================================
@@ -439,13 +438,12 @@ Remember to take breaks, stay connected, and reach out if you need support.
         - Phone call
         """
         # TODO: Implement based on your notification system
-        logger.critical(f"On-call clinician paged for alert {alert_id} - Severity: {severity}")
+        logger.critical(
+            f"On-call clinician paged for alert {alert_id} - Severity: {severity}"
+        )
 
     async def _schedule_clinician_outreach(
-        self,
-        user_id: uuid4,
-        within_hours: int,
-        priority: str
+        self, user_id: uuid4, within_hours: int, priority: str
     ):
         """
         Schedule clinician to reach out to user
@@ -453,7 +451,9 @@ Remember to take breaks, stay connected, and reach out if you need support.
         Implementation depends on your scheduling/case management system
         """
         # TODO: Implement based on your scheduling system
-        logger.info(f"Clinician outreach scheduled for user {user_id} within {within_hours}h")
+        logger.info(
+            f"Clinician outreach scheduled for user {user_id} within {within_hours}h"
+        )
 
     # ==========================================================================
     # UTILITY METHODS
@@ -468,18 +468,14 @@ Remember to take breaks, stay connected, and reach out if you need support.
             "PASSIVE_SUICIDE_IDEATION": "Thoughts of death reported",
             "SEVERE_DEPRESSION": "Severe depression symptoms detected",
             "SEVERE_ANXIETY": "Severe anxiety symptoms detected",
-            "CLINICALLY_SIGNIFICANT_ANXIETY": "Clinically significant anxiety detected"
+            "CLINICALLY_SIGNIFICANT_ANXIETY": "Clinically significant anxiety detected",
         }
 
         primary_flag = risk_flags[0] if risk_flags else "GENERAL_CONCERN"
         return messages.get(primary_flag, "Mental health concern identified")
 
     async def _audit_log(
-        self,
-        entity_type: str,
-        entity_id: uuid4,
-        action: str,
-        details: Dict
+        self, entity_type: str, entity_id: uuid4, action: str, details: Dict
     ):
         """
         Log clinical action for HIPAA compliance

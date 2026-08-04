@@ -17,13 +17,13 @@ Version: 1.0
 """
 
 import base64
+import hashlib
+import json
+import logging
 from dataclasses import asdict, is_dataclass
 from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
-import hashlib
-import json
-import logging
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -66,7 +66,9 @@ def json_serialize(obj: Any, pretty: bool = False) -> str:
     """
     try:
         indent = 2 if pretty else None
-        return json.dumps(obj, default=_serialize_default, indent=indent, ensure_ascii=False)
+        return json.dumps(
+            obj, default=_serialize_default, indent=indent, ensure_ascii=False
+        )
     except (TypeError, ValueError) as e:
         raise SerializationError(f"Failed to serialize object: {e}") from e
 
@@ -117,7 +119,7 @@ def _serialize_default(obj: Any) -> Any:
     if isinstance(obj, datetime):
         return {
             TYPE_MARKERS["datetime"]: obj.isoformat(),
-            "__tz__": obj.tzname() if obj.tzinfo else None
+            "__tz__": obj.tzname() if obj.tzinfo else None,
         }
 
     # Date objects
@@ -142,7 +144,7 @@ def _serialize_default(obj: Any) -> Any:
             TYPE_MARKERS["enum"]: {
                 "class": obj.__class__.__name__,
                 "module": obj.__class__.__module__,
-                "value": obj.value
+                "value": obj.value,
             }
         }
 
@@ -162,7 +164,9 @@ def _serialize_default(obj: Any) -> Any:
     try:
         return str(obj)
     except Exception:
-        raise SerializationError(f"Cannot serialize object of type {type(obj)}") from None
+        raise SerializationError(
+            f"Cannot serialize object of type {type(obj)}"
+        ) from None
 
 
 def _deserialize_custom(obj: Any) -> Any:
@@ -221,6 +225,7 @@ def _deserialize_type(type_name: str, value: Any, metadata: dict) -> Any:
     if type_name == "enum":
         # Import the enum class
         import importlib
+
         module = importlib.import_module(metadata["enum"]["module"])
         enum_class = getattr(module, metadata["enum"]["class"])
         return enum_class(metadata["enum"]["value"])

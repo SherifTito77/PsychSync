@@ -8,14 +8,14 @@ Author: PsychSync Data Governance Team
 Version: 1.0
 """
 
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
 import boto3
-from botocore.exceptions import ClientError
 import pandas as pd
+from botocore.exceptions import ClientError
 from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,7 +36,7 @@ class RetentionPolicy:
         archive_after_days: int,
         anonymize_before_archive: bool = True,
         target_storage: str = "s3",
-        encryption_required: bool = True
+        encryption_required: bool = True,
     ):
         self.data_type = data_type
         self.source_table = source_table
@@ -64,49 +64,49 @@ RETENTION_POLICIES = {
         source_table="users",
         retention_period_days=365 * 7,  # 7 years
         archive_after_days=365 * 2,  # 2 years
-        anonymize_before_archive=True
+        anonymize_before_archive=True,
     ),
     "assessment_responses": RetentionPolicy(
         data_type="assessment_responses",
         source_table="responses",
         retention_period_days=365 * 7,  # 7 years (GDPR)
         archive_after_days=180,  # 6 months
-        anonymize_before_archive=True
+        anonymize_before_archive=True,
     ),
     "wellness_assessments": RetentionPolicy(
         data_type="wellness_assessments",
         source_table="wellness_assessments",
         retention_period_days=365 * 7,  # 7 years (HIPAA)
         archive_after_days=180,  # 6 months
-        anonymize_before_archive=True
+        anonymize_before_archive=True,
     ),
     "safety_incidents": RetentionPolicy(
         data_type="safety_incidents",
         source_table="safety_incidents",
         retention_period_days=365 * 7,  # 7 years (OSHA)
         archive_after_days=365 * 2,  # 2 years
-        anonymize_before_archive=False  # Keep original for compliance
+        anonymize_before_archive=False,  # Keep original for compliance
     ),
     "audit_logs": RetentionPolicy(
         data_type="audit_logs",
         source_table="audit_logs",
         retention_period_days=365 * 3,  # 3 years (SOC 2)
         archive_after_days=365,  # 1 year
-        anonymize_before_archive=False
+        anonymize_before_archive=False,
     ),
     "analytics_data": RetentionPolicy(
         data_type="analytics_data",
         source_table="analytics",
         retention_period_days=365 * 3,  # 3 years
         archive_after_days=90,  # 3 months
-        anonymize_before_archive=True
+        anonymize_before_archive=True,
     ),
     "intervention_data": RetentionPolicy(
         data_type="intervention_data",
         source_table="intervention_effectiveness",
         retention_period_days=365 * 7,  # 7 years
         archive_after_days=365 * 2,  # 2 years
-        anonymize_before_archive=True
+        anonymize_before_archive=True,
     ),
 }
 
@@ -125,7 +125,7 @@ class ArchiveManager:
         data: pd.DataFrame,
         data_type: str,
         date_range: tuple[datetime, datetime],
-        metadata: dict[str, Any]
+        metadata: dict[str, Any],
     ) -> str:
         """
         Create encrypted archive and upload to S3
@@ -144,6 +144,7 @@ class ArchiveManager:
         try:
             # Convert to Parquet with compression
             import io
+
             buffer = io.BytesIO()
             data.to_parquet(buffer, compression="snappy", index=False)
             compressed_data = buffer.getvalue()
@@ -165,8 +166,8 @@ class ArchiveManager:
                     "data_type": data_type,
                     "record_count": str(len(data)),
                     "created_at": datetime.utcnow().isoformat(),
-                    **{k: str(v) for k, v in metadata.items()}
-                }
+                    **{k: str(v) for k, v in metadata.items()},
+                },
             )
 
             logger.info(
@@ -180,11 +181,7 @@ class ArchiveManager:
             logger.error(f"Failed to create archive: {e}")
             raise
 
-    async def download_archive(
-        self,
-        archive_location: str,
-        local_path: str
-    ) -> None:
+    async def download_archive(self, archive_location: str, local_path: str) -> None:
         """
         Download archive from S3
 
@@ -209,9 +206,7 @@ class ArchiveManager:
             raise
 
     async def initiate_glacier_retrieval(
-        self,
-        archive_location: str,
-        retrieval_tier: str = "Standard"
+        self, archive_location: str, retrieval_tier: str = "Standard"
     ) -> str:
         """
         Initiate retrieval from Glacier
@@ -233,10 +228,8 @@ class ArchiveManager:
                 Key=key,
                 RestoreRequest={
                     "Days": 30,  # Keep in S3 for 30 days
-                    "GlacierJobParameters": {
-                        "Tier": retrieval_tier
-                    }
-                }
+                    "GlacierJobParameters": {"Tier": retrieval_tier},
+                },
             )
 
             logger.info(f"Initiated Glacier retrieval for {archive_location}")
@@ -268,7 +261,11 @@ class DataAnonymizer:
             anonymized["full_name"] = "ANONYMIZED"
 
         # Remove sensitive columns
-        sensitive_columns = ["password_hash", "two_factor_secret", "two_factor_recovery_codes"]
+        sensitive_columns = [
+            "password_hash",
+            "two_factor_secret",
+            "two_factor_recovery_codes",
+        ]
         for col in sensitive_columns:
             if col in anonymized.columns:
                 anonymized = anonymized.drop(columns=[col])
@@ -316,10 +313,7 @@ class DataRetentionService:
         self.archive_manager = ArchiveManager()
         self.anonymizer = DataAnonymizer()
 
-    async def check_archival_candidates(
-        self,
-        policy_name: str
-    ) -> list[dict[str, Any]]:
+    async def check_archival_candidates(self, policy_name: str) -> list[dict[str, Any]]:
         """
         Identify records ready for archival
 
@@ -348,7 +342,7 @@ class DataRetentionService:
                 .where(
                     and_(
                         AssessmentResponse.completed_at < threshold_date,
-                        AssessmentResponse.status == "completed"
+                        AssessmentResponse.status == "completed",
                     )
                 )
                 .limit(10000)  # Batch size
@@ -356,21 +350,31 @@ class DataRetentionService:
             records = result.scalars().all()
 
             for record in records:
-                candidates.append({
-                    "id": str(record.id),
-                    "table": "assessment_responses",
-                    "created_at": record.created_at,
-                    "completed_at": record.completed_at,
-                    "data": {
+                candidates.append(
+                    {
                         "id": str(record.id),
-                        "assessment_id": str(record.assessment_id),
-                        "respondent_id": str(record.respondent_id),
-                        "status": record.status,
-                        "responses": record.responses,
-                        "started_at": record.started_at.isoformat() if record.started_at else None,
-                        "completed_at": record.completed_at.isoformat() if record.completed_at else None
+                        "table": "assessment_responses",
+                        "created_at": record.created_at,
+                        "completed_at": record.completed_at,
+                        "data": {
+                            "id": str(record.id),
+                            "assessment_id": str(record.assessment_id),
+                            "respondent_id": str(record.respondent_id),
+                            "status": record.status,
+                            "responses": record.responses,
+                            "started_at": (
+                                record.started_at.isoformat()
+                                if record.started_at
+                                else None
+                            ),
+                            "completed_at": (
+                                record.completed_at.isoformat()
+                                if record.completed_at
+                                else None
+                            ),
+                        },
                     }
-                })
+                )
 
         elif policy_name == "wellness_assessments":
             result = await self.db.execute(
@@ -381,20 +385,24 @@ class DataRetentionService:
             records = result.scalars().all()
 
             for record in records:
-                candidates.append({
-                    "id": str(record.id),
-                    "table": "wellness_assessments",
-                    "created_at": record.created_at,
-                    "assessment_date": record.assessment_date,
-                    "data": {
+                candidates.append(
+                    {
                         "id": str(record.id),
-                        "user_id": str(record.user_id),
-                        "organization_id": str(record.organization_id),
-                        "assessment_date": record.assessment_date.isoformat(),
-                        "overall_wellness_score": record.overall_wellness_score,
-                        "alert_level": str(record.alert_level) if record.alert_level else None
+                        "table": "wellness_assessments",
+                        "created_at": record.created_at,
+                        "assessment_date": record.assessment_date,
+                        "data": {
+                            "id": str(record.id),
+                            "user_id": str(record.user_id),
+                            "organization_id": str(record.organization_id),
+                            "assessment_date": record.assessment_date.isoformat(),
+                            "overall_wellness_score": record.overall_wellness_score,
+                            "alert_level": (
+                                str(record.alert_level) if record.alert_level else None
+                            ),
+                        },
                     }
-                })
+                )
 
         elif policy_name == "audit_logs":
             result = await self.db.execute(
@@ -405,28 +413,34 @@ class DataRetentionService:
             records = result.scalars().all()
 
             for record in records:
-                candidates.append({
-                    "id": str(record.id),
-                    "table": "audit_logs",
-                    "created_at": record.created_at,
-                    "data": {
+                candidates.append(
+                    {
                         "id": str(record.id),
-                        "organization_id": str(record.organization_id) if record.organization_id else None,
-                        "action": record.action,
-                        "entity": record.entity,
-                        "entity_id": str(record.entity_id) if record.entity_id else None,
-                        "created_at": record.created_at.isoformat()
+                        "table": "audit_logs",
+                        "created_at": record.created_at,
+                        "data": {
+                            "id": str(record.id),
+                            "organization_id": (
+                                str(record.organization_id)
+                                if record.organization_id
+                                else None
+                            ),
+                            "action": record.action,
+                            "entity": record.entity,
+                            "entity_id": (
+                                str(record.entity_id) if record.entity_id else None
+                            ),
+                            "created_at": record.created_at.isoformat(),
+                        },
                     }
-                })
+                )
 
         logger.info(f"Found {len(candidates)} archival candidates for {policy_name}")
 
         return candidates
 
     async def archive_data(
-        self,
-        policy_name: str,
-        batch_size: int = 10000
+        self, policy_name: str, batch_size: int = 10000
     ) -> dict[str, Any]:
         """
         Archive data according to retention policy
@@ -453,18 +467,20 @@ class DataRetentionService:
             candidates = await self.check_archival_candidates(policy_name)
 
             if not candidates:
-                logger.info(f"No candidates found for archival under policy {policy_name}")
+                logger.info(
+                    f"No candidates found for archival under policy {policy_name}"
+                )
                 return {
                     "policy": policy_name,
                     "status": "success",
                     "records_archived": 0,
                     "archive_ids": [],
-                    "duration_seconds": 0
+                    "duration_seconds": 0,
                 }
 
             # Process in batches
             for i in range(0, len(candidates), batch_size):
-                batch = candidates[i:i + batch_size]
+                batch = candidates[i : i + batch_size]
 
                 # Convert to DataFrame
                 df = pd.DataFrame([c["data"] for c in batch])
@@ -488,8 +504,9 @@ class DataRetentionService:
                     metadata={
                         "policy": policy_name,
                         "batch_number": i // batch_size + 1,
-                        "total_batches": (len(candidates) + batch_size - 1) // batch_size
-                    }
+                        "total_batches": (len(candidates) + batch_size - 1)
+                        // batch_size,
+                    },
                 )
 
                 archive_ids.append(archive_id)
@@ -513,7 +530,7 @@ class DataRetentionService:
                 "status": "success",
                 "records_archived": total_archived,
                 "archive_ids": archive_ids,
-                "duration_seconds": duration
+                "duration_seconds": duration,
             }
 
         except Exception as e:
@@ -523,14 +540,14 @@ class DataRetentionService:
                 "status": "error",
                 "error": str(e),
                 "records_archived": total_archived,
-                "archive_ids": archive_ids
+                "archive_ids": archive_ids,
             }
 
     async def delete_archived_records(
         self,
         policy_name: str,
         archive_ids: list[str],
-        verification_period_days: int = 30
+        verification_period_days: int = 30,
     ) -> dict[str, Any]:
         """
         Delete records from primary database after archival verification period
@@ -560,11 +577,10 @@ class DataRetentionService:
                 threshold_date = policy.archive_threshold_date
 
                 result = await self.db.execute(
-                    delete(AssessmentResponse)
-                    .where(
+                    delete(AssessmentResponse).where(
                         and_(
                             AssessmentResponse.completed_at < threshold_date,
-                            AssessmentResponse.status == "completed"
+                            AssessmentResponse.status == "completed",
                         )
                     )
                 )
@@ -575,8 +591,9 @@ class DataRetentionService:
                 threshold_date = policy.archive_threshold_date
 
                 result = await self.db.execute(
-                    delete(WellnessAssessment)
-                    .where(WellnessAssessment.assessment_date < threshold_date)
+                    delete(WellnessAssessment).where(
+                        WellnessAssessment.assessment_date < threshold_date
+                    )
                 )
                 deleted_count = result.rowcount
                 await self.db.commit()
@@ -585,8 +602,7 @@ class DataRetentionService:
                 threshold_date = policy.archive_threshold_date
 
                 result = await self.db.execute(
-                    delete(AuditLog)
-                    .where(AuditLog.created_at < threshold_date)
+                    delete(AuditLog).where(AuditLog.created_at < threshold_date)
                 )
                 deleted_count = result.rowcount
                 await self.db.commit()
@@ -597,7 +613,7 @@ class DataRetentionService:
                 "policy": policy_name,
                 "status": "success",
                 "records_deleted": deleted_count,
-                "archive_ids": archive_ids
+                "archive_ids": archive_ids,
             }
 
         except Exception as e:
@@ -607,12 +623,11 @@ class DataRetentionService:
                 "policy": policy_name,
                 "status": "error",
                 "error": str(e),
-                "records_deleted": 0
+                "records_deleted": 0,
             }
 
     async def process_retention_policies(
-        self,
-        policy_names: list[str] | None = None
+        self, policy_names: list[str] | None = None
     ) -> dict[str, Any]:
         """
         Process all or specified retention policies
@@ -652,10 +667,7 @@ class DataRetentionService:
 
             except Exception as e:
                 logger.error(f"Failed to process policy {policy_name}: {e}")
-                results[policy_name] = {
-                    "status": "error",
-                    "error": str(e)
-                }
+                results[policy_name] = {"status": "error", "error": str(e)}
                 total_failed += 1
 
         return {
@@ -664,7 +676,7 @@ class DataRetentionService:
             "policies_succeeded": len(policy_names) - total_failed,
             "policies_failed": total_failed,
             "total_records_archived": total_archived,
-            "results": results
+            "results": results,
         }
 
     async def get_retention_statistics(self) -> dict[str, Any]:
@@ -679,8 +691,9 @@ class DataRetentionService:
         for months in [6, 12, 24, 36, 60, 84]:
             threshold = now - timedelta(days=months * 30)
             result = await self.db.execute(
-                select(func.count(AssessmentResponse.id))
-                .where(AssessmentResponse.completed_at < threshold)
+                select(func.count(AssessmentResponse.id)).where(
+                    AssessmentResponse.completed_at < threshold
+                )
             )
             count = result.scalar() or 0
             stats[f"assessment_responses_older_{months}months"] = count
@@ -689,8 +702,9 @@ class DataRetentionService:
         for months in [6, 12, 24, 36, 60, 84]:
             threshold = now - timedelta(days=months * 30)
             result = await self.db.execute(
-                select(func.count(WellnessAssessment.id))
-                .where(WellnessAssessment.assessment_date < threshold)
+                select(func.count(WellnessAssessment.id)).where(
+                    WellnessAssessment.assessment_date < threshold
+                )
             )
             count = result.scalar() or 0
             stats[f"wellness_assessments_older_{months}months"] = count
@@ -699,8 +713,7 @@ class DataRetentionService:
         for months in [3, 6, 12, 24, 36]:
             threshold = now - timedelta(days=months * 30)
             result = await self.db.execute(
-                select(func.count(AuditLog.id))
-                .where(AuditLog.created_at < threshold)
+                select(func.count(AuditLog.id)).where(AuditLog.created_at < threshold)
             )
             count = result.scalar() or 0
             stats[f"audit_logs_older_{months}months"] = count
@@ -721,27 +734,31 @@ class DataRetentionService:
         # Assessment responses beyond 7 years
         threshold = now - timedelta(days=365 * 7)
         result = await self.db.execute(
-            select(func.count(AssessmentResponse.id))
-            .where(AssessmentResponse.completed_at < threshold)
+            select(func.count(AssessmentResponse.id)).where(
+                AssessmentResponse.completed_at < threshold
+            )
         )
         count = result.scalar() or 0
         retention_violations["assessment_responses_beyond_7years"] = count
 
         # Wellness assessments beyond 7 years
         result = await self.db.execute(
-            select(func.count(WellnessAssessment.id))
-            .where(WellnessAssessment.assessment_date < threshold)
+            select(func.count(WellnessAssessment.id)).where(
+                WellnessAssessment.assessment_date < threshold
+            )
         )
         count = result.scalar() or 0
         retention_violations["wellness_assessments_beyond_7years"] = count
 
         # Calculate compliance score
         total_violations = sum(retention_violations.values())
-        compliance_score = 100.0 if total_violations == 0 else max(0, 100 - total_violations * 0.1)
+        compliance_score = (
+            100.0 if total_violations == 0 else max(0, 100 - total_violations * 0.1)
+        )
 
         return {
             "compliance_score": round(compliance_score, 2),
             "retention_violations": retention_violations,
             "check_date": now.isoformat(),
-            "status": "compliant" if total_violations == 0 else "non_compliant"
+            "status": "compliant" if total_violations == 0 else "non_compliant",
         }

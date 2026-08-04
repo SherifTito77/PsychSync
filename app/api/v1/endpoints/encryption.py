@@ -8,7 +8,8 @@ Access: Administrators only
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,14 +28,14 @@ router = APIRouter(prefix="/encryption", tags=["encryption-management"])
 # Dependencies
 # =============================================================================
 
+
 async def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
     """Verify user is admin"""
     if current_user.is_superuser:
         return current_user
 
     raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="Administrator access required"
+        status_code=status.HTTP_403_FORBIDDEN, detail="Administrator access required"
     )
 
 
@@ -42,13 +43,16 @@ async def get_admin_user(current_user: User = Depends(get_current_user)) -> User
 # Pydantic Schemas
 # =============================================================================
 
+
 class EncryptRequest(BaseModel):
     """Request schema for encryption test"""
+
     plaintext: str = Field(..., description="Data to encrypt")
 
 
 class EncryptResponse(BaseModel):
     """Response schema for encryption result"""
+
     success: bool
     encrypted_data: str
     message: str
@@ -56,11 +60,13 @@ class EncryptResponse(BaseModel):
 
 class DecryptRequest(BaseModel):
     """Request schema for decryption test"""
+
     encrypted_data: str = Field(..., description="Encrypted JSON string")
 
 
 class DecryptResponse(BaseModel):
     """Response schema for decryption result"""
+
     success: bool
     decrypted_data: str
     message: str
@@ -68,12 +74,14 @@ class DecryptResponse(BaseModel):
 
 class KeyRotationRequest(BaseModel):
     """Request schema for key rotation"""
+
     current_password: str = Field(..., description="Password to protect new key")
     new_key_password: str = Field(..., description="Password for new key export")
 
 
 class KeyStatusResponse(BaseModel):
     """Response schema for key status"""
+
     encryption_enabled: bool
     key_type: str
     key_size: int
@@ -83,6 +91,7 @@ class KeyStatusResponse(BaseModel):
 # =============================================================================
 # API Endpoints
 # =============================================================================
+
 
 @router.post("/test/encrypt", response_model=EncryptResponse)
 async def test_encryption(
@@ -119,14 +128,14 @@ async def test_encryption(
         return EncryptResponse(
             success=True,
             encrypted_data=encrypted,
-            message="Data encrypted successfully"
+            message="Data encrypted successfully",
         )
 
     except Exception as e:
         logger.error(f"Encryption test failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Encryption failed: {str(e)}"
+            detail=f"Encryption failed: {str(e)}",
         )
 
 
@@ -173,19 +182,19 @@ async def test_decryption(
         return DecryptResponse(
             success=True,
             decrypted_data=decrypted_str,
-            message="Data decrypted successfully"
+            message="Data decrypted successfully",
         )
 
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Decryption failed: {str(e)}"
+            detail=f"Decryption failed: {str(e)}",
         )
     except Exception as e:
         logger.error(f"Decryption test failed: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Decryption failed: {str(e)}"
+            detail=f"Decryption failed: {str(e)}",
         )
 
 
@@ -220,14 +229,14 @@ async def get_encryption_status(
             encryption_enabled=has_key,
             key_type="AES-256-GCM",
             key_size=key_size,
-            can_rotate=has_key
+            can_rotate=has_key,
         )
 
     except Exception as e:
         logger.error(f"Failed to get encryption status: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get status: {str(e)}"
+            detail=f"Failed to get status: {str(e)}",
         )
 
 
@@ -260,20 +269,18 @@ async def export_encryption_key(
     try:
         if not password:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password is required"
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Password is required"
             )
 
         # Export key encrypted with password
         encrypted_key = encryption_service.export_key_encrypted(
-            encryption_service.master_key,
-            password
+            encryption_service.master_key, password
         )
 
         return {
             "success": True,
             "encrypted_key": encrypted_key,
-            "message": "Key exported successfully. Store this securely."
+            "message": "Key exported successfully. Store this securely.",
         }
 
     except HTTPException:
@@ -282,7 +289,7 @@ async def export_encryption_key(
         logger.error(f"Failed to export key: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to export key: {str(e)}"
+            detail=f"Failed to export key: {str(e)}",
         )
 
 
@@ -331,8 +338,7 @@ async def rotate_encryption_key(
     try:
         # Export old key for backup
         old_key_export = encryption_service.export_key_encrypted(
-            encryption_service.master_key,
-            request.current_password
+            encryption_service.master_key, request.current_password
         )
 
         # Generate new key
@@ -340,8 +346,7 @@ async def rotate_encryption_key(
 
         # Export new key
         new_key_export = encryption_service.export_key_encrypted(
-            new_key,
-            request.new_key_password
+            new_key, request.new_key_password
         )
 
         # Rotate to new key
@@ -353,14 +358,14 @@ async def rotate_encryption_key(
             "success": True,
             "old_key_export": old_key_export,
             "new_key_export": new_key_export,
-            "message": "Key rotated successfully. You must now re-encrypt all encrypted data. See documentation for procedure."
+            "message": "Key rotated successfully. You must now re-encrypt all encrypted data. See documentation for procedure.",
         }
 
     except Exception as e:
         logger.error(f"Failed to rotate key: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to rotate key: {str(e)}"
+            detail=f"Failed to rotate key: {str(e)}",
         )
 
 
@@ -395,9 +400,9 @@ async def list_sensitive_fields(
 
     try:
         # Import here to avoid circular imports
-        from app.db.models.user import User
-        from app.db.models.clinical_screening import ClinicalScreening
         from app.db.models.biometric_health import BiometricHealthData
+        from app.db.models.clinical_screening import ClinicalScreening
+        from app.db.models.user import User
 
         # Define sensitive fields manually for clarity
         sensitive_fields = [
@@ -406,66 +411,64 @@ async def list_sensitive_fields(
                 "table": "users",
                 "column": "email",
                 "reason": "PII - Email address",
-                "priority": "high"
+                "priority": "high",
             },
             {
                 "table": "users",
                 "column": "full_name",
                 "reason": "PII - Full name",
-                "priority": "high"
+                "priority": "high",
             },
             {
                 "table": "users",
                 "column": "two_factor_secret",
                 "reason": "Authentication data - MFA secret",
-                "priority": "critical"
+                "priority": "critical",
             },
             {
                 "table": "users",
                 "column": "two_factor_recovery_codes",
                 "reason": "Authentication data - Recovery codes",
-                "priority": "critical"
+                "priority": "critical",
             },
-
             # PHI (Protected Health Information)
             {
                 "table": "clinical_screening",
                 "column": "responses",
                 "reason": "PHI - Assessment responses",
-                "priority": "critical"
+                "priority": "critical",
             },
             {
                 "table": "clinical_screening",
                 "column": "notes",
                 "reason": "PHI - Clinical notes",
-                "priority": "critical"
+                "priority": "critical",
             },
             {
                 "table": "clinical_screening",
                 "column": "diagnosis",
                 "reason": "PHI - Diagnosis information",
-                "priority": "critical"
+                "priority": "critical",
             },
-
             # Additional sensitive fields
             {
                 "table": "biometric_keys",
                 "column": "public_key",
                 "reason": "Security - Cryptographic key material",
-                "priority": "high"
+                "priority": "high",
             },
         ]
 
         return {
             "sensitive_fields": sensitive_fields,
-            "total_fields": len(sensitive_fields)
+            "total_fields": len(sensitive_fields),
         }
 
     except Exception as e:
         logger.error(f"Failed to list sensitive fields: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list fields: {str(e)}"
+            detail=f"Failed to list fields: {str(e)}",
         )
 
 
@@ -514,7 +517,7 @@ async def re_encrypt_data(
 
         raise HTTPException(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="Re-encryption not yet implemented. Use manual migration."
+            detail="Re-encryption not yet implemented. Use manual migration.",
         )
 
     except HTTPException:
@@ -523,5 +526,5 @@ async def re_encrypt_data(
         logger.error(f"Failed to re-encrypt data: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Re-encryption failed: {str(e)}"
+            detail=f"Re-encryption failed: {str(e)}",
         )

@@ -3,21 +3,22 @@ Comprehensive API Endpoint Integration Tests
 Tests all HTTP methods, error scenarios, and cross-component interactions
 """
 
-import pytest
 import asyncio
 import json
 import time
 from datetime import datetime, timedelta
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
 
-from app.main import app
+import pytest
+from httpx import AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.database import get_db
-from app.services.security import create_access_token, get_password_hash
-from app.db.models.user import User
 from app.db.models.assessment import Assessment
 from app.db.models.team import Team
+from app.db.models.user import User
+from app.main import app
+from app.services.security import create_access_token, get_password_hash
 
 
 @pytest.mark.integration
@@ -46,7 +47,7 @@ class TestAPIEndpoints:
             "role": "user",
             "is_active": True,
             "email_verified": True,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         user = User(**user_data)
@@ -72,7 +73,7 @@ class TestAPIEndpoints:
             "role": "admin",
             "is_active": True,
             "email_verified": True,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         admin = User(**admin_data)
@@ -97,7 +98,7 @@ class TestAPIEndpoints:
             "type": "big_five",
             "is_active": True,
             "estimated_duration": 15,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         assessment = Assessment(**assessment_data)
@@ -115,7 +116,7 @@ class TestAPIEndpoints:
             "description": "A team for testing",
             "department": "Engineering",
             "created_by": test_user.id,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
 
         team = Team(**team_data)
@@ -157,7 +158,7 @@ class TestAPIEndpoints:
             "email": "newuser@example.com",
             "full_name": "New User",
             "password": "NewPassword123!",
-            "role": "user"
+            "role": "user",
         }
 
         response = await client.post("/api/v1/auth/register", json=user_data)
@@ -170,13 +171,15 @@ class TestAPIEndpoints:
         assert data["data"]["user"]["email"] == user_data["email"]
 
     @pytest.mark.asyncio
-    async def test_user_registration_duplicate_email(self, client: AsyncClient, test_user: User):
+    async def test_user_registration_duplicate_email(
+        self, client: AsyncClient, test_user: User
+    ):
         """Test registration with duplicate email"""
         user_data = {
             "email": test_user.email,
             "full_name": "Duplicate User",
             "password": "Password123!",
-            "role": "user"
+            "role": "user",
         }
 
         response = await client.post("/api/v1/auth/register", json=user_data)
@@ -188,10 +191,7 @@ class TestAPIEndpoints:
     @pytest.mark.asyncio
     async def test_user_login_success(self, client: AsyncClient, test_user: User):
         """Test successful user login"""
-        login_data = {
-            "email": test_user.email,
-            "password": "TestPassword123!"
-        }
+        login_data = {"email": test_user.email, "password": "TestPassword123!"}
 
         response = await client.post("/api/v1/auth/login", json=login_data)
 
@@ -202,12 +202,11 @@ class TestAPIEndpoints:
         assert data["data"]["user"]["email"] == test_user.email
 
     @pytest.mark.asyncio
-    async def test_user_login_invalid_credentials(self, client: AsyncClient, test_user: User):
+    async def test_user_login_invalid_credentials(
+        self, client: AsyncClient, test_user: User
+    ):
         """Test login with invalid credentials"""
-        login_data = {
-            "email": test_user.email,
-            "password": "WrongPassword123!"
-        }
+        login_data = {"email": test_user.email, "password": "WrongPassword123!"}
 
         response = await client.post("/api/v1/auth/login", json=login_data)
 
@@ -219,10 +218,7 @@ class TestAPIEndpoints:
     async def test_token_refresh_success(self, client: AsyncClient, test_user: User):
         """Test successful token refresh"""
         # First login to get refresh token
-        login_data = {
-            "email": test_user.email,
-            "password": "TestPassword123!"
-        }
+        login_data = {"email": test_user.email, "password": "TestPassword123!"}
         login_response = await client.post("/api/v1/auth/login", json=login_data)
         refresh_token = login_response.json()["data"]["refresh_token"]
 
@@ -257,7 +253,9 @@ class TestAPIEndpoints:
 
     # User Management Endpoints
     @pytest.mark.asyncio
-    async def test_get_user_profile(self, client: AsyncClient, test_user: User, auth_headers):
+    async def test_get_user_profile(
+        self, client: AsyncClient, test_user: User, auth_headers
+    ):
         """Test getting user profile"""
         response = await client.get("/api/v1/users/profile", headers=auth_headers)
 
@@ -269,12 +267,11 @@ class TestAPIEndpoints:
     @pytest.mark.asyncio
     async def test_update_user_profile(self, client: AsyncClient, auth_headers):
         """Test updating user profile"""
-        update_data = {
-            "full_name": "Updated Name",
-            "phone": "+1234567890"
-        }
+        update_data = {"full_name": "Updated Name", "phone": "+1234567890"}
 
-        response = await client.put("/api/v1/users/profile", json=update_data, headers=auth_headers)
+        response = await client.put(
+            "/api/v1/users/profile", json=update_data, headers=auth_headers
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -302,7 +299,9 @@ class TestAPIEndpoints:
 
     # Assessment Endpoints
     @pytest.mark.asyncio
-    async def test_list_assessments(self, client: AsyncClient, test_assessment: Assessment, auth_headers):
+    async def test_list_assessments(
+        self, client: AsyncClient, test_assessment: Assessment, auth_headers
+    ):
         """Test listing available assessments"""
         response = await client.get("/api/v1/assessments", headers=auth_headers)
 
@@ -312,9 +311,13 @@ class TestAPIEndpoints:
         assert len(data["data"]) >= 1
 
     @pytest.mark.asyncio
-    async def test_get_assessment_details(self, client: AsyncClient, test_assessment: Assessment, auth_headers):
+    async def test_get_assessment_details(
+        self, client: AsyncClient, test_assessment: Assessment, auth_headers
+    ):
         """Test getting assessment details"""
-        response = await client.get(f"/api/v1/assessments/{test_assessment.id}", headers=auth_headers)
+        response = await client.get(
+            f"/api/v1/assessments/{test_assessment.id}", headers=auth_headers
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -322,9 +325,13 @@ class TestAPIEndpoints:
         assert data["data"]["title"] == test_assessment.title
 
     @pytest.mark.asyncio
-    async def test_start_assessment(self, client: AsyncClient, test_assessment: Assessment, auth_headers):
+    async def test_start_assessment(
+        self, client: AsyncClient, test_assessment: Assessment, auth_headers
+    ):
         """Test starting an assessment"""
-        response = await client.post(f"/api/v1/assessments/{test_assessment.id}/start", headers=auth_headers)
+        response = await client.post(
+            f"/api/v1/assessments/{test_assessment.id}/start", headers=auth_headers
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -332,10 +339,14 @@ class TestAPIEndpoints:
         assert data["data"]["assessment_id"] == test_assessment.id
 
     @pytest.mark.asyncio
-    async def test_submit_assessment_responses(self, client: AsyncClient, test_assessment: Assessment, auth_headers):
+    async def test_submit_assessment_responses(
+        self, client: AsyncClient, test_assessment: Assessment, auth_headers
+    ):
         """Test submitting assessment responses"""
         # First start the assessment
-        start_response = await client.post(f"/api/v1/assessments/{test_assessment.id}/start", headers=auth_headers)
+        start_response = await client.post(
+            f"/api/v1/assessments/{test_assessment.id}/start", headers=auth_headers
+        )
         session_id = start_response.json()["data"]["session_id"]
 
         # Submit responses
@@ -344,11 +355,15 @@ class TestAPIEndpoints:
             "responses": [
                 {"question_id": "q1", "response": 4, "response_time_ms": 1500},
                 {"question_id": "q2", "response": 3, "response_time_ms": 2000},
-                {"question_id": "q3", "response": 5, "response_time_ms": 1000}
-            ]
+                {"question_id": "q3", "response": 5, "response_time_ms": 1000},
+            ],
         }
 
-        response = await client.post(f"/api/v1/assessments/{test_assessment.id}/responses", json=responses_data, headers=auth_headers)
+        response = await client.post(
+            f"/api/v1/assessments/{test_assessment.id}/responses",
+            json=responses_data,
+            headers=auth_headers,
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -356,20 +371,33 @@ class TestAPIEndpoints:
         assert "score" in data["data"]["results"]
 
     @pytest.mark.asyncio
-    async def test_get_assessment_results(self, client: AsyncClient, test_assessment: Assessment, auth_headers):
+    async def test_get_assessment_results(
+        self, client: AsyncClient, test_assessment: Assessment, auth_headers
+    ):
         """Test getting assessment results"""
         # Start and complete assessment first
-        start_response = await client.post(f"/api/v1/assessments/{test_assessment.id}/start", headers=auth_headers)
+        start_response = await client.post(
+            f"/api/v1/assessments/{test_assessment.id}/start", headers=auth_headers
+        )
         session_id = start_response.json()["data"]["session_id"]
 
         responses_data = {
             "session_id": session_id,
-            "responses": [{"question_id": "q1", "response": 4, "response_time_ms": 1500}]
+            "responses": [
+                {"question_id": "q1", "response": 4, "response_time_ms": 1500}
+            ],
         }
-        await client.post(f"/api/v1/assessments/{test_assessment.id}/responses", json=responses_data, headers=auth_headers)
+        await client.post(
+            f"/api/v1/assessments/{test_assessment.id}/responses",
+            json=responses_data,
+            headers=auth_headers,
+        )
 
         # Get results
-        response = await client.get(f"/api/v1/assessments/{test_assessment.id}/results?session_id={session_id}", headers=auth_headers)
+        response = await client.get(
+            f"/api/v1/assessments/{test_assessment.id}/results?session_id={session_id}",
+            headers=auth_headers,
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -383,10 +411,12 @@ class TestAPIEndpoints:
         team_data = {
             "name": "New Test Team",
             "description": "A team created for testing",
-            "department": "Engineering"
+            "department": "Engineering",
         }
 
-        response = await client.post("/api/v1/teams", json=team_data, headers=auth_headers)
+        response = await client.post(
+            "/api/v1/teams", json=team_data, headers=auth_headers
+        )
 
         assert response.status_code == 201
         data = response.json()
@@ -394,7 +424,9 @@ class TestAPIEndpoints:
         assert data["data"]["department"] == team_data["department"]
 
     @pytest.mark.asyncio
-    async def test_get_user_teams(self, client: AsyncClient, test_team: Team, auth_headers):
+    async def test_get_user_teams(
+        self, client: AsyncClient, test_team: Team, auth_headers
+    ):
         """Test getting user's teams"""
         response = await client.get("/api/v1/teams", headers=auth_headers)
 
@@ -404,9 +436,13 @@ class TestAPIEndpoints:
         assert len(data["data"]) >= 1
 
     @pytest.mark.asyncio
-    async def test_get_team_details(self, client: AsyncClient, test_team: Team, auth_headers):
+    async def test_get_team_details(
+        self, client: AsyncClient, test_team: Team, auth_headers
+    ):
         """Test getting team details"""
-        response = await client.get(f"/api/v1/teams/{test_team.id}", headers=auth_headers)
+        response = await client.get(
+            f"/api/v1/teams/{test_team.id}", headers=auth_headers
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -414,14 +450,18 @@ class TestAPIEndpoints:
         assert data["data"]["name"] == test_team.name
 
     @pytest.mark.asyncio
-    async def test_update_team(self, client: AsyncClient, test_team: Team, auth_headers):
+    async def test_update_team(
+        self, client: AsyncClient, test_team: Team, auth_headers
+    ):
         """Test updating team details"""
         update_data = {
             "name": "Updated Team Name",
-            "description": "Updated description"
+            "description": "Updated description",
         }
 
-        response = await client.put(f"/api/v1/teams/{test_team.id}", json=update_data, headers=auth_headers)
+        response = await client.put(
+            f"/api/v1/teams/{test_team.id}", json=update_data, headers=auth_headers
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -429,9 +469,13 @@ class TestAPIEndpoints:
         assert data["data"]["description"] == "Updated description"
 
     @pytest.mark.asyncio
-    async def test_get_team_analytics(self, client: AsyncClient, test_team: Team, auth_headers):
+    async def test_get_team_analytics(
+        self, client: AsyncClient, test_team: Team, auth_headers
+    ):
         """Test getting team analytics"""
-        response = await client.get(f"/api/v1/teams/{test_team.id}/analytics", headers=auth_headers)
+        response = await client.get(
+            f"/api/v1/teams/{test_team.id}/analytics", headers=auth_headers
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -443,14 +487,12 @@ class TestAPIEndpoints:
     async def test_upload_file(self, client: AsyncClient, auth_headers):
         """Test file upload"""
         file_content = b"Test file content for integration testing"
-        files = {
-            "file": ("test_file.txt", file_content, "text/plain")
-        }
-        data = {
-            "description": "Test file upload"
-        }
+        files = {"file": ("test_file.txt", file_content, "text/plain")}
+        data = {"description": "Test file upload"}
 
-        response = await client.post("/api/v1/files/upload", files=files, data=data, headers=auth_headers)
+        response = await client.post(
+            "/api/v1/files/upload", files=files, data=data, headers=auth_headers
+        )
 
         assert response.status_code == 200
         response_data = response.json()
@@ -462,9 +504,7 @@ class TestAPIEndpoints:
     async def test_upload_file_unauthorized(self, client: AsyncClient):
         """Test file upload without authentication"""
         file_content = b"Test file content"
-        files = {
-            "file": ("test_file.txt", file_content, "text/plain")
-        }
+        files = {"file": ("test_file.txt", file_content, "text/plain")}
 
         response = await client.post("/api/v1/files/upload", files=files)
 
@@ -477,10 +517,10 @@ class TestAPIEndpoints:
         """Test getting file information"""
         # First upload a file
         file_content = b"Test file content"
-        files = {
-            "file": ("test_file.txt", file_content, "text/plain")
-        }
-        upload_response = await client.post("/api/v1/files/upload", files=files, headers=auth_headers)
+        files = {"file": ("test_file.txt", file_content, "text/plain")}
+        upload_response = await client.post(
+            "/api/v1/files/upload", files=files, headers=auth_headers
+        )
         file_id = upload_response.json()["data"]["file_id"]
 
         # Get file info
@@ -496,14 +536,16 @@ class TestAPIEndpoints:
         """Test file download"""
         # First upload a file
         file_content = b"Test file content for download"
-        files = {
-            "file": ("download_test.txt", file_content, "text/plain")
-        }
-        upload_response = await client.post("/api/v1/files/upload", files=files, headers=auth_headers)
+        files = {"file": ("download_test.txt", file_content, "text/plain")}
+        upload_response = await client.post(
+            "/api/v1/files/upload", files=files, headers=auth_headers
+        )
         file_id = upload_response.json()["data"]["file_id"]
 
         # Download the file
-        response = await client.get(f"/api/v1/files/{file_id}/download", headers=auth_headers)
+        response = await client.get(
+            f"/api/v1/files/{file_id}/download", headers=auth_headers
+        )
 
         assert response.status_code == 200
         assert response.content == file_content
@@ -514,7 +556,9 @@ class TestAPIEndpoints:
         """Test 404 error handling"""
         fake_id = "00000000-0000-0000-0000-000000000000"
 
-        response = await client.get(f"/api/v1/assessments/{fake_id}", headers=auth_headers)
+        response = await client.get(
+            f"/api/v1/assessments/{fake_id}", headers=auth_headers
+        )
 
         assert response.status_code == 404
         data = response.json()
@@ -526,7 +570,7 @@ class TestAPIEndpoints:
         invalid_data = {
             "email": "invalid-email",  # Invalid email format
             "full_name": "",  # Empty full name
-            "password": "123"  # Too short password
+            "password": "123",  # Too short password
         }
 
         response = await client.post("/api/v1/auth/register", json=invalid_data)
@@ -571,7 +615,7 @@ class TestAPIEndpoints:
         headers_to_check = [
             "x-content-type-options",
             "x-frame-options",
-            "x-xss-protection"
+            "x-xss-protection",
         ]
 
         for header in headers_to_check:
@@ -579,10 +623,18 @@ class TestAPIEndpoints:
 
     # Cross-component Integration Tests
     @pytest.mark.asyncio
-    async def test_user_assessment_integration(self, client: AsyncClient, test_user: User, test_assessment: Assessment, auth_headers):
+    async def test_user_assessment_integration(
+        self,
+        client: AsyncClient,
+        test_user: User,
+        test_assessment: Assessment,
+        auth_headers,
+    ):
         """Test user-assessment workflow integration"""
         # Start assessment
-        start_response = await client.post(f"/api/v1/assessments/{test_assessment.id}/start", headers=auth_headers)
+        start_response = await client.post(
+            f"/api/v1/assessments/{test_assessment.id}/start", headers=auth_headers
+        )
         assert start_response.status_code == 200
         session_id = start_response.json()["data"]["session_id"]
 
@@ -591,25 +643,41 @@ class TestAPIEndpoints:
             "session_id": session_id,
             "responses": [
                 {"question_id": "q1", "response": 4, "response_time_ms": 1500}
-            ]
+            ],
         }
 
-        submit_response = await client.post(f"/api/v1/assessments/{test_assessment.id}/responses", json=responses_data, headers=auth_headers)
+        submit_response = await client.post(
+            f"/api/v1/assessments/{test_assessment.id}/responses",
+            json=responses_data,
+            headers=auth_headers,
+        )
         assert submit_response.status_code == 200
 
         # Verify in user profile
-        profile_response = await client.get("/api/v1/users/profile", headers=auth_headers)
+        profile_response = await client.get(
+            "/api/v1/users/profile", headers=auth_headers
+        )
         assert profile_response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_team_assessment_integration(self, client: AsyncClient, test_team: Team, test_assessment: Assessment, auth_headers):
+    async def test_team_assessment_integration(
+        self,
+        client: AsyncClient,
+        test_team: Team,
+        test_assessment: Assessment,
+        auth_headers,
+    ):
         """Test team-assessment analytics integration"""
         # Get team analytics
-        analytics_response = await client.get(f"/api/v1/teams/{test_team.id}/analytics", headers=auth_headers)
+        analytics_response = await client.get(
+            f"/api/v1/teams/{test_team.id}/analytics", headers=auth_headers
+        )
         assert analytics_response.status_code == 200
 
         # Start assessment for team member
-        start_response = await client.post(f"/api/v1/assessments/{test_assessment.id}/start", headers=auth_headers)
+        start_response = await client.post(
+            f"/api/v1/assessments/{test_assessment.id}/start", headers=auth_headers
+        )
         assert start_response.status_code == 200
 
     @pytest.mark.asyncio
@@ -617,11 +685,11 @@ class TestAPIEndpoints:
         """Test file-user workflow integration"""
         # Upload file
         file_content = b"User integration test file"
-        files = {
-            "file": ("integration_test.txt", file_content, "text/plain")
-        }
+        files = {"file": ("integration_test.txt", file_content, "text/plain")}
 
-        upload_response = await client.post("/api/v1/files/upload", files=files, headers=auth_headers)
+        upload_response = await client.post(
+            "/api/v1/files/upload", files=files, headers=auth_headers
+        )
         assert upload_response.status_code == 200
 
         file_id = upload_response.json()["data"]["file_id"]
@@ -635,6 +703,7 @@ class TestAPIEndpoints:
     @pytest.mark.asyncio
     async def test_concurrent_requests(self, client: AsyncClient, auth_headers):
         """Test handling concurrent requests"""
+
         async def make_request():
             return await client.get("/api/v1/health", headers=auth_headers)
 
@@ -670,11 +739,15 @@ class TestAPIEndpoints:
         assert "deleted" in data["message"].lower()
 
     @pytest.mark.asyncio
-    async def test_remove_team_member(self, client: AsyncClient, test_team: Team, auth_headers):
+    async def test_remove_team_member(
+        self, client: AsyncClient, test_team: Team, auth_headers
+    ):
         """Test removing team member"""
         # This would require implementing team member management endpoints
         # For now, just test the team exists
-        response = await client.get(f"/api/v1/teams/{test_team.id}", headers=auth_headers)
+        response = await client.get(
+            f"/api/v1/teams/{test_team.id}", headers=auth_headers
+        )
         assert response.status_code == 200
 
 
@@ -696,7 +769,7 @@ class TestErrorHandlingEdgeCases:
         response = await client.post(
             "/api/v1/auth/login",
             content=malformed_json,
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
         )
 
         assert response.status_code == 422
@@ -705,9 +778,7 @@ class TestErrorHandlingEdgeCases:
     async def test_oversized_request(self, client: AsyncClient):
         """Test handling of oversized requests"""
         # Create very large payload
-        large_data = {
-            "description": "x" * 1000000  # 1MB description
-        }
+        large_data = {"description": "x" * 1000000}  # 1MB description
 
         response = await client.post("/api/v1/teams", json=large_data)
 
@@ -719,7 +790,7 @@ class TestErrorHandlingEdgeCases:
         """Test handling of special characters"""
         special_chars_data = {
             "name": "Team with special chars: áéíóú ñ 🚀",
-            "description": "Description with <script>alert('xss')</script> content"
+            "description": "Description with <script>alert('xss')</script> content",
         }
 
         response = await client.post("/api/v1/teams", json=special_chars_data)
@@ -730,10 +801,7 @@ class TestErrorHandlingEdgeCases:
     @pytest.mark.asyncio
     async def test_unicode_handling(self, client: AsyncClient):
         """Test handling of Unicode characters"""
-        unicode_data = {
-            "full_name": "用户测试 🧪",
-            "email": "test@example.com"
-        }
+        unicode_data = {"full_name": "用户测试 🧪", "email": "test@example.com"}
 
         response = await client.post("/api/v1/auth/register", json=unicode_data)
 
@@ -757,8 +825,7 @@ class TestSecurityIntegration:
         malicious_payload = "'; DROP TABLE users; --"
 
         response = await client.post(
-            "/api/v1/auth/login",
-            json={"email": malicious_payload, "password": "test"}
+            "/api/v1/auth/login", json={"email": malicious_payload, "password": "test"}
         )
 
         # Should not succeed in database manipulation
@@ -774,8 +841,8 @@ class TestSecurityIntegration:
             json={
                 "email": "test@example.com",
                 "full_name": xss_payload,
-                "password": "TestPassword123!"
-            }
+                "password": "TestPassword123!",
+            },
         )
 
         # Should either sanitize input or reject it
@@ -797,8 +864,7 @@ class TestSecurityIntegration:
 
         # Try with invalid token
         response = await client.get(
-            "/api/v1/users/profile",
-            headers={"Authorization": "Bearer invalid_token"}
+            "/api/v1/users/profile", headers={"Authorization": "Bearer invalid_token"}
         )
 
         assert response.status_code == 401
@@ -809,7 +875,7 @@ class TestSecurityIntegration:
         # Create regular user
         login_response = await client.post(
             "/api/v1/auth/login",
-            json={"email": "test@example.com", "password": "TestPassword123!"}
+            json={"email": "test@example.com", "password": "TestPassword123!"},
         )
 
         if login_response.status_code == 200:
@@ -844,8 +910,8 @@ class TestDatabaseIntegration:
             json={
                 "email": "transaction_test@example.com",
                 "full_name": "Transaction Test",
-                "password": "TestPassword123!"
-            }
+                "password": "TestPassword123!",
+            },
         )
 
         if response.status_code == 201:
@@ -855,8 +921,8 @@ class TestDatabaseIntegration:
                 json={
                     "email": "transaction_test@example.com",
                     "full_name": "Transaction Test 2",
-                    "password": "TestPassword123!"
-                }
+                    "password": "TestPassword123!",
+                },
             )
 
             # Second registration should fail
@@ -865,6 +931,7 @@ class TestDatabaseIntegration:
     @pytest.mark.asyncio
     async def test_database_connection_pooling(self, client: AsyncClient):
         """Test database connection pooling under load"""
+
         async def make_request():
             return await client.get("/api/v1/health")
 
@@ -888,8 +955,8 @@ class TestDatabaseIntegration:
             json={
                 "email": "consistency_test@example.com",
                 "full_name": "Consistency Test",
-                "password": "TestPassword123!"
-            }
+                "password": "TestPassword123!",
+            },
         )
 
         if register_response.status_code == 201:
@@ -898,8 +965,8 @@ class TestDatabaseIntegration:
                 "/api/v1/auth/login",
                 json={
                     "email": "consistency_test@example.com",
-                    "password": "TestPassword123!"
-                }
+                    "password": "TestPassword123!",
+                },
             )
 
             assert login_response.status_code == 200

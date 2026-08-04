@@ -4,25 +4,28 @@ PsychSync File Upload Security Tester
 Tests file upload functionality against various attack vectors
 """
 
-import os
-import sys
-import json
-import requests
-import mimetypes
-from datetime import datetime
-from pathlib import Path
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass
-import tempfile
 import base64
 import hashlib
+import json
+import mimetypes
+import os
+import sys
+import tempfile
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import requests
 
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent))
 
+
 @dataclass
 class FileUploadTestResult:
     """File upload security test result"""
+
     test_name: str
     file_type: str
     upload_attempt: str
@@ -34,10 +37,15 @@ class FileUploadTestResult:
     risk_level: str
     recommendations: List[str]
 
+
 class FileUploadSecurityTester:
     """Comprehensive file upload security testing suite"""
 
-    def __init__(self, base_url: str = "http://localhost:8000", upload_endpoint: str = "/api/v1/upload"):
+    def __init__(
+        self,
+        base_url: str = "http://localhost:8000",
+        upload_endpoint: str = "/api/v1/upload",
+    ):
         self.base_url = base_url
         self.upload_endpoint = upload_endpoint
         self.results: List[FileUploadTestResult] = []
@@ -52,32 +60,37 @@ class FileUploadSecurityTester:
 
         # Test 1: PHP with .jpg extension
         php_jpg = self.temp_dir / "innocent_image.jpg"
-        with open(php_jpg, 'w') as f:
-            f.write("""<?php
+        with open(php_jpg, "w") as f:
+            f.write(
+                """<?php
 // Disguised PHP script
 if(isset($_GET['cmd'])) {
     system($_GET['cmd']);
 }
-?>\xFF\xD8\xFF\xE0""")  # Add JPEG magic bytes
+?>\xFF\xD8\xFF\xE0"""
+            )  # Add JPEG magic bytes
 
         # Test 2: PHP with double extension
         php_double = self.temp_dir / "avatar.php.jpg"
-        with open(php_double, 'w') as f:
-            f.write("""<?php
+        with open(php_double, "w") as f:
+            f.write(
+                """<?php
 // Double extension bypass
 echo "PHP Execution: ";
 phpinfo();
-?>""")
+?>"""
+            )
 
         # Test 3: PHP with null byte injection
         php_null = self.temp_dir / "profile.jpg"
-        with open(php_null, 'wb') as f:
+        with open(php_null, "wb") as f:
             f.write(b"<?php system($_GET['x']); ?>" + b"\x00" + b".jpg")
 
         # Test 4: PHP in ZIP archive
         import zipfile
+
         php_zip = self.temp_dir / "archive.zip"
-        with zipfile.ZipFile(php_zip, 'w') as zf:
+        with zipfile.ZipFile(php_zip, "w") as zf:
             zf.writestr("shell.php", "<?php system($_POST['cmd']); ?>")
 
         return [php_jpg, php_double, php_null, php_zip]
@@ -89,15 +102,15 @@ phpinfo();
         exif_image = self.temp_dir / "photo_with_exif.jpg"
 
         # JPEG header with malicious EXIF comment
-        jpeg_data = b'\xFF\xD8\xFF\xE1'  # JPEG with APP1 marker
+        jpeg_data = b"\xFF\xD8\xFF\xE1"  # JPEG with APP1 marker
 
         # EXIF segment with malicious payload
         exif_payload = b"""Exif\x00\x00II*\x00\x08\x00\x00\x00<?php if(isset($_REQUEST['c'])){system($_REQUEST['c']);}?>\x00\x00"""
 
         # Rest of JPEG data
-        jpeg_end = b'\xFF\xFE' + b'A' * 1000 + b'\xFF\xD9'  # Comment + JPEG end
+        jpeg_end = b"\xFF\xFE" + b"A" * 1000 + b"\xFF\xD9"  # Comment + JPEG end
 
-        with open(exif_image, 'wb') as f:
+        with open(exif_image, "wb") as f:
             f.write(jpeg_data + exif_payload + jpeg_end)
 
         return exif_image
@@ -177,7 +190,7 @@ startxref
 423
 %%EOF"""
 
-        with open(malicious_pdf, 'w') as f:
+        with open(malicious_pdf, "w") as f:
             f.write(pdf_content)
 
         return malicious_pdf
@@ -196,63 +209,65 @@ startxref
 </script>
 </svg>"""
 
-        with open(svg_script, 'w') as f:
+        with open(svg_script, "w") as f:
             f.write(svg_content)
 
         return svg_script
 
-    def test_upload_file(self, file_path: Path, content_type: str = None) -> Dict[str, Any]:
+    def test_upload_file(
+        self, file_path: Path, content_type: str = None
+    ) -> Dict[str, Any]:
         """Test uploading a file and capture the response"""
 
         if not content_type:
             content_type, _ = mimetypes.guess_type(str(file_path))
             if not content_type:
-                content_type = 'application/octet-stream'
+                content_type = "application/octet-stream"
 
         try:
-            with open(file_path, 'rb') as f:
-                files = {
-                    'file': (file_path.name, f, content_type)
-                }
+            with open(file_path, "rb") as f:
+                files = {"file": (file_path.name, f, content_type)}
 
                 # Test both multipart and JSON upload methods
                 response = requests.post(
-                    f"{self.base_url}{self.upload_endpoint}",
-                    files=files,
-                    timeout=10
+                    f"{self.base_url}{self.upload_endpoint}", files=files, timeout=10
                 )
 
                 return {
-                    'status_code': response.status_code,
-                    'headers': dict(response.headers),
-                    'body': response.text,
-                    'content_type': content_type,
-                    'file_name': file_path.name,
-                    'file_size': file_path.stat().st_size
+                    "status_code": response.status_code,
+                    "headers": dict(response.headers),
+                    "body": response.text,
+                    "content_type": content_type,
+                    "file_name": file_path.name,
+                    "file_size": file_path.stat().st_size,
                 }
 
         except requests.exceptions.RequestException as e:
             return {
-                'status_code': 0,
-                'error': str(e),
-                'body': str(e),
-                'content_type': content_type,
-                'file_name': file_path.name,
-                'file_size': file_path.stat().st_size
+                "status_code": 0,
+                "error": str(e),
+                "body": str(e),
+                "content_type": content_type,
+                "file_name": file_path.name,
+                "file_size": file_path.stat().st_size,
             }
 
-    def analyze_upload_response(self, response_data: Dict[str, Any], test_name: str) -> FileUploadTestResult:
+    def analyze_upload_response(
+        self, response_data: Dict[str, Any], test_name: str
+    ) -> FileUploadTestResult:
         """Analyze upload response to detect security vulnerabilities"""
 
-        status_code = response_data.get('status_code', 0)
-        body = response_data.get('body', '')
-        file_name = response_data.get('file_name', '')
+        status_code = response_data.get("status_code", 0)
+        body = response_data.get("body", "")
+        file_name = response_data.get("file_name", "")
 
         # Determine if upload was successful
         upload_successful = status_code in [200, 201, 202]
 
         # Determine if upload was blocked
-        upload_blocked = status_code in [400, 403, 413, 415, 422] or 'error' in body.lower()
+        upload_blocked = (
+            status_code in [400, 403, 413, 415, 422] or "error" in body.lower()
+        )
 
         # Check for vulnerability indicators
         vulnerability_found = False
@@ -261,33 +276,52 @@ startxref
 
         # Check for dangerous patterns in response
         dangerous_patterns = [
-            'exec(', 'system(', 'eval(', 'shell_exec(',
-            '<script', 'javascript:', 'vbscript:',
-            '<?php', '<% ', 'eval$_POST'
+            "exec(",
+            "system(",
+            "eval(",
+            "shell_exec(",
+            "<script",
+            "javascript:",
+            "vbscript:",
+            "<?php",
+            "<% ",
+            "eval$_POST",
         ]
 
         for pattern in dangerous_patterns:
             if pattern in body:
                 vulnerability_found = True
                 risk_level = "CRITICAL"
-                recommendations.append(f"Server response contains dangerous code pattern: {pattern}")
+                recommendations.append(
+                    f"Server response contains dangerous code pattern: {pattern}"
+                )
                 break
 
         # Check if file execution is possible
-        if upload_successful and any(ext in file_name.lower() for ext in ['.php', '.phtml', '.php5']):
+        if upload_successful and any(
+            ext in file_name.lower() for ext in [".php", ".phtml", ".php5"]
+        ):
             vulnerability_found = True
             risk_level = "HIGH"
-            recommendations.append("PHP file upload allowed - potential RCE vulnerability")
+            recommendations.append(
+                "PHP file upload allowed - potential RCE vulnerability"
+            )
 
         # Check for file type bypass
-        if upload_successful and '.jpg' in file_name and '<?php' in open(self.temp_dir / file_name).read():
+        if (
+            upload_successful
+            and ".jpg" in file_name
+            and "<?php" in open(self.temp_dir / file_name).read()
+        ):
             vulnerability_found = True
             risk_level = "HIGH"
-            recommendations.append("File type validation bypassed - disguised PHP uploaded")
+            recommendations.append(
+                "File type validation bypassed - disguised PHP uploaded"
+            )
 
         # Check response headers for security issues
-        headers = response_data.get('headers', {})
-        if 'X-Debug' in headers or 'X-Powered-By' in headers:
+        headers = response_data.get("headers", {})
+        if "X-Debug" in headers or "X-Powered-By" in headers:
             recommendations.append("Response headers expose server information")
             if risk_level == "LOW":
                 risk_level = "MEDIUM"
@@ -302,7 +336,7 @@ startxref
 
         return FileUploadTestResult(
             test_name=test_name,
-            file_type=response_data.get('content_type', 'unknown'),
+            file_type=response_data.get("content_type", "unknown"),
             upload_attempt=file_name,
             success=upload_successful,
             blocked=upload_blocked,
@@ -310,7 +344,7 @@ startxref
             response_body=body[:500],  # Limit response length
             vulnerability_found=vulnerability_found,
             risk_level=risk_level,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
     def test_disguised_php_uploads(self):
@@ -325,7 +359,7 @@ startxref
             ("PHP disguised as JPEG", php_files[0], "image/jpeg"),
             ("PHP with double extension", php_files[1], "image/jpeg"),
             ("PHP with null byte injection", php_files[2], "image/jpeg"),
-            ("PHP in ZIP archive", php_files[3], "application/zip")
+            ("PHP in ZIP archive", php_files[3], "application/zip"),
         ]
 
         for test_name, file_path, content_type in test_cases:
@@ -334,7 +368,9 @@ startxref
             result = self.analyze_upload_response(response, test_name)
             self.results.append(result)
 
-            status_icon = "✅" if result.blocked else "🚨" if result.vulnerability_found else "⚠️"
+            status_icon = (
+                "✅" if result.blocked else "🚨" if result.vulnerability_found else "⚠️"
+            )
             print(f"   {status_icon} Status: {result.risk_level}")
             print(f"   📄 File: {result.upload_attempt}")
             print(f"   🔄 Response: {result.response_code}")
@@ -355,16 +391,20 @@ startxref
         result = self.analyze_upload_response(response, "EXIF Payload Injection")
         self.results.append(result)
 
-        status_icon = "✅" if result.blocked else "🚨" if result.vulnerability_found else "⚠️"
+        status_icon = (
+            "✅" if result.blocked else "🚨" if result.vulnerability_found else "⚠️"
+        )
         print(f"   {status_icon} Status: {result.risk_level}")
         print(f"   📄 File: {result.upload_attempt}")
         print(f"   🔄 Response: {result.response_code}")
 
         # Check if EXIF data is processed
-        if "EXIF" in response.get('body', '') or result.success:
+        if "EXIF" in response.get("body", "") or result.success:
             result.vulnerability_found = True
             result.risk_level = "HIGH"
-            result.recommendations.append("EXIF data processed - potential code execution")
+            result.recommendations.append(
+                "EXIF data processed - potential code execution"
+            )
 
         for rec in result.recommendations:
             print(f"   💡 {rec}")
@@ -382,18 +422,24 @@ startxref
         result = self.analyze_upload_response(response, "PDF Script Injection")
         self.results.append(result)
 
-        status_icon = "✅" if result.blocked else "🚨" if result.vulnerability_found else "⚠️"
+        status_icon = (
+            "✅" if result.blocked else "🚨" if result.vulnerability_found else "⚠️"
+        )
         print(f"   {status_icon} Status: {result.risk_level}")
         print(f"   📄 File: {result.upload_attempt}")
         print(f"   🔄 Response: {result.response_code}")
 
         # Check for PDF processing
-        if "PDF" in response.get('body', '') or result.success:
-            result.recommendations.append("PDF uploaded - verify JavaScript sanitization")
-            if "JavaScript" not in response.get('body', ''):
+        if "PDF" in response.get("body", "") or result.success:
+            result.recommendations.append(
+                "PDF uploaded - verify JavaScript sanitization"
+            )
+            if "JavaScript" not in response.get("body", ""):
                 result.vulnerability_found = True
                 result.risk_level = "HIGH"
-                result.recommendations.append("PDF JavaScript may not be sanitized - XSS risk")
+                result.recommendations.append(
+                    "PDF JavaScript may not be sanitized - XSS risk"
+                )
 
         for rec in result.recommendations:
             print(f"   💡 {rec}")
@@ -411,16 +457,20 @@ startxref
         result = self.analyze_upload_response(response, "SVG Script Injection")
         self.results.append(result)
 
-        status_icon = "✅" if result.blocked else "🚨" if result.vulnerability_found else "⚠️"
+        status_icon = (
+            "✅" if result.blocked else "🚨" if result.vulnerability_found else "⚠️"
+        )
         print(f"   {status_icon} Status: {result.risk_level}")
         print(f"   📄 File: {result.upload_attempt}")
         print(f"   🔄 Response: {result.response_code}")
 
         # Check for SVG processing
-        if result.success and "svg" in response.get('body', '').lower():
+        if result.success and "svg" in response.get("body", "").lower():
             result.vulnerability_found = True
             result.risk_level = "HIGH"
-            result.recommendations.append("SVG with JavaScript processed - XSS vulnerability")
+            result.recommendations.append(
+                "SVG with JavaScript processed - XSS vulnerability"
+            )
 
         for rec in result.recommendations:
             print(f"   💡 {rec}")
@@ -433,24 +483,43 @@ startxref
 
         # Test cases for filtering bypass
         test_files = [
-            ("Web Shell", "shell.php", "<?php system($_GET['cmd']); ?>", "application/x-php"),
-            (".htaccess", ".htaccess", "AddType application/x-httpd-php .jpg", "text/plain"),
-            ("Web Config", "web.config", "<?xml version=\"1.0\"?><system.webServer><handlers add name=\"PHP\" path=\"*.jpg\" verb=\"*\" modules=\"FastCgiModule\" scriptProcessor=\"C:\\php\\php-cgi.exe\" /></system.webServer>", "application/xml"),
+            (
+                "Web Shell",
+                "shell.php",
+                "<?php system($_GET['cmd']); ?>",
+                "application/x-php",
+            ),
+            (
+                ".htaccess",
+                ".htaccess",
+                "AddType application/x-httpd-php .jpg",
+                "text/plain",
+            ),
+            (
+                "Web Config",
+                "web.config",
+                '<?xml version="1.0"?><system.webServer><handlers add name="PHP" path="*.jpg" verb="*" modules="FastCgiModule" scriptProcessor="C:\\php\\php-cgi.exe" /></system.webServer>',
+                "application/xml",
+            ),
             ("INI File", "php.ini", "allow_url_include = On", "text/plain"),
-            ("Bash Script", "script.sh", "#!/bin/bash\nwhoami", "application/x-sh")
+            ("Bash Script", "script.sh", "#!/bin/bash\nwhoami", "application/x-sh"),
         ]
 
         for test_name, filename, content, content_type in test_files:
             test_file = self.temp_dir / filename
-            with open(test_file, 'w') as f:
+            with open(test_file, "w") as f:
                 f.write(content)
 
             print(f"\n📤 Testing: {test_name}")
             response = self.test_upload_file(test_file, content_type)
-            result = self.analyze_upload_response(response, f"File Filtering - {test_name}")
+            result = self.analyze_upload_response(
+                response, f"File Filtering - {test_name}"
+            )
             self.results.append(result)
 
-            status_icon = "✅" if result.blocked else "🚨" if result.vulnerability_found else "⚠️"
+            status_icon = (
+                "✅" if result.blocked else "🚨" if result.vulnerability_found else "⚠️"
+            )
             print(f"   {status_icon} Status: {result.risk_level}")
             print(f"   📄 File: {result.upload_attempt}")
             print(f"   🔄 Response: {result.response_code}")
@@ -466,22 +535,26 @@ startxref
 
         # Create a large file (10MB)
         large_file = self.temp_dir / "large_file.jpg"
-        with open(large_file, 'wb') as f:
-            f.write(b'A' * 10 * 1024 * 1024)  # 10MB of data
+        with open(large_file, "wb") as f:
+            f.write(b"A" * 10 * 1024 * 1024)  # 10MB of data
 
         print(f"\n📤 Testing: 10MB file upload")
         response = self.test_upload_file(large_file, "image/jpeg")
         result = self.analyze_upload_response(response, "Oversized File Upload")
         self.results.append(result)
 
-        status_icon = "✅" if result.blocked else "🚨" if result.vulnerability_found else "⚠️"
+        status_icon = (
+            "✅" if result.blocked else "🚨" if result.vulnerability_found else "⚠️"
+        )
         print(f"   {status_icon} Status: {result.risk_level}")
         print(f"   📄 File: {result.upload_attempt} ({result.response_code})")
 
         if result.success:
             result.vulnerability_found = True
             result.risk_level = "HIGH"
-            result.recommendations.append("Large file upload allowed - potential DoS vulnerability")
+            result.recommendations.append(
+                "Large file upload allowed - potential DoS vulnerability"
+            )
 
         for rec in result.recommendations:
             print(f"   💡 {rec}")
@@ -507,7 +580,11 @@ startxref
 
         # Remove duplicates and prioritize
         unique_recommendations = list(set(all_recommendations))
-        critical_recommendations = [r for r in unique_recommendations if 'critical' in r.lower() or 'rce' in r.lower()]
+        critical_recommendations = [
+            r
+            for r in unique_recommendations
+            if "critical" in r.lower() or "rce" in r.lower()
+        ]
 
         overall_risk_level = "LOW"
         if risk_counts.get("CRITICAL", 0) > 0:
@@ -526,7 +603,7 @@ startxref
                 "vulnerabilities_found": vulnerabilities_found,
                 "blocked_uploads": blocked_uploads,
                 "successful_uploads": successful_uploads,
-                "risk_level_breakdown": risk_counts
+                "risk_level_breakdown": risk_counts,
             },
             "test_results": [
                 {
@@ -538,12 +615,12 @@ startxref
                     "response_code": result.response_code,
                     "vulnerability_found": result.vulnerability_found,
                     "risk_level": result.risk_level,
-                    "recommendations": result.recommendations
+                    "recommendations": result.recommendations,
                 }
                 for result in self.results
             ],
             "critical_recommendations": critical_recommendations,
-            "all_recommendations": unique_recommendations
+            "all_recommendations": unique_recommendations,
         }
 
     def run_comprehensive_test(self) -> Dict[str, Any]:
@@ -576,17 +653,17 @@ startxref
             print(f"✅ Successful Uploads: {stats['successful_uploads']}")
 
             print(f"\n📈 Risk Level Breakdown:")
-            for risk_level, count in stats['risk_level_breakdown'].items():
+            for risk_level, count in stats["risk_level_breakdown"].items():
                 print(f"   {risk_level}: {count}")
 
-            if report['critical_recommendations']:
+            if report["critical_recommendations"]:
                 print(f"\n🚨 Critical Recommendations:")
-                for i, rec in enumerate(report['critical_recommendations'], 1):
+                for i, rec in enumerate(report["critical_recommendations"], 1):
                     print(f"   {i}. {rec}")
 
             # Save report
             report_file = f"file_upload_security_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            with open(report_file, 'w') as f:
+            with open(report_file, "w") as f:
                 json.dump(report, f, indent=2)
 
             print(f"\n📄 Detailed report saved: {report_file}")
@@ -596,16 +673,24 @@ startxref
         finally:
             # Cleanup temp directory
             import shutil
+
             shutil.rmtree(self.temp_dir)
+
 
 def main():
     """Main CLI interface"""
     import argparse
 
     parser = argparse.ArgumentParser(description="File Upload Security Tester")
-    parser.add_argument("--url", default="http://localhost:8000", help="Target base URL")
+    parser.add_argument(
+        "--url", default="http://localhost:8000", help="Target base URL"
+    )
     parser.add_argument("--endpoint", default="/api/v1/upload", help="Upload endpoint")
-    parser.add_argument("--test", choices=["php", "exif", "pdf", "svg", "filtering", "oversized"], help="Run specific test")
+    parser.add_argument(
+        "--test",
+        choices=["php", "exif", "pdf", "svg", "filtering", "oversized"],
+        help="Run specific test",
+    )
 
     args = parser.parse_args()
 
@@ -628,12 +713,13 @@ def main():
         report = tester.run_comprehensive_test()
 
         # Exit with appropriate code based on findings
-        if report['overall_risk_level'] in ['CRITICAL', 'HIGH']:
+        if report["overall_risk_level"] in ["CRITICAL", "HIGH"]:
             sys.exit(1)
-        elif report['overall_risk_level'] == 'MEDIUM':
+        elif report["overall_risk_level"] == "MEDIUM":
             sys.exit(2)
         else:
             sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

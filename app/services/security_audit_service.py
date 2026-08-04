@@ -4,9 +4,9 @@ Logs security-relevant events for compliance, monitoring, and incident response
 """
 
 import asyncio
+import logging
 from datetime import datetime
 from enum import Enum
-import logging
 from pathlib import Path
 from typing import Any
 
@@ -72,10 +72,15 @@ class SecurityEvent(BaseModel):
 
     # Event identification
     event_type: SecurityEventType = Field(..., description="Type of security event")
-    event_id: str = Field(default_factory=lambda: f"{datetime.utcnow().timestamp()}", description="Unique event ID")
+    event_id: str = Field(
+        default_factory=lambda: f"{datetime.utcnow().timestamp()}",
+        description="Unique event ID",
+    )
 
     # Timestamp
-    timestamp: datetime = Field(default_factory=datetime.utcnow, description="Event timestamp")
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow, description="Event timestamp"
+    )
 
     # Actor information
     user_id: str | None = Field(None, description="User ID who triggered the event")
@@ -90,25 +95,32 @@ class SecurityEvent(BaseModel):
     method: str | None = Field(None, description="HTTP method")
 
     # Event details
-    severity: str = Field(default="info", description="Event severity: debug, info, warning, error, critical")
-    status: str = Field(default="success", description="Event status: success, failure, blocked")
+    severity: str = Field(
+        default="info",
+        description="Event severity: debug, info, warning, error, critical",
+    )
+    status: str = Field(
+        default="success", description="Event status: success, failure, blocked"
+    )
     description: str = Field(..., description="Human-readable description")
 
     # Additional context
-    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional event metadata")
+    metadata: dict[str, Any] = Field(
+        default_factory=dict, description="Additional event metadata"
+    )
 
     # PII/PHI indicators
     involves_pii: bool = Field(default=False, description="Event involves PII data")
-    involves_phi: bool = Field(default=False, description="Event involves PHI (health) data")
+    involves_phi: bool = Field(
+        default=False, description="Event involves PHI (health) data"
+    )
 
     # Organization context
     organization_id: str | None = Field(None, description="Organization ID")
     team_id: str | None = Field(None, description="Team ID")
 
     class Config:
-        json_encoders = {
-            datetime: lambda v: v.isoformat()
-        }
+        json_encoders = {datetime: lambda v: v.isoformat()}
 
 
 class SecurityAuditLogger:
@@ -172,6 +184,7 @@ class SecurityAuditLogger:
         # File handler with rotation
         if self.enable_file:
             from logging.handlers import RotatingFileHandler
+
             file_handler = RotatingFileHandler(
                 self.log_file,
                 maxBytes=self.max_file_size,
@@ -230,7 +243,7 @@ class SecurityAuditLogger:
         username: str,
         ip_address: str,
         method: str = "password",
-        mfa_used: bool = False
+        mfa_used: bool = False,
     ):
         """Log successful authentication."""
         event = SecurityEvent(
@@ -239,7 +252,7 @@ class SecurityAuditLogger:
             username=username,
             ip_address=ip_address,
             description=f"User {username} logged in successfully via {method}",
-            metadata={"method": method, "mfa_used": mfa_used}
+            metadata={"method": method, "mfa_used": mfa_used},
         )
         self.log_event(event)
 
@@ -248,7 +261,7 @@ class SecurityAuditLogger:
         username: str,
         ip_address: str,
         reason: str = "invalid_credentials",
-        user_id: str | None = None
+        user_id: str | None = None,
     ):
         """Log failed authentication attempt."""
         event = SecurityEvent(
@@ -259,15 +272,12 @@ class SecurityAuditLogger:
             description=f"Failed login attempt for {username}: {reason}",
             status="failure",
             severity="warning",
-            metadata={"reason": reason}
+            metadata={"reason": reason},
         )
         self.log_event(event)
 
     def log_rate_limit_violation(
-        self,
-        ip_address: str,
-        endpoint: str,
-        user_id: str | None = None
+        self, ip_address: str, endpoint: str, user_id: str | None = None
     ):
         """Log rate limit violation."""
         event = SecurityEvent(
@@ -278,7 +288,7 @@ class SecurityAuditLogger:
             description=f"Rate limit exceeded for {endpoint} by {ip_address}",
             status="blocked",
             severity="warning",
-            metadata={"blocked_endpoint": endpoint}
+            metadata={"blocked_endpoint": endpoint},
         )
         self.log_event(event)
 
@@ -289,7 +299,7 @@ class SecurityAuditLogger:
         resource_id: str,
         action: str = "read",
         involves_pii: bool = False,
-        involves_phi: bool = False
+        involves_phi: bool = False,
     ):
         """Log data access event."""
         event = SecurityEvent(
@@ -299,10 +309,10 @@ class SecurityAuditLogger:
             metadata={
                 "resource_type": resource_type,
                 "resource_id": resource_id,
-                "action": action
+                "action": action,
             },
             involves_pii=involves_pii,
-            involves_phi=involves_phi
+            involves_phi=involves_phi,
         )
         self.log_event(event)
 
@@ -311,7 +321,7 @@ class SecurityAuditLogger:
         user_id: str,
         resource: str,
         action: str,
-        reason: str = "insufficient_permissions"
+        reason: str = "insufficient_permissions",
     ):
         """Log permission denial."""
         event = SecurityEvent(
@@ -320,16 +330,12 @@ class SecurityAuditLogger:
             description=f"Permission denied for user {user_id} to {action} {resource}: {reason}",
             status="failure",
             severity="warning",
-            metadata={"resource": resource, "action": action, "reason": reason}
+            metadata={"resource": resource, "action": action, "reason": reason},
         )
         self.log_event(event)
 
     def log_sql_injection_attempt(
-        self,
-        ip_address: str,
-        endpoint: str,
-        payload: str,
-        user_id: str | None = None
+        self, ip_address: str, endpoint: str, payload: str, user_id: str | None = None
     ):
         """Log SQL injection attempt (blocked)."""
         event = SecurityEvent(
@@ -342,7 +348,7 @@ class SecurityAuditLogger:
             severity="critical",
             metadata={
                 "payload_preview": payload[:100] if len(payload) > 100 else payload
-            }
+            },
         )
         self.log_event(event)
 
@@ -351,7 +357,7 @@ class SecurityAuditLogger:
         user_id: str,
         data_subject_id: str,
         data_type: str,
-        purpose: str = "business_operations"
+        purpose: str = "business_operations",
     ):
         """Log PII data access for GDPR compliance."""
         event = SecurityEvent(
@@ -362,16 +368,13 @@ class SecurityAuditLogger:
             metadata={
                 "data_subject_id": data_subject_id,
                 "data_type": data_type,
-                "purpose": purpose
-            }
+                "purpose": purpose,
+            },
         )
         self.log_event(event)
 
     def log_account_deletion(
-        self,
-        user_id: str,
-        deleted_by: str,
-        reason: str = "user_request"
+        self, user_id: str, deleted_by: str, reason: str = "user_request"
     ):
         """Log account deletion for GDPR right to erasure."""
         event = SecurityEvent(
@@ -379,10 +382,7 @@ class SecurityAuditLogger:
             user_id=deleted_by,
             description=f"Account {user_id} deleted by {deleted_by}: {reason}",
             involves_pii=True,
-            metadata={
-                "deleted_account": user_id,
-                "reason": reason
-            }
+            metadata={"deleted_account": user_id, "reason": reason},
         )
         self.log_event(event)
 

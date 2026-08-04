@@ -7,11 +7,11 @@ API Key Authentication System for Service-to-Service Communication
 - Key revocation and expiration
 """
 
-from datetime import datetime
-from enum import Enum
 import hashlib
 import secrets
 import time
+from datetime import datetime
+from enum import Enum
 from typing import Any
 
 from fastapi import Depends, HTTPException, Security, status
@@ -219,7 +219,9 @@ class APIKeyManager:
 
         return False
 
-    async def get_key_usage(self, key_id: str, time_range: str = "1h") -> dict[str, Any]:
+    async def get_key_usage(
+        self, key_id: str, time_range: str = "1h"
+    ) -> dict[str, Any]:
         """
         Get API key usage statistics
 
@@ -442,8 +444,12 @@ class APIKeyRateLimiter:
 
             if current_requests >= limit:
                 # Get oldest request for reset time
-                oldest = await self.cache.redis.zrange(rate_limit_key, 0, 0, withscores=True)
-                reset_time = int(oldest[0][1]) + window if oldest else current_time + window
+                oldest = await self.cache.redis.zrange(
+                    rate_limit_key, 0, 0, withscores=True
+                )
+                reset_time = (
+                    int(oldest[0][1]) + window if oldest else current_time + window
+                )
 
                 return False, {
                     "remaining": 0,
@@ -453,7 +459,9 @@ class APIKeyRateLimiter:
                 }
 
             # Add current request
-            await self.cache.redis.zadd(rate_limit_key, {str(current_time): current_time})
+            await self.cache.redis.zadd(
+                rate_limit_key, {str(current_time): current_time}
+            )
             await self.cache.redis.expire(rate_limit_key, window)
 
             remaining = limit - current_requests - 1

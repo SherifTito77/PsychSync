@@ -3,18 +3,23 @@
 # Simple test to verify the consolidated user service works correctly
 
 import asyncio
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add project root to path
 sys.path.append(str(Path(__file__).parent))
 
+
 async def test_unified_user_service():
     """Test basic functionality of the unified user service"""
     try:
         # Test import
-        from app.services.unified_user_service import get_user_service, unified_user_service
+        from app.services.unified_user_service import (
+            get_user_service,
+            unified_user_service,
+        )
+
         print("✅ Unified user service import successful")
 
         # Test service instantiation
@@ -29,9 +34,12 @@ async def test_unified_user_service():
         from app.services.unified_user_service import (
             ENABLE_ENHANCED_CACHING,
             ENABLE_USER_STATS,
-            ENABLE_VALIDATION_ENHANCEMENTS
+            ENABLE_VALIDATION_ENHANCEMENTS,
         )
-        print(f"✅ Feature flags - Caching: {ENABLE_ENHANCED_CACHING}, Stats: {ENABLE_USER_STATS}, Validation: {ENABLE_VALIDATION_ENHANCEMENTS}")
+
+        print(
+            f"✅ Feature flags - Caching: {ENABLE_ENHANCED_CACHING}, Stats: {ENABLE_USER_STATS}, Validation: {ENABLE_VALIDATION_ENHANCEMENTS}"
+        )
         print("✅ Service initialization complete")
 
         return True
@@ -39,21 +47,31 @@ async def test_unified_user_service():
     except Exception as e:
         print(f"❌ Test failed: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
+
 
 async def test_service_methods():
     """Test service method signatures"""
     try:
-        from app.services.unified_user_service import unified_user_service
         from app.schemas.user import UserCreate, UserUpdate
+        from app.services.unified_user_service import unified_user_service
 
         # Test method signatures exist
         methods = [
-            'get_by_id', 'get_by_email', 'get_by_username',
-            'get_by_organization', 'get_all_users', 'get_user_count',
-            'create_user', 'update_user', 'delete_user',
-            'update_password', 'verify_password', 'get_user_stats'
+            "get_by_id",
+            "get_by_email",
+            "get_by_username",
+            "get_by_organization",
+            "get_all_users",
+            "get_user_count",
+            "create_user",
+            "update_user",
+            "delete_user",
+            "update_password",
+            "verify_password",
+            "get_user_stats",
         ]
 
         for method in methods:
@@ -69,6 +87,7 @@ async def test_service_methods():
         print(f"❌ Method test failed: {str(e)}")
         return False
 
+
 async def main():
     """Run all tests"""
     print("🧪 Testing Unified User Service")
@@ -76,7 +95,7 @@ async def main():
 
     tests = [
         ("Basic Functionality", test_unified_user_service),
-        ("Service Methods", test_service_methods)
+        ("Service Methods", test_service_methods),
     ]
 
     passed = 0
@@ -99,6 +118,7 @@ async def main():
     else:
         print("⚠️  Some tests failed. Check the output above for details.")
         return 1
+
 
 if __name__ == "__main__":
     exit_code = asyncio.run(main())

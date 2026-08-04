@@ -4,13 +4,13 @@ Advanced database optimizations for PsychSync
 Includes connection pooling, query optimization, and performance monitoring
 """
 
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 import logging
 import time
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import Any
 
-from sqlalchemy import event, text, Table
+from sqlalchemy import Table, event, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -155,8 +155,12 @@ class DatabaseMonitor:
         return {
             **self.query_stats,
             "avg_query_time": avg_time,
-            "slow_query_percentage": (self.query_stats["slow_queries"] / total_queries) * 100,
-            "error_query_percentage": (self.query_stats["error_queries"] / total_queries) * 100,
+            "slow_query_percentage": (self.query_stats["slow_queries"] / total_queries)
+            * 100,
+            "error_query_percentage": (
+                self.query_stats["error_queries"] / total_queries
+            )
+            * 100,
         }
 
 
@@ -231,7 +235,8 @@ class QueryOptimizer:
             safe_table_name = _validate_table_name(table_name)
 
             result = await db.execute(
-                text("""
+                text(
+                    """
                 SELECT
                     schemaname,
                     tablename,
@@ -246,15 +251,17 @@ class QueryOptimizer:
                     last_autoanalyze
                 FROM pg_stat_user_tables
                 WHERE tablename = :table_name
-            """),
-                {"table_name": table_name}  # Parameterized query
+            """
+                ),
+                {"table_name": table_name},  # Parameterized query
             )
 
             stats = result.mappings().first()
 
             # Get index usage statistics
             index_result = await db.execute(
-                text("""
+                text(
+                    """
                 SELECT
                     schemaname,
                     tablename,
@@ -265,8 +272,9 @@ class QueryOptimizer:
                 FROM pg_stat_user_indexes
                 WHERE tablename = :table_name
                 ORDER BY idx_scan DESC
-            """),
-                {"table_name": table_name}  # Parameterized query
+            """
+                ),
+                {"table_name": table_name},  # Parameterized query
             )
 
             index_stats = index_result.mappings().all()
@@ -274,7 +282,9 @@ class QueryOptimizer:
             return {
                 "table_stats": dict(stats) if stats else {},
                 "index_stats": [dict(row) for row in index_stats],
-                "optimization_suggestions": QueryOptimizer._get_suggestions(stats, index_stats),
+                "optimization_suggestions": QueryOptimizer._get_suggestions(
+                    stats, index_stats
+                ),
             }
 
         except Exception as e:
@@ -296,11 +306,15 @@ class QueryOptimizer:
 
             # Check for unused indexes
             unused_indexes = [
-                idx["indexname"] for idx in index_stats if idx.get("index_scans", 0) == 0
+                idx["indexname"]
+                for idx in index_stats
+                if idx.get("index_scans", 0) == 0
             ]
 
             if unused_indexes:
-                suggestions.append(f"Unused indexes detected: {', '.join(unused_indexes[:3])}")
+                suggestions.append(
+                    f"Unused indexes detected: {', '.join(unused_indexes[:3])}"
+                )
 
         return suggestions
 
@@ -323,14 +337,16 @@ async def get_database_health() -> dict[str, Any]:
         async with AsyncSessionLocal() as session:
             # Connection statistics
             result = await session.execute(
-                text("""
+                text(
+                    """
                 SELECT
                     count(*) as total_connections,
                     count(*) FILTER (WHERE state = 'active') as active_connections,
                     count(*) FILTER (WHERE state = 'idle') as idle_connections
                 FROM pg_stat_activity
                 WHERE datname = current_database()
-            """)
+            """
+                )
             )
 
             conn_stats = result.mappings().first()
@@ -346,9 +362,11 @@ async def get_database_health() -> dict[str, Any]:
 
             # Database size
             result = await session.execute(
-                text("""
+                text(
+                    """
                 SELECT pg_size_pretty(pg_database_size(current_database())) as size
-            """)
+            """
+                )
             )
 
             size_result = result.scalar()
@@ -356,12 +374,14 @@ async def get_database_health() -> dict[str, Any]:
 
             # Cache hit ratio
             result = await session.execute(
-                text("""
+                text(
+                    """
                 SELECT
                     sum(heap_blks_hit) / (sum(heap_blks_hit) + sum(heap_blks_read)) as cache_hit_ratio
                 FROM pg_statio_user_tables
                 WHERE (sum(heap_blks_hit) + sum(heap_blks_read)) > 0
-            """)
+            """
+                )
             )
 
             cache_ratio = result.scalar()
@@ -370,11 +390,13 @@ async def get_database_health() -> dict[str, Any]:
             # Slow queries (pg_stat_statements extension)
             try:
                 result = await session.execute(
-                    text("""
+                    text(
+                        """
                     SELECT count(*) as slow_queries
                     FROM pg_stat_statements
                     WHERE mean_time > 1000  -- queries taking more than 1 second
-                """)
+                """
+                    )
                 )
 
                 slow_queries = result.scalar()
@@ -479,19 +501,23 @@ async def init_advanced_db():
 
             # Create performance monitoring extensions
             await conn.execute(
-                text("""
+                text(
+                    """
                 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
-            """)
+            """
+                )
             )
 
             # Set performance optimizations
             await conn.execute(
-                text("""
+                text(
+                    """
                 -- Improve performance for large tables
                 ALTER SYSTEM SET shared_preload_libraries = 'pg_stat_statements';
                 ALTER SYSTEM SET track_activity_query_size = 2048;
                 ALTER SYSTEM SET log_min_duration_statement = 1000;  -- Log queries > 1s
-            """)
+            """
+                )
             )
 
         logger.info("Advanced database initialization completed successfully")

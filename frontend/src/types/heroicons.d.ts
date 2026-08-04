@@ -1,0 +1,26 @@
+declare module '@heroicons/react/24/outline' {
+  export const PhoneIcon: any;
+  export const VideoCameraIcon: any;
+  export const MicrophoneIcon: any;
+  export const PhoneArrowUpRightIcon: any;
+  export const VideoCameraSlashIcon: any;
+  export const MicrophoneSlashIcon: any;
+  export const XMarkIcon: any;
+  export const ChevronRightIcon: any;
+  export const HeartIcon: any;
+  export const ShareIcon: any;
+  export const EllipsisVerticalIcon: any;
+  export const TrashIcon: any;
+  export const ArchiveBoxIcon: any;
+  export const HomeIcon: any;
+  export const UserIcon: any;
+  export const Cog6Icon: any;
+  export const DocumentTextIcon: any;
+  export const ChartBarIcon: any;
+  export const UserGroupIcon: any;
+  export const MenuIcon: any;
+  export const XIcon: any;
+  export const ChevronLeftIcon: any;
+  export const CogIcon: any;
+  export * from '@heroicons/react';
+}

@@ -13,6 +13,7 @@ Version: 3.0 OWASP-Compliant
 """
 
 import pytest
+
 from app.services.webhook_manager_secure import SSRFProtection, WebhookManager
 
 
@@ -165,10 +166,10 @@ class TestSSRFPrevention:
         """
         blocked_port_urls = [
             "http://example.com:22/webhook",  # SSH
-            "http://example.com:3306/api",     # MySQL
-            "http://example.com:5432/hook",    # PostgreSQL
-            "http://example.com:6379/webhook", # Redis
-            "http://example.com:27017/api",    # MongoDB
+            "http://example.com:3306/api",  # MySQL
+            "http://example.com:5432/hook",  # PostgreSQL
+            "http://example.com:6379/webhook",  # Redis
+            "http://example.com:27017/api",  # MongoDB
         ]
 
         for url in blocked_port_urls:
@@ -298,7 +299,7 @@ class TestWebhookManagerSSRFProtection:
                     user_id=1,
                     url=url,
                     events=["assessment.completed"],
-                    client_ip="127.0.0.1"
+                    client_ip="127.0.0.1",
                 )
 
     @pytest.mark.asyncio
@@ -327,7 +328,7 @@ class TestWebhookManagerSSRFProtection:
                 user_id=1,
                 url=url,
                 events=["assessment.completed"],
-                client_ip="127.0.0.1"
+                client_ip="127.0.0.1",
             )
 
             assert subscription is not None
@@ -346,14 +347,17 @@ class TestWebhookManagerSSRFProtection:
 
         # Create a malicious webhook (would be caught in real scenario)
         # For testing, manually create it
-        from app.services.webhook_manager_secure import WebhookSubscription, WebhookEvent
+        from app.services.webhook_manager_secure import (
+            WebhookEvent,
+            WebhookSubscription,
+        )
 
         malicious_webhook = WebhookSubscription(
             id="test-webhook",
             user_id=1,
             url="http://192.168.1.1/webhook",  # Internal IP
             events=[WebhookEvent.ASSESSMENT_COMPLETED],
-            secret="test-secret"
+            secret="test-secret",
         )
 
         # Mock storage methods
@@ -365,12 +369,12 @@ class TestWebhookManagerSSRFProtection:
         result = await manager._send_webhook_request(
             webhook=malicious_webhook,
             payload={"event": "assessment.completed", "data": "test"},
-            attempt_number=1
+            attempt_number=1,
         )
 
         # Should fail validation
-        assert result['status'] == 'FAILED'
-        assert 'Invalid' in result.get('error_message', '')
+        assert result["status"] == "FAILED"
+        assert "Invalid" in result.get("error_message", "")
 
 
 class TestCloudMetadataTheftPrevention:
@@ -433,6 +437,7 @@ class TestCloudMetadataTheftPrevention:
 def webhook_manager():
     """Webhook manager fixture"""
     return WebhookManager()
+
 
 @pytest.fixture
 async def event_loop():

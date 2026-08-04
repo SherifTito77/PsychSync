@@ -13,8 +13,8 @@ Examples include:
 
 import asyncio
 import json
-from typing import Dict, Any, List
 from pathlib import Path
+from typing import Any, Dict, List
 
 # These would be imported in actual usage
 # from app.services.product_management_service import ProductManagementPromptsService
@@ -25,6 +25,7 @@ from pathlib import Path
 # ============================================================================
 # Jira Integration Example
 # ============================================================================
+
 
 class JiraProductPromptsIntegration:
     """
@@ -40,10 +41,7 @@ class JiraProductPromptsIntegration:
         self.auth = (email, api_token)
 
     async def create_epic_from_prompt(
-        self,
-        prompt_id: str,
-        execution_result: Dict[str, Any],
-        project_key: str
+        self, prompt_id: str, execution_result: Dict[str, Any], project_key: str
     ) -> str:
         """
         Create a Jira epic from a prompt execution.
@@ -59,7 +57,7 @@ class JiraProductPromptsIntegration:
                 "summary": f"[PM Prompt] {execution_result['prompt']['prompt']}",
                 "description": self._format_jira_description(execution_result),
                 "issuetype": {"name": "Epic"},
-                "labels": ["product-management-prompt", prompt_id]
+                "labels": ["product-management-prompt", prompt_id],
             }
         }
 
@@ -75,7 +73,7 @@ class JiraProductPromptsIntegration:
 
     def _format_jira_description(self, execution_result: Dict[str, Any]) -> str:
         """Format execution result as Jira description."""
-        prompt = execution_result['prompt']
+        prompt = execution_result["prompt"]
 
         description = f"""
 h1. Product Management Prompt: {prompt['prompt']}
@@ -103,12 +101,13 @@ h3. AI Suggestions
 
     def _format_list(self, items: List[str]) -> str:
         """Format a list as Jira markup."""
-        return '\n'.join(f'* {item}' for item in items)
+        return "\n".join(f"* {item}" for item in items)
 
 
 # ============================================================================
 # Notion Integration Example
 # ============================================================================
+
 
 class NotionProductPromptsIntegration:
     """
@@ -121,10 +120,7 @@ class NotionProductPromptsIntegration:
         self.integration_token = integration_token
         self.base_url = "https://api.notion.com/v1"
 
-    async def create_prompt_database(
-        self,
-        parent_page_id: str
-    ) -> str:
+    async def create_prompt_database(self, parent_page_id: str) -> str:
         """
         Create a database in Notion to track prompt executions.
 
@@ -133,16 +129,13 @@ class NotionProductPromptsIntegration:
         headers = {
             "Authorization": f"Bearer {self.integration_token}",
             "Content-Type": "application/json",
-            "Notion-Version": "2022-06-28"
+            "Notion-Version": "2022-06-28",
         }
 
         database_schema = {
             "parent": {"type": "page_id", "page_id": parent_page_id},
             "title": [
-                {
-                    "type": "text",
-                    "text": {"content": "Product Management Prompts"}
-                }
+                {"type": "text", "text": {"content": "Product Management Prompts"}}
             ],
             "properties": {
                 "Prompt ID": {"title": {}},
@@ -156,9 +149,9 @@ class NotionProductPromptsIntegration:
                             {"name": "Analytical"},
                             {"name": "Technical"},
                             {"name": "Creative"},
-                            {"name": "Experimental"}
+                            {"name": "Experimental"},
                         ]
-                    }
+                    },
                 },
                 "Complexity": {
                     "type": "select",
@@ -166,9 +159,9 @@ class NotionProductPromptsIntegration:
                         "options": [
                             {"name": "Low"},
                             {"name": "Medium"},
-                            {"name": "High"}
+                            {"name": "High"},
                         ]
-                    }
+                    },
                 },
                 "Status": {
                     "type": "status",
@@ -176,13 +169,13 @@ class NotionProductPromptsIntegration:
                         "options": [
                             {"name": "Not Started", "color": "gray"},
                             {"name": "In Progress", "color": "blue"},
-                            {"name": "Completed", "color": "green"}
+                            {"name": "Completed", "color": "green"},
                         ]
-                    }
+                    },
                 },
                 "Execution Date": {"type": "date", "date": {}},
-                "AI Enhanced": {"type": "checkbox", "checkbox": {}}
-            }
+                "AI Enhanced": {"type": "checkbox", "checkbox": {}},
+            },
         }
 
         # In production:
@@ -196,72 +189,61 @@ class NotionProductPromptsIntegration:
         return "database_id_123"  # Mock response
 
     async def add_execution_to_database(
-        self,
-        database_id: str,
-        execution_result: Dict[str, Any]
+        self, database_id: str, execution_result: Dict[str, Any]
     ) -> str:
         """Add a prompt execution to the Notion database."""
         headers = {
             "Authorization": f"Bearer {self.integration_token}",
             "Content-Type": "application/json",
-            "Notion-Version": "2022-06-28"
+            "Notion-Version": "2022-06-28",
         }
 
-        prompt = execution_result['prompt']
+        prompt = execution_result["prompt"]
 
         page_data = {
             "parent": {"database_id": database_id},
             "properties": {
-                "Prompt ID": {
-                    "title": [
-                        {"text": {"content": prompt['id']}}
-                    ]
-                },
-                "Prompt Text": {
-                    "type": "text",
-                    "text": {"content": prompt['prompt']}
-                },
-                "Type": {
-                    "type": "select",
-                    "select": {"name": prompt['type'].title()}
-                },
+                "Prompt ID": {"title": [{"text": {"content": prompt["id"]}}]},
+                "Prompt Text": {"type": "text", "text": {"content": prompt["prompt"]}},
+                "Type": {"type": "select", "select": {"name": prompt["type"].title()}},
                 "Complexity": {
                     "type": "select",
-                    "select": {"name": prompt['complexity'].title()}
+                    "select": {"name": prompt["complexity"].title()},
                 },
-                "Status": {
-                    "type": "status",
-                    "status": {"name": "Completed"}
-                },
+                "Status": {"type": "status", "status": {"name": "Completed"}},
                 "Execution Date": {
                     "type": "date",
-                    "date": {"start": execution_result['executed_at']}
+                    "date": {"start": execution_result["executed_at"]},
                 },
                 "AI Enhanced": {
                     "type": "checkbox",
-                    "checkbox": execution_result['use_ai']
-                }
+                    "checkbox": execution_result["use_ai"],
+                },
             },
             "children": [
                 {
                     "object": "block",
                     "type": "heading_2",
                     "heading_2": {
-                        "rich_text": [{"type": "text", "text": {"content": "Expected Outputs"}}]
-                    }
+                        "rich_text": [
+                            {"type": "text", "text": {"content": "Expected Outputs"}}
+                        ]
+                    },
                 }
-            ]
+            ],
         }
 
         # Add outputs as bullet points
-        for output in prompt['outputs']:
-            page_data["children"].append({
-                "object": "block",
-                "type": "bulleted_list_item",
-                "bulleted_list_item": {
-                    "rich_text": [{"type": "text", "text": {"content": output}}]
+        for output in prompt["outputs"]:
+            page_data["children"].append(
+                {
+                    "object": "block",
+                    "type": "bulleted_list_item",
+                    "bulleted_list_item": {
+                        "rich_text": [{"type": "text", "text": {"content": output}}]
+                    },
                 }
-            })
+            )
 
         # In production:
         # response = requests.post(
@@ -278,6 +260,7 @@ class NotionProductPromptsIntegration:
 # Slack Integration Example
 # ============================================================================
 
+
 class SlackProductPromptsIntegration:
     """
     Integration between Product Management Prompts and Slack.
@@ -289,12 +272,10 @@ class SlackProductPromptsIntegration:
         self.webhook_url = webhook_url
 
     async def post_execution_to_channel(
-        self,
-        execution_result: Dict[str, Any],
-        channel: str = "#product"
+        self, execution_result: Dict[str, Any], channel: str = "#product"
     ) -> bool:
         """Post a prompt execution to a Slack channel."""
-        prompt = execution_result['prompt']
+        prompt = execution_result["prompt"]
 
         message = {
             "channel": channel,
@@ -305,36 +286,34 @@ class SlackProductPromptsIntegration:
                     "color": "#36a64f",
                     "title": f"Product Prompt Executed: {prompt['prompt']}",
                     "fields": [
-                        {
-                            "title": "Prompt ID",
-                            "value": prompt['id'],
-                            "short": True
-                        },
+                        {"title": "Prompt ID", "value": prompt["id"], "short": True},
                         {
                             "title": "Type",
-                            "value": prompt['type'].title(),
-                            "short": True
+                            "value": prompt["type"].title(),
+                            "short": True,
                         },
                         {
                             "title": "Complexity",
-                            "value": prompt['complexity'].title(),
-                            "short": True
+                            "value": prompt["complexity"].title(),
+                            "short": True,
                         },
                         {
                             "title": "Time",
-                            "value": prompt['estimated_time'],
-                            "short": True
-                        }
+                            "value": prompt["estimated_time"],
+                            "short": True,
+                        },
                     ],
                     "footer": f"Execution ID: {execution_result['execution_id']}",
-                    "ts": execution_result['executed_at']
+                    "ts": execution_result["executed_at"],
                 }
-            ]
+            ],
         }
 
         # Add AI suggestion if available
-        if execution_result.get('ai_suggestion'):
-            message['attachments'][0]['text'] = f"*AI Suggestions:*\n{execution_result['ai_suggestion']}"
+        if execution_result.get("ai_suggestion"):
+            message["attachments"][0][
+                "text"
+            ] = f"*AI Suggestions:*\n{execution_result['ai_suggestion']}"
 
         # In production:
         # response = requests.post(self.webhook_url, json=message)
@@ -346,20 +325,16 @@ class SlackProductPromptsIntegration:
         self,
         workflow_name: str,
         executions: List[Dict[str, Any]],
-        channel: str = "#product"
+        channel: str = "#product",
     ):
         """Post a summary of workflow execution to Slack."""
         fields = [
             {
                 "title": "Workflow",
-                "value": workflow_name.replace('_', ' ').title(),
-                "short": True
+                "value": workflow_name.replace("_", " ").title(),
+                "short": True,
             },
-            {
-                "title": "Prompts Executed",
-                "value": str(len(executions)),
-                "short": True
-            }
+            {"title": "Prompts Executed", "value": str(len(executions)), "short": True},
         ]
 
         message = {
@@ -372,9 +347,9 @@ class SlackProductPromptsIntegration:
                     "title": f"✅ Workflow Completed: {workflow_name}",
                     "fields": fields,
                     "footer": "Product Management Prompts",
-                    "ts": executions[-1]['executed_at'] if executions else None
+                    "ts": executions[-1]["executed_at"] if executions else None,
                 }
-            ]
+            ],
         }
 
         # In production:
@@ -385,6 +360,7 @@ class SlackProductPromptsIntegration:
 # ============================================================================
 # Email Integration Example
 # ============================================================================
+
 
 class EmailProductPromptsIntegration:
     """
@@ -403,20 +379,20 @@ class EmailProductPromptsIntegration:
         self,
         execution_result: Dict[str, Any],
         recipients: List[str],
-        include_ai_suggestions: bool = True
+        include_ai_suggestions: bool = True,
     ):
         """Send an email report of a prompt execution."""
         import smtplib
-        from email.mime.text import MIMEText
         from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
 
-        prompt = execution_result['prompt']
+        prompt = execution_result["prompt"]
 
         # Create message
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = f"Product Management Prompt: {prompt['prompt']}"
-        msg['From'] = self.email
-        msg['To'] = ', '.join(recipients)
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"Product Management Prompt: {prompt['prompt']}"
+        msg["From"] = self.email
+        msg["To"] = ", ".join(recipients)
 
         # Create HTML content
         html_content = f"""
@@ -468,7 +444,7 @@ class EmailProductPromptsIntegration:
         </html>
         """
 
-        msg.attach(MIMEText(html_content, 'html'))
+        msg.attach(MIMEText(html_content, "html"))
 
         # In production:
         # with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
@@ -481,6 +457,7 @@ class EmailProductPromptsIntegration:
 # ============================================================================
 # Example Usage
 # ============================================================================
+
 
 async def example_workflow_integration():
     """
@@ -497,7 +474,7 @@ async def example_workflow_integration():
     jira = JiraProductPromptsIntegration(
         jira_url="https://your-domain.atlassian.net",
         api_token="your-api-token",
-        email="your-email@example.com"
+        email="your-email@example.com",
     )
 
     notion = NotionProductPromptsIntegration(
@@ -512,58 +489,53 @@ async def example_workflow_integration():
         smtp_server="smtp.gmail.com",
         smtp_port=587,
         email="your-email@example.com",
-        password="your-app-password"
+        password="your-app-password",
     )
 
     # Execute a prompt (this would use the actual service)
     execution_result = {
-        'prompt': {
-            'id': 'rs_001',
-            'prompt': 'Create a roadmap based on user value vs complexity.',
-            'type': 'strategic',
-            'complexity': 'medium',
-            'estimated_time': '2-3 hours',
-            'outputs': ['Prioritized feature matrix', 'Timeline visualization'],
-            'use_cases': ['Quarterly planning', 'Product strategy reviews']
+        "prompt": {
+            "id": "rs_001",
+            "prompt": "Create a roadmap based on user value vs complexity.",
+            "type": "strategic",
+            "complexity": "medium",
+            "estimated_time": "2-3 hours",
+            "outputs": ["Prioritized feature matrix", "Timeline visualization"],
+            "use_cases": ["Quarterly planning", "Product strategy reviews"],
         },
-        'execution_id': 12345,
-        'executed_at': '2025-01-17T10:30:00Z',
-        'use_ai': True,
-        'ai_suggestion': 'Here\'s a strategic roadmap based on your criteria...'
+        "execution_id": 12345,
+        "executed_at": "2025-01-17T10:30:00Z",
+        "use_ai": True,
+        "ai_suggestion": "Here's a strategic roadmap based on your criteria...",
     }
 
     # 1. Create Jira epic
     epic_key = await jira.create_epic_from_prompt(
-        prompt_id='rs_001',
-        execution_result=execution_result,
-        project_key='PROD'
+        prompt_id="rs_001", execution_result=execution_result, project_key="PROD"
     )
     print(f"✅ Created Jira epic: {epic_key}")
 
     # 2. Log in Notion
     notion_page_id = await notion.add_execution_to_database(
-        database_id='database_id_123',
-        execution_result=execution_result
+        database_id="database_id_123", execution_result=execution_result
     )
     print(f"✅ Created Notion page: {notion_page_id}")
 
     # 3. Post to Slack
     await slack.post_execution_to_channel(
-        execution_result=execution_result,
-        channel="#product"
+        execution_result=execution_result, channel="#product"
     )
     print(f"✅ Posted to Slack")
 
     # 4. Send email report
     await email.send_execution_report(
-        execution_result=execution_result,
-        recipients=['stakeholders@example.com']
+        execution_result=execution_result, recipients=["stakeholders@example.com"]
     )
     print(f"✅ Sent email report")
 
     print("\n🎉 Workflow integration complete!")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Run the example
     asyncio.run(example_workflow_integration())

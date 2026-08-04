@@ -35,7 +35,6 @@ from typing import Any, Dict, List
 
 from app.db.models.response import Response
 
-
 # =============================================================================
 # Data Classes & Enums
 # =============================================================================
@@ -43,6 +42,7 @@ from app.db.models.response import Response
 
 class FrameworkCode(Enum):
     """Standard assessment framework codes"""
+
     MBTI = "MBTI"
     BIG_FIVE = "BIG_FIVE"
     ENNEAGRAM = "ENNEAGRAM"
@@ -58,6 +58,7 @@ class FrameworkCode(Enum):
 @dataclass
 class ScoringResult:
     """Result of assessment scoring"""
+
     framework_code: str
     scores: Dict[str, float]
     normalized: bool
@@ -160,7 +161,7 @@ class MBTIScoringStrategy(ScoringStrategy):
         # Count responses for each dimension
         # This is a simplified placeholder - real MBTI scoring is complex
         for response in responses:
-            if hasattr(response, 'question_id') and hasattr(response, 'score'):
+            if hasattr(response, "question_id") and hasattr(response, "score"):
                 # Placeholder: Use response score
                 # In production, this would map questions to dimensions
                 e_i_score += response.score if response.score else 0
@@ -182,7 +183,9 @@ class MBTIScoringStrategy(ScoringStrategy):
                 "response_count": len(responses),
                 "dimensions": ["E_I", "S_N", "T_F", "J_P"],
             },
-            interpretation=self._interpret_mbti_type(e_i_score, s_n_score, t_f_score, j_p_score),
+            interpretation=self._interpret_mbti_type(
+                e_i_score, s_n_score, t_f_score, j_p_score
+            ),
         )
 
     def _interpret_mbti_type(
@@ -237,7 +240,7 @@ class BigFiveScoringStrategy(ScoringStrategy):
 
         # Sum up responses
         for response in responses:
-            if hasattr(response, 'score'):
+            if hasattr(response, "score"):
                 score = response.score or 0
                 # In production, would map questions to traits
                 # For now, evenly distribute
@@ -264,7 +267,9 @@ class BigFiveScoringStrategy(ScoringStrategy):
                 "response_count": len(responses),
                 "traits": ["O", "C", "E", "A", "N"],
             },
-            interpretation=self._interpret_big_five(openness, conscientiousness, extraversion, agreeableness, neuroticism),
+            interpretation=self._interpret_big_five(
+                openness, conscientiousness, extraversion, agreeableness, neuroticism
+            ),
         )
 
     def _interpret_big_five(
@@ -323,11 +328,13 @@ class EnneagramScoringStrategy(ScoringStrategy):
 
         # Sum up responses
         for response in responses:
-            if hasattr(response, 'score'):
+            if hasattr(response, "score"):
                 # In production, would map questions to types
                 # For now, distribute evenly
                 for i in range(1, 10):
-                    type_scores[f"type_{i}"] += response.score / 9 if response.score else 0
+                    type_scores[f"type_{i}"] += (
+                        response.score / 9 if response.score else 0
+                    )
 
         total_responses = len(responses) if responses else 1
 
@@ -350,7 +357,9 @@ class EnneagramScoringStrategy(ScoringStrategy):
                 "dominant_type": dominant_type,
                 "all_types": [f"type_{i}" for i in range(1, 10)],
             },
-            interpretation=self._interpret_enneagram(dominant_type, normalized_scores[dominant_type]),
+            interpretation=self._interpret_enneagram(
+                dominant_type, normalized_scores[dominant_type]
+            ),
         )
 
     def _interpret_enneagram(self, dominant_type: str, score: float) -> str:
@@ -399,7 +408,7 @@ class DISCScoringStrategy(ScoringStrategy):
         c_score = 0.0
 
         for response in responses:
-            if hasattr(response, 'score'):
+            if hasattr(response, "score"):
                 score = response.score or 0
                 # Evenly distribute for now
                 d_score += score / 4
@@ -485,12 +494,16 @@ class ScoringStrategyRegistry:
             registry.register("MBTI", MBTIScoringStrategy())
         """
         if framework_code in self._strategies:
-            raise ValueError(f"Framework {framework_code} already has a registered strategy")
+            raise ValueError(
+                f"Framework {framework_code} already has a registered strategy"
+            )
 
         self._strategies[framework_code] = strategy
 
         if self._logger:
-            self._logger.info(f"Registered scoring strategy for framework: {framework_code}")
+            self._logger.info(
+                f"Registered scoring strategy for framework: {framework_code}"
+            )
 
     def get_strategy(self, framework_code: str) -> ScoringStrategy:
         """
@@ -545,7 +558,11 @@ def get_scoring_strategy_registry() -> ScoringStrategyRegistry:
         _default_registry = ScoringStrategyRegistry()
         # Register default strategies
         _default_registry.register(FrameworkCode.MBTI.value, MBTIScoringStrategy())
-        _default_registry.register(FrameworkCode.BIG_FIVE.value, BigFiveScoringStrategy())
-        _default_registry.register(FrameworkCode.ENNEAGRAM.value, EnneagramScoringStrategy())
+        _default_registry.register(
+            FrameworkCode.BIG_FIVE.value, BigFiveScoringStrategy()
+        )
+        _default_registry.register(
+            FrameworkCode.ENNEAGRAM.value, EnneagramScoringStrategy()
+        )
         _default_registry.register(FrameworkCode.DISC.value, DISCScoringStrategy())
     return _default_registry

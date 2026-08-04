@@ -11,8 +11,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import create_engine
-from app.core.database import Base
+
 from app.core.config import settings
+from app.core.database import Base
 
 
 def init_database():
@@ -22,7 +23,9 @@ def init_database():
     print()
 
     # Create sync engine (replace asyncpg with psycopg2)
-    database_url = str(settings.DATABASE_URL).replace("postgresql+asyncpg://", "postgresql://")
+    database_url = str(settings.DATABASE_URL).replace(
+        "postgresql+asyncpg://", "postgresql://"
+    )
     engine = create_engine(database_url, echo=False)
 
     try:
@@ -39,14 +42,19 @@ def init_database():
         # List created tables
         print("Step 3: Verifying created tables...")
         from sqlalchemy import text
+
         with engine.connect() as conn:
-            result = conn.execute(text("""
+            result = conn.execute(
+                text(
+                    """
                 SELECT tablename
                 FROM pg_tables
                 WHERE schemaname = 'public'
                 AND tablename NOT LIKE 'alembic%'
                 ORDER BY tablename;
-            """))
+            """
+                )
+            )
             tables = [row[0] for row in result]
 
             print(f"✅ Created {len(tables)} tables:")
@@ -63,6 +71,7 @@ def init_database():
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
     finally:

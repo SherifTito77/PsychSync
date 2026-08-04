@@ -4,18 +4,18 @@ PsychSync Security Integration Manager
 Comprehensive security system integration and management
 """
 
+import argparse
 import asyncio
 import json
 import logging
 import sys
 import threading
 import time
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Callable
-from dataclasses import dataclass, asdict
-import argparse
+from typing import Any, Callable, Dict, List, Optional
 
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -27,13 +27,11 @@ from scripts.ssh_brute_force_tester import SSHBruteForceTester
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('security_integration.log'),
-        logging.StreamHandler()
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("security_integration.log"), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
+
 
 class SecurityStatus(Enum):
     SECURE = "SECURE"
@@ -41,15 +39,18 @@ class SecurityStatus(Enum):
     CRITICAL = "CRITICAL"
     UNKNOWN = "UNKNOWN"
 
+
 class AlertLevel(Enum):
     INFO = "INFO"
     WARNING = "WARNING"
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
 
+
 @dataclass
 class SecurityAlert:
     """Security alert data structure"""
+
     id: str
     timestamp: datetime
     level: AlertLevel
@@ -60,9 +61,11 @@ class SecurityAlert:
     resolved: bool = False
     resolved_at: Optional[datetime] = None
 
+
 @dataclass
 class SecurityMetrics:
     """Security metrics data structure"""
+
     timestamp: datetime
     enterprise_security_score: float
     infrastructure_risk_score: float
@@ -72,6 +75,7 @@ class SecurityMetrics:
     active_alerts: int
     compliance_scores: Dict[str, float]
     threat_indicators: Dict[str, int]
+
 
 class SecurityIntegrationManager:
     """Comprehensive security integration and management system"""
@@ -110,7 +114,7 @@ class SecurityIntegrationManager:
         """Load configuration from file"""
         try:
             if Path(self.config_file).exists():
-                with open(self.config_file, 'r') as f:
+                with open(self.config_file, "r") as f:
                     return json.load(f)
         except Exception as e:
             logger.warning(f"Failed to load config file: {e}")
@@ -122,21 +126,21 @@ class SecurityIntegrationManager:
                 "critical_cves": 5,
                 "high_risk_ports": 3,
                 "ssh_security_score": 70,
-                "enterprise_security_score": 80
+                "enterprise_security_score": 80,
             },
             "infrastructure": {
                 "target_host": "localhost",
                 "ssh_host": "localhost",
-                "ssh_port": 22
+                "ssh_port": 22,
             },
             "background_scanning": True,
-            "auto_resolve_alerts": False
+            "auto_resolve_alerts": False,
         }
 
     def _save_config(self):
         """Save configuration to file"""
         try:
-            with open(self.config_file, 'w') as f:
+            with open(self.config_file, "w") as f:
                 json.dump(self.config, f, indent=2)
         except Exception as e:
             logger.error(f"Failed to save config: {e}")
@@ -146,9 +150,13 @@ class SecurityIntegrationManager:
         try:
             state = {
                 "alerts": [asdict(alert) for alert in self.alerts],
-                "metrics_history": [asdict(metrics) for metrics in self.metrics_history],
+                "metrics_history": [
+                    asdict(metrics) for metrics in self.metrics_history
+                ],
                 "current_status": self.current_status.value,
-                "last_scan_time": self.last_scan_time.isoformat() if self.last_scan_time else None
+                "last_scan_time": (
+                    self.last_scan_time.isoformat() if self.last_scan_time else None
+                ),
             }
 
             # Convert datetime objects for JSON serialization
@@ -160,7 +168,7 @@ class SecurityIntegrationManager:
             for metrics in state["metrics_history"]:
                 metrics["timestamp"] = metrics["timestamp"].isoformat()
 
-            with open(self.data_dir / "security_state.json", 'w') as f:
+            with open(self.data_dir / "security_state.json", "w") as f:
                 json.dump(state, f, indent=2)
 
         except Exception as e:
@@ -171,31 +179,43 @@ class SecurityIntegrationManager:
         try:
             state_file = self.data_dir / "security_state.json"
             if state_file.exists():
-                with open(state_file, 'r') as f:
+                with open(state_file, "r") as f:
                     state = json.load(f)
 
                 # Restore alerts
                 self.alerts = []
                 for alert_data in state.get("alerts", []):
-                    alert_data["timestamp"] = datetime.fromisoformat(alert_data["timestamp"])
+                    alert_data["timestamp"] = datetime.fromisoformat(
+                        alert_data["timestamp"]
+                    )
                     if alert_data["resolved_at"]:
-                        alert_data["resolved_at"] = datetime.fromisoformat(alert_data["resolved_at"])
+                        alert_data["resolved_at"] = datetime.fromisoformat(
+                            alert_data["resolved_at"]
+                        )
                     self.alerts.append(SecurityAlert(**alert_data))
 
                 # Restore metrics history
                 self.metrics_history = []
                 for metrics_data in state.get("metrics_history", []):
-                    metrics_data["timestamp"] = datetime.fromisoformat(metrics_data["timestamp"])
+                    metrics_data["timestamp"] = datetime.fromisoformat(
+                        metrics_data["timestamp"]
+                    )
                     self.metrics_history.append(SecurityMetrics(**metrics_data))
 
                 # Restore status
-                self.current_status = SecurityStatus(state.get("current_status", "UNKNOWN"))
+                self.current_status = SecurityStatus(
+                    state.get("current_status", "UNKNOWN")
+                )
 
                 # Restore last scan time
                 if state.get("last_scan_time"):
-                    self.last_scan_time = datetime.fromisoformat(state["last_scan_time"])
+                    self.last_scan_time = datetime.fromisoformat(
+                        state["last_scan_time"]
+                    )
 
-                logger.info(f"Loaded {len(self.alerts)} alerts and {len(self.metrics_history)} metrics records")
+                logger.info(
+                    f"Loaded {len(self.alerts)} alerts and {len(self.metrics_history)} metrics records"
+                )
 
         except Exception as e:
             logger.error(f"Failed to load state: {e}")
@@ -208,7 +228,14 @@ class SecurityIntegrationManager:
         """Add callback for real-time metrics updates"""
         self.metrics_callbacks.append(callback)
 
-    def create_alert(self, level: AlertLevel, source: str, title: str, description: str, details: Dict[str, Any] = None) -> SecurityAlert:
+    def create_alert(
+        self,
+        level: AlertLevel,
+        source: str,
+        title: str,
+        description: str,
+        details: Dict[str, Any] = None,
+    ) -> SecurityAlert:
         """Create and handle a new security alert"""
         alert = SecurityAlert(
             id=f"{int(time.time())}-{source}",
@@ -217,7 +244,7 @@ class SecurityIntegrationManager:
             source=source,
             title=title,
             description=description,
-            details=details or {}
+            details=details or {},
         )
 
         self.alerts.append(alert)
@@ -253,9 +280,19 @@ class SecurityIntegrationManager:
         if not unresolved_alerts:
             self.current_status = SecurityStatus.SECURE
         else:
-            critical_alerts = [alert for alert in unresolved_alerts if alert.level == AlertLevel.CRITICAL]
-            error_alerts = [alert for alert in unresolved_alerts if alert.level == AlertLevel.ERROR]
-            warning_alerts = [alert for alert in unresolved_alerts if alert.level == AlertLevel.WARNING]
+            critical_alerts = [
+                alert
+                for alert in unresolved_alerts
+                if alert.level == AlertLevel.CRITICAL
+            ]
+            error_alerts = [
+                alert for alert in unresolved_alerts if alert.level == AlertLevel.ERROR
+            ]
+            warning_alerts = [
+                alert
+                for alert in unresolved_alerts
+                if alert.level == AlertLevel.WARNING
+            ]
 
             if critical_alerts:
                 self.current_status = SecurityStatus.CRITICAL
@@ -288,13 +325,19 @@ class SecurityIntegrationManager:
 
             # Run enterprise security assessment
             logger.info("Running enterprise security assessment")
-            enterprise_results = await self.enterprise_security.generate_comprehensive_security_report()
+            enterprise_results = (
+                await self.enterprise_security.generate_comprehensive_security_report()
+            )
 
             # Process results and create alerts
-            await self._process_scan_results(infra_results, ssh_results, enterprise_results)
+            await self._process_scan_results(
+                infra_results, ssh_results, enterprise_results
+            )
 
             # Generate metrics
-            metrics = self._generate_metrics(infra_results, ssh_results, enterprise_results)
+            metrics = self._generate_metrics(
+                infra_results, ssh_results, enterprise_results
+            )
             self.metrics_history.append(metrics)
 
             # Trigger metrics callbacks
@@ -316,7 +359,9 @@ class SecurityIntegrationManager:
                 "status": "success",
                 "scan_duration": scan_duration,
                 "metrics": asdict(metrics),
-                "alerts_created": len([a for a in self.alerts if a.timestamp > scan_start])
+                "alerts_created": len(
+                    [a for a in self.alerts if a.timestamp > scan_start]
+                ),
             }
 
         except Exception as e:
@@ -326,34 +371,42 @@ class SecurityIntegrationManager:
                 "scan_manager",
                 "Comprehensive Scan Failed",
                 f"Security scan failed: {str(e)}",
-                {"error": str(e), "scan_start": scan_start.isoformat()}
+                {"error": str(e), "scan_start": scan_start.isoformat()},
             )
             return {"error": str(e)}
 
         finally:
             self.scan_in_progress = False
 
-    async def _process_scan_results(self, infra_results: Dict, ssh_results: Dict, enterprise_results: Dict):
+    async def _process_scan_results(
+        self, infra_results: Dict, ssh_results: Dict, enterprise_results: Dict
+    ):
         """Process scan results and generate alerts"""
         thresholds = self.config["alert_thresholds"]
 
         # Process infrastructure results
-        if infra_results.get("risk_summary", {}).get("critical_cves", 0) > thresholds["critical_cves"]:
+        if (
+            infra_results.get("risk_summary", {}).get("critical_cves", 0)
+            > thresholds["critical_cves"]
+        ):
             self.create_alert(
                 AlertLevel.CRITICAL,
                 "infrastructure",
                 "Critical CVEs Detected",
                 f"Found {infra_results['risk_summary']['critical_cves']} critical CVEs",
-                infra_results
+                infra_results,
             )
 
-        if infra_results.get("risk_summary", {}).get("high_risk_ports", 0) > thresholds["high_risk_ports"]:
+        if (
+            infra_results.get("risk_summary", {}).get("high_risk_ports", 0)
+            > thresholds["high_risk_ports"]
+        ):
             self.create_alert(
                 AlertLevel.WARNING,
                 "infrastructure",
                 "High Risk Ports Detected",
                 f"Found {infra_results['risk_summary']['high_risk_ports']} high-risk open ports",
-                infra_results
+                infra_results,
             )
 
         # Process SSH results
@@ -364,7 +417,7 @@ class SecurityIntegrationManager:
                 "ssh_security",
                 "SSH Security Score Low",
                 f"SSH security score: {ssh_score}/100",
-                ssh_results
+                ssh_results,
             )
 
         # Process enterprise results
@@ -375,32 +428,46 @@ class SecurityIntegrationManager:
                 "enterprise_security",
                 "Enterprise Security Score Low",
                 f"Enterprise security score: {enterprise_score}/100",
-                enterprise_results
+                enterprise_results,
             )
 
-    def _generate_metrics(self, infra_results: Dict, ssh_results: Dict, enterprise_results: Dict) -> SecurityMetrics:
+    def _generate_metrics(
+        self, infra_results: Dict, ssh_results: Dict, enterprise_results: Dict
+    ) -> SecurityMetrics:
         """Generate security metrics from scan results"""
         return SecurityMetrics(
             timestamp=datetime.now(),
-            enterprise_security_score=enterprise_results.get("overall_security_score", 0),
-            infrastructure_risk_score=infra_results.get("risk_summary", {}).get("risk_score", 0),
+            enterprise_security_score=enterprise_results.get(
+                "overall_security_score", 0
+            ),
+            infrastructure_risk_score=infra_results.get("risk_summary", {}).get(
+                "risk_score", 0
+            ),
             ssh_security_score=ssh_results.get("overall_security_score", 0),
             open_ports=infra_results.get("risk_summary", {}).get("open_ports_count", 0),
             critical_cves=infra_results.get("risk_summary", {}).get("critical_cves", 0),
             active_alerts=len([a for a in self.alerts if not a.resolved]),
             compliance_scores={
-                "soc2_type2": enterprise_results.get("compliance_status", {}).get("soc2_type2", 0),
-                "iso_27001": enterprise_results.get("compliance_status", {}).get("iso_27001", 0),
+                "soc2_type2": enterprise_results.get("compliance_status", {}).get(
+                    "soc2_type2", 0
+                ),
+                "iso_27001": enterprise_results.get("compliance_status", {}).get(
+                    "iso_27001", 0
+                ),
                 "gdpr": enterprise_results.get("compliance_status", {}).get("gdpr", 0),
-                "hipaa": enterprise_results.get("compliance_status", {}).get("hipaa", 0),
-                "fedramp": enterprise_results.get("compliance_status", {}).get("fedramp", 0)
+                "hipaa": enterprise_results.get("compliance_status", {}).get(
+                    "hipaa", 0
+                ),
+                "fedramp": enterprise_results.get("compliance_status", {}).get(
+                    "fedramp", 0
+                ),
             },
             threat_indicators={
                 "suspicious_activities": 0,  # Would be populated by real-time monitoring
                 "data_access_anomalies": 0,
                 "encryption_failures": 0,
-                "authentication_failures": ssh_results.get("failed_attempts", 0)
-            }
+                "authentication_failures": ssh_results.get("failed_attempts", 0),
+            },
         )
 
     def start_background_scanning(self):
@@ -413,8 +480,14 @@ class SecurityIntegrationManager:
             while self.running:
                 try:
                     # Calculate next scan time
-                    scan_interval = timedelta(minutes=self.config["scan_interval_minutes"])
-                    next_scan = self.last_scan_time + scan_interval if self.last_scan_time else datetime.now()
+                    scan_interval = timedelta(
+                        minutes=self.config["scan_interval_minutes"]
+                    )
+                    next_scan = (
+                        self.last_scan_time + scan_interval
+                        if self.last_scan_time
+                        else datetime.now()
+                    )
 
                     if datetime.now() >= next_scan:
                         # Run scan in background
@@ -443,14 +516,23 @@ class SecurityIntegrationManager:
         """Get current security status"""
         return {
             "overall_status": self.current_status.value,
-            "last_scan_time": self.last_scan_time.isoformat() if self.last_scan_time else None,
+            "last_scan_time": (
+                self.last_scan_time.isoformat() if self.last_scan_time else None
+            ),
             "active_alerts": len([a for a in self.alerts if not a.resolved]),
             "total_alerts": len(self.alerts),
             "scan_in_progress": self.scan_in_progress,
-            "latest_metrics": asdict(self.metrics_history[-1]) if self.metrics_history else None
+            "latest_metrics": (
+                asdict(self.metrics_history[-1]) if self.metrics_history else None
+            ),
         }
 
-    def get_alerts(self, level: Optional[AlertLevel] = None, resolved: Optional[bool] = None, limit: int = 50) -> List[SecurityAlert]:
+    def get_alerts(
+        self,
+        level: Optional[AlertLevel] = None,
+        resolved: Optional[bool] = None,
+        limit: int = 50,
+    ) -> List[SecurityAlert]:
         """Get alerts with optional filtering"""
         filtered_alerts = self.alerts
 
@@ -480,10 +562,14 @@ class SecurityIntegrationManager:
         if len(self.metrics_history) >= 2:
             previous_metrics = self.metrics_history[-2]
             trends = {
-                "enterprise_security_trend": latest_metrics.enterprise_security_score - previous_metrics.enterprise_security_score,
-                "infrastructure_risk_trend": latest_metrics.infrastructure_risk_score - previous_metrics.infrastructure_risk_score,
-                "ssh_security_trend": latest_metrics.ssh_security_score - previous_metrics.ssh_security_score,
-                "alerts_trend": latest_metrics.active_alerts - previous_metrics.active_alerts
+                "enterprise_security_trend": latest_metrics.enterprise_security_score
+                - previous_metrics.enterprise_security_score,
+                "infrastructure_risk_trend": latest_metrics.infrastructure_risk_score
+                - previous_metrics.infrastructure_risk_score,
+                "ssh_security_trend": latest_metrics.ssh_security_score
+                - previous_metrics.ssh_security_score,
+                "alerts_trend": latest_metrics.active_alerts
+                - previous_metrics.active_alerts,
             }
         else:
             trends = {}
@@ -496,12 +582,24 @@ class SecurityIntegrationManager:
             "alert_summary": {
                 "total": len(self.alerts),
                 "active": len([a for a in self.alerts if not a.resolved]),
-                "critical": len([a for a in self.alerts if a.level == AlertLevel.CRITICAL and not a.resolved]),
-                "warning": len([a for a in self.alerts if a.level == AlertLevel.WARNING and not a.resolved])
+                "critical": len(
+                    [
+                        a
+                        for a in self.alerts
+                        if a.level == AlertLevel.CRITICAL and not a.resolved
+                    ]
+                ),
+                "warning": len(
+                    [
+                        a
+                        for a in self.alerts
+                        if a.level == AlertLevel.WARNING and not a.resolved
+                    ]
+                ),
             },
             "recent_alerts": [asdict(a) for a in self.get_alerts(limit=10)],
             "compliance_scores": latest_metrics.compliance_scores,
-            "recommendations": self._generate_recommendations(latest_metrics)
+            "recommendations": self._generate_recommendations(latest_metrics),
         }
 
     def _generate_recommendations(self, metrics: SecurityMetrics) -> List[str]:
@@ -526,19 +624,34 @@ class SecurityIntegrationManager:
         # Compliance recommendations
         for standard, score in metrics.compliance_scores.items():
             if score < 90:
-                recommendations.append(f"Improve {standard.upper()} compliance controls")
+                recommendations.append(
+                    f"Improve {standard.upper()} compliance controls"
+                )
 
         return recommendations
 
+
 def main():
     """Main CLI interface for Security Integration Manager"""
-    parser = argparse.ArgumentParser(description="PsychSync Security Integration Manager")
-    parser.add_argument("--config", default="security_config.json", help="Configuration file path")
-    parser.add_argument("--scan", action="store_true", help="Run comprehensive security scan")
-    parser.add_argument("--status", action="store_true", help="Show current security status")
+    parser = argparse.ArgumentParser(
+        description="PsychSync Security Integration Manager"
+    )
+    parser.add_argument(
+        "--config", default="security_config.json", help="Configuration file path"
+    )
+    parser.add_argument(
+        "--scan", action="store_true", help="Run comprehensive security scan"
+    )
+    parser.add_argument(
+        "--status", action="store_true", help="Show current security status"
+    )
     parser.add_argument("--alerts", action="store_true", help="Show recent alerts")
-    parser.add_argument("--report", action="store_true", help="Generate security report")
-    parser.add_argument("--monitor", action="store_true", help="Start continuous monitoring")
+    parser.add_argument(
+        "--report", action="store_true", help="Generate security report"
+    )
+    parser.add_argument(
+        "--monitor", action="store_true", help="Start continuous monitoring"
+    )
     parser.add_argument("--resolve", type=str, help="Resolve alert by ID")
 
     args = parser.parse_args()
@@ -563,8 +676,8 @@ def main():
         print(f"🚨 Active alerts: {status['active_alerts']}")
         print(f"📈 Total alerts: {status['total_alerts']}")
 
-        if status['latest_metrics']:
-            metrics = status['latest_metrics']
+        if status["latest_metrics"]:
+            metrics = status["latest_metrics"]
             print(f"\n📊 Latest Metrics:")
             print(f"  Enterprise Security: {metrics['enterprise_security_score']:.1f}%")
             print(f"  Infrastructure Risk: {metrics['infrastructure_risk_score']:.1f}")
@@ -583,7 +696,9 @@ def main():
             print(f"   📝 {alert.description}")
             print(f"   🔗 Source: {alert.source}")
             if alert.resolved:
-                print(f"   ✅ Resolved: {alert.resolved_at.strftime('%Y-%m-%d %H:%M:%S')}")
+                print(
+                    f"   ✅ Resolved: {alert.resolved_at.strftime('%Y-%m-%d %H:%M:%S')}"
+                )
 
     elif args.report:
         report = security_manager.generate_report()
@@ -591,22 +706,24 @@ def main():
         print(f"🕐 Generated: {report['report_timestamp']}")
         print(f"🔒 Overall Status: {report['overall_status']}")
 
-        metrics = report['latest_metrics']
+        metrics = report["latest_metrics"]
         print(f"\n📈 Security Metrics:")
         print(f"  Enterprise Security: {metrics['enterprise_security_score']:.1f}%")
-        print(f"  Infrastructure Risk Score: {metrics['infrastructure_risk_score']:.1f}")
+        print(
+            f"  Infrastructure Risk Score: {metrics['infrastructure_risk_score']:.1f}"
+        )
         print(f"  SSH Security Score: {metrics['ssh_security_score']:.1f}")
 
         print(f"\n🚨 Alert Summary:")
-        alert_summary = report['alert_summary']
+        alert_summary = report["alert_summary"]
         print(f"  Total: {alert_summary['total']}")
         print(f"  Active: {alert_summary['active']}")
         print(f"  Critical: {alert_summary['critical']}")
         print(f"  Warning: {alert_summary['warning']}")
 
-        if report['recommendations']:
+        if report["recommendations"]:
             print(f"\n💡 Recommendations:")
-            for i, rec in enumerate(report['recommendations'], 1):
+            for i, rec in enumerate(report["recommendations"], 1):
                 print(f"  {i}. {rec}")
 
     elif args.resolve:
@@ -625,7 +742,9 @@ def main():
             print(f"   {alert.description}")
 
         def metrics_callback(metrics: SecurityMetrics):
-            print(f"\n📊 Updated Metrics - Security Score: {metrics.enterprise_security_score:.1f}%")
+            print(
+                f"\n📊 Updated Metrics - Security Score: {metrics.enterprise_security_score:.1f}%"
+            )
 
         security_manager.add_alert_callback(alert_callback)
         security_manager.add_metrics_callback(metrics_callback)
@@ -641,6 +760,7 @@ def main():
 
     else:
         parser.print_help()
+
 
 if __name__ == "__main__":
     main()

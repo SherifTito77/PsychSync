@@ -5,10 +5,10 @@ Advanced mathematical modeling for predicting individual and organizational grow
 patterns using multiple curve fitting approaches and machine learning techniques.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
 
 import numpy as np
@@ -198,12 +198,17 @@ class GrowthTrajectoryModeler:
         return trajectory
 
     async def predict_future_trajectory(
-        self, trajectory_id: str, prediction_horizon_days: int = 365, confidence_level: float = 0.95
+        self,
+        trajectory_id: str,
+        prediction_horizon_days: int = 365,
+        confidence_level: float = 0.95,
     ) -> list[GrowthPrediction]:
         """Generate predictions for future growth trajectory"""
 
         trajectory = (
-            self.db.query(GrowthTrajectory).filter(GrowthTrajectory.id == trajectory_id).first()
+            self.db.query(GrowthTrajectory)
+            .filter(GrowthTrajectory.id == trajectory_id)
+            .first()
         )
 
         if not trajectory:
@@ -250,7 +255,9 @@ class GrowthTrajectoryModeler:
                 predictions.append(prediction)
 
             except Exception as e:
-                self.logger.warning(f"Failed to generate prediction for {current_date}: {e}")
+                self.logger.warning(
+                    f"Failed to generate prediction for {current_date}: {e}"
+                )
 
             # Move to next prediction point
             current_date += timedelta(days=7)  # Weekly predictions
@@ -309,7 +316,9 @@ class GrowthTrajectoryModeler:
         optimal_development_path = await self._design_optimal_path(trajectories)
 
         # Career alignment analysis
-        career_alignment = await self._assess_career_trajectory_alignment(user_id, trajectories)
+        career_alignment = await self._assess_career_trajectory_alignment(
+            user_id, trajectories
+        )
         success_probability = await self._calculate_success_probability(trajectories)
         roi_estimate = await self._estimate_development_roi(trajectories)
 
@@ -347,12 +356,17 @@ class GrowthTrajectoryModeler:
         return analysis
 
     async def simulate_intervention_impact(
-        self, trajectory_id: str, intervention_scenario: dict[str, Any], simulation_days: int = 365
+        self,
+        trajectory_id: str,
+        intervention_scenario: dict[str, Any],
+        simulation_days: int = 365,
     ) -> dict[str, Any]:
         """Simulate impact of interventions on growth trajectory"""
 
         trajectory = (
-            self.db.query(GrowthTrajectory).filter(GrowthTrajectory.id == trajectory_id).first()
+            self.db.query(GrowthTrajectory)
+            .filter(GrowthTrajectory.id == trajectory_id)
+            .first()
         )
 
         if not trajectory:
@@ -368,7 +382,9 @@ class GrowthTrajectoryModeler:
         )
 
         # Generate baseline predictions
-        baseline_predictions = await self.predict_future_trajectory(trajectory_id, simulation_days)
+        baseline_predictions = await self.predict_future_trajectory(
+            trajectory_id, simulation_days
+        )
 
         # Generate intervention predictions
         intervention_predictions = []
@@ -384,11 +400,17 @@ class GrowthTrajectoryModeler:
                 )
 
                 intervention_predictions.append(
-                    {"date": current_date, "value": predicted_value, "confidence_interval": ci}
+                    {
+                        "date": current_date,
+                        "value": predicted_value,
+                        "confidence_interval": ci,
+                    }
                 )
 
             except Exception as e:
-                self.logger.warning(f"Intervention prediction failed for day {days_elapsed}: {e}")
+                self.logger.warning(
+                    f"Intervention prediction failed for day {days_elapsed}: {e}"
+                )
 
         # Calculate impact metrics
         impact_analysis = await self._calculate_intervention_impact(
@@ -400,11 +422,15 @@ class GrowthTrajectoryModeler:
             "baseline_predictions": baseline_predictions,
             "intervention_predictions": intervention_predictions,
             "impact_analysis": impact_analysis,
-            "recommendations": await self._generate_intervention_recommendations(impact_analysis),
+            "recommendations": await self._generate_intervention_recommendations(
+                impact_analysis
+            ),
         }
 
     # Private methods for model fitting and calculations
-    def _prepare_trajectory_data(self, trajectory_points: list[TrajectoryPoint]) -> pd.DataFrame:
+    def _prepare_trajectory_data(
+        self, trajectory_points: list[TrajectoryPoint]
+    ) -> pd.DataFrame:
         """Prepare trajectory data for modeling"""
         data = []
         for point in trajectory_points:
@@ -497,7 +523,9 @@ class GrowthTrajectoryModeler:
         except Exception as e:
             raise ValueError(f"Linear model fitting failed: {e}") from e
 
-    async def _fit_exponential_model(self, x: np.ndarray, y: np.ndarray) -> ModelParameters:
+    async def _fit_exponential_model(
+        self, x: np.ndarray, y: np.ndarray
+    ) -> ModelParameters:
         """Fit exponential growth model: y = a * exp(b * x) + c"""
 
         def exponential_func(x, a, b, c):
@@ -547,7 +575,9 @@ class GrowthTrajectoryModeler:
         except Exception as e:
             raise ValueError(f"Exponential model fitting failed: {e}") from e
 
-    async def _fit_logistic_model(self, x: np.ndarray, y: np.ndarray) -> ModelParameters:
+    async def _fit_logistic_model(
+        self, x: np.ndarray, y: np.ndarray
+    ) -> ModelParameters:
         """Fit logistic growth model: y = L / (1 + exp(-k*(x - x0)))"""
 
         def logistic_func(x, L, k, x0):
@@ -602,7 +632,9 @@ class GrowthTrajectoryModeler:
         except Exception as e:
             raise ValueError(f"Logistic model fitting failed: {e}") from e
 
-    async def _fit_sigmoidal_model(self, x: np.ndarray, y: np.ndarray) -> ModelParameters:
+    async def _fit_sigmoidal_model(
+        self, x: np.ndarray, y: np.ndarray
+    ) -> ModelParameters:
         """Fit sigmoidal model: y = L / (1 + exp(-k*(x - x0))) + y0"""
 
         def sigmoidal_func(x, L, k, x0, y0):
@@ -616,7 +648,11 @@ class GrowthTrajectoryModeler:
             y0_init = min(y)  # Offset
 
             popt, pcov = curve_fit(
-                sigmoidal_func, x, y, p0=[L_init, k_init, x0_init, y0_init], maxfev=10000
+                sigmoidal_func,
+                x,
+                y,
+                p0=[L_init, k_init, x0_init, y0_init],
+                maxfev=10000,
             )
             L, k, x0, y0 = popt
 
@@ -642,7 +678,12 @@ class GrowthTrajectoryModeler:
 
             return ModelParameters(
                 model_type=GrowthModelType.SIGMOIDAL,
-                parameters={"L": float(L), "k": float(k), "x0": float(x0), "y0": float(y0)},
+                parameters={
+                    "L": float(L),
+                    "k": float(k),
+                    "x0": float(x0),
+                    "y0": float(y0),
+                },
                 r_squared=float(r_squared),
                 aic=float(aic),
                 bic=float(bic),
@@ -653,7 +694,9 @@ class GrowthTrajectoryModeler:
         except Exception as e:
             raise ValueError(f"Sigmoidal model fitting failed: {e}") from e
 
-    async def _fit_power_law_model(self, x: np.ndarray, y: np.ndarray) -> ModelParameters:
+    async def _fit_power_law_model(
+        self, x: np.ndarray, y: np.ndarray
+    ) -> ModelParameters:
         """Fit power law model: y = a * x^b + c"""
 
         def power_law_func(x, a, b, c):
@@ -665,7 +708,9 @@ class GrowthTrajectoryModeler:
             b_init = 1.0
             c_init = min(y)
 
-            popt, pcov = curve_fit(power_law_func, x, y, p0=[a_init, b_init, c_init], maxfev=10000)
+            popt, pcov = curve_fit(
+                power_law_func, x, y, p0=[a_init, b_init, c_init], maxfev=10000
+            )
             a, b, c = popt
 
             # Calculate goodness of fit
@@ -701,7 +746,9 @@ class GrowthTrajectoryModeler:
         except Exception as e:
             raise ValueError(f"Power law model fitting failed: {e}") from e
 
-    async def _fit_polynomial_model(self, x: np.ndarray, y: np.ndarray) -> ModelParameters:
+    async def _fit_polynomial_model(
+        self, x: np.ndarray, y: np.ndarray
+    ) -> ModelParameters:
         """Fit polynomial model (quadratic): y = ax^2 + bx + c"""
 
         def polynomial_func(x, a, b, c):
@@ -756,28 +803,37 @@ class GrowthTrajectoryModeler:
 
         # Normalize values
         aic_norm = [
-            (aic - min(aic_values)) / (max(aic_values) - min(aic_values)) for aic in aic_values
+            (aic - min(aic_values)) / (max(aic_values) - min(aic_values))
+            for aic in aic_values
         ]
         bic_norm = [
-            (bic - min(bic_values)) / (max(bic_values) - min(bic_values)) for bic in bic_values
+            (bic - min(bic_values)) / (max(bic_values) - min(bic_values))
+            for bic in bic_values
         ]
 
         for i, model in enumerate(models):
             # Lower AIC/BIC is better, higher R² is better
-            score = 0.4 * r2_values[i] + 0.3 * (1 - aic_norm[i]) + 0.3 * (1 - bic_norm[i])
+            score = (
+                0.4 * r2_values[i] + 0.3 * (1 - aic_norm[i]) + 0.3 * (1 - bic_norm[i])
+            )
             scores.append(score)
 
         best_idx = np.argmax(scores)
         return models[best_idx]
 
     async def _generate_initial_predictions(
-        self, trajectory: GrowthTrajectory, df: pd.DataFrame, model_params: ModelParameters
+        self,
+        trajectory: GrowthTrajectory,
+        df: pd.DataFrame,
+        model_params: ModelParameters,
     ):
         """Generate initial predictions for the trajectory"""
         # This would generate predictions for the next few months
         # Implementation details would depend on specific business requirements
 
-    async def _save_predictions(self, trajectory_id: str, predictions: list[GrowthPrediction]):
+    async def _save_predictions(
+        self, trajectory_id: str, predictions: list[GrowthPrediction]
+    ):
         """Save predictions to database"""
         for pred in predictions:
             db_pred = TrajectoryPrediction(
@@ -794,12 +850,16 @@ class GrowthTrajectoryModeler:
         self.db.commit()
 
     # Placeholder methods for comprehensive functionality
-    async def _calculate_growth_velocity(self, df: pd.DataFrame, model: ModelParameters) -> float:
+    async def _calculate_growth_velocity(
+        self, df: pd.DataFrame, model: ModelParameters
+    ) -> float:
         """Calculate current growth velocity"""
         # Implementation depends on model type
         return 0.01  # Placeholder
 
-    async def _calculate_acceleration(self, df: pd.DataFrame, model: ModelParameters) -> float:
+    async def _calculate_acceleration(
+        self, df: pd.DataFrame, model: ModelParameters
+    ) -> float:
         """Calculate growth acceleration"""
         return 0.001  # Placeholder
 
@@ -833,7 +893,9 @@ class GrowthTrajectoryModeler:
         # Implementation would analyze model characteristics
         return 0.2  # Placeholder
 
-    async def _estimate_inflection_point(self, model: ModelParameters) -> datetime | None:
+    async def _estimate_inflection_point(
+        self, model: ModelParameters
+    ) -> datetime | None:
         """Estimate when growth inflection occurs"""
         if model.model_type == GrowthModelType.LOGISTIC:
             x0 = model.parameters.get("x0")
@@ -887,19 +949,27 @@ class GrowthTrajectoryModeler:
         return 0.001  # Placeholder
 
     # Placeholder methods for comprehensive analysis
-    async def _assess_growth_readiness(self, trajectories: list[GrowthTrajectory]) -> float:
+    async def _assess_growth_readiness(
+        self, trajectories: list[GrowthTrajectory]
+    ) -> float:
         return 0.8
 
-    async def _assess_learning_agility(self, trajectories: list[GrowthTrajectory]) -> float:
+    async def _assess_learning_agility(
+        self, trajectories: list[GrowthTrajectory]
+    ) -> float:
         return 0.7
 
     async def _assess_adaptability(self, trajectories: list[GrowthTrajectory]) -> float:
         return 0.75
 
-    async def _estimate_time_to_mastery(self, trajectories: list[GrowthTrajectory]) -> int:
+    async def _estimate_time_to_mastery(
+        self, trajectories: list[GrowthTrajectory]
+    ) -> int:
         return 730  # 2 years
 
-    async def _estimate_performance_ceiling(self, trajectories: list[GrowthTrajectory]) -> float:
+    async def _estimate_performance_ceiling(
+        self, trajectories: list[GrowthTrajectory]
+    ) -> float:
         return 4.5
 
     async def _calculate_velocity_percentile(
@@ -907,16 +977,24 @@ class GrowthTrajectoryModeler:
     ) -> float:
         return 0.80
 
-    async def _identify_key_growth_drivers(self, trajectories: list[GrowthTrajectory]) -> list[str]:
+    async def _identify_key_growth_drivers(
+        self, trajectories: list[GrowthTrajectory]
+    ) -> list[str]:
         return ["consistent_practice", "mentorship", "challenge_appropriate"]
 
-    async def _identify_limiting_factors(self, trajectories: list[GrowthTrajectory]) -> list[str]:
+    async def _identify_limiting_factors(
+        self, trajectories: list[GrowthTrajectory]
+    ) -> list[str]:
         return ["time_constraints", "resource_limitations"]
 
-    async def _recommend_development_focus(self, trajectories: list[GrowthTrajectory]) -> list[str]:
+    async def _recommend_development_focus(
+        self, trajectories: list[GrowthTrajectory]
+    ) -> list[str]:
         return ["technical_skills", "leadership_capabilities"]
 
-    async def _design_optimal_path(self, trajectories: list[GrowthTrajectory]) -> list[str]:
+    async def _design_optimal_path(
+        self, trajectories: list[GrowthTrajectory]
+    ) -> list[str]:
         return ["skill_development", "experience_building", "network_expansion"]
 
     async def _assess_career_trajectory_alignment(
@@ -924,10 +1002,14 @@ class GrowthTrajectoryModeler:
     ) -> float:
         return 0.85
 
-    async def _calculate_success_probability(self, trajectories: list[GrowthTrajectory]) -> float:
+    async def _calculate_success_probability(
+        self, trajectories: list[GrowthTrajectory]
+    ) -> float:
         return 0.78
 
-    async def _estimate_development_roi(self, trajectories: list[GrowthTrajectory]) -> float:
+    async def _estimate_development_roi(
+        self, trajectories: list[GrowthTrajectory]
+    ) -> float:
         return 3.2
 
     async def _apply_intervention_modifications(

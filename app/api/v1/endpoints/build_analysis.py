@@ -12,21 +12,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_db
 from app.crud.crud_build_analysis import (
-    build_failure,
-    root_cause_analysis,
-    build_pattern,
     build_analysis_report,
+    build_failure,
+    build_pattern,
+    root_cause_analysis,
 )
 from app.schemas.build_analysis import (
+    BuildAnalysisReport,
     BuildFailure,
     BuildFailureCreate,
-    BuildFailureUpdate,
     BuildFailureSummary,
-    RootCauseAnalysis,
-    RootCauseAnalysisCreate,
+    BuildFailureUpdate,
     BuildPattern,
     BuildPatternCreate,
-    BuildAnalysisReport,
+    RootCauseAnalysis,
+    RootCauseAnalysisCreate,
 )
 
 router = APIRouter(prefix="/build_analysis", tags=["build_analysis"])
@@ -34,7 +34,21 @@ router = APIRouter(prefix="/build_analysis", tags=["build_analysis"])
 
 @router.get(
     "/failures/summary",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=BuildFailureSummary,
 )
 async def get_failure_summary(db: AsyncSession = Depends(get_db)):
@@ -55,7 +69,8 @@ async def get_failure_summary(db: AsyncSession = Depends(get_db)):
     # Calculate average resolution time
     resolved_failures = [f for f in all_failures if f.is_resolved]
     avg_resolution_time = (
-        sum([f.resolution_time_minutes or 0 for f in resolved_failures]) / len(resolved_failures)
+        sum([f.resolution_time_minutes or 0 for f in resolved_failures])
+        / len(resolved_failures)
         if resolved_failures
         else 0.0
     )
@@ -64,16 +79,29 @@ async def get_failure_summary(db: AsyncSession = Depends(get_db)):
     failure_types = {}
     for f in all_failures:
         failure_types[f.failure_type] = failure_types.get(f.failure_type, 0) + 1
-    most_common_failure_type = max(failure_types, key=failure_types.get) if failure_types else "unknown"
+    most_common_failure_type = (
+        max(failure_types, key=failure_types.get) if failure_types else "unknown"
+    )
 
     # Count flaky tests
-    flaky_test_count = len([f for f in all_failures if f.failure_type == "test_failure" and "flaky" in (f.ai_suggested_fix or "").lower()])
+    flaky_test_count = len(
+        [
+            f
+            for f in all_failures
+            if f.failure_type == "test_failure"
+            and "flaky" in (f.ai_suggested_fix or "").lower()
+        ]
+    )
 
     # Find top contributing factor
     root_causes = {}
     for f in all_failures:
-        root_causes[f.root_cause_category] = root_causes.get(f.root_cause_category, 0) + 1
-    top_contributing_factor = max(root_causes, key=root_causes.get) if root_causes else "unknown"
+        root_causes[f.root_cause_category] = (
+            root_causes.get(f.root_cause_category, 0) + 1
+        )
+    top_contributing_factor = (
+        max(root_causes, key=root_causes.get) if root_causes else "unknown"
+    )
 
     # Calculate health grade
     crud_instance = build_failure
@@ -99,10 +127,25 @@ async def get_failure_summary(db: AsyncSession = Depends(get_db)):
 
 @router.get(
     "/failures",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=list[BuildFailure],
 )
-async def get_build_failures(    skip: int = Query(0, ge=0),
+async def get_build_failures(
+    skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     failure_type: str | None = None,
     priority: str | None = None,
@@ -119,21 +162,42 @@ async def get_build_failures(    skip: int = Query(0, ge=0),
     - **developer**: Filter by developer name
     """
     if failure_type:
-        return await build_failure.get_by_failure_type(db, failure_type=failure_type, skip=skip, limit=limit)
+        return await build_failure.get_by_failure_type(
+            db, failure_type=failure_type, skip=skip, limit=limit
+        )
     elif priority:
-        return await build_failure.get_by_priority(db, priority=priority, skip=skip, limit=limit)
+        return await build_failure.get_by_priority(
+            db, priority=priority, skip=skip, limit=limit
+        )
     elif developer:
-        return await build_failure.get_by_developer(db, developer_name=developer, skip=skip, limit=limit)
+        return await build_failure.get_by_developer(
+            db, developer_name=developer, skip=skip, limit=limit
+        )
     else:
         return await build_failure.get_recent(db, skip=skip, limit=limit)
 
 
 @router.get(
     "/failures/unresolved",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=list[BuildFailure],
 )
-async def get_unresolved_failures(    skip: int = Query(0, ge=0),
+async def get_unresolved_failures(
+    skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
@@ -143,10 +207,22 @@ async def get_unresolved_failures(    skip: int = Query(0, ge=0),
 
 @router.post(
     "/failures",
-    responses={201: {'description': 'Resource created successfully', 'content': {'application/json': {'example': {'id': 1, 'created_at': '2025-01-13T10:00:00Z'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        201: {
+            "description": "Resource created successfully",
+            "content": {
+                "application/json": {
+                    "example": {"id": 1, "created_at": "2025-01-13T10:00:00Z"}
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=BuildFailure,
 )
-async def create_build_failure(    failure_data: BuildFailureCreate,
+async def create_build_failure(
+    failure_data: BuildFailureCreate,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -159,10 +235,25 @@ async def create_build_failure(    failure_data: BuildFailureCreate,
 
 @router.put(
     "/failures/{failure_id}/resolve",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=BuildFailure,
 )
-async def resolve_build_failure(    failure_id: UUID,
+async def resolve_build_failure(
+    failure_id: UUID,
     resolution_notes: str,
     fix_commit_hash: str,
     resolution_time_minutes: int,
@@ -191,10 +282,25 @@ async def resolve_build_failure(    failure_id: UUID,
 
 @router.get(
     "/patterns",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=list[BuildPattern],
 )
-async def get_build_patterns(    skip: int = Query(0, ge=0),
+async def get_build_patterns(
+    skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     pattern_type: str | None = None,
     db: AsyncSession = Depends(get_db),
@@ -205,17 +311,31 @@ async def get_build_patterns(    skip: int = Query(0, ge=0),
     Returns recurring patterns in build failures (e.g., flaky tests, slow builds).
     """
     if pattern_type:
-        return await build_pattern.get_by_pattern_type(db, pattern_type=pattern_type, skip=skip, limit=limit)
+        return await build_pattern.get_by_pattern_type(
+            db, pattern_type=pattern_type, skip=skip, limit=limit
+        )
     else:
         return await build_pattern.get_unresolved(db, skip=skip, limit=limit)
 
 
 @router.post(
     "/patterns",
-    responses={201: {'description': 'Resource created successfully', 'content': {'application/json': {'example': {'id': 1, 'created_at': '2025-01-13T10:00:00Z'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        201: {
+            "description": "Resource created successfully",
+            "content": {
+                "application/json": {
+                    "example": {"id": 1, "created_at": "2025-01-13T10:00:00Z"}
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=BuildPattern,
 )
-async def create_build_pattern(    pattern_data: BuildPatternCreate,
+async def create_build_pattern(
+    pattern_data: BuildPatternCreate,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -228,21 +348,35 @@ async def create_build_pattern(    pattern_data: BuildPatternCreate,
 
 @router.get(
     "/reports/latest",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=BuildAnalysisReport,
 )
 async def get_latest_report(db: AsyncSession = Depends(get_db)):
     """Retrieve resource(s).
 
-Args:
-    db: Database session
-    **kwargs: Filter criteria
+    Args:
+        db: Database session
+        **kwargs: Filter criteria
 
-Returns:
-    Resource object or list of resources
+    Returns:
+        Resource object or list of resources
 
-Raises:
-    NotFoundError: If resource doesn't exist
+    Raises:
+        NotFoundError: If resource doesn't exist
     """
     """
     Get the latest build analysis report
@@ -257,10 +391,25 @@ Raises:
 
 @router.get(
     "/reports",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=list[BuildAnalysisReport],
 )
-async def get_reports(    limit: int = Query(30, ge=1, le=100),
+async def get_reports(
+    limit: int = Query(30, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
     """Get recent build analysis reports"""
@@ -269,10 +418,25 @@ async def get_reports(    limit: int = Query(30, ge=1, le=100),
 
 @router.post(
     "/reports/generate",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=BuildAnalysisReport,
 )
-async def generate_report(    days: int = Query(7, ge=1, le=90, description="Number of days to analyze"),
+async def generate_report(
+    days: int = Query(7, ge=1, le=90, description="Number of days to analyze"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -280,7 +444,7 @@ async def generate_report(    days: int = Query(7, ge=1, le=90, description="Num
 
     - **days**: Number of days to include in the analysis (default: 7)
     """
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
 
     period_end = datetime.utcnow()
     period_start = period_end - timedelta(days=days)
@@ -307,19 +471,25 @@ async def generate_report(    days: int = Query(7, ge=1, le=90, description="Num
     failure_types = {}
     for f in failures:
         failure_types[f.failure_type] = failure_types.get(f.failure_type, 0) + 1
-    top_failure_types = dict(sorted(failure_types.items(), key=lambda x: x[1], reverse=True)[:5])
+    top_failure_types = dict(
+        sorted(failure_types.items(), key=lambda x: x[1], reverse=True)[:5]
+    )
 
     # Get top failing branches
     branches = {}
     for f in failures:
         branches[f.branch_name] = branches.get(f.branch_name, 0) + 1
-    top_failing_branches = dict(sorted(branches.items(), key=lambda x: x[1], reverse=True)[:5])
+    top_failing_branches = dict(
+        sorted(branches.items(), key=lambda x: x[1], reverse=True)[:5]
+    )
 
     # Get top failing developers
     developers = {}
     for f in failures:
         developers[f.developer_name] = developers.get(f.developer_name, 0) + 1
-    top_failing_developers = dict(sorted(developers.items(), key=lambda x: x[1], reverse=True)[:5])
+    top_failing_developers = dict(
+        sorted(developers.items(), key=lambda x: x[1], reverse=True)[:5]
+    )
 
     # Generate AI content
     success_rate = (successful_builds / total_builds * 100) if total_builds > 0 else 0
@@ -332,11 +502,19 @@ async def generate_report(    days: int = Query(7, ge=1, le=90, description="Num
 
     ai_insights = {
         "highlights": [
-            f"{successful_builds} builds succeeded" if successful_builds > 0 else "No successful builds",
+            (
+                f"{successful_builds} builds succeeded"
+                if successful_builds > 0
+                else "No successful builds"
+            ),
             f"Top failure type: {list(top_failure_types.keys())[0] if top_failure_types else 'N/A'}",
         ],
         "concerns": [
-            f"{failed_builds} build failures detected" if failed_builds > 0 else "No build failures",
+            (
+                f"{failed_builds} build failures detected"
+                if failed_builds > 0
+                else "No build failures"
+            ),
         ],
         "recommendations": [
             "Focus on fixing most common failure types",

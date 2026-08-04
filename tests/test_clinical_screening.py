@@ -10,12 +10,11 @@ from datetime import datetime
 
 import httpx
 
-
 BASE_URL = "http://localhost:8000"
 TEST_USER = {
     "email": "test_clinical@example.com",
     "password": "TestPassword123!",
-    "full_name": "Clinical Test User"
+    "full_name": "Clinical Test User",
 }
 
 
@@ -25,8 +24,7 @@ async def get_auth_token(client: httpx.AsyncClient) -> str:
     try:
         # Register
         response = await client.post(
-            f"{BASE_URL}/api/v1/simple-auth/register",
-            json=TEST_USER
+            f"{BASE_URL}/api/v1/simple-auth/register", json=TEST_USER
         )
         print(f"Register response: {response.status_code}")
     except Exception as e:
@@ -35,10 +33,7 @@ async def get_auth_token(client: httpx.AsyncClient) -> str:
     # Login
     response = await client.post(
         f"{BASE_URL}/api/v1/simple-auth/login",
-        json={
-            "email": TEST_USER["email"],
-            "password": TEST_USER["password"]
-        }
+        json={"email": TEST_USER["email"], "password": TEST_USER["password"]},
     )
 
     if response.status_code == 200:
@@ -60,8 +55,8 @@ async def test_consent(client: httpx.AsyncClient, token: str) -> bool:
         headers=headers,
         json={
             "consent_type": "screening",
-            "screening_types": ["PHQ9", "GAD7", "CSSRS"]
-        }
+            "screening_types": ["PHQ9", "GAD7", "CSSRS"],
+        },
     )
 
     if response.status_code in [200, 201]:
@@ -87,13 +82,11 @@ async def test_phq9_low_risk(client: httpx.AsyncClient, token: str) -> bool:
         "q6_self_worth": 1,
         "q7_concentration": 1,
         "q8_motor": 0,
-        "q9_suicide": 0  # CRITICAL: No suicide ideation
+        "q9_suicide": 0,  # CRITICAL: No suicide ideation
     }
 
     response = await client.post(
-        f"{BASE_URL}/api/v1/screening/phq9",
-        headers=headers,
-        json=responses
+        f"{BASE_URL}/api/v1/screening/phq9", headers=headers, json=responses
     )
 
     if response.status_code in [200, 201]:
@@ -104,7 +97,7 @@ async def test_phq9_low_risk(client: httpx.AsyncClient, token: str) -> bool:
         print(f"  Risk: {data.get('risk_level')}")
         print(f"  Crisis Alert: {data.get('crisis_alert')}")
         print(f"  Recommendations: {data.get('recommendations', [])[:2]}")
-        return data.get('crisis_alert') == False
+        return data.get("crisis_alert") == False
     else:
         print(f"❌ PHQ-9 failed: {response.status_code} - {response.text}")
         return False
@@ -124,13 +117,11 @@ async def test_phq9_crisis(client: httpx.AsyncClient, token: str) -> bool:
         "q6_self_worth": 3,
         "q7_concentration": 3,
         "q8_motor": 3,
-        "q9_suicide": 2  # CRITICAL: Triggers crisis alert
+        "q9_suicide": 2,  # CRITICAL: Triggers crisis alert
     }
 
     response = await client.post(
-        f"{BASE_URL}/api/v1/screening/phq9",
-        headers=headers,
-        json=responses
+        f"{BASE_URL}/api/v1/screening/phq9", headers=headers, json=responses
     )
 
     if response.status_code in [200, 201]:
@@ -141,7 +132,7 @@ async def test_phq9_crisis(client: httpx.AsyncClient, token: str) -> bool:
         print(f"  Risk: {data.get('risk_level')}")
         print(f"  Crisis Alert: {data.get('crisis_alert')}")
         print(f"  Risk Flags: {data.get('risk_flags')}")
-        return data.get('crisis_alert') == True
+        return data.get("crisis_alert") == True
     else:
         print(f"❌ PHQ-9 crisis failed: {response.status_code} - {response.text}")
         return False
@@ -158,13 +149,11 @@ async def test_gad7(client: httpx.AsyncClient, token: str) -> bool:
         "q4_trouble_relaxing": 1,
         "q5_restless": 1,
         "q6_irritable": 1,
-        "q7_afraid": 0
+        "q7_afraid": 0,
     }
 
     response = await client.post(
-        f"{BASE_URL}/api/v1/screening/gad7",
-        headers=headers,
-        json=responses
+        f"{BASE_URL}/api/v1/screening/gad7", headers=headers, json=responses
     )
 
     if response.status_code in [200, 201]:
@@ -192,13 +181,11 @@ async def test_cssrs(client: httpx.AsyncClient, token: str) -> bool:
         "q5_plan": False,
         "q11_actual_attempt": False,
         "q12_preparatory_acts": False,
-        "q13_aborted_attempt": False
+        "q13_aborted_attempt": False,
     }
 
     response = await client.post(
-        f"{BASE_URL}/api/v1/screening/cssrs",
-        headers=headers,
-        json=responses
+        f"{BASE_URL}/api/v1/screening/cssrs", headers=headers, json=responses
     )
 
     if response.status_code in [200, 201]:
@@ -257,7 +244,9 @@ async def main():
         print(f"C-SSRS: {'✅' if cssrs_ok else '❌'}")
 
         all_ok = all([consent_ok, phq9_low_ok, phq9_crisis_ok, gad7_ok, cssrs_ok])
-        print(f"\nOverall: {'✅ All tests passed!' if all_ok else '⚠️ Some tests failed'}")
+        print(
+            f"\nOverall: {'✅ All tests passed!' if all_ok else '⚠️ Some tests failed'}"
+        )
 
 
 if __name__ == "__main__":

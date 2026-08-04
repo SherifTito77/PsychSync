@@ -7,9 +7,9 @@ Usage: python3 scripts/check-allowlist.py
 Exit code: 0 (all allowed), 1 (violations found)
 """
 
-import sys
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Dict, List
 
@@ -18,9 +18,7 @@ def get_installed_packages() -> Dict[str, str]:
     """Get list of installed packages from pip freeze"""
 
     result = subprocess.run(
-        ["pip", "list", "--format=json"],
-        capture_output=True,
-        text=True
+        ["pip", "list", "--format=json"], capture_output=True, text=True
     )
 
     if result.returncode != 0:
@@ -32,7 +30,9 @@ def get_installed_packages() -> Dict[str, str]:
     return {pkg["name"].lower(): pkg["version"] for pkg in packages}
 
 
-def parse_allow_list(allow_list_path: str = "allowed-dependencies.txt") -> Dict[str, dict]:
+def parse_allow_list(
+    allow_list_path: str = "allowed-dependencies.txt",
+) -> Dict[str, dict]:
     """Parse allow-list file
 
     Format: package==min,max # date # notes
@@ -67,13 +67,15 @@ def parse_allow_list(allow_list_path: str = "allowed-dependencies.txt") -> Dict[
 
                 allow_list[package_name] = {
                     "version_range": version_range,
-                    "line": line_num
+                    "line": line_num,
                 }
 
     return allow_list
 
 
-def check_version_compatibility(package: str, installed_version: str, allowed_info: dict) -> bool:
+def check_version_compatibility(
+    package: str, installed_version: str, allowed_info: dict
+) -> bool:
     """Check if installed version is within allowed range"""
 
     version_range = allowed_info["version_range"]
@@ -107,20 +109,24 @@ def check_allow_list():
         normalized_name = package_name.lower().strip("_-")
 
         if normalized_name not in allow_list:
-            violations.append({
-                "package": package_name,
-                "version": version,
-                "reason": "Not in allow-list"
-            })
+            violations.append(
+                {
+                    "package": package_name,
+                    "version": version,
+                    "reason": "Not in allow-list",
+                }
+            )
         else:
             # Check version compliance
             allowed_info = allow_list[normalized_name]
             if not check_version_compatibility(package_name, version, allowed_info):
-                violations.append({
-                    "package": package_name,
-                    "version": version,
-                    "reason": f"Version {version} not in allowed range {allowed_info['version_range']}"
-                })
+                violations.append(
+                    {
+                        "package": package_name,
+                        "version": version,
+                        "reason": f"Version {version} not in allowed range {allowed_info['version_range']}",
+                    }
+                )
 
     # Report results
     if violations:
@@ -134,12 +140,16 @@ def check_allow_list():
             print()
 
         print("To request an exception:")
-        print("  1. Create issue: gh issue create --title 'Dependency Request: PACKAGE'")
+        print(
+            "  1. Create issue: gh issue create --title 'Dependency Request: PACKAGE'"
+        )
         print("     --label 'dependency-request' --body-file <request-template>")
         print("  2. Security team reviews within 24-48 hours")
         print("  3. Once approved, add to allowed-dependencies.txt")
         print("\nRequest template:")
-        print("  See DEPENDENCY_ALLOWLIST_POLICY.md section 'New Package Request Workflow'")
+        print(
+            "  See DEPENDENCY_ALLOWLIST_POLICY.md section 'New Package Request Workflow'"
+        )
         print()
 
         sys.exit(1)

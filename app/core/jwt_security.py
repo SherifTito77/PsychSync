@@ -4,10 +4,10 @@ JWT Security Manager for PsychSync
 Enhanced JWT token handling with security features
 """
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta
 import logging
 import secrets
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any
 
 import jwt
@@ -89,11 +89,15 @@ class JWTSecurityManager:
                 "iat": datetime.utcnow(),
                 "exp": expire,
                 "ip_address": ip_address,
-                "user_agent": user_agent[:100] if user_agent else "",  # Truncate for size
+                "user_agent": (
+                    user_agent[:100] if user_agent else ""
+                ),  # Truncate for size
             }
 
             # Create token with explicit algorithm
-            token = jwt.encode(token_data, settings.SECRET_KEY, algorithm=self.algorithm)
+            token = jwt.encode(
+                token_data, settings.SECRET_KEY, algorithm=self.algorithm
+            )
 
             # Store token metadata
             self._store_token_metadata(
@@ -106,7 +110,9 @@ class JWTSecurityManager:
                 user_agent=user_agent,
             )
 
-            logger.info(f"JWT token created: {jti[:8]}... for user: {data.get('sub', 'unknown')}")
+            logger.info(
+                f"JWT token created: {jti[:8]}... for user: {data.get('sub', 'unknown')}"
+            )
 
             return token
 
@@ -115,7 +121,11 @@ class JWTSecurityManager:
             raise RuntimeError("Token creation failed") from e
 
     async def verify_token_secure(
-        self, token: str, token_type: str = "access", ip_address: str = "", user_agent: str = ""
+        self,
+        token: str,
+        token_type: str = "access",
+        ip_address: str = "",
+        user_agent: str = "",
     ) -> dict[str, Any]:
         """
         Verify JWT token with comprehensive security checks
@@ -153,7 +163,9 @@ class JWTSecurityManager:
 
             # Verify token type matches expected
             if payload.get("token_type") != token_type:
-                raise jwt.InvalidTokenError(f"Invalid token type. Expected: {token_type}")
+                raise jwt.InvalidTokenError(
+                    f"Invalid token type. Expected: {token_type}"
+                )
 
             # Additional security validations
             user_id = payload.get("sub")
@@ -203,7 +215,9 @@ class JWTSecurityManager:
             blacklist_data = {
                 "jti": jti,
                 "blacklisted_at": datetime.utcnow().isoformat(),
-                "blacklisted_until": blacklist_until.isoformat() if blacklist_until else None,
+                "blacklisted_until": (
+                    blacklist_until.isoformat() if blacklist_until else None
+                ),
                 "reason": reason,
                 "user_id": payload.get("sub"),
             }
@@ -211,13 +225,17 @@ class JWTSecurityManager:
             await cache_set(
                 f"{self.BLACKLIST_PREFIX}{jti}",
                 blacklist_data,
-                expire_seconds=int((blacklist_until - datetime.utcnow()).total_seconds())
-                if blacklist_until
-                else 86400,
+                expire_seconds=(
+                    int((blacklist_until - datetime.utcnow()).total_seconds())
+                    if blacklist_until
+                    else 86400
+                ),
             )
 
             # Update token metadata
-            await self._update_token_metadata(jti, blacklisted=True, revoked_reason=reason)
+            await self._update_token_metadata(
+                jti, blacklisted=True, revoked_reason=reason
+            )
 
             logger.info(f"Token blacklisted: {jti[:8]}... Reason: {reason}")
 
@@ -227,7 +245,9 @@ class JWTSecurityManager:
             logger.error(f"Failed to blacklist token: {e}")
             return False
 
-    async def blacklist_all_user_tokens(self, user_id: str, reason: str = "security_action") -> int:
+    async def blacklist_all_user_tokens(
+        self, user_id: str, reason: str = "security_action"
+    ) -> int:
         """
         Blacklist all active tokens for a user
 
@@ -248,7 +268,9 @@ class JWTSecurityManager:
             user_tokens_pattern = f"{self.TOKEN_METADATA_PREFIX}*"
 
             # Log the security action
-            logger.info(f"Blacklisting all tokens for user: {user_id}. Reason: {reason}")
+            logger.info(
+                f"Blacklisting all tokens for user: {user_id}. Reason: {reason}"
+            )
 
             # This is a simplified implementation
             # In production, you'd maintain an index of user tokens
@@ -295,7 +317,9 @@ class JWTSecurityManager:
             # Store with expiration
             expire_seconds = int((expires_at - datetime.utcnow()).total_seconds())
             cache_set(
-                f"{self.TOKEN_METADATA_PREFIX}{jti}", metadata_dict, expire_seconds=expire_seconds
+                f"{self.TOKEN_METADATA_PREFIX}{jti}",
+                metadata_dict,
+                expire_seconds=expire_seconds,
             )
 
         except Exception as e:
@@ -324,7 +348,9 @@ class JWTSecurityManager:
             logger.error(f"Failed to check token blacklist: {e}")
             return False  # Fail safe - allow if blacklist check fails
 
-    async def _validate_token_usage(self, jti: str, user_id: str, ip_address: str, user_agent: str):
+    async def _validate_token_usage(
+        self, jti: str, user_id: str, ip_address: str, user_agent: str
+    ):
         """Validate token usage patterns for security"""
         try:
             # Get token metadata

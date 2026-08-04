@@ -8,12 +8,13 @@ Created: 2025-01-12
 Author: Architecture Team
 """
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy.orm import declarative_base
-from typing import Optional, Dict
-from enum import Enum
 import logging
 from contextlib import asynccontextmanager
+from enum import Enum
+from typing import Dict, Optional
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import declarative_base
 
 from app.core.config import settings
 
@@ -22,9 +23,10 @@ logger = logging.getLogger(__name__)
 
 class TenantTier(str, Enum):
     """Tenant subscription tiers"""
-    SMB = "smb"              # Shared database
+
+    SMB = "smb"  # Shared database
     ENTERPRISE = "enterprise"  # Dedicated database
-    TRIAL = "trial"           # Shared database
+    TRIAL = "trial"  # Shared database
 
 
 class TenantDatabaseRouter:
@@ -84,7 +86,7 @@ class TenantDatabaseRouter:
                 pool_size=self.pool_size,
                 max_overflow=self.max_overflow,
                 pool_pre_ping=True,  # Verify connections before using
-                pool_recycle=3600,   # Recycle connections after 1 hour
+                pool_recycle=3600,  # Recycle connections after 1 hour
                 echo=settings.SQL_DEBUG,
             )
 

@@ -7,11 +7,11 @@ File: app/integrations/hris/orangehrm_connector.py
 OrangeHRM API Documentation: https://orangehrm.github.io/orangehrm-api-doc/
 """
 
-from datetime import date
 import logging
+from datetime import date
 
-from dateutil import parser
 import pymysql
+from dateutil import parser
 
 from .base_connector import (
     AttendanceRecord,
@@ -82,7 +82,9 @@ class OrangeHRMConnector(HRISConnector):
             self.access_token = data.get("access_token")
 
             # Update session headers
-            self.session.headers.update({"Authorization": f"Bearer {self.access_token}"})
+            self.session.headers.update(
+                {"Authorization": f"Bearer {self.access_token}"}
+            )
 
             logger.info("OAuth token obtained successfully")
 
@@ -145,24 +147,36 @@ class OrangeHRMConnector(HRISConnector):
                 last_name=item.get("lastName", ""),
                 email=item.get("workEmail", ""),
                 phone=item.get("workTelephone"),
-                department=item.get("subunit", {}).get("name")
-                if isinstance(item.get("subunit"), dict)
-                else None,
-                position=item.get("jobTitle", {}).get("title")
-                if isinstance(item.get("jobTitle"), dict)
-                else None,
-                hire_date=parser.parse(item["joinedDate"]).date()
-                if item.get("joinedDate")
-                else None,
-                employment_status=item.get("empStatus", {}).get("name", "active")
-                if isinstance(item.get("empStatus"), dict)
-                else "active",
-                manager_id=str(item.get("supervisor", {}).get("empNumber"))
-                if isinstance(item.get("supervisor"), dict)
-                else None,
-                location=item.get("location", {}).get("name")
-                if isinstance(item.get("location"), dict)
-                else None,
+                department=(
+                    item.get("subunit", {}).get("name")
+                    if isinstance(item.get("subunit"), dict)
+                    else None
+                ),
+                position=(
+                    item.get("jobTitle", {}).get("title")
+                    if isinstance(item.get("jobTitle"), dict)
+                    else None
+                ),
+                hire_date=(
+                    parser.parse(item["joinedDate"]).date()
+                    if item.get("joinedDate")
+                    else None
+                ),
+                employment_status=(
+                    item.get("empStatus", {}).get("name", "active")
+                    if isinstance(item.get("empStatus"), dict)
+                    else "active"
+                ),
+                manager_id=(
+                    str(item.get("supervisor", {}).get("empNumber"))
+                    if isinstance(item.get("supervisor"), dict)
+                    else None
+                ),
+                location=(
+                    item.get("location", {}).get("name")
+                    if isinstance(item.get("location"), dict)
+                    else None
+                ),
             )
 
             # Filter by department if specified
@@ -252,9 +266,11 @@ class OrangeHRMConnector(HRISConnector):
                     phone=item.get("workTelephone"),
                     department=item.get("subunit", {}).get("name"),
                     position=item.get("jobTitle", {}).get("title"),
-                    hire_date=parser.parse(item["joinedDate"]).date()
-                    if item.get("joinedDate")
-                    else None,
+                    hire_date=(
+                        parser.parse(item["joinedDate"]).date()
+                        if item.get("joinedDate")
+                        else None
+                    ),
                     employment_status=item.get("empStatus", {}).get("name", "active"),
                     manager_id=str(item.get("supervisor", {}).get("empNumber")),
                     location=item.get("location", {}).get("name"),
@@ -503,7 +519,9 @@ if __name__ == "__main__":
 
         # Export to CSV
         if employees:
-            filepath = connector.export_to_csv(employees, f"orangehrm_employees_{date.today()}.csv")
+            filepath = connector.export_to_csv(
+                employees, f"orangehrm_employees_{date.today()}.csv"
+            )
             print(f"\nExported employees to: {filepath}")
 
     else:

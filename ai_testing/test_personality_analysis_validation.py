@@ -6,18 +6,20 @@ Validates correctness of personality analysis output against assessment data
 
 import asyncio
 import json
-import time
-import statistics
-import re
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple, Set
-from dataclasses import dataclass, field
-from enum import Enum
 import random
+import re
+import statistics
+import time
 from collections import defaultdict
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set, Tuple
+
 
 class AssessmentType(Enum):
     """Different personality assessment types"""
+
     BIG_FIVE = "big_five"
     MBTI = "mbti"
     ENNEAGRAM = "enneagram"
@@ -25,16 +27,20 @@ class AssessmentType(Enum):
     PREDICTIVE_INDEX = "predictive_index"
     STRENGTHSFINDER = "strengthsfinder"
 
+
 class ValidationLevel(Enum):
     """Validation result levels"""
+
     CORRECT = "correct"
     PARTIALLY_CORRECT = "partially_correct"
     INCORRECT = "incorrect"
     INSUFFICIENT_DATA = "insufficient_data"
 
+
 @dataclass
 class AssessmentData:
     """Standardized assessment data structure"""
+
     user_id: str
     assessment_type: AssessmentType
     raw_scores: Dict[str, float]
@@ -43,9 +49,11 @@ class AssessmentData:
     personality_type: Optional[str] = None
     confidence_score: float = 0.0
 
+
 @dataclass
 class PersonalityAnalysis:
     """AI-generated personality analysis"""
+
     analysis_id: str
     user_id: str
     assessment_type: AssessmentType
@@ -58,9 +66,11 @@ class PersonalityAnalysis:
     reasoning: str
     timestamp: datetime = field(default_factory=datetime.now)
 
+
 @dataclass
 class ValidationCheck:
     """Individual validation check result"""
+
     check_id: str
     check_type: str  # 'type_matching', 'trait_accuracy', 'strength_relevance', etc.
     expected: Any
@@ -69,9 +79,11 @@ class ValidationCheck:
     confidence: float
     details: str
 
+
 @dataclass
 class ValidationResult:
     """Overall validation result for a personality analysis"""
+
     validation_id: str
     user_id: str
     assessment_type: AssessmentType
@@ -83,6 +95,7 @@ class ValidationResult:
     critical_issues: List[str]
     recommendations: List[str]
     timestamp: datetime = field(default_factory=datetime.now)
+
 
 class PersonalityAnalysisValidator:
     """Comprehensive validator for AI personality analysis outputs"""
@@ -97,50 +110,132 @@ class PersonalityAnalysisValidator:
         return {
             "mbti": {
                 "valid_types": [
-                    "INTJ", "INTP", "ENTJ", "ENTP", "INFJ", "INFP", "ENFJ", "ENFP",
-                    "ISTJ", "ISFJ", "ESTJ", "ESFJ", "ISTP", "ISFP", "ESTP", "ESFP"
+                    "INTJ",
+                    "INTP",
+                    "ENTJ",
+                    "ENTP",
+                    "INFJ",
+                    "INFP",
+                    "ENFJ",
+                    "ENFP",
+                    "ISTJ",
+                    "ISFJ",
+                    "ESTJ",
+                    "ESFJ",
+                    "ISTP",
+                    "ISFP",
+                    "ESTP",
+                    "ESFP",
                 ],
                 "type_determination_rules": {
                     "E/I": "extraversion_dimension",
                     "S/N": "intuition_dimension",
                     "T/F": "thinking_dimension",
-                    "J/P": "judging_dimension"
+                    "J/P": "judging_dimension",
                 },
                 "trait_mappings": {
                     "INTJ": ["strategic", "analytical", "independent", "innovative"],
-                    "ENFJ": ["charismatic", "empathetic", "leadership", "communicative"],
+                    "ENFJ": [
+                        "charismatic",
+                        "empathetic",
+                        "leadership",
+                        "communicative",
+                    ],
                     "ISTP": ["practical", "hands_on", "problem_solver", "adaptable"],
-                    "ESFP": ["enthusiastic", "social", "spontaneous", "people_oriented"],
-                    "ENTP": ["innovative", "adaptable", "logical", "entrepreneurial", "creative", "versatile"]
-                }
+                    "ESFP": [
+                        "enthusiastic",
+                        "social",
+                        "spontaneous",
+                        "people_oriented",
+                    ],
+                    "ENTP": [
+                        "innovative",
+                        "adaptable",
+                        "logical",
+                        "entrepreneurial",
+                        "creative",
+                        "versatile",
+                    ],
+                },
             },
             "big_five": {
-                "domains": ["Openness", "Conscientiousness", "Extraversion", "Agreeableness", "Neuroticism"],
+                "domains": [
+                    "Openness",
+                    "Conscientiousness",
+                    "Extraversion",
+                    "Agreeableness",
+                    "Neuroticism",
+                ],
                 "score_ranges": {"min": 0, "max": 100},
                 "high_threshold": 70,
                 "low_threshold": 30,
                 "trait_descriptions": {
-                    "high_openness": ["creative", "curious", "innovative", "imaginative"],
-                    "high_conscientiousness": ["organized", "disciplined", "responsible", "thorough"],
-                    "high_extraversion": ["outgoing", "energetic", "sociable", "assertive"],
-                    "high_agreeableness": ["cooperative", "empathetic", "trusting", "helpful"],
-                    "high_neuroticism": ["anxious", "moody", "self_critical", "vulnerable"]
-                }
+                    "high_openness": [
+                        "creative",
+                        "curious",
+                        "innovative",
+                        "imaginative",
+                    ],
+                    "high_conscientiousness": [
+                        "organized",
+                        "disciplined",
+                        "responsible",
+                        "thorough",
+                    ],
+                    "high_extraversion": [
+                        "outgoing",
+                        "energetic",
+                        "sociable",
+                        "assertive",
+                    ],
+                    "high_agreeableness": [
+                        "cooperative",
+                        "empathetic",
+                        "trusting",
+                        "helpful",
+                    ],
+                    "high_neuroticism": [
+                        "anxious",
+                        "moody",
+                        "self_critical",
+                        "vulnerable",
+                    ],
+                },
             },
             "enneagram": {
                 "valid_types": [f"Type {i}" for i in range(1, 10)],
                 "type_descriptions": {
-                    "Type 1": ["perfectionist", "responsible", "critical", "controlled"],
+                    "Type 1": [
+                        "perfectionist",
+                        "responsible",
+                        "critical",
+                        "controlled",
+                    ],
                     "Type 2": ["helper", "generous", "people_pleasing", "possessive"],
-                    "Type 3": ["achiever", "competitive", "image_conscious", "workaholic"],
+                    "Type 3": [
+                        "achiever",
+                        "competitive",
+                        "image_conscious",
+                        "workaholic",
+                    ],
                     "Type 4": ["individualist", "creative", "emotional", "dramatic"],
                     "Type 5": ["investigator", "analytical", "detached", "private"],
                     "Type 6": ["loyalist", "committed", "anxious", "skeptical"],
-                    "Type 7": ["enthusiast", "optimistic", "impulsive", "variety_seeking"],
-                    "Type 8": ["challenger", "confident", "confrontational", "protective"],
-                    "Type 9": ["peacemaker", "easy_going", "compliant", "stubborn"]
-                }
-            }
+                    "Type 7": [
+                        "enthusiast",
+                        "optimistic",
+                        "impulsive",
+                        "variety_seeking",
+                    ],
+                    "Type 8": [
+                        "challenger",
+                        "confident",
+                        "confrontational",
+                        "protective",
+                    ],
+                    "Type 9": ["peacemaker", "easy_going", "compliant", "stubborn"],
+                },
+            },
         }
 
     def _initialize_expected_patterns(self) -> Dict[str, Any]:
@@ -154,14 +249,34 @@ class PersonalityAnalysisValidator:
                 "T": ["logical", "objective", "analytical", "critical"],
                 "F": ["empathetic", "subjective", "harmonious", "values_driven"],
                 "J": ["organized", "decisive", "structured", "planned"],
-                "P": ["flexible", "spontaneous", "adaptable", "open_ended"]
+                "P": ["flexible", "spontaneous", "adaptable", "open_ended"],
             },
             "strength_weakness_patterns": {
-                "leadership_strengths": ["delegation", "vision", "motivation", "decision_making"],
-                "analytical_strengths": ["problem_solving", "critical_thinking", "research", "analysis"],
-                "creative_strengths": ["innovation", "ideation", "design", "brainstorming"],
-                "social_strengths": ["communication", "empathy", "collaboration", "networking"]
-            }
+                "leadership_strengths": [
+                    "delegation",
+                    "vision",
+                    "motivation",
+                    "decision_making",
+                ],
+                "analytical_strengths": [
+                    "problem_solving",
+                    "critical_thinking",
+                    "research",
+                    "analysis",
+                ],
+                "creative_strengths": [
+                    "innovation",
+                    "ideation",
+                    "design",
+                    "brainstorming",
+                ],
+                "social_strengths": [
+                    "communication",
+                    "empathy",
+                    "collaboration",
+                    "networking",
+                ],
+            },
         }
 
     def generate_test_assessment_data(self) -> List[AssessmentData]:
@@ -177,18 +292,29 @@ class PersonalityAnalysisValidator:
             {"question_id": "q5", "dimension": "E", "value": 3},
             {"question_id": "q6", "dimension": "I", "value": 2},
             {"question_id": "q7", "dimension": "N", "value": 4},
-            {"question_id": "q8", "dimension": "T", "value": 5}
+            {"question_id": "q8", "dimension": "T", "value": 5},
         ]
 
-        assessments.append(AssessmentData(
-            user_id="mbti_user_001",
-            assessment_type=AssessmentType.MBTI,
-            raw_scores={"E": 7, "I": 2, "S": 1, "N": 9, "T": 9, "F": 1, "J": 3, "P": 7},
-            normalized_scores={"E": 78, "N": 90, "T": 90, "P": 70},
-            responses=mbti_responses,
-            personality_type="ENTP",
-            confidence_score=0.85
-        ))
+        assessments.append(
+            AssessmentData(
+                user_id="mbti_user_001",
+                assessment_type=AssessmentType.MBTI,
+                raw_scores={
+                    "E": 7,
+                    "I": 2,
+                    "S": 1,
+                    "N": 9,
+                    "T": 9,
+                    "F": 1,
+                    "J": 3,
+                    "P": 7,
+                },
+                normalized_scores={"E": 78, "N": 90, "T": 90, "P": 70},
+                responses=mbti_responses,
+                personality_type="ENTP",
+                confidence_score=0.85,
+            )
+        )
 
         # Big Five Assessment Data
         big_five_responses = [
@@ -197,19 +323,31 @@ class PersonalityAnalysisValidator:
             {"question_id": "bf3", "domain": "Conscientiousness", "value": 2},
             {"question_id": "bf4", "domain": "Extraversion", "value": 3},
             {"question_id": "bf5", "domain": "Agreeableness", "value": 4},
-            {"question_id": "bf6", "domain": "Neuroticism", "value": 1}
+            {"question_id": "bf6", "domain": "Neuroticism", "value": 1},
         ]
 
-        assessments.append(AssessmentData(
-            user_id="bigfive_user_001",
-            assessment_type=AssessmentType.BIG_FIVE,
-            raw_scores={"Openness": 4.5, "Conscientiousness": 2.0, "Extraversion": 3.0,
-                       "Agreeableness": 4.0, "Neuroticism": 1.5},
-            normalized_scores={"Openness": 85, "Conscientiousness": 35, "Extraversion": 60,
-                               "Agreeableness": 75, "Neuroticism": 25},
-            responses=big_five_responses,
-            confidence_score=0.78
-        ))
+        assessments.append(
+            AssessmentData(
+                user_id="bigfive_user_001",
+                assessment_type=AssessmentType.BIG_FIVE,
+                raw_scores={
+                    "Openness": 4.5,
+                    "Conscientiousness": 2.0,
+                    "Extraversion": 3.0,
+                    "Agreeableness": 4.0,
+                    "Neuroticism": 1.5,
+                },
+                normalized_scores={
+                    "Openness": 85,
+                    "Conscientiousness": 35,
+                    "Extraversion": 60,
+                    "Agreeableness": 75,
+                    "Neuroticism": 25,
+                },
+                responses=big_five_responses,
+                confidence_score=0.78,
+            )
+        )
 
         # Enneagram Assessment Data
         enneagram_responses = [
@@ -217,22 +355,32 @@ class PersonalityAnalysisValidator:
             {"question_id": "en2", "type": "Type 5", "value": 4},
             {"question_id": "en3", "type": "Type 3", "value": 3},
             {"question_id": "en4", "type": "Type 5", "value": 4},
-            {"question_id": "en5", "type": "Type 1", "value": 2}
+            {"question_id": "en5", "type": "Type 1", "value": 2},
         ]
 
-        assessments.append(AssessmentData(
-            user_id="enneagram_user_001",
-            assessment_type=AssessmentType.ENNEAGRAM,
-            raw_scores={"Type 1": 2, "Type 2": 1, "Type 3": 3, "Type 4": 2, "Type 5": 13},
-            normalized_scores={"Type 5": 87, "Type 3": 20, "Type 1": 13},
-            responses=enneagram_responses,
-            personality_type="Type 5",
-            confidence_score=0.82
-        ))
+        assessments.append(
+            AssessmentData(
+                user_id="enneagram_user_001",
+                assessment_type=AssessmentType.ENNEAGRAM,
+                raw_scores={
+                    "Type 1": 2,
+                    "Type 2": 1,
+                    "Type 3": 3,
+                    "Type 4": 2,
+                    "Type 5": 13,
+                },
+                normalized_scores={"Type 5": 87, "Type 3": 20, "Type 1": 13},
+                responses=enneagram_responses,
+                personality_type="Type 5",
+                confidence_score=0.82,
+            )
+        )
 
         return assessments
 
-    def simulate_ai_personality_analysis(self, assessment_data: AssessmentData) -> PersonalityAnalysis:
+    def simulate_ai_personality_analysis(
+        self, assessment_data: AssessmentData
+    ) -> PersonalityAnalysis:
         """Simulate AI personality analysis with varying quality"""
 
         if assessment_data.assessment_type == AssessmentType.MBTI:
@@ -243,17 +391,32 @@ class PersonalityAnalysisValidator:
                     user_id=assessment_data.user_id,
                     assessment_type=AssessmentType.MBTI,
                     personality_type="ENTP",
-                    traits_identified=["innovative", "adaptable", "logical", "entrepreneurial"],
-                    strengths=["creative_problem_solving", "strategic_thinking", "debate_skills", "versatility"],
-                    weaknesses=["difficulty_following_through", "resistance_to_structure", "argumentative", "impatient"],
+                    traits_identified=[
+                        "innovative",
+                        "adaptable",
+                        "logical",
+                        "entrepreneurial",
+                    ],
+                    strengths=[
+                        "creative_problem_solving",
+                        "strategic_thinking",
+                        "debate_skills",
+                        "versatility",
+                    ],
+                    weaknesses=[
+                        "difficulty_following_through",
+                        "resistance_to_structure",
+                        "argumentative",
+                        "impatient",
+                    ],
                     recommendations=[
                         "Focus on developing project completion skills",
                         "Create systems to maintain organization",
                         "Practice active listening over debating",
-                        "Set realistic timelines for innovation projects"
+                        "Set realistic timelines for innovation projects",
                     ],
                     confidence_score=0.88,
-                    reasoning="Strong preference for Intuition (90%) and Thinking (90%) with moderate Extraversion (78%) indicates ENTP type. High adaptability suggests Perceiving preference."
+                    reasoning="Strong preference for Intuition (90%) and Thinking (90%) with moderate Extraversion (78%) indicates ENTP type. High adaptability suggests Perceiving preference.",
                 )
             else:
                 # Lower quality analysis for other types
@@ -265,9 +428,11 @@ class PersonalityAnalysisValidator:
                     traits_identified=["logical", "strategic"],  # Incomplete
                     strengths=["planning"],  # Minimal
                     weaknesses=["social_skills"],  # Generic
-                    recommendations=["improve communication"],  # Single generic recommendation
+                    recommendations=[
+                        "improve communication"
+                    ],  # Single generic recommendation
                     confidence_score=0.65,  # Lower confidence
-                    reasoning="Based on assessment responses"  # Vague reasoning
+                    reasoning="Based on assessment responses",  # Vague reasoning
                 )
 
         elif assessment_data.assessment_type == AssessmentType.BIG_FIVE:
@@ -291,17 +456,25 @@ class PersonalityAnalysisValidator:
                 personality_type=None,  # Big Five doesn't use single type
                 traits_identified=traits_identified,
                 strengths=[
-                    "creative_thinking" if scores.get("Openness", 0) > 70 else "emotional_stability"
+                    (
+                        "creative_thinking"
+                        if scores.get("Openness", 0) > 70
+                        else "emotional_stability"
+                    )
                 ],
                 weaknesses=[
-                    "organizational_skills" if scores.get("Conscientiousness", 0) < 40 else "social_anxiety"
+                    (
+                        "organizational_skills"
+                        if scores.get("Conscientiousness", 0) < 40
+                        else "social_anxiety"
+                    )
                 ],
                 recommendations=[
                     "Leverage your creative strengths in innovative projects",
-                    "Develop structured approaches to improve organization"
+                    "Develop structured approaches to improve organization",
                 ],
                 confidence_score=0.75,
-                reasoning=f"Analysis based on Big Five domain scores: Openness ({scores.get('Openness', 0)}), Conscientiousness ({scores.get('Conscientiousness', 0)})"
+                reasoning=f"Analysis based on Big Five domain scores: Openness ({scores.get('Openness', 0)}), Conscientiousness ({scores.get('Conscientiousness', 0)})",
             )
 
         elif assessment_data.assessment_type == AssessmentType.ENNEAGRAM:
@@ -312,17 +485,32 @@ class PersonalityAnalysisValidator:
                     user_id=assessment_data.user_id,
                     assessment_type=AssessmentType.ENNEAGRAM,
                     personality_type="Type 5 - The Investigator",
-                    traits_identified=["analytical", "perceptive", "independent", "intense"],
-                    strengths=["deep_thinking", "expertise_development", "problem_solving", "objectivity"],
-                    weaknesses=["emotional_detachment", "social_withdrawal", "resistance_to_pressure", "resource_hoarding"],
+                    traits_identified=[
+                        "analytical",
+                        "perceptive",
+                        "independent",
+                        "intense",
+                    ],
+                    strengths=[
+                        "deep_thinking",
+                        "expertise_development",
+                        "problem_solving",
+                        "objectivity",
+                    ],
+                    weaknesses=[
+                        "emotional_detachment",
+                        "social_withdrawal",
+                        "resistance_to_pressure",
+                        "resource_hoarding",
+                    ],
                     recommendations=[
                         "Practice sharing knowledge with others",
                         "Develop emotional intelligence skills",
                         "Create healthy social boundaries",
-                        "Balance thinking with feeling in decisions"
+                        "Balance thinking with feeling in decisions",
                     ],
                     confidence_score=0.91,
-                    reasoning="Strongest scores in Type 5 (87%) with clear preference for analytical, knowledge-seeking behaviors typical of Investigator type."
+                    reasoning="Strongest scores in Type 5 (87%) with clear preference for analytical, knowledge-seeking behaviors typical of Investigator type.",
                 )
             else:
                 # Incorrect Enneagram analysis
@@ -336,7 +524,7 @@ class PersonalityAnalysisValidator:
                     weaknesses=["overextending"],  # Not based on data
                     recommendations=["set_boundaries"],  # Irrelevant
                     confidence_score=0.55,  # Low confidence for wrong analysis
-                    reasoning="General personality assessment"  # No specific reasoning
+                    reasoning="General personality assessment",  # No specific reasoning
                 )
 
         else:
@@ -351,13 +539,14 @@ class PersonalityAnalysisValidator:
                 weaknesses=["indecisive"],
                 recommendations=["be_more_decisive"],
                 confidence_score=0.60,
-                reasoning="Limited data available"
+                reasoning="Limited data available",
             )
 
         return analysis
 
-    def validate_personality_type_matching(self, assessment_data: AssessmentData,
-                                         analysis: PersonalityAnalysis) -> ValidationCheck:
+    def validate_personality_type_matching(
+        self, assessment_data: AssessmentData, analysis: PersonalityAnalysis
+    ) -> ValidationCheck:
         """Validate that AI correctly identifies personality type"""
 
         if assessment_data.assessment_type == AssessmentType.MBTI:
@@ -401,11 +590,12 @@ class PersonalityAnalysisValidator:
             actual=analysis.personality_type,
             passed=passed,
             confidence=confidence,
-            details=details
+            details=details,
         )
 
-    def validate_trait_accuracy(self, assessment_data: AssessmentData,
-                              analysis: PersonalityAnalysis) -> ValidationCheck:
+    def validate_trait_accuracy(
+        self, assessment_data: AssessmentData, analysis: PersonalityAnalysis
+    ) -> ValidationCheck:
         """Validate that identified traits match assessment data"""
 
         expected_traits = []
@@ -432,9 +622,9 @@ class PersonalityAnalysisValidator:
 
         elif assessment_data.assessment_type == AssessmentType.ENNEAGRAM:
             if assessment_data.personality_type:
-                type_traits = self.validation_rules["enneagram"]["type_descriptions"].get(
-                    assessment_data.personality_type, []
-                )
+                type_traits = self.validation_rules["enneagram"][
+                    "type_descriptions"
+                ].get(assessment_data.personality_type, [])
                 expected_traits.extend(type_traits)
 
         # Check for overlap between expected and actual traits
@@ -461,11 +651,12 @@ class PersonalityAnalysisValidator:
             actual=analysis.traits_identified,
             passed=passed,
             confidence=confidence,
-            details=details
+            details=details,
         )
 
-    def validate_strength_relevance(self, assessment_data: AssessmentData,
-                                  analysis: PersonalityAnalysis) -> ValidationCheck:
+    def validate_strength_relevance(
+        self, assessment_data: AssessmentData, analysis: PersonalityAnalysis
+    ) -> ValidationCheck:
         """Validate that strengths are relevant to assessment results"""
 
         # Determine expected strengths based on assessment data
@@ -476,7 +667,9 @@ class PersonalityAnalysisValidator:
 
             # High Openness -> Creative strengths
             if scores.get("Openness", 0) >= 70:
-                expected_strengths.extend(["creativity", "innovation", "problem_solving"])
+                expected_strengths.extend(
+                    ["creativity", "innovation", "problem_solving"]
+                )
 
             # High Conscientiousness -> Organizational strengths
             if scores.get("Conscientiousness", 0) >= 70:
@@ -511,13 +704,19 @@ class PersonalityAnalysisValidator:
             for actual_strength in actual_strengths:
                 for expected_strength in expected_strengths_lower:
                     # Simple substring check for relevance
-                    if (expected_strength in actual_strength or
-                        actual_strength in expected_strength or
-                        self._check_concept_similarity(actual_strength, expected_strength)):
+                    if (
+                        expected_strength in actual_strength
+                        or actual_strength in expected_strength
+                        or self._check_concept_similarity(
+                            actual_strength, expected_strength
+                        )
+                    ):
                         relevance_count += 1
                         break
 
-            relevance_rate = relevance_count / len(actual_strengths) if actual_strengths else 0
+            relevance_rate = (
+                relevance_count / len(actual_strengths) if actual_strengths else 0
+            )
             passed = relevance_rate >= 0.4  # At least 40% relevance
             confidence = min(1.0, relevance_rate + 0.4)
         else:
@@ -534,18 +733,23 @@ class PersonalityAnalysisValidator:
             actual=analysis.strengths,
             passed=passed,
             confidence=confidence,
-            details=details
+            details=details,
         )
 
     def _check_concept_similarity(self, concept1: str, concept2: str) -> bool:
         """Check if two concepts are semantically similar"""
         # Simple similarity checking based on common synonyms
         similarity_groups = {
-            "problem_solving": ["analytical", "analysis", "critical_thinking", "solving"],
+            "problem_solving": [
+                "analytical",
+                "analysis",
+                "critical_thinking",
+                "solving",
+            ],
             "communication": ["social", "interpersonal", "relational", "teamwork"],
             "creativity": ["innovative", "creative", "ideation", "innovation"],
             "leadership": ["leading", "managing", "guiding", "direction"],
-            "organization": ["planning", "structured", "systematic", "methodical"]
+            "organization": ["planning", "structured", "systematic", "methodical"],
         }
 
         for group, synonyms in similarity_groups.items():
@@ -556,30 +760,42 @@ class PersonalityAnalysisValidator:
 
         return False
 
-    def validate_recommendation_quality(self, assessment_data: AssessmentData,
-                                      analysis: PersonalityAnalysis) -> ValidationCheck:
+    def validate_recommendation_quality(
+        self, assessment_data: AssessmentData, analysis: PersonalityAnalysis
+    ) -> ValidationCheck:
         """Validate quality and relevance of recommendations"""
 
         # Check for generic vs specific recommendations
         generic_recommendations = {
-            "improve communication", "be more organized", "develop leadership",
-            "work on teamwork", "be more confident", "manage time better"
+            "improve communication",
+            "be more organized",
+            "develop leadership",
+            "work on teamwork",
+            "be more confident",
+            "manage time better",
         }
 
         actual_recommendations = [r.lower().strip() for r in analysis.recommendations]
-        generic_count = sum(1 for rec in actual_recommendations
-                           if any(gen in rec for gen in generic_recommendations))
+        generic_count = sum(
+            1
+            for rec in actual_recommendations
+            if any(gen in rec for gen in generic_recommendations)
+        )
 
         specific_count = len(actual_recommendations) - generic_count
 
         # Specificity check
-        specificity_score = specific_count / len(actual_recommendations) if actual_recommendations else 0
+        specificity_score = (
+            specific_count / len(actual_recommendations)
+            if actual_recommendations
+            else 0
+        )
         passed_specificity = specificity_score >= 0.5  # At least 50% specific
 
         # Actionability check (recommendations should be actionable)
         actionable_patterns = [
             r"\b(develop|practice|implement|create|establish|focus|learn|improve)\b",
-            r"\b(skills|abilities|approach|strategy|technique|method)\b"
+            r"\b(skills|abilities|approach|strategy|technique|method)\b",
         ]
 
         actionable_count = 0
@@ -587,7 +803,11 @@ class PersonalityAnalysisValidator:
             if any(re.search(pattern, rec) for pattern in actionable_patterns):
                 actionable_count += 1
 
-        actionability_score = actionable_count / len(actual_recommendations) if actual_recommendations else 0
+        actionability_score = (
+            actionable_count / len(actual_recommendations)
+            if actual_recommendations
+            else 0
+        )
         passed_actionability = actionability_score >= 0.6  # At least 60% actionable
 
         # Overall quality score
@@ -604,11 +824,12 @@ class PersonalityAnalysisValidator:
             actual=analysis.recommendations,
             passed=passed,
             confidence=confidence,
-            details=details
+            details=details,
         )
 
-    def validate_confidence_score_reasonableness(self, assessment_data: AssessmentData,
-                                               analysis: PersonalityAnalysis) -> ValidationCheck:
+    def validate_confidence_score_reasonableness(
+        self, assessment_data: AssessmentData, analysis: PersonalityAnalysis
+    ) -> ValidationCheck:
         """Validate that confidence scores are reasonable given the data"""
 
         data_completeness = len(assessment_data.responses)
@@ -642,10 +863,12 @@ class PersonalityAnalysisValidator:
             actual=ai_confidence,
             passed=final_passed,
             confidence=confidence,
-            details=details
+            details=details,
         )
 
-    def calculate_overall_validation_accuracy(self, validation_checks: List[ValidationCheck]) -> float:
+    def calculate_overall_validation_accuracy(
+        self, validation_checks: List[ValidationCheck]
+    ) -> float:
         """Calculate overall validation accuracy score"""
         if not validation_checks:
             return 0.0
@@ -656,7 +879,7 @@ class PersonalityAnalysisValidator:
             "trait_accuracy": 0.25,
             "strength_relevance": 0.2,
             "recommendation_quality": 0.15,
-            "confidence_reasonableness": 0.1
+            "confidence_reasonableness": 0.1,
         }
 
         weighted_score = 0.0
@@ -684,7 +907,9 @@ class PersonalityAnalysisValidator:
         else:
             return ValidationLevel.INSUFFICIENT_DATA
 
-    async def validate_personality_analysis(self, assessments: List[AssessmentData]) -> List[ValidationResult]:
+    async def validate_personality_analysis(
+        self, assessments: List[AssessmentData]
+    ) -> List[ValidationResult]:
         """Validate personality analyses against assessment data"""
         print("🧠 PERSONALITY ANALYSIS VALIDATION TESTING")
         print("=" * 60)
@@ -692,7 +917,9 @@ class PersonalityAnalysisValidator:
         results = []
 
         for assessment in assessments:
-            print(f"\n📊 Validating: {assessment.user_id} - {assessment.assessment_type.value}")
+            print(
+                f"\n📊 Validating: {assessment.user_id} - {assessment.assessment_type.value}"
+            )
 
             # Generate AI analysis
             analysis = self.simulate_ai_personality_analysis(assessment)
@@ -703,41 +930,59 @@ class PersonalityAnalysisValidator:
                 self.validate_trait_accuracy(assessment, analysis),
                 self.validate_strength_relevance(assessment, analysis),
                 self.validate_recommendation_quality(assessment, analysis),
-                self.validate_confidence_score_reasonableness(assessment, analysis)
+                self.validate_confidence_score_reasonableness(assessment, analysis),
             ]
 
             # Calculate overall metrics
-            overall_accuracy = self.calculate_overall_validation_accuracy(validation_checks)
+            overall_accuracy = self.calculate_overall_validation_accuracy(
+                validation_checks
+            )
             validation_level = self.determine_validation_level(overall_accuracy)
 
             # Identify critical issues
             critical_issues = []
             for check in validation_checks:
                 if not check.passed and check.confidence > 0.8:
-                    critical_issues.append(f"Critical failure in {check.check_type}: {check.details}")
+                    critical_issues.append(
+                        f"Critical failure in {check.check_type}: {check.details}"
+                    )
 
             # Generate recommendations
             recommendations = []
             if overall_accuracy < 0.7:
-                recommendations.append("Significant accuracy issues detected - review analysis algorithms")
+                recommendations.append(
+                    "Significant accuracy issues detected - review analysis algorithms"
+                )
             elif overall_accuracy < 0.85:
                 recommendations.append("Moderate accuracy improvements needed")
             else:
-                recommendations.append("Good accuracy achieved with minor optimization opportunities")
+                recommendations.append(
+                    "Good accuracy achieved with minor optimization opportunities"
+                )
 
             # Specific recommendations based on failed checks
             for check in validation_checks:
                 if not check.passed:
                     if check.check_type == "type_matching":
-                        recommendations.append("Improve personality type determination algorithms")
+                        recommendations.append(
+                            "Improve personality type determination algorithms"
+                        )
                     elif check.check_type == "trait_accuracy":
-                        recommendations.append("Enhance trait extraction from assessment data")
+                        recommendations.append(
+                            "Enhance trait extraction from assessment data"
+                        )
                     elif check.check_type == "strength_relevance":
-                        recommendations.append("Improve strength relevance to actual assessment results")
+                        recommendations.append(
+                            "Improve strength relevance to actual assessment results"
+                        )
                     elif check.check_type == "recommendation_quality":
-                        recommendations.append("Generate more specific and actionable recommendations")
+                        recommendations.append(
+                            "Generate more specific and actionable recommendations"
+                        )
                     elif check.check_type == "confidence_validation":
-                        recommendations.append("Calibrate confidence scoring to reflect data quality")
+                        recommendations.append(
+                            "Calibrate confidence scoring to reflect data quality"
+                        )
 
             # Create validation result
             result = ValidationResult(
@@ -750,7 +995,7 @@ class PersonalityAnalysisValidator:
                 overall_accuracy=overall_accuracy,
                 validation_level=validation_level,
                 critical_issues=critical_issues,
-                recommendations=recommendations
+                recommendations=recommendations,
             )
 
             results.append(result)
@@ -759,7 +1004,9 @@ class PersonalityAnalysisValidator:
             print(f"   ✅ Overall Accuracy: {overall_accuracy:.1%}")
             print(f"   🎯 Validation Level: {validation_level.value}")
             print(f"   ⚠️  Critical Issues: {len(critical_issues)}")
-            print(f"   🔍 Checks Passed: {sum(1 for c in validation_checks if c.passed)}/{len(validation_checks)}")
+            print(
+                f"   🔍 Checks Passed: {sum(1 for c in validation_checks if c.passed)}/{len(validation_checks)}"
+            )
 
         return results
 
@@ -796,7 +1043,11 @@ class PersonalityAnalysisValidator:
         # Calculate check success rates
         check_success_rates = {}
         for check_type, check_results in check_type_results.items():
-            success_rate = check_results["passed"] / check_results["total"] if check_results["total"] > 0 else 0
+            success_rate = (
+                check_results["passed"] / check_results["total"]
+                if check_results["total"] > 0
+                else 0
+            )
             check_success_rates[check_type] = success_rate
 
         # Critical issues summary
@@ -806,36 +1057,48 @@ class PersonalityAnalysisValidator:
         # Generate recommendations
         recommendations = []
         if avg_accuracy >= 0.85:
-            recommendations.append("✅ Excellent personality analysis accuracy - production ready")
+            recommendations.append(
+                "✅ Excellent personality analysis accuracy - production ready"
+            )
         elif avg_accuracy >= 0.70:
             recommendations.append("⚠️ Good accuracy with targeted improvements needed")
         else:
-            recommendations.append("❌ Significant accuracy issues require immediate attention")
+            recommendations.append(
+                "❌ Significant accuracy issues require immediate attention"
+            )
 
         # Add specific recommendations based on check performance
-        low_performing_checks = [check_type for check_type, rate in check_success_rates.items() if rate < 0.7]
+        low_performing_checks = [
+            check_type for check_type, rate in check_success_rates.items() if rate < 0.7
+        ]
         if low_performing_checks:
-            recommendations.append(f"Priority improvements needed in: {', '.join(low_performing_checks)}")
+            recommendations.append(
+                f"Priority improvements needed in: {', '.join(low_performing_checks)}"
+            )
 
-        recommendations.extend([
-            "Implement cross-validation with multiple analysis methods",
-            "Enhance training data with verified personality assessments",
-            "Add confidence interval reporting for all personality insights",
-            "Create feedback loops from user validation of results"
-        ])
+        recommendations.extend(
+            [
+                "Implement cross-validation with multiple analysis methods",
+                "Enhance training data with verified personality assessments",
+                "Add confidence interval reporting for all personality insights",
+                "Create feedback loops from user validation of results",
+            ]
+        )
 
         # Prepare comprehensive report
         report = {
             "test_summary": {
                 "total_assessments_tested": len(assessments),
-                "validation_checks_performed": sum(len(r.validation_checks) for r in results),
+                "validation_checks_performed": sum(
+                    len(r.validation_checks) for r in results
+                ),
                 "avg_validation_accuracy": avg_accuracy,
                 "min_accuracy_score": min_accuracy,
                 "max_accuracy_score": max_accuracy,
                 "target_accuracy": 0.80,
                 "critical_issues_found": total_critical_issues,
                 "assessments_with_critical_issues": assessments_with_critical,
-                "meets_target": avg_accuracy >= 0.80
+                "meets_target": avg_accuracy >= 0.80,
             },
             "validation_level_distribution": dict(level_distribution),
             "check_performance_rates": check_success_rates,
@@ -848,11 +1111,13 @@ class PersonalityAnalysisValidator:
                     "actual_type": result.assessment_data.personality_type,
                     "accuracy_score": result.overall_accuracy,
                     "validation_level": result.validation_level.value,
-                    "checks_passed": sum(1 for c in result.validation_checks if c.passed),
+                    "checks_passed": sum(
+                        1 for c in result.validation_checks if c.passed
+                    ),
                     "total_checks": len(result.validation_checks),
                     "critical_issues_count": len(result.critical_issues),
                     "confidence_score": result.analysis.confidence_score,
-                    "recommendations": result.recommendations[:3]  # Top 3
+                    "recommendations": result.recommendations[:3],  # Top 3
                 }
                 for result in results
             ],
@@ -860,20 +1125,28 @@ class PersonalityAnalysisValidator:
                 "total_critical_issues": total_critical_issues,
                 "affected_assessments": assessments_with_critical,
                 "most_common_failures": [
-                    check_type for check_type, rate in check_success_rates.items()
+                    check_type
+                    for check_type, rate in check_success_rates.items()
                     if rate < 0.8
-                ]
+                ],
             },
             "recommendations": recommendations,
             "quality_metrics": {
-                "high_accuracy_validations": len([r for r in results if r.overall_accuracy >= 0.85]),
-                "low_accuracy_validations": len([r for r in results if r.overall_accuracy < 0.65]),
-                "average_confidence": statistics.mean([r.analysis.confidence_score for r in results]),
-                "type_matching_accuracy": check_success_rates.get("type_matching", 0)
-            }
+                "high_accuracy_validations": len(
+                    [r for r in results if r.overall_accuracy >= 0.85]
+                ),
+                "low_accuracy_validations": len(
+                    [r for r in results if r.overall_accuracy < 0.65]
+                ),
+                "average_confidence": statistics.mean(
+                    [r.analysis.confidence_score for r in results]
+                ),
+                "type_matching_accuracy": check_success_rates.get("type_matching", 0),
+            },
         }
 
         return report
+
 
 async def main():
     """Main function to run personality analysis validation tests"""
@@ -892,7 +1165,9 @@ async def main():
     print(f"   Assessments Tested: {summary['total_assessments_tested']}")
     print(f"   Validation Checks: {summary['validation_checks_performed']}")
     print(f"   Avg Accuracy: {summary['avg_validation_accuracy']:.1%}")
-    print(f"   Accuracy Range: {summary['min_accuracy_score']:.1%} - {summary['max_accuracy_score']:.1%}")
+    print(
+        f"   Accuracy Range: {summary['min_accuracy_score']:.1%} - {summary['max_accuracy_score']:.1%}"
+    )
     print(f"   Target Accuracy: {summary['target_accuracy']:.1%}")
     print(f"   Critical Issues: {summary['critical_issues_found']}")
     print(f"   Meets Target: {'✅ YES' if summary['meets_target'] else '❌ NO'}")
@@ -909,7 +1184,7 @@ async def main():
     critical = results["critical_issues_summary"]
     print(f"   Total Critical Issues: {critical['total_critical_issues']}")
     print(f"   Affected Assessments: {critical['affected_assessments']}")
-    if critical['most_common_failures']:
+    if critical["most_common_failures"]:
         print(f"   Most Common Failures: {', '.join(critical['most_common_failures'])}")
 
     print(f"\n💡 RECOMMENDATIONS:")
@@ -927,13 +1202,14 @@ async def main():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     results_file = f"personality_analysis_validation_results_{timestamp}.json"
 
-    with open(results_file, 'w') as f:
+    with open(results_file, "w") as f:
         json.dump(results, f, indent=2)
 
     print(f"\n📄 DETAILED RESULTS SAVED:")
     print(f"   📊 Results File: {results_file}")
 
     return results
+
 
 if __name__ == "__main__":
     asyncio.run(main())

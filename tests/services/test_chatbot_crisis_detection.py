@@ -10,8 +10,8 @@ CRITICAL SAFETY TESTS:
 """
 
 import pytest
-from app.services.ai.mental_health_chatbot import MentalHealthChatbot, test_crisis_detection
 
+from app.services.ai.mental_health_chatbot import MentalHealthChatbot, test_crisis_detection
 
 # =====================================================================
 # Crisis Detection Tests

@@ -8,11 +8,18 @@ import json
 import logging
 import time
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
 import psutil
 import psycopg2
 import redis
-from prometheus_client import Counter, Gauge, Histogram, start_http_server, CollectorRegistry
+from prometheus_client import (
+    CollectorRegistry,
+    Counter,
+    Gauge,
+    Histogram,
+    start_http_server,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,91 +46,100 @@ class MetricsCollector:
 
         # API metrics
         self.api_requests_total = Counter(
-            'api_requests_total',
-            'Total API requests',
-            ['endpoint', 'method', 'status'],
-            registry=self.registry
+            "api_requests_total",
+            "Total API requests",
+            ["endpoint", "method", "status"],
+            registry=self.registry,
         )
 
         self.api_request_duration = Histogram(
-            'api_request_duration_seconds',
-            'API request duration',
-            ['endpoint', 'method'],
-            buckets=[.005, .01, .025, .05, .075, .1, .25, .5, .75, 1.0, 2.5, 5.0, 7.5, 10.0],
-            registry=self.registry
+            "api_request_duration_seconds",
+            "API request duration",
+            ["endpoint", "method"],
+            buckets=[
+                0.005,
+                0.01,
+                0.025,
+                0.05,
+                0.075,
+                0.1,
+                0.25,
+                0.5,
+                0.75,
+                1.0,
+                2.5,
+                5.0,
+                7.5,
+                10.0,
+            ],
+            registry=self.registry,
         )
 
         self.api_active_connections = Gauge(
-            'api_active_connections',
-            'Active API connections',
-            registry=self.registry
+            "api_active_connections", "Active API connections", registry=self.registry
         )
 
         # Database metrics
         self.db_connections_active = Gauge(
-            'db_connections_active',
-            'Active database connections',
-            registry=self.registry
+            "db_connections_active",
+            "Active database connections",
+            registry=self.registry,
         )
 
         self.db_query_duration = Histogram(
-            'db_query_duration_seconds',
-            'Database query duration',
-            ['query_type'],
-            buckets=[.001, .005, .01, .025, .05, .1, .25, .5, 1.0, 2.5, 5.0],
-            registry=self.registry
+            "db_query_duration_seconds",
+            "Database query duration",
+            ["query_type"],
+            buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0],
+            registry=self.registry,
         )
 
         self.db_connections_pool_size = Gauge(
-            'db_connections_pool_size',
-            'Database connection pool size',
-            registry=self.registry
+            "db_connections_pool_size",
+            "Database connection pool size",
+            registry=self.registry,
         )
 
         # Cache metrics
         self.cache_hit_rate = Gauge(
-            'cache_hit_rate',
-            'Cache hit rate',
-            registry=self.registry
+            "cache_hit_rate", "Cache hit rate", registry=self.registry
         )
 
         self.cache_memory_usage = Gauge(
-            'cache_memory_bytes',
-            'Cache memory usage in bytes',
-            registry=self.registry
+            "cache_memory_bytes", "Cache memory usage in bytes", registry=self.registry
         )
 
         # System metrics
         self.system_cpu_usage = Gauge(
-            'system_cpu_usage_percent',
-            'System CPU usage percentage',
-            registry=self.registry
+            "system_cpu_usage_percent",
+            "System CPU usage percentage",
+            registry=self.registry,
         )
 
         self.system_memory_usage = Gauge(
-            'system_memory_usage_percent',
-            'System memory usage percentage',
-            registry=self.registry
+            "system_memory_usage_percent",
+            "System memory usage percentage",
+            registry=self.registry,
         )
 
         self.system_disk_io = Gauge(
-            'system_disk_io_bytes',
-            'System disk I/O in bytes',
-            ['direction'],
-            registry=self.registry
+            "system_disk_io_bytes",
+            "System disk I/O in bytes",
+            ["direction"],
+            registry=self.registry,
         )
 
         # Load test specific
         self.load_test_active_users = Gauge(
-            'load_test_active_users',
-            'Number of active load test users',
-            registry=self.registry
+            "load_test_active_users",
+            "Number of active load test users",
+            registry=self.registry,
         )
 
         self.load_test_rps = Gauge(
-            'load_test_requests_per_second',
-            'Load test requests per second',
-            registry=self.registry
+            "load_test_requests_per_second",
+            "Load test requests per second",
+            registry=self.registry,
         )
 
     def start_metrics_server(self, port: int = 9091):
@@ -142,14 +158,13 @@ class MetricsCollector:
         except Exception as e:
             logger.error(f"Failed to connect to database: {e}")
 
-    def connect_redis(self, host: str = 'localhost', port: int = 6379, password: str = None):
+    def connect_redis(
+        self, host: str = "localhost", port: int = 6379, password: str = None
+    ):
         """Connect to Redis"""
         try:
             self.redis_client = redis.Redis(
-                host=host,
-                port=port,
-                password=password,
-                decode_responses=True
+                host=host, port=port, password=password, decode_responses=True
             )
             self.redis_client.ping()
             logger.info("Connected to Redis for metrics collection")
@@ -164,11 +179,13 @@ class MetricsCollector:
         try:
             with self.db_conn.cursor() as cursor:
                 # Active connections
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT count(*)
                     FROM pg_stat_activity
                     WHERE state = 'active'
-                """)
+                """
+                )
                 active_connections = cursor.fetchone()[0]
                 self.db_connections_active.set(active_connections)
 
@@ -178,25 +195,23 @@ class MetricsCollector:
                 self.db_connections_pool_size.set(max_connections)
 
                 # Slow queries
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT query, mean_exec_time, calls
                     FROM pg_stat_statements
                     ORDER BY mean_exec_time DESC
                     LIMIT 10
-                """)
+                """
+                )
                 slow_queries = cursor.fetchall()
 
                 return {
                     "active_connections": active_connections,
                     "max_connections": max_connections,
                     "slow_queries": [
-                        {
-                            "query": query[:100],
-                            "mean_time": mean_time,
-                            "calls": calls
-                        }
+                        {"query": query[:100], "mean_time": mean_time, "calls": calls}
                         for query, mean_time, calls in slow_queries
-                    ]
+                    ],
                 }
 
         except Exception as e:
@@ -209,22 +224,22 @@ class MetricsCollector:
             return
 
         try:
-            info = self.redis_client.info('stats')
-            memory_info = self.redis_client.info('memory')
+            info = self.redis_client.info("stats")
+            memory_info = self.redis_client.info("memory")
 
             # Calculate hit rate
-            hits = info.get('keyspace_hits', 0)
-            misses = info.get('keyspace_misses', 0)
+            hits = info.get("keyspace_hits", 0)
+            misses = info.get("keyspace_misses", 0)
             total = hits + misses
             hit_rate = (hits / total * 100) if total > 0 else 0
 
             self.cache_hit_rate.set(hit_rate)
-            self.cache_memory_usage.set(memory_info.get('used_memory', 0))
+            self.cache_memory_usage.set(memory_info.get("used_memory", 0))
 
             return {
                 "hit_rate": hit_rate,
-                "memory_used": memory_info.get('used_memory', 0),
-                "memory_max": memory_info.get('maxmemory', 0),
+                "memory_used": memory_info.get("used_memory", 0),
+                "memory_max": memory_info.get("maxmemory", 0),
                 "total_keys": self.redis_client.dbsize(),
             }
 
@@ -246,8 +261,8 @@ class MetricsCollector:
             # Disk I/O
             disk_io = psutil.disk_io_counters()
             if disk_io:
-                self.system_disk_io.labels(direction='read').set(disk_io.read_bytes)
-                self.system_disk_io.labels(direction='write').set(disk_io.write_bytes)
+                self.system_disk_io.labels(direction="read").set(disk_io.read_bytes)
+                self.system_disk_io.labels(direction="write").set(disk_io.write_bytes)
 
             return {
                 "cpu_percent": cpu_percent,
@@ -261,18 +276,17 @@ class MetricsCollector:
             logger.error(f"Failed to collect system metrics: {e}")
             return None
 
-    def record_api_request(self, endpoint: str, method: str, status: int, duration: float):
+    def record_api_request(
+        self, endpoint: str, method: str, status: int, duration: float
+    ):
         """Record API request metrics"""
         self.api_requests_total.labels(
-            endpoint=endpoint,
-            method=method,
-            status=status
+            endpoint=endpoint, method=method, status=status
         ).inc()
 
-        self.api_request_duration.labels(
-            endpoint=endpoint,
-            method=method
-        ).observe(duration)
+        self.api_request_duration.labels(endpoint=endpoint, method=method).observe(
+            duration
+        )
 
     def update_load_test_metrics(self, active_users: int, rps: float):
         """Update load test specific metrics"""
@@ -307,14 +321,18 @@ class MetricsCollector:
         return {
             "latest_metrics": latest,
             "samples_collected": len(self.metrics_history),
-            "collection_start": self.metrics_history[0]["timestamp"] if self.metrics_history else None,
-            "collection_end": self.metrics_history[-1]["timestamp"] if self.metrics_history else None,
+            "collection_start": (
+                self.metrics_history[0]["timestamp"] if self.metrics_history else None
+            ),
+            "collection_end": (
+                self.metrics_history[-1]["timestamp"] if self.metrics_history else None
+            ),
         }
 
     def save_metrics_to_file(self, filepath: str):
         """Save metrics history to JSON file"""
         try:
-            with open(filepath, 'w') as f:
+            with open(filepath, "w") as f:
                 json.dump(self.metrics_history, f, indent=2)
             logger.info(f"Metrics saved to {filepath}")
         except Exception as e:
@@ -349,15 +367,22 @@ async def main():
 
     parser = argparse.ArgumentParser(description="Collect metrics during load testing")
     parser.add_argument("--db-url", type=str, help="PostgreSQL connection string")
-    parser.add_argument("--redis-host", type=str, default="localhost", help="Redis host")
+    parser.add_argument(
+        "--redis-host", type=str, default="localhost", help="Redis host"
+    )
     parser.add_argument("--redis-port", type=int, default=6379, help="Redis port")
-    parser.add_argument("--interval", type=int, default=5, help="Collection interval (seconds)")
+    parser.add_argument(
+        "--interval", type=int, default=5, help="Collection interval (seconds)"
+    )
     parser.add_argument("--port", type=int, default=9091, help="Metrics server port")
     parser.add_argument("--output", type=str, help="Output JSON file path")
 
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
 
     collector = MetricsCollector()
 
@@ -386,7 +411,9 @@ async def main():
         print("METRICS COLLECTION SUMMARY")
         print("=" * 60)
         print(f"Samples collected: {summary.get('samples_collected', 0)}")
-        print(f"Duration: {summary.get('collection_start', 'N/A')} to {summary.get('collection_end', 'N/A')}")
+        print(
+            f"Duration: {summary.get('collection_start', 'N/A')} to {summary.get('collection_end', 'N/A')}"
+        )
         print("=" * 60)
 
     finally:

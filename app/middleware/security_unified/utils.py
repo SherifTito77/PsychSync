@@ -210,22 +210,16 @@ def get_security_headers_default() -> dict[str, str]:
     return {
         # Prevents MIME-sniffing
         "X-Content-Type-Options": "nosniff",
-
         # Prevents clickjacking (legacy, CSP frame-ancestors preferred)
         "X-Frame-Options": "DENY",
-
         # Enables browser XSS filter (legacy, modern browsers ignore)
         "X-XSS-Protection": "1; mode=block",
-
         # Controls referrer information leakage
         "Referrer-Policy": "strict-origin-when-cross-origin",
-
         # Controls cross-origin window access
         "Cross-Origin-Opener-Policy": "same-origin",
-
         # Controls cross-origin resource access
         "Cross-Origin-Resource-Policy": "same-origin",
-
         # Controls browser features and APIs
         "Permissions-Policy": (
             "geolocation=(), "

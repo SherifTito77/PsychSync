@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 class JiraIssueBase(BaseModel):
     """Base schema for Jira issues"""
+
     issue_key: str = Field(..., description="Jira issue key (e.g., PROJ-123)")
     issue_type: str = Field(..., description="Issue type: Bug, Story, Task, Epic")
     summary: str = Field(..., description="Issue summary")
@@ -23,7 +24,9 @@ class JiraIssueBase(BaseModel):
     status: str = Field(..., description="Issue status")
     priority: str = Field(..., description="Issue priority")
     is_bug: bool = Field(default=False)
-    severity: Optional[str] = Field(None, description="Bug severity: critical, major, minor")
+    severity: Optional[str] = Field(
+        None, description="Bug severity: critical, major, minor"
+    )
     category: Optional[str] = Field(None, description="Bug category")
     reporter_id: Optional[str] = None
     assignee_id: Optional[str] = None
@@ -47,24 +50,28 @@ class JiraIssueBase(BaseModel):
 
 class JiraIssueCreate(JiraIssueBase):
     """Schema for creating a Jira issue"""
+
     pass
 
 
 class JiraIssue(JiraIssueBase):
     """Schema for Jira issue response"""
+
     id: str
     last_synced_at: datetime
 
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class JiraBugSummaryBase(BaseModel):
     """Base schema for bug summaries"""
+
     summary_date: datetime
     project_key: str
     sprint_id: Optional[str] = None
@@ -79,6 +86,7 @@ class JiraBugSummaryBase(BaseModel):
 
 class JiraBugSummaryCreate(JiraBugSummaryBase):
     """Schema for creating bug summary"""
+
     avg_bug_age_hours: Optional[float] = None
     oldest_bug_age_hours: Optional[float] = None
     bugs_over_sla: int = 0
@@ -97,6 +105,7 @@ class JiraBugSummaryCreate(JiraBugSummaryBase):
 
 class JiraBugSummary(JiraBugSummaryBase):
     """Schema for bug summary response"""
+
     id: str
     avg_bug_age_hours: Optional[float]
     oldest_bug_age_hours: Optional[float]
@@ -117,13 +126,15 @@ class JiraBugSummary(JiraBugSummaryBase):
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class JiraSprintMetricsBase(BaseModel):
     """Base schema for sprint metrics"""
+
     sprint_id: str
     sprint_name: str
     project_key: str
@@ -145,6 +156,7 @@ class JiraSprintMetricsBase(BaseModel):
 
 class JiraSprintMetricsCreate(JiraSprintMetricsBase):
     """Schema for creating sprint metrics"""
+
     completion_rate: Optional[float] = None
     team_velocity: Optional[int] = None
     velocity_change: Optional[float] = None
@@ -155,6 +167,7 @@ class JiraSprintMetricsCreate(JiraSprintMetricsBase):
 
 class JiraSprintMetrics(JiraSprintMetricsBase):
     """Schema for sprint metrics response"""
+
     id: str
     completion_rate: Optional[float]
     team_velocity: Optional[int]
@@ -168,13 +181,15 @@ class JiraSprintMetrics(JiraSprintMetricsBase):
     class Config:
         """Config class.
 
-Description of class purpose and functionality.
+        Description of class purpose and functionality.
         """
+
         from_attributes = True
 
 
 class BugTrendData(BaseModel):
     """Schema for bug trend data"""
+
     date: datetime
     new_bugs: int
     resolved_bugs: int
@@ -185,6 +200,7 @@ class BugTrendData(BaseModel):
 
 class EngineeringPerformanceReport(BaseModel):
     """Schema for engineering performance report"""
+
     period_start: datetime
     period_end: datetime
     project_key: str

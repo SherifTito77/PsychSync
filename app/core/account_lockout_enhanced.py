@@ -20,9 +20,9 @@ Version: 2.0.0
 Date: January 7, 2026
 """
 
-from datetime import UTC, datetime, timedelta
 import hashlib
 import logging
+from datetime import UTC, datetime, timedelta
 
 import redis.asyncio as aioredis
 from sqlalchemy import select
@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # ACCOUNT LOCKOUT MANAGER
 # ============================================================================
+
 
 class AccountLockoutManager:
     """
@@ -72,9 +73,7 @@ class AccountLockoutManager:
     async def _get_redis_client(self):
         """Get Redis client"""
         return await aioredis.from_url(
-            self.redis_url,
-            encoding="utf-8",
-            decode_responses=True
+            self.redis_url, encoding="utf-8", decode_responses=True
         )
 
     def _hash_ip(self, ip_address: str) -> str:
@@ -94,10 +93,7 @@ class AccountLockoutManager:
     # =======================================================================
 
     async def record_failed_attempt(
-        self,
-        user_id: str,
-        ip_address: str,
-        db: AsyncSession
+        self, user_id: str, ip_address: str, db: AsyncSession
     ) -> tuple[bool, str | None]:
         """
         Record a failed login attempt.
@@ -132,7 +128,9 @@ class AccountLockoutManager:
 
             # Increment user failed attempts
             pipe.incr(user_failed_key)
-            pipe.expire(user_failed_key, int(self.LOCKOUT_DURATION.total_seconds()) + 3600)
+            pipe.expire(
+                user_failed_key, int(self.LOCKOUT_DURATION.total_seconds()) + 3600
+            )
 
             # Increment IP failed attempts
             pipe.incr(ip_failed_key)
@@ -149,41 +147,35 @@ class AccountLockoutManager:
                     "user_id": user_id,
                     "email": user.email,
                     "ip_address": ip_address,
-                    "attempts": user_attempts
-                }
+                    "attempts": user_attempts,
+                },
             )
 
             # Check if user should be locked out
             if user_attempts >= self.MAX_ATTEMPTS:
                 lockout_duration = self._calculate_lockout_duration(user_attempts)
                 await self._lockout_user(
-                    redis_client,
-                    user_id,
-                    user.email,
-                    lockout_duration,
-                    ip_address
+                    redis_client, user_id, user.email, lockout_duration, ip_address
                 )
-                return True, f"Account locked due to too many failed attempts. Try again in {int(lockout_duration.total_seconds() // 60)} minutes."
+                return (
+                    True,
+                    f"Account locked due to too many failed attempts. Try again in {int(lockout_duration.total_seconds() // 60)} minutes.",
+                )
 
             # Check if IP should be banned
             if ip_attempts >= self.IP_MAX_ATTEMPTS:
-                await self._ban_ip(
-                    redis_client,
-                    ip_hash,
-                    ip_address
+                await self._ban_ip(redis_client, ip_hash, ip_address)
+                return (
+                    True,
+                    f"Too many failed attempts from your IP address. Try again in {int(self.IP_BAN_DURATION.total_seconds() // 60)} minutes.",
                 )
-                return True, f"Too many failed attempts from your IP address. Try again in {int(self.IP_BAN_DURATION.total_seconds() // 60)} minutes."
 
             return False, None
 
         finally:
             await redis_client.close()
 
-    async def record_successful_attempt(
-        self,
-        user_id: str,
-        ip_address: str
-    ):
+    async def record_successful_attempt(self, user_id: str, ip_address: str):
         """
         Record a successful login (clear failed attempts).
 
@@ -275,7 +267,7 @@ class AccountLockoutManager:
         user_id: str,
         email: str,
         duration: timedelta,
-        ip_address: str
+        ip_address: str,
     ):
         """
         Lock out a user account.
@@ -291,9 +283,7 @@ class AccountLockoutManager:
 
         # Set lockout with TTL
         await redis_client.setex(
-            lockout_key,
-            int(duration.total_seconds()),
-            datetime.now(UTC).isoformat()
+            lockout_key, int(duration.total_seconds()), datetime.now(UTC).isoformat()
         )
 
         logger.error(
@@ -302,19 +292,14 @@ class AccountLockoutManager:
                 "user_id": user_id,
                 "email": email,
                 "duration_seconds": int(duration.total_seconds()),
-                "ip_address": ip_address
-            }
+                "ip_address": ip_address,
+            },
         )
 
         # TODO: Send lockout notification email
         # await self._send_lockout_email(email, duration)
 
-    async def _ban_ip(
-        self,
-        redis_client,
-        ip_hash: str,
-        ip_address: str
-    ):
+    async def _ban_ip(self, redis_client, ip_hash: str, ip_address: str):
         """
         Ban an IP address.
 
@@ -329,15 +314,15 @@ class AccountLockoutManager:
         await redis_client.setex(
             banned_key,
             int(self.IP_BAN_DURATION.total_seconds()),
-            datetime.now(UTC).isoformat()
+            datetime.now(UTC).isoformat(),
         )
 
         logger.error(
             f"IP BANNED: {ip_address} for {self.IP_BAN_DURATION}",
             extra={
                 "ip_address": ip_address,
-                "duration_seconds": int(self.IP_BAN_DURATION.total_seconds())
-            }
+                "duration_seconds": int(self.IP_BAN_DURATION.total_seconds()),
+            },
         )
 
     async def unlock_user(self, user_id: str):
@@ -398,7 +383,7 @@ class AccountLockoutManager:
         """
         # Exponential backoff: 15min, 30min, 1h, 2h, 4h, 8h, 16h, 24h (max)
         exponent = min(attempts - self.MAX_ATTEMPTS, 8)
-        duration = self.LOCKOUT_DURATION * (2 ** exponent)
+        duration = self.LOCKOUT_DURATION * (2**exponent)
 
         # Cap at maximum duration
         return min(duration, self.MAX_LOCKOUT_DURATION)
@@ -453,7 +438,7 @@ class AccountLockoutManager:
                 "is_locked_out": is_locked,
                 "lockout_remaining_seconds": ttl if is_locked else 0,
                 "max_attempts": self.MAX_ATTEMPTS,
-                "attempts_remaining": max(0, self.MAX_ATTEMPTS - attempts)
+                "attempts_remaining": max(0, self.MAX_ATTEMPTS - attempts),
             }
 
         finally:

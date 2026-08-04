@@ -18,44 +18,47 @@ async def verify_imports():
     try:
         # Test database models
         from app.db.models.clinical_screening import (
-            ClinicalScreening,
             ClinicalAlert,
-            ClinicalReferral,
             ClinicalAuditLog,
-            ClinicalConsent
+            ClinicalConsent,
+            ClinicalReferral,
+            ClinicalScreening,
         )
+
         print("  ✅ Database models imported")
 
         # Test core scorers
         from app.services.clinical.scoring_algorithms import (
-            PHQ9Scorer,
+            CSSRSScorer,
             GAD7Scorer,
-            CSSRSScorer
+            PHQ9Scorer,
         )
+
         print("  ✅ Core scorers imported")
 
         # Test additional scorers
         from app.services.clinical.additional_scorers import (
-            MDQScorer,
-            DAST10Scorer,
-            AQ10Scorer,
+            SCORER_REGISTRY,
             ACEScorer,
-            SCORER_REGISTRY
+            AQ10Scorer,
+            DAST10Scorer,
+            MDQScorer,
         )
+
         print("  ✅ Additional scorers imported")
 
         # Test crisis intervention
-        from app.services.clinical.crisis_intervention import (
-            CrisisInterventionService
-        )
+        from app.services.clinical.crisis_intervention import CrisisInterventionService
+
         print("  ✅ Crisis intervention service imported")
 
         # Test notification templates (import directly to avoid module issues)
         try:
             from app.services.notifications import crisis_templates
             from app.services.notifications.crisis_templates import (
-                CrisisNotificationTemplates
+                CrisisNotificationTemplates,
             )
+
             print("  ✅ Notification templates imported")
         except ImportError:
             # Skip notification templates if there are import issues
@@ -72,10 +75,13 @@ async def verify_scorers():
     """Test all scoring algorithms"""
     print("\n🧪 Testing scoring algorithms...")
 
-    from app.services.clinical.scoring_algorithms import PHQ9Scorer, GAD7Scorer
     from app.services.clinical.additional_scorers import (
-        MDQScorer, DAST10Scorer, AQ10Scorer, ACEScorer
+        ACEScorer,
+        AQ10Scorer,
+        DAST10Scorer,
+        MDQScorer,
     )
+    from app.services.clinical.scoring_algorithms import GAD7Scorer, PHQ9Scorer
 
     tests_passed = 0
     tests_total = 0
@@ -83,19 +89,21 @@ async def verify_scorers():
     # Test PHQ-9
     tests_total += 1
     try:
-        result = PHQ9Scorer.score({
-            'q1_interest': 2,
-            'q2_depressed': 2,
-            'q3_sleep': 2,
-            'q4_energy': 2,
-            'q5_appetite': 2,
-            'q6_self_worth': 2,
-            'q7_concentration': 2,
-            'q8_motor': 2,
-            'q9_suicide': 0
-        })
+        result = PHQ9Scorer.score(
+            {
+                "q1_interest": 2,
+                "q2_depressed": 2,
+                "q3_sleep": 2,
+                "q4_energy": 2,
+                "q5_appetite": 2,
+                "q6_self_worth": 2,
+                "q7_concentration": 2,
+                "q8_motor": 2,
+                "q9_suicide": 0,
+            }
+        )
         assert result.total_score == 16
-        assert result.severity_level in ['moderately_severe', 'moderate']
+        assert result.severity_level in ["moderately_severe", "moderate"]
         assert result.crisis_alert == False
         print("  ✅ PHQ-9 scorer working")
         tests_passed += 1
@@ -105,17 +113,19 @@ async def verify_scorers():
     # Test GAD-7
     tests_total += 1
     try:
-        result = GAD7Scorer.score({
-            'q1_nervous': 2,
-            'q2_worry': 2,
-            'q3_worry_too_much': 2,
-            'q4_relax': 2,
-            'q5_restless': 2,
-            'q6_annoyed': 2,
-            'q7_afraid': 2
-        })
+        result = GAD7Scorer.score(
+            {
+                "q1_nervous": 2,
+                "q2_worry": 2,
+                "q3_worry_too_much": 2,
+                "q4_relax": 2,
+                "q5_restless": 2,
+                "q6_annoyed": 2,
+                "q7_afraid": 2,
+            }
+        )
         assert result.total_score == 14
-        assert result.severity_level == 'moderate'
+        assert result.severity_level == "moderate"
         print("  ✅ GAD-7 scorer working")
         tests_passed += 1
     except Exception as e:
@@ -124,14 +134,27 @@ async def verify_scorers():
     # Test MDQ
     tests_total += 1
     try:
-        result = MDQScorer.score({
-            'q1': True, 'q2': True, 'q3': True, 'q4': True,
-            'q5': True, 'q6': True, 'q7': True, 'q8': False,
-            'q9': False, 'q10': False, 'q11': False, 'q12': False,
-            'q13': False, 'q14_clustered': True, 'q15_impairment': 2
-        })
+        result = MDQScorer.score(
+            {
+                "q1": True,
+                "q2": True,
+                "q3": True,
+                "q4": True,
+                "q5": True,
+                "q6": True,
+                "q7": True,
+                "q8": False,
+                "q9": False,
+                "q10": False,
+                "q11": False,
+                "q12": False,
+                "q13": False,
+                "q14_clustered": True,
+                "q15_impairment": 2,
+            }
+        )
         assert result.total_score == 7.0
-        assert result.risk_level == 'high'
+        assert result.risk_level == "high"
         assert result.crisis_alert == True
         print("  ✅ MDQ scorer working")
         tests_passed += 1
@@ -141,13 +164,22 @@ async def verify_scorers():
     # Test DAST-10
     tests_total += 1
     try:
-        result = DAST10Scorer.score({
-            'q1': True, 'q2': True, 'q3': True, 'q4': True,
-            'q5': True, 'q6': True, 'q7': True, 'q8': True,
-            'q9': True, 'q10': True
-        })
+        result = DAST10Scorer.score(
+            {
+                "q1": True,
+                "q2": True,
+                "q3": True,
+                "q4": True,
+                "q5": True,
+                "q6": True,
+                "q7": True,
+                "q8": True,
+                "q9": True,
+                "q10": True,
+            }
+        )
         assert result.total_score == 10.0
-        assert result.severity_level == 'severe'
+        assert result.severity_level == "severe"
         assert result.crisis_alert == True
         print("  ✅ DAST-10 scorer working")
         tests_passed += 1
@@ -157,12 +189,11 @@ async def verify_scorers():
     # Test AQ-10
     tests_total += 1
     try:
-        result = AQ10Scorer.score({
-            1: 4, 2: 4, 3: 1, 4: 3, 5: 4,
-            6: 1, 7: 3, 8: 1, 9: 4, 10: 4
-        })
+        result = AQ10Scorer.score(
+            {1: 4, 2: 4, 3: 1, 4: 3, 5: 4, 6: 1, 7: 3, 8: 1, 9: 4, 10: 4}
+        )
         assert result.total_score == 9.0
-        assert result.risk_level == 'moderate'
+        assert result.risk_level == "moderate"
         print("  ✅ AQ-10 scorer working")
         tests_passed += 1
     except Exception as e:
@@ -171,13 +202,23 @@ async def verify_scorers():
     # Test ACE
     tests_total += 1
     try:
-        result = ACEScorer.score({
-            1: True, 2: True, 3: True, 4: True, 5: True,
-            6: True, 7: True, 8: False, 9: False, 10: False
-        })
+        result = ACEScorer.score(
+            {
+                1: True,
+                2: True,
+                3: True,
+                4: True,
+                5: True,
+                6: True,
+                7: True,
+                8: False,
+                9: False,
+                10: False,
+            }
+        )
         assert result.total_score == 7.0
-        assert result.risk_level == 'high'
-        assert 'HIGH_ACE_SCORE' in result.risk_flags
+        assert result.risk_level == "high"
+        assert "HIGH_ACE_SCORE" in result.risk_flags
         print("  ✅ ACE scorer working")
         tests_passed += 1
     except Exception as e:
@@ -192,7 +233,9 @@ async def verify_templates():
     print("\n📧 Testing notification templates...")
 
     try:
-        from app.services.notifications.crisis_templates import CrisisNotificationTemplates
+        from app.services.notifications.crisis_templates import (
+            CrisisNotificationTemplates,
+        )
     except ImportError as e:
         print(f"  ⚠️  Skipping template tests (import error: {e})")
         return True  # Don't fail the entire verification for this
@@ -204,14 +247,12 @@ async def verify_templates():
     tests_total += 1
     try:
         email = CrisisNotificationTemplates.critical_alert_email(
-            user_name="Test User",
-            screening_type="PHQ9",
-            score=24
+            user_name="Test User", screening_type="PHQ9", score=24
         )
-        assert 'subject' in email
-        assert 'html_body' in email
-        assert 'text_body' in email
-        assert '988' in email['html_body']
+        assert "subject" in email
+        assert "html_body" in email
+        assert "text_body" in email
+        assert "988" in email["html_body"]
         print("  ✅ Critical alert email template working")
         tests_passed += 1
     except Exception as e:
@@ -224,10 +265,10 @@ async def verify_templates():
             user_name="Test User",
             screening_type="PHQ9",
             score=24,
-            risk_flags=["HIGH_SUICIDE_RISK"]
+            risk_flags=["HIGH_SUICIDE_RISK"],
         )
-        assert 'subject' in email
-        assert 'CRITICAL ALERT' in email['subject']
+        assert "subject" in email
+        assert "CRITICAL ALERT" in email["subject"]
         print("  ✅ Clinician alert email template working")
         tests_passed += 1
     except Exception as e:
@@ -236,11 +277,9 @@ async def verify_templates():
     # Test SMS templates
     tests_total += 1
     try:
-        sms = CrisisNotificationTemplates.critical_sms(
-            user_name="Test User"
-        )
+        sms = CrisisNotificationTemplates.critical_sms(user_name="Test User")
         assert len(sms) <= 160
-        assert '988' in sms
+        assert "988" in sms
         print("  ✅ Critical SMS template working")
         tests_passed += 1
     except Exception as e:
@@ -255,9 +294,9 @@ async def verify_frontend_files():
     print("\n⚛️  Verifying frontend components...")
 
     frontend_files = [
-        'frontend/src/components/clinical/ComprehensiveClinicalAssessments.tsx',
-        'frontend/src/components/clinical/ClinicianDashboard.tsx',
-        'frontend/src/components/clinical/CrisisResources.tsx',
+        "frontend/src/components/clinical/ComprehensiveClinicalAssessments.tsx",
+        "frontend/src/components/clinical/ClinicianDashboard.tsx",
+        "frontend/src/components/clinical/CrisisResources.tsx",
     ]
 
     files_found = 0
@@ -278,13 +317,13 @@ async def verify_documentation():
     print("\n📚 Verifying documentation...")
 
     docs = [
-        'CLINICAL_SCREENING_IMPLEMENTATION_GUIDE.md',
-        'app/services/clinical/scoring_algorithms.py',
-        'app/services/clinical/crisis_intervention.py',
-        'app/services/clinical/additional_scorers.py',
-        'app/services/notifications/crisis_templates.py',
-        'app/api/v1/endpoints/screening.py',
-        'alembic/versions/20250114_add_clinical_screening.py',
+        "CLINICAL_SCREENING_IMPLEMENTATION_GUIDE.md",
+        "app/services/clinical/scoring_algorithms.py",
+        "app/services/clinical/crisis_intervention.py",
+        "app/services/clinical/additional_scorers.py",
+        "app/services/notifications/crisis_templates.py",
+        "app/api/v1/endpoints/screening.py",
+        "alembic/versions/20250114_add_clinical_screening.py",
     ]
 
     files_found = 0

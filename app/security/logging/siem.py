@@ -34,6 +34,7 @@ from app.security.logging.schemas import SecurityEvent
 
 class SIEMType(str, Enum):
     """Supported SIEM systems"""
+
     SPLUNK = "splunk"
     ELASTICSEARCH = "elasticsearch"
     AZURE_SENTINEL = "azure_sentinel"
@@ -45,6 +46,7 @@ class SIEMType(str, Enum):
 @dataclass
 class SIEMConfig:
     """Configuration for SIEM endpoint"""
+
     siem_type: SIEMType
     enabled: bool = True
     endpoint_url: str | None = None
@@ -78,7 +80,7 @@ class SIEMStreamer:
             "events_sent": 0,
             "events_failed": 0,
             "batches_sent": 0,
-            "batches_failed": 0
+            "batches_failed": 0,
         }
 
     def add_config(self, config: SIEMConfig):
@@ -92,7 +94,7 @@ class SIEMStreamer:
             "is_open": False,
             "failure_count": 0,
             "last_failure_time": None,
-            "success_count": 0
+            "success_count": 0,
         }
 
     async def _get_session(self) -> aiohttp.ClientSession:
@@ -219,7 +221,7 @@ class SIEMStreamer:
         url = config.endpoint_url or "https://localhost:8088/services/collector/event"
         headers = {
             "Authorization": f"Splunk {config.api_token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
         headers.update(config.custom_headers)
 
@@ -228,38 +230,46 @@ class SIEMStreamer:
         # Splunk HEC format
         splunk_events = []
         for event in events:
-            splunk_events.append({
-                "time": int(event.timestamp.timestamp()),
-                "host": "psychsync",
-                "source": "security_logging",
-                "sourcetype": "json",
-                "index": config.index or "security_logs",
-                "event": event.dict()
-            })
+            splunk_events.append(
+                {
+                    "time": int(event.timestamp.timestamp()),
+                    "host": "psychsync",
+                    "source": "security_logging",
+                    "sourcetype": "json",
+                    "index": config.index or "security_logs",
+                    "event": event.dict(),
+                }
+            )
 
         for attempt in range(config.max_retries):
             try:
-                async with session.post(url, json=splunk_events, headers=headers, ssl=config.verify_ssl) as response:
+                async with session.post(
+                    url, json=splunk_events, headers=headers, ssl=config.verify_ssl
+                ) as response:
                     if response.status == 200:
                         return
                     if response.status >= 500:
                         # Server error, retry
                         if attempt < config.max_retries - 1:
-                            await asyncio.sleep(config.retry_delay_seconds * (2 ** attempt))
+                            await asyncio.sleep(
+                                config.retry_delay_seconds * (2**attempt)
+                            )
                             continue
-                    raise Exception(f"Splunk returned status {response.status}: {await response.text()}")
+                    raise Exception(
+                        f"Splunk returned status {response.status}: {await response.text()}"
+                    )
             except aiohttp.ClientError as e:
                 if attempt < config.max_retries - 1:
-                    await asyncio.sleep(config.retry_delay_seconds * (2 ** attempt))
+                    await asyncio.sleep(config.retry_delay_seconds * (2**attempt))
                     continue
                 raise e
 
-    async def _send_to_elasticsearch(self, config: SIEMConfig, events: list[SecurityEvent]):
+    async def _send_to_elasticsearch(
+        self, config: SIEMConfig, events: list[SecurityEvent]
+    ):
         """Send events to Elasticsearch"""
         url = config.endpoint_url or "http://localhost:9200/security_logs/_bulk"
-        headers = {
-            "Content-Type": "application/x-ndjson"
-        }
+        headers = {"Content-Type": "application/x-ndjson"}
         headers.update(config.custom_headers)
 
         session = await self._get_session()
@@ -270,32 +280,38 @@ class SIEMStreamer:
 
         for event in events:
             # Index action
-            bulk_data += json.dumps({
-                "index": {
-                    "_index": index_name,
-                    "_id": event.event_id
-                }
-            }) + "\n"
+            bulk_data += (
+                json.dumps({"index": {"_index": index_name, "_id": event.event_id}})
+                + "\n"
+            )
             # Document data
             bulk_data += json.dumps(event.dict(), default=str) + "\n"
 
         for attempt in range(config.max_retries):
             try:
-                async with session.post(url, data=bulk_data, headers=headers, ssl=config.verify_ssl) as response:
+                async with session.post(
+                    url, data=bulk_data, headers=headers, ssl=config.verify_ssl
+                ) as response:
                     if response.status in [200, 201]:
                         return
                     if response.status >= 500:
                         if attempt < config.max_retries - 1:
-                            await asyncio.sleep(config.retry_delay_seconds * (2 ** attempt))
+                            await asyncio.sleep(
+                                config.retry_delay_seconds * (2**attempt)
+                            )
                             continue
-                    raise Exception(f"Elasticsearch returned status {response.status}: {await response.text()}")
+                    raise Exception(
+                        f"Elasticsearch returned status {response.status}: {await response.text()}"
+                    )
             except aiohttp.ClientError as e:
                 if attempt < config.max_retries - 1:
-                    await asyncio.sleep(config.retry_delay_seconds * (2 ** attempt))
+                    await asyncio.sleep(config.retry_delay_seconds * (2**attempt))
                     continue
                 raise e
 
-    async def _send_to_azure_sentinel(self, config: SIEMConfig, events: list[SecurityEvent]):
+    async def _send_to_azure_sentinel(
+        self, config: SIEMConfig, events: list[SecurityEvent]
+    ):
         """Send events to Microsoft Azure Sentinel (Log Analytics)"""
         # Azure Sentinel uses Log Analytics REST API
         workspace_id = config.endpoint_url  # Should be workspace ID
@@ -305,7 +321,7 @@ class SIEMStreamer:
             "Content-Type": "application/json",
             "Log-Type": "SecurityLogs",
             "Authorization": f"Bearer {config.api_token}",
-            "time-generated-field": "timestamp"
+            "time-generated-field": "timestamp",
         }
         headers.update(config.custom_headers)
 
@@ -313,21 +329,32 @@ class SIEMStreamer:
 
         for attempt in range(config.max_retries):
             try:
-                async with session.post(url, json=[e.dict() for e in events], headers=headers, ssl=config.verify_ssl) as response:
+                async with session.post(
+                    url,
+                    json=[e.dict() for e in events],
+                    headers=headers,
+                    ssl=config.verify_ssl,
+                ) as response:
                     if response.status == 200:
                         return
                     if response.status >= 500:
                         if attempt < config.max_retries - 1:
-                            await asyncio.sleep(config.retry_delay_seconds * (2 ** attempt))
+                            await asyncio.sleep(
+                                config.retry_delay_seconds * (2**attempt)
+                            )
                             continue
-                    raise Exception(f"Azure Sentinel returned status {response.status}: {await response.text()}")
+                    raise Exception(
+                        f"Azure Sentinel returned status {response.status}: {await response.text()}"
+                    )
             except aiohttp.ClientError as e:
                 if attempt < config.max_retries - 1:
-                    await asyncio.sleep(config.retry_delay_seconds * (2 ** attempt))
+                    await asyncio.sleep(config.retry_delay_seconds * (2**attempt))
                     continue
                 raise e
 
-    async def _send_to_cloudwatch(self, config: SIEMConfig, events: list[SecurityEvent]):
+    async def _send_to_cloudwatch(
+        self, config: SIEMConfig, events: list[SecurityEvent]
+    ):
         """Send events to AWS CloudWatch Logs"""
         # CloudWatch uses boto3 SDK
         try:
@@ -341,14 +368,13 @@ class SIEMStreamer:
         client = boto3.client(
             "logs",
             aws_access_key_id=config.endpoint_url,  # Using endpoint_url for access key
-            aws_secret_access_key=config.api_token
+            aws_secret_access_key=config.api_token,
         )
 
         # Create log stream if it doesn't exist
         try:
             client.create_log_stream(
-                logGroupName=log_group_name,
-                logStreamName=log_stream_name
+                logGroupName=log_group_name, logStreamName=log_stream_name
             )
         except client.exceptions.ResourceAlreadyExistsException:
             pass
@@ -356,10 +382,12 @@ class SIEMStreamer:
         # Format events
         cloudwatch_events = []
         for event in events:
-            cloudwatch_events.append({
-                "timestamp": int(event.timestamp.timestamp() * 1000),
-                "message": json.dumps(event.dict(), default=str)
-            })
+            cloudwatch_events.append(
+                {
+                    "timestamp": int(event.timestamp.timestamp() * 1000),
+                    "message": json.dumps(event.dict(), default=str),
+                }
+            )
 
         # Send events
         for attempt in range(config.max_retries):
@@ -367,22 +395,19 @@ class SIEMStreamer:
                 client.put_log_events(
                     logGroupName=log_group_name,
                     logStreamName=log_stream_name,
-                    logEvents=cloudwatch_events
+                    logEvents=cloudwatch_events,
                 )
                 return
             except Exception as e:
                 if attempt < config.max_retries - 1:
-                    await asyncio.sleep(config.retry_delay_seconds * (2 ** attempt))
+                    await asyncio.sleep(config.retry_delay_seconds * (2**attempt))
                     continue
                 raise e
 
     async def _send_to_datadog(self, config: SIEMConfig, events: list[SecurityEvent]):
         """Send events to Datadog"""
         url = "https://http-intake.logs.datadoghq.com/v1/input/"
-        headers = {
-            "Content-Type": "application/json",
-            "DD-API-KEY": config.api_token
-        }
+        headers = {"Content-Type": "application/json", "DD-API-KEY": config.api_token}
         headers.update(config.custom_headers)
 
         session = await self._get_session()
@@ -390,27 +415,35 @@ class SIEMStreamer:
         # Datadog format
         datadog_events = []
         for event in events:
-            datadog_events.append({
-                "ddsource": "psychsync",
-                "ddtags": f"event_type:{event.event_type.value},severity:{event.severity.value}",
-                "hostname": "psychsync",
-                "message": event.dict(),
-                "timestamp": int(event.timestamp.timestamp() * 1000)
-            })
+            datadog_events.append(
+                {
+                    "ddsource": "psychsync",
+                    "ddtags": f"event_type:{event.event_type.value},severity:{event.severity.value}",
+                    "hostname": "psychsync",
+                    "message": event.dict(),
+                    "timestamp": int(event.timestamp.timestamp() * 1000),
+                }
+            )
 
         for attempt in range(config.max_retries):
             try:
-                async with session.post(url, json=datadog_events, headers=headers, ssl=config.verify_ssl) as response:
+                async with session.post(
+                    url, json=datadog_events, headers=headers, ssl=config.verify_ssl
+                ) as response:
                     if response.status == 200:
                         return
                     if response.status >= 500:
                         if attempt < config.max_retries - 1:
-                            await asyncio.sleep(config.retry_delay_seconds * (2 ** attempt))
+                            await asyncio.sleep(
+                                config.retry_delay_seconds * (2**attempt)
+                            )
                             continue
-                    raise Exception(f"Datadog returned status {response.status}: {await response.text()}")
+                    raise Exception(
+                        f"Datadog returned status {response.status}: {await response.text()}"
+                    )
             except aiohttp.ClientError as e:
                 if attempt < config.max_retries - 1:
-                    await asyncio.sleep(config.retry_delay_seconds * (2 ** attempt))
+                    await asyncio.sleep(config.retry_delay_seconds * (2**attempt))
                     continue
                 raise e
 
@@ -449,10 +482,10 @@ class SIEMStreamer:
                 siem_type.value: {
                     "is_open": breaker["is_open"],
                     "failure_count": breaker["failure_count"],
-                    "success_count": breaker.get("success_count", 0)
+                    "success_count": breaker.get("success_count", 0),
                 }
                 for siem_type, breaker in self._circuit_breakers.items()
-            }
+            },
         }
 
 

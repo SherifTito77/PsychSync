@@ -1,8 +1,12 @@
-
 # ai/processors/big_five.py - Big Five Processor
 
-from typing import Dict, Any, List
-from ai.processors.processors_base import PersonalityFrameworkProcessor, PsychSyncProcessorError
+from typing import Any, Dict, List
+
+from ai.processors.processors_base import (
+    PersonalityFrameworkProcessor,
+    PsychSyncProcessorError,
+)
+
 
 class BigFiveProcessor(PersonalityFrameworkProcessor):
     """Process Big Five assessment results"""
@@ -10,27 +14,33 @@ class BigFiveProcessor(PersonalityFrameworkProcessor):
     def process(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process raw Big Five data into standardized format"""
         if not self._validate_input(raw_data):
-            return self._fallback_result('big_five', 'Invalid input data')
+            return self._fallback_result("big_five", "Invalid input data")
 
         try:
             dimensions = {}
-            dimension_names = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism']
+            dimension_names = [
+                "openness",
+                "conscientiousness",
+                "extraversion",
+                "agreeableness",
+                "neuroticism",
+            ]
 
             for dim in dimension_names:
                 value = self._safe_get(raw_data, dim, 0.5)
                 dimensions[dim] = self._clamp_value(float(value))
 
             return {
-                'dimensions': dimensions,
-                'confidence': self._safe_get(raw_data, 'confidence', 0.9),
-                'interpretations': self._get_interpretations(dimensions),
-                'percentiles': self._convert_to_percentiles(dimensions),
-                'strengths': self._identify_strengths(dimensions),
-                'development_areas': self._identify_development_areas(dimensions)
+                "dimensions": dimensions,
+                "confidence": self._safe_get(raw_data, "confidence", 0.9),
+                "interpretations": self._get_interpretations(dimensions),
+                "percentiles": self._convert_to_percentiles(dimensions),
+                "strengths": self._identify_strengths(dimensions),
+                "development_areas": self._identify_development_areas(dimensions),
             }
 
         except Exception as e:
-            return self._fallback_result('big_five', str(e))
+            return self._fallback_result("big_five", str(e))
 
     def _get_interpretations(self, dimensions: Dict[str, float]) -> Dict[str, str]:
         """Get interpretations for each dimension"""

@@ -11,11 +11,11 @@ Usage:
     result = sanitizer.sanitize(llm_output, content_type="text")
 """
 
-from datetime import datetime
-from enum import Enum
 import html
 import json
 import re
+from datetime import datetime
+from enum import Enum
 
 from bs4 import BeautifulSoup
 from pydantic import BaseModel
@@ -24,8 +24,10 @@ from pydantic import BaseModel
 # Content Types
 # ============================================================================
 
+
 class ContentType(Enum):
     """LLM output content types"""
+
     TEXT = "text"
     HTML = "html"
     JSON = "json"
@@ -99,18 +101,19 @@ SAFE_RESPONSE_SCHEMA = {
         "recommendations": {
             "type": "array",
             "items": {"type": "string"},
-            "maxItems": 10
+            "maxItems": 10,
         },
-        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
     },
     "required": ["summary"],
-    "additionalProperties": False  # Strict mode - no extra fields
+    "additionalProperties": False,  # Strict mode - no extra fields
 }
 
 
 # ============================================================================
 # Sanitization Result
 # ============================================================================
+
 
 class SanitizationResult(BaseModel):
     """Result of sanitizing LLM output"""
@@ -128,6 +131,7 @@ class SanitizationResult(BaseModel):
 # Main Sanitizer Class
 # ============================================================================
 
+
 class LLMSanitizer:
     """
     LLM output sanitization pipeline
@@ -140,10 +144,7 @@ class LLMSanitizer:
         self.warnings = []
 
     def sanitize(
-        self,
-        llm_output: str,
-        content_type: str = "text",
-        strict_mode: bool = True
+        self, llm_output: str, content_type: str = "text", strict_mode: bool = True
     ) -> SanitizationResult:
         """
         Sanitize LLM output
@@ -164,7 +165,9 @@ class LLMSanitizer:
         detected_type = self._classify_content(llm_output)
 
         if strict_mode and detected_type != ContentType(content_type):
-            self.warnings.append(f"Content type mismatch: expected {content_type}, detected {detected_type.value}")
+            self.warnings.append(
+                f"Content type mismatch: expected {content_type}, detected {detected_type.value}"
+            )
 
         # Step 2: Apply sanitization based on detected type
         sanitized = llm_output
@@ -209,7 +212,7 @@ class LLMSanitizer:
             modifications=self.modifications,
             approval_required=approval_required,
             approval_request_id=approval_request_id,
-            warnings=self.warnings
+            warnings=self.warnings,
         )
 
     def _classify_content(self, content: str) -> ContentType:
@@ -258,22 +261,14 @@ class LLMSanitizer:
 
         # Remove script blocks
         content = re.sub(
-            r"<script[^>]*>.*?</script>",
-            "",
-            content,
-            flags=re.DOTALL | re.IGNORECASE
+            r"<script[^>]*>.*?</script>", "", content, flags=re.DOTALL | re.IGNORECASE
         )
 
         # Remove inline event handlers
         content = re.sub(r'on\w+\s*=\s*["\'][^"\']*["\']', "", content)
 
         # Remove javascript: protocol
-        content = re.sub(
-            r"javascript:",
-            "[REMOVED]:",
-            content,
-            flags=re.IGNORECASE
-        )
+        content = re.sub(r"javascript:", "[REMOVED]:", content, flags=re.IGNORECASE)
 
         if content != original:
             self.modifications.append("Removed JavaScript code")
@@ -302,10 +297,7 @@ class LLMSanitizer:
                 self.warnings.append(f"SQL contains dangerous pattern: {message}")
                 # Use message instead of pattern to avoid regex escape issues
                 content = re.sub(
-                    pattern,
-                    f"[{message.upper()}]",
-                    content,
-                    flags=re.IGNORECASE
+                    pattern, f"[{message.upper()}]", content, flags=re.IGNORECASE
                 )
 
         # Only SELECT queries are safe
@@ -338,7 +330,10 @@ class LLMSanitizer:
         dangerous_protocols = [
             (r'file://[^\s<>"{}|\\^`\[\]]*', "[FILE URL REMOVED: dangerous protocol]"),
             (r'ftp://[^\s<>"{}|\\^`\[\]]*', "[FTP URL REMOVED: dangerous protocol]"),
-            (r'gopher://[^\s<>"{}|\\^`\[\]]*', "[GOPHER URL REMOVED: dangerous protocol]"),
+            (
+                r'gopher://[^\s<>"{}|\\^`\[\]]*',
+                "[GOPHER URL REMOVED: dangerous protocol]",
+            ),
             (r'dict://[^\s<>"{}|\\^`\[\]]*', "[DICT URL REMOVED: dangerous protocol]"),
         ]
 
@@ -374,9 +369,7 @@ class LLMSanitizer:
 
         # Remove base64 images
         content = re.sub(
-            r"data:image/[^;]+;base64,[A-Za-z0-9+/=]+",
-            "[IMAGE REMOVED]",
-            content
+            r"data:image/[^;]+;base64,[A-Za-z0-9+/=]+", "[IMAGE REMOVED]", content
         )
 
         return content
@@ -432,10 +425,7 @@ class LLMSanitizer:
         return False
 
     def _create_approval_request(
-        self,
-        content_type: ContentType,
-        content: str,
-        modifications: list[str]
+        self, content_type: ContentType, content: str, modifications: list[str]
     ) -> str:
         """Create approval request for content"""
 
@@ -462,7 +452,9 @@ class LLMSanitizer:
             r"UNION\s+SELECT",
         ]
 
-        return any(re.search(pattern, content, re.IGNORECASE) for pattern in sql_patterns)
+        return any(
+            re.search(pattern, content, re.IGNORECASE) for pattern in sql_patterns
+        )
 
     def _contains_javascript(self, content: str) -> bool:
         """Check if content contains JavaScript"""
@@ -505,6 +497,7 @@ class LLMSanitizer:
 # ============================================================================
 # Helper Functions
 # ============================================================================
+
 
 def validate_sql_query(query: str) -> tuple[bool, str]:
     """
@@ -605,7 +598,7 @@ def check_for_ssrf(content: str) -> list[str]:
 
     ssrf_patterns = [
         "https://169.254.169.254",  # AWS metadata
-        "http://169.254.169.254",   # AWS metadata (http)
+        "http://169.254.169.254",  # AWS metadata (http)
         "https://127.0.0.1",
         "http://127.0.0.1",
         "https://0.0.0.0",

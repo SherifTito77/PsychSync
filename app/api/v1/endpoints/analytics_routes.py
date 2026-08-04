@@ -8,13 +8,13 @@ Installation:
 
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
 import numpy as np
 import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, validator
 
 from app.api.v1.deps import get_current_user
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 
 # Import analytics modules
 # In production, adjust these imports based on your project structure
@@ -162,7 +162,10 @@ async def predict_outcome(request: PredictOutcomeRequest):
         response = {
             "client_id": request.client_id,
             "predicted_improvement": max(0, float(predicted_value)),
-            "confidence_interval": (float(predicted_value - 2.5), float(predicted_value + 2.5)),
+            "confidence_interval": (
+                float(predicted_value - 2.5),
+                float(predicted_value + 2.5),
+            ),
             "confidence": 0.82,
             "feature_importance": {
                 "therapeutic_alliance_score": 0.25,
@@ -227,18 +230,24 @@ async def predict_dropout_risk(request: PredictDropoutRequest):
             "dropout_probability": float(risk_score),
             "risk_level": risk_level,
             "contributing_factors": {
-                "low_alliance": request.client_features.therapeutic_alliance_score < 3.5,
-                "poor_homework_completion": request.client_features.homework_completion_rate < 0.5,
+                "low_alliance": request.client_features.therapeutic_alliance_score
+                < 3.5,
+                "poor_homework_completion": request.client_features.homework_completion_rate
+                < 0.5,
                 "high_missed_sessions": request.client_features.missed_sessions > 2,
             },
             "recommendations": [
                 "Strengthen therapeutic alliance" if risk_score > 0.3 else None,
-                "Address barriers to homework completion"
-                if request.client_features.homework_completion_rate < 0.5
-                else None,
-                "Explore reasons for missed sessions"
-                if request.client_features.missed_sessions > 2
-                else None,
+                (
+                    "Address barriers to homework completion"
+                    if request.client_features.homework_completion_rate < 0.5
+                    else None
+                ),
+                (
+                    "Explore reasons for missed sessions"
+                    if request.client_features.missed_sessions > 2
+                    else None
+                ),
             ],
             "prediction_date": datetime.utcnow().isoformat(),
         }
@@ -251,7 +260,9 @@ async def predict_dropout_risk(request: PredictDropoutRequest):
 
 
 @router.post(
-    "/predict/trajectory", status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)]
+    "/predict/trajectory",
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(get_current_user)],
 )
 async def predict_trajectory(request: ClientFeaturesRequest):
     """
@@ -460,10 +471,26 @@ async def detect_anomaly(request: AnomalyDetectionRequest):
             "severity": severity,
             "detected_features": anomalies,
             "recommendations": [
-                "Immediate risk assessment" if "multiple_crisis_contacts" in anomalies else None,
-                "Address therapeutic alliance" if "poor_alliance" in anomalies else None,
-                "Increase engagement strategies" if "very_low_engagement" in anomalies else None,
-                "Evaluate treatment approach" if "significant_deterioration" in anomalies else None,
+                (
+                    "Immediate risk assessment"
+                    if "multiple_crisis_contacts" in anomalies
+                    else None
+                ),
+                (
+                    "Address therapeutic alliance"
+                    if "poor_alliance" in anomalies
+                    else None
+                ),
+                (
+                    "Increase engagement strategies"
+                    if "very_low_engagement" in anomalies
+                    else None
+                ),
+                (
+                    "Evaluate treatment approach"
+                    if "significant_deterioration" in anomalies
+                    else None
+                ),
             ],
             "timestamp": datetime.utcnow().isoformat(),
         }
@@ -504,7 +531,9 @@ async def analyze_trajectory(request: TrajectoryAnalysisRequest):
         # Simple linear trajectory
         from scipy import stats
 
-        df["days"] = (pd.to_datetime(df["date"]) - pd.to_datetime(df["date"].iloc[0])).dt.days
+        df["days"] = (
+            pd.to_datetime(df["date"]) - pd.to_datetime(df["date"].iloc[0])
+        ).dt.days
 
         X = df["days"].values
         y = df["score"].values
@@ -543,11 +572,11 @@ async def analyze_trajectory(request: TrajectoryAnalysisRequest):
             "rate_of_change": float(slope),
             "model_fit": float(r_value**2),
             "predictions": predictions,
-            "interpretation": "improving"
-            if slope < -0.1
-            else "declining"
-            if slope > 0.1
-            else "stable",
+            "interpretation": (
+                "improving"
+                if slope < -0.1
+                else "declining" if slope > 0.1 else "stable"
+            ),
         }
 
     except Exception as e:
@@ -643,7 +672,9 @@ async def analyze_intervention(request: InterventionAnalysisRequest):
         ) from e
 
 
-@router.get("/health", status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)])
+@router.get(
+    "/health", status_code=status.HTTP_200_OK, dependencies=[Depends(get_current_user)]
+)
 async def health_check():
     """Health check for analytics service."""
     return {
@@ -668,8 +699,8 @@ app.include_router(analytics_routes.router)
 """
 
 if __name__ == "__main__":
-    from fastapi import FastAPI
     import uvicorn
+    from fastapi import FastAPI
 
     app = FastAPI(
         title="PsychSync Analytics API",

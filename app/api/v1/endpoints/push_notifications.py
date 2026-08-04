@@ -15,8 +15,8 @@ from typing import Dict, List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.users import get_async_db, get_current_user
 from app.db.models.user import User
@@ -42,7 +42,9 @@ class RegisterTokenRequest(BaseModel):
     token: str = Field(..., min_length=100, description="FCM device token")
     platform: str = Field(..., description="Platform: ios or android")
     device_id: Optional[str] = Field(None, description="Unique device identifier")
-    device_model: Optional[str] = Field(None, description="Device model (e.g., iPhone 14)")
+    device_model: Optional[str] = Field(
+        None, description="Device model (e.g., iPhone 14)"
+    )
     os_version: Optional[str] = Field(None, description="OS version (e.g., iOS 16.0)")
     app_version: Optional[str] = Field(None, description="App version (e.g., 1.0.0)")
 
@@ -50,7 +52,9 @@ class RegisterTokenRequest(BaseModel):
 class UnregisterTokenRequest(BaseModel):
     """Request schema for unregistering a device token"""
 
-    token: str = Field(..., min_length=100, description="FCM device token to unregister")
+    token: str = Field(
+        ..., min_length=100, description="FCM device token to unregister"
+    )
 
 
 class SendNotificationRequest(BaseModel):
@@ -58,13 +62,18 @@ class SendNotificationRequest(BaseModel):
 
     user_id: UUID = Field(..., description="Target user ID")
     notification_type: str = Field(..., description="Type of notification")
-    data: Optional[Dict] = Field(default_factory=dict, description="Notification data (variables, deep links, etc.)")
+    data: Optional[Dict] = Field(
+        default_factory=dict,
+        description="Notification data (variables, deep links, etc.)",
+    )
 
 
 class BulkSendNotificationRequest(BaseModel):
     """Request schema for sending bulk notifications"""
 
-    user_ids: List[UUID] = Field(..., min_items=1, max_items=1000, description="Target user IDs")
+    user_ids: List[UUID] = Field(
+        ..., min_items=1, max_items=1000, description="Target user IDs"
+    )
     notification_type: str = Field(..., description="Type of notification")
     data: Optional[Dict] = Field(default_factory=dict, description="Notification data")
 
@@ -184,7 +193,9 @@ async def unregister_device_token(
         raise
     except Exception as e:
         logger.error(f"Failed to unregister token: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to unregister token: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to unregister token: {str(e)}"
+        )
 
 
 @router.get("/my-tokens", response_model=List[TokenResponse])
@@ -218,7 +229,9 @@ async def get_my_tokens(
 
     except Exception as e:
         logger.error(f"Failed to get tokens for user {current_user.id}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve tokens: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve tokens: {str(e)}"
+        )
 
 
 @router.post("/send", response_model=NotificationDeliveryResponse)
@@ -251,7 +264,8 @@ async def send_notification(
     # Only clinicians and admins can send notifications
     if current_user.role not in ["clinician", "admin"]:
         raise HTTPException(
-            status_code=403, detail="Only clinicians and administrators can send notifications"
+            status_code=403,
+            detail="Only clinicians and administrators can send notifications",
         )
 
     try:
@@ -266,7 +280,9 @@ async def send_notification(
 
     except Exception as e:
         logger.error(f"Failed to send notification: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to send notification: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to send notification: {str(e)}"
+        )
 
 
 @router.post("/send-bulk", response_model=NotificationDeliveryResponse)
@@ -311,7 +327,9 @@ async def send_bulk_notification(
 
     except Exception as e:
         logger.error(f"Failed to send bulk notification: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to send bulk notification: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to send bulk notification: {str(e)}"
+        )
 
 
 @router.get("/test-send")
@@ -342,7 +360,9 @@ async def test_send_notification(
 
     except Exception as e:
         logger.error(f"Failed to send test notification: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to send test notification: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to send test notification: {str(e)}"
+        )
 
 
 @router.get("/types")
@@ -412,4 +432,6 @@ async def get_notification_status(
 
     except Exception as e:
         logger.error(f"Failed to get notification status: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve status: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to retrieve status: {str(e)}"
+        )

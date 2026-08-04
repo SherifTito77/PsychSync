@@ -1,0 +1,125 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: psychsync-backend
+  namespace: psychsync
+  labels:
+    app: psychsync-backend
+    tier: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: psychsync-backend
+  template:
+    metadata:
+      labels:
+        app: psychsync-backend
+        tier: backend
+    spec:
+      containers:
+      - name: psychsync-backend
+        image: psychsync/backend:latest
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+
+        # Environment variables from ConfigMap and Secret
+        envFrom:
+        - configMapRef:
+            name: psychsync-config
+        - secretRef:
+            name: psychsync-secrets
+
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        # Resource limits
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+        # Volume mounts for secrets and config
+        volumeMounts:
+        - name: ssl-certs
+          mountPath: /etc/ssl/certs
+          readOnly: true
+
+      volumes:
+      - name: ssl-certs
+        secret:
+          secretName: psychsync-ssl-certs
+          optional: true
+
+      # Image pull secrets
+      imagePullSecrets:
+      - name: registry-secret
+
+      # Node selector and tolerations
+      nodeSelector:
+        node-type: application
+      tolerations:
+      - key: "application"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: psychsync-backend-service
+  namespace: psychsync
+  labels:
+    app: psychsync-backend
+spec:
+  selector:
+    app: psychsync-backend
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8000
+    targetPort: 8000
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: psychsync-config
+  namespace: psychsync
+data:
+  ENVIRONMENT: "production"
+  DEBUG: "false"
+  DB_HOST: "postgresql-service"
+  DB_PORT: "5432"
+  DB_NAME: "psychsync_prod"
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  CORS_ORIGINS: "https://psychsync.com,https://www.psychsync.com,https://app.psychsync.com"
+  FRONTEND_URL: "https://psychsync.com"
+  LOG_LEVEL: "INFO"
+  CACHE_ENABLED: "true"
+  RATE_LIMIT_PER_MINUTE: "100"

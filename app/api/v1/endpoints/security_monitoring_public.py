@@ -145,7 +145,9 @@ async def get_security_timeline(
 
 
 @router.post("/dashboard/test-alert")
-async def send_test_alert(alert_type: str, current_user: User = Depends(get_current_active_user)):
+async def send_test_alert(
+    alert_type: str, current_user: User = Depends(get_current_active_user)
+):
     """
     Send a test security alert (for dashboard testing).
     """

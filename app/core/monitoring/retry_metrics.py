@@ -19,18 +19,19 @@ Version: 1.0
 
 import asyncio
 import logging
+import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional
-import time
 
 logger = logging.getLogger(__name__)
 
 
 class RetryStatus(str, Enum):
     """Retry attempt status"""
+
     SUCCESS = "success"
     RETRY = "retry"
     FAILURE = "failure"
@@ -41,6 +42,7 @@ class RetryStatus(str, Enum):
 @dataclass
 class RetryAttempt:
     """Individual retry attempt record"""
+
     integration: str
     endpoint: str
     attempt_number: int
@@ -53,6 +55,7 @@ class RetryAttempt:
 @dataclass
 class RetryMetrics:
     """Aggregated retry metrics for an integration"""
+
     integration: str
     total_attempts: int = 0
     successful_attempts: int = 0
@@ -158,7 +161,7 @@ class RetryMetricsTracker:
 
         # Trim if exceeding max records
         if len(self.attempts) > self._max_records:
-            self.attempts = self.attempts[-self._max_records:]
+            self.attempts = self.attempts[-self._max_records :]
 
     def get_metrics(self, integration: str, hours: int = 1) -> RetryMetrics:
         """
@@ -180,7 +183,8 @@ class RetryMetricsTracker:
         # Calculate metrics from scratch
         cutoff = datetime.utcnow() - timedelta(hours=hours)
         integration_attempts = [
-            a for a in self.attempts
+            a
+            for a in self.attempts
             if a.integration == integration and a.timestamp > cutoff
         ]
 
@@ -188,13 +192,25 @@ class RetryMetricsTracker:
             return RetryMetrics(integration=integration)
 
         total = len(integration_attempts)
-        successful = len([a for a in integration_attempts if a.status == RetryStatus.SUCCESS])
+        successful = len(
+            [a for a in integration_attempts if a.status == RetryStatus.SUCCESS]
+        )
         retries = len([a for a in integration_attempts if a.attempt_number > 1])
-        failed = len([a for a in integration_attempts if a.status == RetryStatus.FAILURE])
-        timeouts = len([a for a in integration_attempts if a.status == RetryStatus.TIMEOUT])
-        circuit_opens = len([a for a in integration_attempts if a.status == RetryStatus.CIRCUIT_OPEN])
+        failed = len(
+            [a for a in integration_attempts if a.status == RetryStatus.FAILURE]
+        )
+        timeouts = len(
+            [a for a in integration_attempts if a.status == RetryStatus.TIMEOUT]
+        )
+        circuit_opens = len(
+            [a for a in integration_attempts if a.status == RetryStatus.CIRCUIT_OPEN]
+        )
 
-        avg_duration = sum(a.duration_ms for a in integration_attempts) / total if total > 0 else 0.0
+        avg_duration = (
+            sum(a.duration_ms for a in integration_attempts) / total
+            if total > 0
+            else 0.0
+        )
 
         metrics = RetryMetrics(
             integration=integration,
@@ -232,7 +248,9 @@ class RetryMetricsTracker:
             for integration in integrations
         }
 
-    def get_high_retry_integrations(self, threshold: float = 20.0, hours: int = 1) -> List[RetryMetrics]:
+    def get_high_retry_integrations(
+        self, threshold: float = 20.0, hours: int = 1
+    ) -> List[RetryMetrics]:
         """
         Get integrations with retry rates above threshold.
 
@@ -246,7 +264,8 @@ class RetryMetricsTracker:
         all_metrics = self.get_all_metrics(hours)
 
         return [
-            metrics for metrics in all_metrics.values()
+            metrics
+            for metrics in all_metrics.values()
             if metrics.retry_rate > threshold
         ]
 
@@ -273,8 +292,12 @@ class RetryMetricsTracker:
             "total_attempts": total_attempts,
             "total_retries": total_retries,
             "total_failures": total_failures,
-            "overall_retry_rate": (total_retries / total_attempts * 100) if total_attempts > 0 else 0.0,
-            "overall_failure_rate": (total_failures / total_attempts * 100) if total_attempts > 0 else 0.0,
+            "overall_retry_rate": (
+                (total_retries / total_attempts * 100) if total_attempts > 0 else 0.0
+            ),
+            "overall_failure_rate": (
+                (total_failures / total_attempts * 100) if total_attempts > 0 else 0.0
+            ),
             "integrations_with_high_retry_rate": len(high_retry),
             "high_retry_integrations": [
                 {
@@ -315,25 +338,25 @@ class RetryMetricsTracker:
             # Total attempts
             lines.append(
                 f'external_integration_retry_attempts_total{{integration="{integration}"}} '
-                f'{metrics.total_attempts}'
+                f"{metrics.total_attempts}"
             )
 
             # Retry rate
             lines.append(
                 f'external_integration_retry_rate{{integration="{integration}"}} '
-                f'{metrics.retry_rate:.2f}'
+                f"{metrics.retry_rate:.2f}"
             )
 
             # Failure rate
             lines.append(
                 f'external_integration_failure_rate{{integration="{integration}"}} '
-                f'{metrics.failure_rate:.2f}'
+                f"{metrics.failure_rate:.2f}"
             )
 
             # Average duration
             lines.append(
                 f'external_integration_avg_duration_ms{{integration="{integration}"}} '
-                f'{metrics.avg_duration_ms:.2f}'
+                f"{metrics.avg_duration_ms:.2f}"
             )
 
             lines.append("")

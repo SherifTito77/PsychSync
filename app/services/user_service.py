@@ -4,10 +4,10 @@ SECURE User service with Redis caching implementation
 Handles all user-related business logic with comprehensive security controls
 """
 
-from datetime import datetime
 import logging
 import secrets
 import time
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -18,12 +18,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.audit_logger import AuditLogger, SecurityEventType
 from app.core.cache import cache_delete_pattern, cached
 from app.core.config import settings
-from app.services.security import get_password_hash, verify_password
 from app.core.security_validator import security_validator
 from app.db.models.organization import Organization
 from app.db.models.user import User
 from app.db.models.user import User as UserModel
 from app.schemas.user import UserCreate, UserUpdate
+from app.services.security import get_password_hash, verify_password
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,9 @@ async def get_user_by_email(db: AsyncSession, email: str) -> dict[str, Any] | No
 
 
 @cached(expire=settings.CACHE_USER_EXPIRE, key_prefix="user")
-async def get_user_by_username(db: AsyncSession, username: str) -> dict[str, Any] | None:
+async def get_user_by_username(
+    db: AsyncSession, username: str
+) -> dict[str, Any] | None:
     """
     Get user by username with caching
 
@@ -269,9 +271,11 @@ async def create_user(db: AsyncSession, user_data: UserCreate) -> User:
             email=validated_email.lower(),
             password_hash=hashed_password,
             full_name=validated_full_name,
-            organization_id=user_data.organization_id
-            if hasattr(user_data, "organization_id")
-            else None,
+            organization_id=(
+                user_data.organization_id
+                if hasattr(user_data, "organization_id")
+                else None
+            ),
             is_active=True,  # Default to active, will require email verification
             is_verified=False,
             created_at=datetime.utcnow(),
@@ -285,7 +289,9 @@ async def create_user(db: AsyncSession, user_data: UserCreate) -> User:
         # HANDLE ORGANIZATION ASSIGNMENT WITH SECURITY CHECKS
         if not db_user.organization_id:
             # Create default organization with secure naming
-            org_name = f"{validated_full_name or validated_email.split('@')[0]}'s Organization"
+            org_name = (
+                f"{validated_full_name or validated_email.split('@')[0]}'s Organization"
+            )
 
             # Sanitize organization name
             org_name_validation = security_validator.validate_name_input(
@@ -297,7 +303,9 @@ async def create_user(db: AsyncSession, user_data: UserCreate) -> User:
                 org_name = "Default Organization"
 
             org = Organization(
-                name=org_name, created_at=datetime.utcnow(), updated_at=datetime.utcnow()
+                name=org_name,
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
             )
             db.add(org)
             await db.flush()  # Get org.id
@@ -319,7 +327,9 @@ async def create_user(db: AsyncSession, user_data: UserCreate) -> User:
                 details=f"Email already exists: {validated_email}",
                 additional_data={"email": validated_email},
             )
-            raise ValueError(f"Email {validated_email} is already registered") from integrity_error
+            raise ValueError(
+                f"Email {validated_email} is already registered"
+            ) from integrity_error
 
         except Exception as commit_error:
             # Handle other database errors (connection issues, etc.)
@@ -329,12 +339,16 @@ async def create_user(db: AsyncSession, user_data: UserCreate) -> User:
                 details=f"User creation commit failed: {commit_error!s}",
                 additional_data={"email": validated_email},
             )
-            raise ValueError("Failed to create user account. Please try again.") from commit_error
+            raise ValueError(
+                "Failed to create user account. Please try again."
+            ) from commit_error
 
         # CACHE INVALIDATION FOR SECURITY
         if db_user.organization_id:
             try:
-                cache_delete_pattern(f"user:get_users_by_organization:*{db_user.organization_id}*")
+                cache_delete_pattern(
+                    f"user:get_users_by_organization:*{db_user.organization_id}*"
+                )
                 cache_delete_pattern(f"user:get_user_by_email:*{validated_email}*")
             except Exception as cache_error:
                 logger.warning(f"Cache invalidation failed: {cache_error!s}")
@@ -404,7 +418,9 @@ async def _hash_password_secure(password: str) -> str:
         raise ValueError("Password security error") from e
 
 
-async def update_user(db: AsyncSession, user_id: UUID, user_data: UserUpdate) -> User | None:
+async def update_user(
+    db: AsyncSession, user_id: UUID, user_data: UserUpdate
+) -> User | None:
     """
     Update user and invalidate caches with row-level locking to prevent race conditions.
 
@@ -444,7 +460,9 @@ async def update_user(db: AsyncSession, user_id: UUID, user_data: UserUpdate) ->
         # Check email uniqueness if email is being updated
         if "email" in update_data and update_data["email"] != user.email:
             result = await db.execute(
-                select(User).where(User.email == update_data["email"].lower(), User.id != user_id)
+                select(User).where(
+                    User.email == update_data["email"].lower(), User.id != user_id
+                )
             )
             existing = result.scalar_one_or_none()
             if existing:
@@ -458,7 +476,9 @@ async def update_user(db: AsyncSession, user_id: UUID, user_data: UserUpdate) ->
 
         # Hash password if provided
         if "password" in update_data:
-            update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
+            update_data["hashed_password"] = get_password_hash(
+                update_data.pop("password")
+            )
 
         # Update timestamp
         update_data["updated_at"] = datetime.utcnow()
@@ -488,7 +508,9 @@ async def update_user(db: AsyncSession, user_id: UUID, user_data: UserUpdate) ->
         raise
 
 
-async def delete_user(db: AsyncSession, user_id: UUID, hard_delete: bool = False) -> bool:
+async def delete_user(
+    db: AsyncSession, user_id: UUID, hard_delete: bool = False
+) -> bool:
     """
     Delete user (soft or hard delete) and invalidate caches
 
@@ -570,7 +592,9 @@ async def restore_user(db: AsyncSession, user_id: UUID) -> bool:
 # =============================================================================
 
 
-async def authenticate_user(db: AsyncSession, email: str, password: str) -> UserModel | None:
+async def authenticate_user(
+    db: AsyncSession, email: str, password: str
+) -> UserModel | None:
     """
     Authenticate a user by email and password.
     """
@@ -749,7 +773,9 @@ def user_to_dict(user: UserModel) -> dict:
     }
 
 
-async def is_user_in_organization(db: AsyncSession, user_id: int, organization_id: int) -> bool:
+async def is_user_in_organization(
+    db: AsyncSession, user_id: int, organization_id: int
+) -> bool:
     """
     Check if user belongs to organization
 
@@ -850,7 +876,9 @@ class UserService:
         return await get_user_by_email(db, email)
 
     @staticmethod
-    async def update(db: AsyncSession, user_id: int, user_in: UserUpdate) -> User | None:
+    async def update(
+        db: AsyncSession, user_id: int, user_in: UserUpdate
+    ) -> User | None:
         """Update user"""
         return await update_user(db, user_id, user_data=user_in)
 

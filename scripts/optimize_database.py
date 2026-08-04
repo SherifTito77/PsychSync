@@ -13,13 +13,16 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+
 from app.core.config import settings
-from app.core.database_optimization import DatabaseOptimizer, create_database_view_optimizer
+from app.core.database_optimization import (
+    DatabaseOptimizer,
+    create_database_view_optimizer,
+)
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -31,8 +34,7 @@ async def main():
 
     # Create database engine
     engine = create_async_engine(
-        settings.DATABASE_URL,
-        echo=False  # Set to True to see SQL statements
+        settings.DATABASE_URL, echo=False  # Set to True to see SQL statements
     )
 
     async with AsyncSession(engine) as db:
@@ -58,7 +60,9 @@ async def main():
             if bloat_tables:
                 logger.warning(f"Found {len(bloat_tables)} tables with high bloat:")
                 for table in bloat_tables:
-                    logger.warning(f"  - {table['tablename']}: {table['tbloat']}x bloat")
+                    logger.warning(
+                        f"  - {table['tablename']}: {table['tbloat']}x bloat"
+                    )
             else:
                 logger.info("No significant table bloat detected")
 
@@ -67,12 +71,12 @@ async def main():
             stats = await optimizer.get_database_stats()
 
             # Display key statistics
-            if 'database_size' in stats:
+            if "database_size" in stats:
                 logger.info(f"Database size: {stats['database_size'][0]['size']}")
 
-            if 'table_sizes' in stats:
+            if "table_sizes" in stats:
                 logger.info("Top 5 largest tables:")
-                for table in stats['table_sizes'][:5]:
+                for table in stats["table_sizes"][:5]:
                     logger.info(f"  - {table['tablename']}: {table['size']}")
 
             # Step 6: Run automated optimization
@@ -82,16 +86,16 @@ async def main():
             logger.info("✅ Database optimization completed successfully!")
 
             # Print optimization summary
-            print("\n" + "="*60)
+            print("\n" + "=" * 60)
             print("PSYCHSYNC DATABASE OPTIMIZATION SUMMARY")
-            print("="*60)
+            print("=" * 60)
             print("✅ Performance indexes created")
             print("✅ Table statistics updated")
             print("✅ Optimized database views created")
             print("✅ Database bloat analyzed")
             print("✅ Performance statistics collected")
             print("✅ Automated optimization completed")
-            print("="*60)
+            print("=" * 60)
 
         except Exception as e:
             logger.error(f"Database optimization failed: {e}")

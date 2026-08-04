@@ -5,29 +5,38 @@ Uses existing application database connection to execute database integrity test
 """
 
 import asyncio
-import sys
 import os
-from pathlib import Path
+import sys
 import traceback
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import AsyncGenerator
 
 # Add the project root to Python path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-# Import existing database configuration
-from app.core.database import async_engine, AsyncSession
 from sqlalchemy import text
-from app.db.models.user import User, UserRole
-from app.db.models.organization import Organization
-from app.db.models.team import Team, TeamMember, TeamRole
+
+# Import existing database configuration
+from app.core.database import AsyncSession, async_engine
 from app.db.models.assessment import Assessment
+from app.db.models.organization import Organization
 from app.db.models.response import Response
+from app.db.models.team import Team, TeamMember, TeamRole
+from app.db.models.user import User, UserRole
 from app.services.security import get_password_hash
 
+
 class RealDatabaseTestResult:
-    def __init__(self, test_name: str, success: bool, duration: float, details: str = "", error: str = None):
+    def __init__(
+        self,
+        test_name: str,
+        success: bool,
+        duration: float,
+        details: str = "",
+        error: str = None,
+    ):
         self.test_name = test_name
         self.success = success
         self.duration = duration
@@ -35,9 +44,11 @@ class RealDatabaseTestResult:
         self.error = error
         self.timestamp = datetime.now(timezone.utc)
 
+
 def get_test_db_session():
     """Get database session for testing"""
     return AsyncSession(async_engine)
+
 
 async def test_database_connection():
     """Test basic database connection"""
@@ -48,15 +59,26 @@ async def test_database_connection():
         row = result.fetchone()
         if row and row[0] == 1:
             duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-            return RealDatabaseTestResult("Database Connection", True, duration, "Database connection successful")
+            return RealDatabaseTestResult(
+                "Database Connection", True, duration, "Database connection successful"
+            )
         else:
             duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-            return RealDatabaseTestResult("Database Connection", False, duration, "Unexpected query result")
+            return RealDatabaseTestResult(
+                "Database Connection", False, duration, "Unexpected query result"
+            )
     except Exception as e:
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-        return RealDatabaseTestResult("Database Connection", False, duration, f"Connection failed: {str(e)}", str(e))
+        return RealDatabaseTestResult(
+            "Database Connection",
+            False,
+            duration,
+            f"Connection failed: {str(e)}",
+            str(e),
+        )
     finally:
         await session.close()
+
 
 async def test_user_creation_and_deletion():
     """Test user creation and deletion cascade behavior"""
@@ -68,7 +90,7 @@ async def test_user_creation_and_deletion():
             # Create organization first
             org = Organization(
                 name="Test Organization for Database Testing",
-                description="Organization created for database integrity testing"
+                description="Organization created for database integrity testing",
             )
             session.add(org)
             await session.flush()
@@ -80,7 +102,7 @@ async def test_user_creation_and_deletion():
                 password_hash=get_password_hash("test_password_123"),
                 full_name="Database Test User",
                 role=UserRole.USER,
-                is_active=True
+                is_active=True,
             )
             session.add(user)
             await session.flush()
@@ -90,7 +112,7 @@ async def test_user_creation_and_deletion():
             team = Team(
                 name="Test Team",
                 description="Team for database testing",
-                organization_id=org_id
+                organization_id=org_id,
             )
             session.add(team)
             await session.flush()
@@ -101,7 +123,7 @@ async def test_user_creation_and_deletion():
                 team_id=team_id,
                 user_id=user_id,
                 role=TeamRole.MEMBER,
-                joined_at=datetime.now(timezone.utc)
+                joined_at=datetime.now(timezone.utc),
             )
             session.add(team_member)
             await session.flush()
@@ -111,7 +133,7 @@ async def test_user_creation_and_deletion():
             assessment = Assessment(
                 title="Test Assessment",
                 description="Assessment for database testing",
-                organization_id=org_id
+                organization_id=org_id,
             )
             session.add(assessment)
             await session.flush()
@@ -123,7 +145,7 @@ async def test_user_creation_and_deletion():
                 user_id=user_id,
                 responses={"question_1": "test_answer", "question_2": "test_answer_2"},
                 score=85,
-                completed_at=datetime.now(timezone.utc)
+                completed_at=datetime.now(timezone.utc),
             )
             session.add(response)
             await session.flush()
@@ -166,11 +188,20 @@ async def test_user_creation_and_deletion():
             details += f"Team member exists: {remaining_team_member is not None}. "
             details += f"Response exists: {remaining_response is not None}."
 
-            return RealDatabaseTestResult("User Creation & Deletion Cascade", True, duration, details)
+            return RealDatabaseTestResult(
+                "User Creation & Deletion Cascade", True, duration, details
+            )
 
     except Exception as e:
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-        return RealDatabaseTestResult("User Creation & Deletion Cascade", False, duration, f"Test failed: {str(e)}", str(e))
+        return RealDatabaseTestResult(
+            "User Creation & Deletion Cascade",
+            False,
+            duration,
+            f"Test failed: {str(e)}",
+            str(e),
+        )
+
 
 async def test_foreign_key_constraints():
     """Test foreign key constraints"""
@@ -182,23 +213,40 @@ async def test_foreign_key_constraints():
             invalid_team = Team(
                 name="Invalid Team",
                 description="Team with invalid foreign key",
-                organization_id="00000000-0000-0000-0000-000000000000"  # Invalid UUID
+                organization_id="00000000-0000-0000-0000-000000000000",  # Invalid UUID
             )
             session.add(invalid_team)
 
             try:
                 await session.commit()
                 duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-                return RealDatabaseTestResult("Foreign Key Constraints", False, duration, "Foreign key constraint was violated - this shouldn't happen")
+                return RealDatabaseTestResult(
+                    "Foreign Key Constraints",
+                    False,
+                    duration,
+                    "Foreign key constraint was violated - this shouldn't happen",
+                )
             except Exception as constraint_error:
                 # This is expected - foreign key constraint should prevent the commit
                 await session.rollback()
                 duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-                return RealDatabaseTestResult("Foreign Key Constraints", True, duration, f"Foreign key constraint working correctly: {str(constraint_error)}")
+                return RealDatabaseTestResult(
+                    "Foreign Key Constraints",
+                    True,
+                    duration,
+                    f"Foreign key constraint working correctly: {str(constraint_error)}",
+                )
 
     except Exception as e:
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-        return RealDatabaseTestResult("Foreign Key Constraints", False, duration, f"Test setup failed: {str(e)}", str(e))
+        return RealDatabaseTestResult(
+            "Foreign Key Constraints",
+            False,
+            duration,
+            f"Test setup failed: {str(e)}",
+            str(e),
+        )
+
 
 async def test_transaction_rollback():
     """Test transaction rollback behavior"""
@@ -212,7 +260,7 @@ async def test_transaction_rollback():
                 # Create organization
                 org = Organization(
                     name="Rollback Test Organization",
-                    description="Organization for rollback testing"
+                    description="Organization for rollback testing",
                 )
                 session.add(org)
                 await session.flush()
@@ -224,7 +272,7 @@ async def test_transaction_rollback():
                     password_hash=get_password_hash("test_password_123"),
                     full_name="Rollback Test User",
                     role=UserRole.USER,
-                    is_active=True
+                    is_active=True,
                 )
                 session.add(user)
                 await session.flush()
@@ -240,26 +288,39 @@ async def test_transaction_rollback():
                 # Verify that nothing was committed
                 user_after = await session.execute(
                     text("SELECT COUNT(*) FROM users WHERE email = :email"),
-                    {"email": test_email}
+                    {"email": test_email},
                 )
                 user_count = user_after.scalar()
 
                 org_after = await session.execute(
                     text("SELECT COUNT(*) FROM organizations WHERE name = :name"),
-                    {"name": "Rollback Test Organization"}
+                    {"name": "Rollback Test Organization"},
                 )
                 org_count = org_after.scalar()
 
                 duration = (datetime.now(timezone.utc) - start_time).total_seconds()
 
                 if user_count == 0 and org_count == 0:
-                    return RealDatabaseTestResult("Transaction Rollback", True, duration, "Rollback successful - no data was committed")
+                    return RealDatabaseTestResult(
+                        "Transaction Rollback",
+                        True,
+                        duration,
+                        "Rollback successful - no data was committed",
+                    )
                 else:
-                    return RealDatabaseTestResult("Transaction Rollback", False, duration, f"Rollback failed - user_count: {user_count}, org_count: {org_count}")
+                    return RealDatabaseTestResult(
+                        "Transaction Rollback",
+                        False,
+                        duration,
+                        f"Rollback failed - user_count: {user_count}, org_count: {org_count}",
+                    )
 
     except Exception as e:
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-        return RealDatabaseTestResult("Transaction Rollback", False, duration, f"Test failed: {str(e)}", str(e))
+        return RealDatabaseTestResult(
+            "Transaction Rollback", False, duration, f"Test failed: {str(e)}", str(e)
+        )
+
 
 async def test_duplicate_prevention():
     """Test duplicate record prevention"""
@@ -274,7 +335,7 @@ async def test_duplicate_prevention():
                 password_hash=get_password_hash("test_password_123"),
                 full_name="First User",
                 role=UserRole.USER,
-                is_active=True
+                is_active=True,
             )
             session.add(user1)
             await session.commit()
@@ -285,23 +346,40 @@ async def test_duplicate_prevention():
                 password_hash=get_password_hash("test_password_456"),
                 full_name="Second User",
                 role=UserRole.USER,
-                is_active=True
+                is_active=True,
             )
             session.add(user2)
 
             try:
                 await session.commit()
                 duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-                return RealDatabaseTestResult("Duplicate Prevention", False, duration, "Duplicate constraint was violated - this shouldn't happen")
+                return RealDatabaseTestResult(
+                    "Duplicate Prevention",
+                    False,
+                    duration,
+                    "Duplicate constraint was violated - this shouldn't happen",
+                )
             except Exception as duplicate_error:
                 # This is expected - duplicate constraint should prevent the commit
                 await session.rollback()
                 duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-                return RealDatabaseTestResult("Duplicate Prevention", True, duration, f"Duplicate prevention working correctly: {str(duplicate_error)}")
+                return RealDatabaseTestResult(
+                    "Duplicate Prevention",
+                    True,
+                    duration,
+                    f"Duplicate prevention working correctly: {str(duplicate_error)}",
+                )
 
     except Exception as e:
         duration = (datetime.now(timezone.utc) - start_time).total_seconds()
-        return RealDatabaseTestResult("Duplicate Prevention", False, duration, f"Test setup failed: {str(e)}", str(e))
+        return RealDatabaseTestResult(
+            "Duplicate Prevention",
+            False,
+            duration,
+            f"Test setup failed: {str(e)}",
+            str(e),
+        )
+
 
 async def run_real_database_tests():
     """Run all real database tests"""
@@ -318,7 +396,7 @@ async def run_real_database_tests():
         test_user_creation_and_deletion,
         test_foreign_key_constraints,
         test_transaction_rollback,
-        test_duplicate_prevention
+        test_duplicate_prevention,
     ]
 
     # Run each test
@@ -380,7 +458,9 @@ async def run_real_database_tests():
     else:
         print("  ✅ All database tests passed - system is production-ready")
         print("  🚀 Database integrity and performance verified")
-        print("  📈 System ready for comprehensive frontend-backend integration testing")
+        print(
+            "  📈 System ready for comprehensive frontend-backend integration testing"
+        )
 
     print(f"\n📋 NEXT PHASE:")
     print("  2. Frontend-Backend Integration Testing")
@@ -393,6 +473,7 @@ async def run_real_database_tests():
     print(f"{'='*80}")
 
     return test_results
+
 
 if __name__ == "__main__":
     try:

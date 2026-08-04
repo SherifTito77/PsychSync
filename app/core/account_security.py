@@ -5,14 +5,14 @@ Includes account lockout, login attempt tracking, and security monitoring
 """
 
 import asyncio
-from collections import defaultdict, deque
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
 import hashlib
 import json
 import logging
 import secrets
+from collections import defaultdict, deque
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
 from typing import Any
 
 from fastapi import HTTPException
@@ -77,9 +77,15 @@ class AccountLockoutManager:
     def __init__(self):
         # Lockout policies
         self.max_failed_attempts = getattr(settings, "MAX_LOGIN_ATTEMPTS", 5)
-        self.lockout_duration_minutes = getattr(settings, "LOCKOUT_DURATION_MINUTES", 15)
-        self.progressive_lockout_enabled = getattr(settings, "PROGRESSIVE_LOCKOUT_ENABLED", True)
-        self.suspicious_activity_threshold = getattr(settings, "SUSPICIOUS_ACTIVITY_THRESHOLD", 10)
+        self.lockout_duration_minutes = getattr(
+            settings, "LOCKOUT_DURATION_MINUTES", 15
+        )
+        self.progressive_lockout_enabled = getattr(
+            settings, "PROGRESSIVE_LOCKOUT_ENABLED", True
+        )
+        self.suspicious_activity_threshold = getattr(
+            settings, "SUSPICIOUS_ACTIVITY_THRESHOLD", 10
+        )
 
         # Security tracking
         self.failed_attempts: dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
@@ -111,7 +117,10 @@ class AccountLockoutManager:
             try:
                 # Create login attempt record
                 attempt = LoginAttempt(
-                    ip_address=ip_address, user_agent=user_agent, success=success, reason=reason
+                    ip_address=ip_address,
+                    user_agent=user_agent,
+                    success=success,
+                    reason=reason,
                 )
 
                 if success:
@@ -144,7 +153,9 @@ class AccountLockoutManager:
                 await self._record_failed_attempt(email, attempt)
 
                 # Check if account should be locked
-                should_lock, lockout_duration = await self._should_lockout_account(email)
+                should_lock, lockout_duration = await self._should_lockout_account(
+                    email
+                )
 
                 if should_lock:
                     await self._lock_account(
@@ -159,7 +170,9 @@ class AccountLockoutManager:
                         user_agent=user_agent,
                         metadata={
                             "email": email,
-                            "failed_attempts": await self._get_failed_attempt_count(email),
+                            "failed_attempts": await self._get_failed_attempt_count(
+                                email
+                            ),
                             "lockout_duration": lockout_duration,
                         },
                         severity="high",
@@ -172,7 +185,9 @@ class AccountLockoutManager:
                         "security_score": 0,
                     }
                 attempts_remaining = max(
-                    0, self.max_failed_attempts - await self._get_failed_attempt_count(email)
+                    0,
+                    self.max_failed_attempts
+                    - await self._get_failed_attempt_count(email),
                 )
 
                 return {
@@ -295,7 +310,10 @@ class AccountLockoutManager:
                 if event_timestamp < cutoff_time:
                     continue
 
-                if event_types and SecurityEvent(event_data["event_type"]) not in event_types:
+                if (
+                    event_types
+                    and SecurityEvent(event_data["event_type"]) not in event_types
+                ):
                     continue
 
                 event = SecurityEventRecord(
@@ -322,7 +340,9 @@ class AccountLockoutManager:
         try:
             await self._unlock_account(email)
             await self._record_security_event(
-                SecurityEvent.ACCOUNT_UNLOCKED, user_id=email, metadata={"reason": reason}
+                SecurityEvent.ACCOUNT_UNLOCKED,
+                user_id=email,
+                metadata={"reason": reason},
             )
 
             logger.info(f"Account unlocked: {email}", extra={"reason": reason})
@@ -337,7 +357,9 @@ class AccountLockoutManager:
         Manually lock an account
         """
         try:
-            await self._lock_account(email, duration_minutes, LockoutReason.ADMIN_ACTION)
+            await self._lock_account(
+                email, duration_minutes, LockoutReason.ADMIN_ACTION
+            )
             await self._record_security_event(
                 SecurityEvent.ACCOUNT_LOCKED,
                 user_id=email,
@@ -373,7 +395,9 @@ class AccountLockoutManager:
                 existing_attempts = existing_attempts[-100:]
 
             # Store with expiration
-            await cache_set(cache_key, existing_attempts, expire_seconds=86400)  # 24 hours
+            await cache_set(
+                cache_key, existing_attempts, expire_seconds=86400
+            )  # 24 hours
 
         except Exception as e:
             logger.error(f"Error recording failed attempt for {email}: {e}")
@@ -416,7 +440,9 @@ class AccountLockoutManager:
 
         return True, duration
 
-    async def _lock_account(self, email: str, duration_minutes: int, reason: LockoutReason):
+    async def _lock_account(
+        self, email: str, duration_minutes: int, reason: LockoutReason
+    ):
         """Lock an account"""
         try:
             lockout_key = f"{self.LOCKOUT_PREFIX}{email}"
@@ -427,7 +453,9 @@ class AccountLockoutManager:
             }
 
             # Store lockout with expiration
-            await cache_set(lockout_key, lockout_data, expire_seconds=duration_minutes * 60)
+            await cache_set(
+                lockout_key, lockout_data, expire_seconds=duration_minutes * 60
+            )
 
         except Exception as e:
             logger.error(f"Error locking account {email}: {e}")
@@ -482,7 +510,9 @@ class AccountLockoutManager:
                 existing_events = existing_events[-1000:]
 
             # Store with longer expiration for security events
-            await cache_set(cache_key, existing_events, expire_seconds=86400 * 30)  # 30 days
+            await cache_set(
+                cache_key, existing_events, expire_seconds=86400 * 30
+            )  # 30 days
 
         except Exception as e:
             logger.error(f"Error recording security event: {e}")
@@ -523,7 +553,9 @@ class AccountLockoutManager:
         # Store in cache with expiration
         try:
             # Store new token
-            await cache_set(f"reset_token:{token_hash}", token_data, expire_seconds=3600)
+            await cache_set(
+                f"reset_token:{token_hash}", token_data, expire_seconds=3600
+            )
 
             # Log security event
             await self._record_security_event(
@@ -549,7 +581,11 @@ class AccountLockoutManager:
             raise RuntimeError("Token generation failed") from e
 
     async def verify_password_reset_token(
-        self, token: str, email: str, ip_address: str = "system", user_agent: str = "password_reset"
+        self,
+        token: str,
+        email: str,
+        ip_address: str = "system",
+        user_agent: str = "password_reset",
     ) -> bool:
         """
         Verify password reset token
@@ -589,7 +625,10 @@ class AccountLockoutManager:
                     user_id=email,
                     ip_address=ip_address,
                     user_agent=user_agent,
-                    metadata={"reason": "email_mismatch", "token_email": token_data["email"]},
+                    metadata={
+                        "reason": "email_mismatch",
+                        "token_email": token_data["email"],
+                    },
                     severity="high",
                 )
                 return False
@@ -626,7 +665,9 @@ class AccountLockoutManager:
             token_data["used_user_agent"] = user_agent
 
             # Update token data
-            await cache_set(f"reset_token:{token_hash}", token_data, expire_seconds=3600)
+            await cache_set(
+                f"reset_token:{token_hash}", token_data, expire_seconds=3600
+            )
 
             # Log successful verification
             await self._record_security_event(
@@ -703,10 +744,14 @@ class AccountLockoutManager:
 
             # Increment counters with expiration
             current_email_count = await cache_get(rate_limit_key) or 0
-            await cache_set(rate_limit_key, int(current_email_count) + 1, expire_seconds=3600)
+            await cache_set(
+                rate_limit_key, int(current_email_count) + 1, expire_seconds=3600
+            )
 
             current_ip_count = await cache_get(ip_limit_key) or 0
-            await cache_set(ip_limit_key, int(current_ip_count) + 1, expire_seconds=3600)
+            await cache_set(
+                ip_limit_key, int(current_ip_count) + 1, expire_seconds=3600
+            )
 
         except HTTPException:
             raise  # Re-raise HTTP exceptions

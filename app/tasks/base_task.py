@@ -254,7 +254,7 @@ class BaseTask(Task):
             Delay in seconds with jitter applied
         """
         # Calculate exponential backoff
-        delay = min(DEFAULT_BASE_DELAY * (2 ** retry_count), DEFAULT_MAX_DELAY)
+        delay = min(DEFAULT_BASE_DELAY * (2**retry_count), DEFAULT_MAX_DELAY)
 
         # Add jitter to prevent thundering herd
         jitter = delay * JITTER_RANGE
@@ -404,12 +404,18 @@ class BaseTask(Task):
                 reason=reason,
                 exception=str(exception)[:2000],  # Limit exception message length
                 traceback=str(traceback)[:5000] if traceback else None,
-                exception_type=exception.__class__.__name__ if hasattr(exception, '__class__') else "Exception",
+                exception_type=(
+                    exception.__class__.__name__
+                    if hasattr(exception, "__class__")
+                    else "Exception"
+                ),
                 retry_count=self.request.retries,
                 max_retries=self.get_max_retries(),
                 status=DLQStatus.PENDING,
                 worker=self.request.hostname,
-                queue=getattr(self.request, "delivery_info", {}).get("routing_key", "unknown"),
+                queue=getattr(self.request, "delivery_info", {}).get(
+                    "routing_key", "unknown"
+                ),
                 args=str(args)[:5000],
                 kwargs=str(kwargs or {})[:5000],
                 metadata={
@@ -525,13 +531,20 @@ class BaseTask(Task):
             dlq_dir.mkdir(parents=True, exist_ok=True)
 
             # Write to file
-            filename = dlq_dir / f"{task_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
-            with open(filename, 'w') as f:
+            filename = (
+                dlq_dir
+                / f"{task_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+            )
+            with open(filename, "w") as f:
                 json.dump(dlq_entry, f, indent=2, default=str)
 
             logger.info(
                 f"✅ DLQ entry logged to file: {filename}",
-                extra={"task_id": task_id, "task_name": task_name, "file": str(filename)},
+                extra={
+                    "task_id": task_id,
+                    "task_name": task_name,
+                    "file": str(filename),
+                },
             )
 
         except Exception as e:

@@ -19,7 +19,6 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-
 # =============================================================================
 # Configuration
 # =============================================================================
@@ -100,7 +99,9 @@ def check_old_imports(project_root: Path) -> Tuple[bool, List[str]]:
                         continue
 
                     # Skip exclude patterns
-                    if any(pattern in str(relative_path) for pattern in EXCLUDE_PATTERNS):
+                    if any(
+                        pattern in str(relative_path) for pattern in EXCLUDE_PATTERNS
+                    ):
                         continue
 
                     if str(relative_path) not in files_with_old_imports:

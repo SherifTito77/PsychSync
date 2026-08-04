@@ -96,7 +96,9 @@ class APIResponse(BaseModel, Generic[T]):
     errors: list[ErrorDetail] = Field(
         default_factory=list, description="Detailed error information"
     )
-    meta: ResponseMeta = Field(default_factory=ResponseMeta, description="Response metadata")
+    meta: ResponseMeta = Field(
+        default_factory=ResponseMeta, description="Response metadata"
+    )
 
     class Config:
         use_enum_values = True
@@ -152,7 +154,9 @@ class ValidationErrorResponse(ErrorResponse[T]):
     """Validation error response"""
 
     def __init__(self, errors: list[ErrorDetail], message: str = "Validation failed"):
-        super().__init__(message=message, status=ResponseStatus.VALIDATION_ERROR, errors=errors)
+        super().__init__(
+            message=message, status=ResponseStatus.VALIDATION_ERROR, errors=errors
+        )
 
 
 class PaginatedResponse(APIResponse[list[T]]):
@@ -180,7 +184,9 @@ class PaginatedResponse(APIResponse[list[T]]):
 
 # Response factory functions for easy creation
 def create_success_response(
-    data: T = None, message: str = "Operation successful", meta: ResponseMeta | None = None
+    data: T = None,
+    message: str = "Operation successful",
+    meta: ResponseMeta | None = None,
 ) -> SuccessResponse[T]:
     """Create a success response"""
     return SuccessResponse(data=data, message=message, meta=meta)

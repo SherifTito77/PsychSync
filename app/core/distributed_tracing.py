@@ -16,16 +16,16 @@ Features:
 """
 
 import asyncio
+import logging
+import os
+import time
+import uuid
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from enum import Enum
-import logging
-import os
-import time
 from typing import Any
-import uuid
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -59,7 +59,9 @@ logger = logging.getLogger(__name__)
 # Context variables for trace propagation
 current_span: ContextVar[str | None] = ContextVar("current_span", default=None)
 current_trace_id: ContextVar[str | None] = ContextVar("current_trace_id", default=None)
-current_request_id: ContextVar[str | None] = ContextVar("current_request_id", default=None)
+current_request_id: ContextVar[str | None] = ContextVar(
+    "current_request_id", default=None
+)
 
 
 class SpanKind(Enum):
@@ -134,7 +136,10 @@ class DistributedTracer:
             logger.warning("OpenTelemetry not available or tracing disabled")
 
     def _setup_opentelemetry(
-        self, jaeger_endpoint: str | None, zipkin_endpoint: str | None, enable_console: bool
+        self,
+        jaeger_endpoint: str | None,
+        zipkin_endpoint: str | None,
+        enable_console: bool,
     ):
         """Setup OpenTelemetry tracing"""
         try:
@@ -142,7 +147,9 @@ class DistributedTracer:
             resource = Resource.create(
                 {
                     ResourceAttributes.SERVICE_NAME: self.service_name,
-                    ResourceAttributes.SERVICE_VERSION: os.getenv("APP_VERSION", "1.0.0"),
+                    ResourceAttributes.SERVICE_VERSION: os.getenv(
+                        "APP_VERSION", "1.0.0"
+                    ),
                     ResourceAttributes.DEPLOYMENT_ENVIRONMENT: os.getenv(
                         "ENVIRONMENT", "development"
                     ),
@@ -229,7 +236,9 @@ class DistributedTracer:
         }
 
         with self.tracer.start_as_current_span(
-            name, kind=span_kind_map.get(kind, trace.SpanKind.INTERNAL), attributes=attributes
+            name,
+            kind=span_kind_map.get(kind, trace.SpanKind.INTERNAL),
+            attributes=attributes,
         ) as span:
             try:
                 if tags:
@@ -304,7 +313,9 @@ class DistributedTracer:
         if final_tags:
             span.tags.update(final_tags)
 
-        logger.debug(f"Finished span {span_id}: {span.operation_name} ({span.duration:.3f}s)")
+        logger.debug(
+            f"Finished span {span_id}: {span.operation_name} ({span.duration:.3f}s)"
+        )
 
     def add_span_event(
         self, span_id: str, event_name: str, attributes: dict[str, Any] | None = None
@@ -314,7 +325,11 @@ class DistributedTracer:
             logger.warning(f"Span {span_id} not found for event")
             return
 
-        event = {"name": event_name, "timestamp": time.time(), "attributes": attributes or {}}
+        event = {
+            "name": event_name,
+            "timestamp": time.time(),
+            "attributes": attributes or {},
+        }
 
         self.span_storage[span_id].logs.append(event)
 
@@ -345,7 +360,9 @@ class DistributedTracer:
     def get_trace_data(self, trace_id: str) -> list[SpanAttributes]:
         """Get all spans for a trace"""
         return [
-            span for span in self.span_storage.values() if span.tags.get("trace_id") == trace_id
+            span
+            for span in self.span_storage.values()
+            if span.tags.get("trace_id") == trace_id
         ]
 
     def export_spans(self) -> list[dict[str, Any]]:
@@ -410,14 +427,22 @@ class TracingMiddleware(BaseHTTPMiddleware):
                 "http.remote_addr": request.client.host if request.client else None,
                 "http.request_id": request_id,
             },
-            tags={"route": request.url.path, "method": request.method, "request_id": request_id},
+            tags={
+                "route": request.url.path,
+                "method": request.method,
+                "request_id": request_id,
+            },
         ) as span_id:
             try:
                 # Add request headers to span
                 if hasattr(span_id, "set_attribute"):  # OpenTelemetry span
                     for header, value in request.headers.items():
-                        if not header.startswith("authorization"):  # Skip sensitive headers
-                            span_id.set_attribute(f"http.request.header.{header}", value)
+                        if not header.startswith(
+                            "authorization"
+                        ):  # Skip sensitive headers
+                            span_id.set_attribute(
+                                f"http.request.header.{header}", value
+                            )
 
                 # Process request
                 start_time = time.time()
@@ -427,7 +452,9 @@ class TracingMiddleware(BaseHTTPMiddleware):
                 # Add response attributes
                 response_attributes = {
                     "http.status_code": response.status_code,
-                    "http.response_content_length": response.headers.get("content-length"),
+                    "http.response_content_length": response.headers.get(
+                        "content-length"
+                    ),
                     "http.response_time_ms": process_time * 1000,
                 }
 
@@ -438,7 +465,9 @@ class TracingMiddleware(BaseHTTPMiddleware):
 
                 # Add custom metrics
                 if hasattr(self.tracer, "add_span_metric"):
-                    self.tracer.add_span_metric(span_id, "response_time_ms", process_time * 1000)
+                    self.tracer.add_span_metric(
+                        span_id, "response_time_ms", process_time * 1000
+                    )
                     self.tracer.add_span_metric(
                         span_id,
                         "response_size_bytes",
@@ -447,7 +476,9 @@ class TracingMiddleware(BaseHTTPMiddleware):
 
                 # Add response headers
                 response.headers["X-Request-ID"] = request_id
-                response.headers["X-Trace-ID"] = self.tracer.get_current_trace_id() or ""
+                response.headers["X-Trace-ID"] = (
+                    self.tracer.get_current_trace_id() or ""
+                )
 
                 return response
 
@@ -478,7 +509,9 @@ class TracingMiddleware(BaseHTTPMiddleware):
         current_trace_id.set(trace_id)
         current_span.set(span_id)
 
-        return TraceContext(trace_id=trace_id, span_id=span_id, parent_span_id=parent_span_id)
+        return TraceContext(
+            trace_id=trace_id, span_id=span_id, parent_span_id=parent_span_id
+        )
 
 
 class TraceCorrelationMiddleware(BaseHTTPMiddleware):

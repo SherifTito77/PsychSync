@@ -1,18 +1,19 @@
 # app/api/v1/endpoints/responses.py
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from uuid import UUID
-from uuid import uuid4
 import asyncio  # Needed for run_in_executor
+from uuid import UUID, uuid4
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession  # ✅ ASYNC - Non-blocking
 
-from app.api.deps import get_current_active_user, get_async_db  # ✅ Async DB dependency
-from app.db.models.user import User
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
-from app.schemas.response import Response as ResponseSchema
-from app.schemas.response import ResponseCreate, ResponseSave, ResponseSubmit, ResponseWithScore
-from app.schemas.response import ResponseScore as ResponseScoreSchema
 import app.services.assessment_service as AssessmentService
+from app.api.deps import get_async_db, get_current_active_user  # ✅ Async DB dependency
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
+from app.db.models.user import User
+from app.schemas.response import Response as ResponseSchema
+from app.schemas.response import ResponseCreate, ResponseSave
+from app.schemas.response import ResponseScore as ResponseScoreSchema
+from app.schemas.response import ResponseSubmit, ResponseWithScore
 from app.services.response_service import ResponseService
 
 router = APIRouter(prefix="/responses", tags=["responses"])
@@ -28,15 +29,11 @@ router = APIRouter(prefix="/responses", tags=["responses"])
             "description": "Response session created",
             "content": {
                 "application/json": {
-                    "example": {
-                        "id": 123,
-                        "assessment_id": 5,
-                        "status": "in_progress"
-                    }
+                    "example": {"id": 123, "assessment_id": 5, "status": "in_progress"}
                 }
-            }
+            },
         }
-    }
+    },
 )
 async def start_response(  # ✅ ASYNC - Non-blocking endpoint
     response_in: ResponseCreate,
@@ -49,15 +46,20 @@ async def start_response(  # ✅ ASYNC - Non-blocking endpoint
     """
     # Verify assessment exists and is published
     # ✅ Direct async call
-    assessment = await AssessmentService.get_by_id(db, assessment_id=response_in.assessment_id)
+    assessment = await AssessmentService.get_by_id(
+        db, assessment_id=response_in.assessment_id
+    )
 
     # Defensive null check before accessing assessment properties
     if assessment is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found"
+        )
 
     if assessment.status.value != "active":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Assessment is not published"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Assessment is not published",
         )
 
     # Create response session using the service's create method
@@ -99,25 +101,31 @@ async def get_response(  # ✅ ASYNC
     try:
         response_uuid = UUID(response_id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format"
+        )
 
     # ✅ Direct async call - ResponseService.get_by_id() is already async
     response = await ResponseService.get_by_id(db, response_id=response_uuid)
 
     # Defensive null check before accessing response properties
     if response is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Response not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Response not found"
+        )
 
     # Check permission
     if response.respondent_id and response.respondent_id != current_user.id:
         # Check if user is assessment creator or team admin
-        assessment = await AssessmentService.get_by_id(db, assessment_id=response.assessment_id)
+        assessment = await AssessmentService.get_by_id(
+            db, assessment_id=response.assessment_id
+        )
 
         # Defensive null check before accessing assessment properties
         if assessment is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Associated assessment not found"
+                detail="Associated assessment not found",
             )
 
         if assessment.created_by_id != current_user.id:
@@ -135,9 +143,7 @@ async def get_response(  # ✅ ASYNC
     return response_dict
 
 
-@router.put(
-    "/{response_id}/save", response_model=ResponseSchema
-)
+@router.put("/{response_id}/save", response_model=ResponseSchema)
 async def save_progress(  # ✅ ASYNC - Non-blocking endpoint
     response_id: str,
     save_data: ResponseSave,
@@ -151,24 +157,30 @@ async def save_progress(  # ✅ ASYNC - Non-blocking endpoint
     try:
         response_uuid = UUID(response_id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format"
+        )
 
     # ✅ Direct async call
     response = await ResponseService.get_by_id(db, response_id=response_uuid)
 
     if not response:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Response not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Response not found"
+        )
 
     # Check permission
     if response.respondent_id and response.respondent_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="You can only save your own responses"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only save your own responses",
         )
 
     # Check if already completed
     if response.is_complete:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot modify completed response"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify completed response",
         )
 
     # Save progress - ✅ Direct async call
@@ -196,18 +208,23 @@ async def submit_response(  # ✅ ASYNC - Non-blocking endpoint
     try:
         response_uuid = UUID(response_id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format"
+        )
 
     # ✅ Direct async call
     response = await ResponseService.get_by_id(db, response_id=response_uuid)
 
     if not response:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Response not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Response not found"
+        )
 
     # Check permission
     if response.respondent_id and response.respondent_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="You can only submit your own responses"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only submit your own responses",
         )
 
     # Check if already completed
@@ -261,24 +278,30 @@ async def delete_response(  # ✅ ASYNC - Non-blocking endpoint
     try:
         response_uuid = UUID(response_id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format"
+        )
 
     # ✅ Direct async call
     response = await ResponseService.get_by_id(db, response_id=response_uuid)
 
     if not response:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Response not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Response not found"
+        )
 
     # Check permission
     if response.respondent_id and response.respondent_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="You can only delete your own responses"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete your own responses",
         )
 
     # Cannot delete completed responses
     if response.is_complete:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete completed response"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete completed response",
         )
 
     # ✅ Direct async call - use delete_response which takes response object
@@ -298,24 +321,30 @@ async def get_response_score(  # ✅ ASYNC - Non-blocking endpoint
     try:
         response_uuid = UUID(response_id)
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid response ID format"
+        )
 
     # ✅ Direct async call
     response = await ResponseService.get_by_id(db, response_id=response_uuid)
 
     if not response:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Response not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Response not found"
+        )
 
     # Check permission
     if response.respondent_id and response.respondent_id != current_user.id:
         # ✅ Direct async call
-        assessment = await AssessmentService.get_by_id(db, assessment_id=response.assessment_id)
+        assessment = await AssessmentService.get_by_id(
+            db, assessment_id=response.assessment_id
+        )
 
         # Defensive null check before accessing assessment properties
         if assessment is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Associated assessment not found"
+                detail="Associated assessment not found",
             )
 
         if assessment.created_by_id != current_user.id:
@@ -333,6 +362,8 @@ async def get_response_score(  # ✅ ASYNC - Non-blocking endpoint
     score = await ResponseService.get_response_score(db, response_id=response_uuid)
 
     if not score:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Score not available")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Score not available"
+        )
 
     return score

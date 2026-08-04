@@ -3,22 +3,24 @@ Tests for Legal Rights Awareness API
 Comprehensive tests for legal rights endpoints
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.main import app
 from app.core.database import get_db
-from app.db.models.user import User
-from app.db.models.legal_rights import LaborLaw, LegalAidResource, ContractViolation
+from app.db.models.legal_rights import ContractViolation, LaborLaw, LegalAidResource
 from app.db.models.organization import Organization
+from app.db.models.user import User
+from app.main import app
 
 
 @pytest.fixture
 def db_session():
     """Create test database session"""
     from app.core.database import SessionLocal
+
     db = SessionLocal()
     try:
         yield db
@@ -29,6 +31,7 @@ def db_session():
 @pytest.fixture
 def test_client(db_session):
     """Create test client with database dependency override"""
+
     def override_get_db():
         try:
             yield db_session
@@ -49,7 +52,7 @@ def test_user(db_session):
         hashed_password="hashed_password",
         full_name="Test User",
         is_active=True,
-        is_admin=False
+        is_admin=False,
     )
     db_session.add(user)
     db_session.commit()
@@ -60,10 +63,7 @@ def test_user(db_session):
 @pytest.fixture
 def test_organization(db_session):
     """Create test organization"""
-    org = Organization(
-        name="Test Organization",
-        slug="test-org"
-    )
+    org = Organization(name="Test Organization", slug="test-org")
     db_session.add(org)
     db_session.commit()
     db_session.refresh(org)
@@ -92,7 +92,7 @@ def sample_labor_law(db_session):
         privacy_protection_level=6,
         termination_protection_level=7,
         is_active=True,
-        verified=True
+        verified=True,
     )
     db_session.add(law)
     db_session.commit()
@@ -127,7 +127,9 @@ class TestLaborLawsEndpoint:
 
     def test_get_labor_laws_invalid_country(self, test_client):
         """Test with invalid country code returns empty list"""
-        response = test_client.get("/api/v1/legal-rights/labor-laws?country_code=INVALID")
+        response = test_client.get(
+            "/api/v1/legal-rights/labor-laws?country_code=INVALID"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -140,7 +142,9 @@ class TestRightsSummaryEndpoint:
 
     def test_get_rights_summary(self, test_client, sample_labor_law):
         """Test retrieving rights summary"""
-        response = test_client.get("/api/v1/legal-rights/rights-summary?country_code=US")
+        response = test_client.get(
+            "/api/v1/legal-rights/rights-summary?country_code=US"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -153,7 +157,9 @@ class TestRightsSummaryEndpoint:
 
     def test_rights_summary_includes_protections(self, test_client, sample_labor_law):
         """Test that rights summary includes key protections"""
-        response = test_client.get("/api/v1/legal-rights/rights-summary?country_code=US")
+        response = test_client.get(
+            "/api/v1/legal-rights/rights-summary?country_code=US"
+        )
 
         assert response.status_code == 200
         data = response.json()
@@ -183,7 +189,7 @@ class TestLegalAidEndpoint:
             languages_spoken=["en", "es"],
             free_consultation=True,
             verified=True,
-            rating=4.5
+            rating=4.5,
         )
         db_session.add(aid)
         db_session.commit()
@@ -230,13 +236,15 @@ class TestViolationReporting:
             "labor_law_violated": "Fair Labor Standards Act",
             "incident_date_range": {
                 "start": "2025-10-01T00:00:00",
-                "end": "2025-12-31T00:00:00"
-            }
+                "end": "2025-12-31T00:00:00",
+            },
         }
 
         # Note: This would require authentication in production
         # For unit testing, we might need to mock the auth dependency
-        response = test_client.post("/api/v1/legal-rights/violations/report", json=violation_data)
+        response = test_client.post(
+            "/api/v1/legal-rights/violations/report", json=violation_data
+        )
 
         # In production, this would return 201 or similar
         # For now, we expect either success or authentication error
@@ -259,7 +267,7 @@ class TestKnowledgeCheck:
             "question": "Test question",
             "options": ["A", "B", "C", "D"],
             "correct_answer": "A",
-            "topic": "test_topic"
+            "topic": "test_topic",
         }
 
         assert all(field in sample_question for field in question_fields)
@@ -272,12 +280,16 @@ class TestLegalRightsIntegration:
     def test_full_workflow_labor_laws_to_summary(self, test_client, sample_labor_law):
         """Test complete workflow from labor laws to summary"""
         # First get individual laws
-        laws_response = test_client.get("/api/v1/legal-rights/labor-laws?country_code=US")
+        laws_response = test_client.get(
+            "/api/v1/legal-rights/labor-laws?country_code=US"
+        )
         assert laws_response.status_code == 200
         laws = laws_response.json()
 
         # Then get summary which aggregates those laws
-        summary_response = test_client.get("/api/v1/legal-rights/rights-summary?country_code=US")
+        summary_response = test_client.get(
+            "/api/v1/legal-rights/rights-summary?country_code=US"
+        )
         assert summary_response.status_code == 200
         summary = summary_response.json()
 
@@ -288,7 +300,9 @@ class TestLegalRightsIntegration:
     def test_filter_and_search_workflow(self, test_client, sample_labor_law):
         """Test filtering and searching labor laws"""
         # Get all laws
-        all_response = test_client.get("/api/v1/legal-rights/labor-laws?country_code=US")
+        all_response = test_client.get(
+            "/api/v1/legal-rights/labor-laws?country_code=US"
+        )
         all_laws = all_response.json()
 
         # Filter by category
@@ -310,7 +324,13 @@ class TestDataValidation:
 
         from app.api.v1.endpoints.legal_rights import ContractViolationCreate
 
-        valid_severities = ["low", "medium", "high", "critical", "legal_action_required"]
+        valid_severities = [
+            "low",
+            "medium",
+            "high",
+            "critical",
+            "legal_action_required",
+        ]
 
         for severity in valid_severities:
             try:
@@ -319,11 +339,13 @@ class TestDataValidation:
                     category="test",
                     severity=severity,
                     title="Test violation",
-                    description="Test description that meets minimum length requirement"
+                    description="Test description that meets minimum length requirement",
                 )
                 assert violation.severity == severity
             except ValidationError:
-                pytest.fail(f"Valid severity '{severity}' should not raise ValidationError")
+                pytest.fail(
+                    f"Valid severity '{severity}' should not raise ValidationError"
+                )
 
         # Test invalid severity
         with pytest.raises(ValidationError):
@@ -332,7 +354,7 @@ class TestDataValidation:
                 category="test",
                 severity="invalid_severity",
                 title="Test",
-                description="Test"
+                description="Test",
             )
 
     def test_violation_description_length_validation(self):
@@ -348,7 +370,7 @@ class TestDataValidation:
                 category="test",
                 severity="medium",
                 title="Test",
-                description="Short"  # Less than 50 characters
+                description="Short",  # Less than 50 characters
             )
 
         # Test valid description
@@ -358,7 +380,7 @@ class TestDataValidation:
                 category="test",
                 severity="medium",
                 title="Test violation with proper length",
-                description="This is a valid description that meets the minimum length requirement of 50 characters."
+                description="This is a valid description that meets the minimum length requirement of 50 characters.",
             )
             assert violation.description is not None
         except ValidationError:
@@ -385,12 +407,11 @@ class TestLegalRightsSecurity:
             "category": "test",
             "severity": "low",
             "title": "Test",
-            "description": "A" * 100  # Valid length
+            "description": "A" * 100,  # Valid length
         }
 
         response = test_client.post(
-            "/api/v1/legal-rights/violations/report",
-            json=violation_data
+            "/api/v1/legal-rights/violations/report", json=violation_data
         )
 
         # Should require authentication
@@ -406,7 +427,9 @@ class TestLegalRightsPerformance:
         import time
 
         start_time = time.time()
-        response = test_client.get("/api/v1/legal-rights/rights-summary?country_code=US")
+        response = test_client.get(
+            "/api/v1/legal-rights/rights-summary?country_code=US"
+        )
         end_time = time.time()
 
         assert response.status_code == 200
@@ -438,7 +461,7 @@ class TestLegalRightsDataIntegrity:
             law_name="Test Law",
             law_code="TEST",
             category="working_hours",
-            description="Test"
+            description="Test",
         )
 
         db_session.add(law)
@@ -455,7 +478,7 @@ class TestLegalRightsDataIntegrity:
             country_code="US",
             resource_type="hotline",
             name="Test Hotline",
-            phone="555-TEST"
+            phone="555-TEST",
         )
 
         db_session.add(aid)

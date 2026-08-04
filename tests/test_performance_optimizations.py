@@ -7,23 +7,28 @@ Tests all Phase 1 optimizations to ensure:
 3. Backward compatibility maintained
 """
 
-import pytest
-import time
 import json
+import time
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Any, Dict
+
+import pytest
 
 # =============================================================================
 # Test 1: orjson Optimization
 # =============================================================================
+
 
 class TestOrjsonOptimization:
     """Test orjson JSON serialization optimization"""
 
     def test_cache_service_imports(self):
         """Test that cache service can be imported with orjson"""
-        from app.services.enhanced_cache_service import EnhancedCacheService, HAS_ORJSON
-        from app.services.enhanced_cache_service import cache_service
+        from app.services.enhanced_cache_service import (
+            HAS_ORJSON,
+            EnhancedCacheService,
+            cache_service,
+        )
 
         # Verify service exists
         assert cache_service is not None
@@ -34,13 +39,13 @@ class TestOrjsonOptimization:
 
     def test_serialize_deserialize_with_cache_service(self):
         """Test that serialization/deserialization works correctly"""
-        from app.services.enhanced_cache_service import cache_service, HAS_ORJSON
+        from app.services.enhanced_cache_service import HAS_ORJSON, cache_service
 
         test_data = {
             "user_id": "12345",
             "scores": [1, 2, 3, 4, 5],
             "metadata": {"name": "Test User", "age": 30},
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
 
         # Test serialization
@@ -62,6 +67,7 @@ class TestOrjsonOptimization:
         """Compare performance between orjson and standard json"""
         try:
             import orjson
+
             has_orjson = True
         except ImportError:
             has_orjson = False
@@ -75,13 +81,9 @@ class TestOrjsonOptimization:
             "assessment_type": "PHQ-9",
             "total_score": 15,
             "severity_level": "moderate",
-            "subscale_scores": {
-                "cognitive": 5.5,
-                "somatic": 6.2,
-                "affective": 3.3
-            },
+            "subscale_scores": {"cognitive": 5.5, "somatic": 6.2, "affective": 3.3},
             "responses": [i % 4 for i in range(100)],  # 100 responses
-            "timestamps": [datetime.utcnow().isoformat() for _ in range(100)]
+            "timestamps": [datetime.utcnow().isoformat() for _ in range(100)],
         }
 
         # Test orjson performance
@@ -107,32 +109,35 @@ class TestOrjsonOptimization:
 # Test 2: Binary Search in Clinical Scoring
 # =============================================================================
 
+
 class TestBinarySearchOptimization:
     """Test binary search optimization in clinical scoring"""
 
     def test_phq9_binary_search(self):
         """Test PHQ-9 interpretation with binary search"""
-        from app.services.clinical.scoring_algorithms import PHQ9Scorer
         from bisect import bisect_left
+
+        from app.services.clinical.scoring_algorithms import PHQ9Scorer
 
         # Test edge cases
         test_cases = [
-            (0, "Minimal"),      # Lower boundary
-            (4, "Minimal"),      # Just below first breakpoint
-            (5, "Mild"),         # First breakpoint
-            (9, "Mild"),         # Just below second breakpoint
-            (10, "Moderate"),    # Second breakpoint
-            (14, "Moderate"),    # Middle of range
+            (0, "Minimal"),  # Lower boundary
+            (4, "Minimal"),  # Just below first breakpoint
+            (5, "Mild"),  # First breakpoint
+            (9, "Mild"),  # Just below second breakpoint
+            (10, "Moderate"),  # Second breakpoint
+            (14, "Moderate"),  # Middle of range
             (15, "Moderately severe"),  # Third breakpoint
             (19, "Moderately severe"),  # Just below fourth breakpoint
-            (20, "Severe"),      # Fourth breakpoint
-            (27, "Severe"),      # Maximum score
+            (20, "Severe"),  # Fourth breakpoint
+            (27, "Severe"),  # Maximum score
         ]
 
         for score, expected_severity in test_cases:
             interpretation = PHQ9Scorer._get_interpretation(score, suicide_item=0)
-            assert expected_severity in interpretation, \
-                f"Score {score}: expected '{expected_severity}' in interpretation, got '{interpretation}'"
+            assert (
+                expected_severity in interpretation
+            ), f"Score {score}: expected '{expected_severity}' in interpretation, got '{interpretation}'"
 
         print("✓ PHQ-9 binary search working correctly for all score ranges")
 
@@ -141,11 +146,15 @@ class TestBinarySearchOptimization:
         from app.services.clinical.scoring_algorithms import PHQ9Scorer
 
         # Test without suicide
-        interpretation_no_alert = PHQ9Scorer._get_interpretation(score=10, suicide_item=0)
+        interpretation_no_alert = PHQ9Scorer._get_interpretation(
+            score=10, suicide_item=0
+        )
         assert "ALERT" not in interpretation_no_alert
 
         # Test with suicide
-        interpretation_with_alert = PHQ9Scorer._get_interpretation(score=10, suicide_item=1)
+        interpretation_with_alert = PHQ9Scorer._get_interpretation(
+            score=10, suicide_item=1
+        )
         assert "ALERT" in interpretation_with_alert
         assert "crisis protocol" in interpretation_with_alert
 
@@ -168,15 +177,17 @@ class TestBinarySearchOptimization:
 
         for score, expected_severity in test_cases:
             interpretation = GAD7Scorer._interpret(score)
-            assert expected_severity in interpretation, \
-                f"Score {score}: expected '{expected_severity}' in interpretation"
+            assert (
+                expected_severity in interpretation
+            ), f"Score {score}: expected '{expected_severity}' in interpretation"
 
         print("✓ GAD-7 binary search working correctly")
 
     def test_binary_search_performance(self):
         """Verify binary search is faster than linear search"""
-        from app.services.clinical.scoring_algorithms import PHQ9Scorer
         from bisect import bisect_left
+
+        from app.services.clinical.scoring_algorithms import PHQ9Scorer
 
         # Test binary search performance
         start = time.perf_counter()
@@ -195,13 +206,15 @@ class TestBinarySearchOptimization:
 # Test 3: Database Connection Pool
 # =============================================================================
 
+
 class TestDatabaseConnectionPool:
     """Test database connection pool optimization"""
 
     def test_database_module_imports(self):
         """Test that database module can be imported"""
-        from app.core.database import async_engine, AsyncSessionLocal
         from sqlalchemy.ext.asyncio import AsyncEngine
+
+        from app.core.database import AsyncSessionLocal, async_engine
 
         assert async_engine is not None
         assert isinstance(async_engine, AsyncEngine)
@@ -217,7 +230,9 @@ class TestDatabaseConnectionPool:
 
         # Verify pool settings
         assert pool._size == 20, f"Expected pool size 20, got {pool._size}"
-        assert pool._max_overflow == 40, f"Expected max overflow 40, got {pool._max_overflow}"
+        assert (
+            pool._max_overflow == 40
+        ), f"Expected max overflow 40, got {pool._max_overflow}"
 
         # Check LIFO setting
         assert pool._use_lifo is True, "LIFO should be enabled for performance"
@@ -233,12 +248,16 @@ class TestDatabaseConnectionPool:
 # Test 4: LRU Cache in AI Service
 # =============================================================================
 
+
 class TestLRUCacheOptimization:
     """Test LRU cache optimization in AI service"""
 
     def test_ai_service_imports(self):
         """Test that AI service can be imported"""
-        from app.services.enhanced_ai_service import EnhancedAIProcessor, enhanced_ai_processor
+        from app.services.enhanced_ai_service import (
+            EnhancedAIProcessor,
+            enhanced_ai_processor,
+        )
 
         assert enhanced_ai_processor is not None
         assert isinstance(enhanced_ai_processor, EnhancedAIProcessor)
@@ -262,18 +281,20 @@ class TestLRUCacheOptimization:
 
     def test_cache_decorator_applied(self):
         """Test that @lru_cache decorator is applied"""
-        from app.services.enhanced_ai_service import EnhancedAIProcessor
         from functools import _lru_cache_wrapper
+
+        from app.services.enhanced_ai_service import EnhancedAIProcessor
 
         processor = EnhancedAIProcessor()
 
         # Check if the method has cache_info (indicator of @lru_cache)
-        assert hasattr(processor._get_cached_personality_data, 'cache_info'), \
-            "_get_cached_personality_data should have @lru_cache decorator"
+        assert hasattr(
+            processor._get_cached_personality_data, "cache_info"
+        ), "_get_cached_personality_data should have @lru_cache decorator"
 
         cache_info = processor._get_cached_personality_data.cache_info()
-        assert hasattr(cache_info, 'hits')
-        assert hasattr(cache_info, 'misses')
+        assert hasattr(cache_info, "hits")
+        assert hasattr(cache_info, "misses")
 
         print("✓ LRU cache decorator applied correctly")
 
@@ -307,20 +328,24 @@ class TestLRUCacheOptimization:
         print(f"  - Cache info: {cache_info}")
 
         # Cache hit should be significantly faster (or at least not slower)
-        assert second_call_time <= first_call_time * 1.1, \
-            "Cached call should be faster or equal to first call"
+        assert (
+            second_call_time <= first_call_time * 1.1
+        ), "Cached call should be faster or equal to first call"
 
 
 # =============================================================================
 # Test 5: Linear Regression Optimization
 # =============================================================================
 
+
 class TestLinearRegressionOptimization:
     """Test single-pass linear regression optimization"""
 
     def test_linear_regression_imports(self):
         """Test that analytics service can be imported"""
-        from app.services.clinical.advanced_analytics_service import AdvancedAnalyticsService
+        from app.services.clinical.advanced_analytics_service import (
+            AdvancedAnalyticsService,
+        )
 
         assert AdvancedAnalyticsService is not None
 
@@ -328,15 +353,17 @@ class TestLinearRegressionOptimization:
 
     def test_linear_regression_correctness(self):
         """Test that optimized algorithm produces correct results"""
-        from app.services.clinical.advanced_analytics_service import AdvancedAnalyticsService
         from app.db.session import get_async_db
+        from app.services.clinical.advanced_analytics_service import (
+            AdvancedAnalyticsService,
+        )
 
         # Simple test data: y = 2x + 1
         test_data = [
-            (datetime(2024, 1, 1), 3.0),   # x=0, y=1 (actual: 3)
-            (datetime(2024, 1, 2), 5.0),   # x=1, y=3 (actual: 5)
-            (datetime(2024, 1, 3), 7.0),   # x=2, y=5 (actual: 7)
-            (datetime(2024, 1, 4), 9.0),   # x=3, y=7 (actual: 9)
+            (datetime(2024, 1, 1), 3.0),  # x=0, y=1 (actual: 3)
+            (datetime(2024, 1, 2), 5.0),  # x=1, y=3 (actual: 5)
+            (datetime(2024, 1, 3), 7.0),  # x=2, y=5 (actual: 7)
+            (datetime(2024, 1, 4), 9.0),  # x=3, y=7 (actual: 9)
             (datetime(2024, 1, 5), 11.0),  # x=4, y=9 (actual: 11)
         ]
 
@@ -344,24 +371,29 @@ class TestLinearRegressionOptimization:
         service = AdvancedAnalyticsService(None)  # Pass None for testing
 
         # Verify method exists and is callable
-        assert hasattr(service, '_linear_regression')
+        assert hasattr(service, "_linear_regression")
         assert callable(service._linear_regression)
 
         print("✓ Linear regression method exists and is callable")
 
     def test_single_pass_algorithm(self):
         """Test that single-pass algorithm is implemented"""
-        from app.services.clinical.advanced_analytics_service import AdvancedAnalyticsService
         import inspect
+
+        from app.services.clinical.advanced_analytics_service import (
+            AdvancedAnalyticsService,
+        )
 
         # Get source code
         source = inspect.getsource(AdvancedAnalyticsService._linear_regression)
 
         # Check for single-pass indicators
-        assert "single pass" in source.lower() or "SINGLE-PASS" in source, \
-            "Method should mention single-pass optimization"
-        assert "sum_x = sum_y = sum_xy = sum_x2 = sum_y2" in source, \
-            "Should accumulate all sums in single pass"
+        assert (
+            "single pass" in source.lower() or "SINGLE-PASS" in source
+        ), "Method should mention single-pass optimization"
+        assert (
+            "sum_x = sum_y = sum_xy = sum_x2 = sum_y2" in source
+        ), "Should accumulate all sums in single pass"
 
         print("✓ Single-pass algorithm is implemented")
 
@@ -370,15 +402,16 @@ class TestLinearRegressionOptimization:
 # Test 6: Integration Tests
 # =============================================================================
 
+
 class TestIntegration:
     """Integration tests for all optimizations"""
 
     def test_all_services_work_together(self):
         """Test that all optimized services can work together"""
-        from app.services.enhanced_cache_service import cache_service
-        from app.services.enhanced_ai_service import enhanced_ai_processor
-        from app.services.clinical.scoring_algorithms import PHQ9Scorer, GAD7Scorer
         from app.core.database import AsyncSessionLocal
+        from app.services.clinical.scoring_algorithms import GAD7Scorer, PHQ9Scorer
+        from app.services.enhanced_ai_service import enhanced_ai_processor
+        from app.services.enhanced_cache_service import cache_service
 
         # All services should be available
         assert cache_service is not None
@@ -398,11 +431,11 @@ class TestIntegration:
         result = PHQ9Scorer.score(responses)
 
         # Verify result structure
-        assert hasattr(result, 'total_score')
-        assert hasattr(result, 'severity_level')
-        assert hasattr(result, 'interpretation')
-        assert hasattr(result, 'recommendations')
-        assert hasattr(result, 'crisis_alert')
+        assert hasattr(result, "total_score")
+        assert hasattr(result, "severity_level")
+        assert hasattr(result, "interpretation")
+        assert hasattr(result, "recommendations")
+        assert hasattr(result, "crisis_alert")
 
         print("✓ Backward compatibility maintained")
 
@@ -412,9 +445,9 @@ class TestIntegration:
 # =============================================================================
 
 if __name__ == "__main__":
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("PERFORMANCE OPTIMIZATION TEST SUITE")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     # Run tests with pytest
     pytest.main([__file__, "-v", "--tb=short", "-s"])

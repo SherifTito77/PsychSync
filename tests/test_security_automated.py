@@ -11,11 +11,12 @@ Tests for critical security vulnerabilities:
 Run with: pytest tests/test_security_automated.py -v
 """
 
+import json
+from datetime import datetime
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime
-import json
 
 from app.main import app
 
@@ -25,6 +26,7 @@ from app.main import app
 def client():
     """Create a test client for security testing"""
     from fastapi.testclient import TestClient
+
     return TestClient(app)
 
 
@@ -33,10 +35,10 @@ class TestTokenSecurity:
 
     def test_login_sets_http_only_cookies(self, client: TestClient):
         """Verify login tokens are stored in httpOnly cookies, not response body"""
-        response = client.post("/api/v1/auth/token-fixed", data={
-            "username": "admin@psychsync.com",
-            "password": "testpassword123"
-        })
+        response = client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "admin@psychsync.com", "password": "testpassword123"},
+        )
 
         assert response.status_code == 200
 
@@ -46,21 +48,29 @@ class TestTokenSecurity:
 
         # SECURITY: Tokens should be in httpOnly cookies
         cookies = response.cookies
-        assert "access_token" in cookies or any("access_token" in c.name for c in client.cookies)
-        assert "csrf_token" in cookies or any("csrf_token" in c.name for c in client.cookies)
+        assert "access_token" in cookies or any(
+            "access_token" in c.name for c in client.cookies
+        )
+        assert "csrf_token" in cookies or any(
+            "csrf_token" in c.name for c in client.cookies
+        )
 
         # Verify cookie security attributes
-        access_cookie = next((c for c in client.cookies if c.name == "access_token"), None)
+        access_cookie = next(
+            (c for c in client.cookies if c.name == "access_token"), None
+        )
         if access_cookie:
             # httpOnly prevents JavaScript access
-            assert hasattr(access_cookie, 'httponly') or True  # TestClient doesn't expose all attributes
+            assert (
+                hasattr(access_cookie, "httponly") or True
+            )  # TestClient doesn't expose all attributes
 
     def test_tokens_not_exposed_via_javascript(self, client: TestClient):
         """Verify tokens cannot be accessed via JavaScript (localStorage)"""
-        client.post("/api/v1/auth/token-fixed", data={
-            "username": "admin@psychsync.com",
-            "password": "testpassword123"
-        })
+        client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "admin@psychsync.com", "password": "testpassword123"},
+        )
 
         # SECURITY: Response should not contain tokens in JSON
         response = client.get("/api/v1/auth/me")
@@ -74,10 +84,10 @@ class TestTokenSecurity:
     def test_logout_clears_cookies(self, client: TestClient):
         """Verify logout clears authentication cookies"""
         # Login first
-        login_response = client.post("/api/v1/auth/token-fixed", data={
-            "username": "admin@psychsync.com",
-            "password": "testpassword123"
-        })
+        login_response = client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "admin@psychsync.com", "password": "testpassword123"},
+        )
 
         # Logout
         logout_response = client.post("/api/v1/auth/logout")
@@ -96,23 +106,32 @@ class TestCSRFProtection:
         # Attempt a state-changing operation without proper authentication
         # The CSRF middleware should block this
         try:
-            response = client.post("/api/v1/assessments", json={
-                "title": "Test Assessment",
-                "description": "CSRF test"
-            })
+            response = client.post(
+                "/api/v1/assessments",
+                json={"title": "Test Assessment", "description": "CSRF test"},
+            )
             # SECURITY: Request should be blocked (401 unauthorized, 403 forbidden, or 422 validation error)
-            assert response.status_code in [401, 403, 422], "CSRF/Auth should block unauthorized requests"
+            assert response.status_code in [
+                401,
+                403,
+                422,
+            ], "CSRF/Auth should block unauthorized requests"
         except Exception as e:
             # If CSRF middleware raises an exception, that's also valid
-            assert "CSRF" in str(e) or "403" in str(e), "CSRF protection should be active"
+            assert "CSRF" in str(e) or "403" in str(
+                e
+            ), "CSRF protection should be active"
 
     def test_csrf_protection_active(self, client: TestClient):
         """Verify CSRF protection is active in the application"""
         # The fact that the previous test was blocked by CSRF proves protection is active
         # This test validates CSRF is configured in the middleware chain
         from app.main import app
+
         # Check if CSRF middleware is in the middleware stack
-        has_csrf = any("csrf" in str(middleware).lower() for middleware in app.user_middleware)
+        has_csrf = any(
+            "csrf" in str(middleware).lower() for middleware in app.user_middleware
+        )
         assert has_csrf, "CSRF middleware should be configured"
 
 
@@ -122,44 +141,53 @@ class TestAuthorization:
     def test_user_cannot_access_admin_endpoints(self, client: TestClient):
         """Verify regular users cannot access admin-only endpoints"""
         # Login as regular user
-        client.post("/api/v1/auth/token-fixed", data={
-            "username": "testuser@example.com",
-            "password": "testpassword123"
-        })
+        client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "testuser@example.com", "password": "testpassword123"},
+        )
 
         # Attempt to access admin security dashboard
         response = client.get("/api/v1/dashboard/metrics")
 
         # SECURITY: Should be forbidden
-        assert response.status_code in [401, 403], "Regular users should not access admin endpoints"
+        assert response.status_code in [
+            401,
+            403,
+        ], "Regular users should not access admin endpoints"
 
     def test_user_cannot_delete_other_users_assessments(self, client: TestClient):
         """Test IDOR prevention: users cannot delete assessments they don't own"""
         # Create an assessment as admin
-        client.post("/api/v1/auth/token-fixed", data={
-            "username": "admin@psychsync.com",
-            "password": "testpassword123"
-        })
+        client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "admin@psychsync.com", "password": "testpassword123"},
+        )
 
-        create_response = client.post("/api/v1/assessments", json={
-            "title": "Admin Assessment",
-            "description": "Owned by admin"
-        })
+        create_response = client.post(
+            "/api/v1/assessments",
+            json={"title": "Admin Assessment", "description": "Owned by admin"},
+        )
 
         if create_response.status_code == 200:
             assessment_id = create_response.json().get("id")
 
             # Login as regular user
-            client.post("/api/v1/auth/token-fixed", data={
-                "username": "testuser@example.com",
-                "password": "testpassword123"
-            })
+            client.post(
+                "/api/v1/auth/token-fixed",
+                data={
+                    "username": "testuser@example.com",
+                    "password": "testpassword123",
+                },
+            )
 
             # Attempt to delete admin's assessment
             delete_response = client.delete(f"/api/v1/assessments/{assessment_id}")
 
             # SECURITY: Should be forbidden
-            assert delete_response.status_code in [403, 404], "Users should not delete others' assessments"
+            assert delete_response.status_code in [
+                403,
+                404,
+            ], "Users should not delete others' assessments"
 
 
 class TestRateLimiting:
@@ -170,10 +198,10 @@ class TestRateLimiting:
         failed_attempts = 0
 
         for i in range(10):
-            response = client.post("/api/v1/auth/token-fixed", data={
-                "username": "admin@psychsync.com",
-                "password": "wrongpassword"
-            })
+            response = client.post(
+                "/api/v1/auth/token-fixed",
+                data={"username": "admin@psychsync.com", "password": "wrongpassword"},
+            )
 
             if response.status_code == 401:
                 failed_attempts += 1
@@ -190,10 +218,10 @@ class TestRateLimiting:
     def test_api_rate_limiting(self, client: TestClient):
         """Verify API endpoints have rate limiting"""
         # Login first
-        client.post("/api/v1/auth/token-fixed", data={
-            "username": "admin@psychsync.com",
-            "password": "testpassword123"
-        })
+        client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "admin@psychsync.com", "password": "testpassword123"},
+        )
 
         # Make rapid requests
         rate_limited = False
@@ -212,10 +240,10 @@ class TestInputValidation:
 
     def test_sql_injection_prevention(self, client: TestClient):
         """Verify SQL injection attempts are sanitized"""
-        client.post("/api/v1/auth/token-fixed", data={
-            "username": "admin@psychsync.com",
-            "password": "testpassword123"
-        })
+        client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "admin@psychsync.com", "password": "testpassword123"},
+        )
 
         # Attempt SQL injection in search
         malicious_input = "1' OR '1'='1"
@@ -231,21 +259,23 @@ class TestInputValidation:
                 items = data if isinstance(data, list) else data.get("items", [])
                 # SQL injection would return ALL records
                 # Normal query returns limited results
-                assert len(items) < 1000, "Possible SQL injection - returned too many results"
+                assert (
+                    len(items) < 1000
+                ), "Possible SQL injection - returned too many results"
 
     def test_xss_prevention_in_responses(self, client: TestClient):
         """Verify XSS payloads are sanitized in API responses"""
-        client.post("/api/v1/auth/token-fixed", data={
-            "username": "admin@psychsync.com",
-            "password": "testpassword123"
-        })
+        client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "admin@psychsync.com", "password": "testpassword123"},
+        )
 
         # Create assessment with XSS payload
         xss_payload = "<script>alert('XSS')</script>"
-        response = client.post("/api/v1/assessments", json={
-            "title": xss_payload,
-            "description": xss_payload
-        })
+        response = client.post(
+            "/api/v1/assessments",
+            json={"title": xss_payload, "description": xss_payload},
+        )
 
         if response.status_code == 200:
             # Retrieve the assessment
@@ -279,7 +309,7 @@ class TestSecurityHeaders:
         expected_headers = [
             "x-content-type-options",
             "x-frame-options",
-            "x-xss-protection"
+            "x-xss-protection",
         ]
 
         for header in expected_headers:
@@ -294,10 +324,10 @@ class TestAuthenticationFlow:
     def test_complete_login_flow(self, client: TestClient):
         """Test secure login flow"""
         # 1. Login
-        login_response = client.post("/api/v1/auth/token-fixed", data={
-            "username": "admin@psychsync.com",
-            "password": "testpassword123"
-        })
+        login_response = client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "admin@psychsync.com", "password": "testpassword123"},
+        )
 
         assert login_response.status_code == 200
 
@@ -326,7 +356,11 @@ class TestSecureEndpoints:
 
         # SECURITY: Should be 404 (disabled), 405 (method not allowed), or 400 (bad request)
         # Any of these indicates the endpoint is not functioning as a backdoor
-        assert response.status_code in [400, 404, 405], "Standalone auth endpoint should be disabled"
+        assert response.status_code in [
+            400,
+            404,
+            405,
+        ], "Standalone auth endpoint should be disabled"
 
     def test_simple_token_endpoint_disabled(self, client: TestClient):
         """Verify test token endpoint is disabled"""
@@ -334,22 +368,28 @@ class TestSecureEndpoints:
 
         # SECURITY: Test endpoint should be disabled in production
         # Accept 400, 404 (disabled), or 405 (method not allowed)
-        assert response.status_code in [400, 404, 405], "Test token endpoint should be disabled"
+        assert response.status_code in [
+            400,
+            404,
+            405,
+        ], "Test token endpoint should be disabled"
 
 
 # Performance tests for security overhead
 class TestSecurityPerformance:
     """Test security measures don't significantly impact performance"""
 
-    def test_cookie_authentication_performance(self, client: TestClient, benchmark=False):
+    def test_cookie_authentication_performance(
+        self, client: TestClient, benchmark=False
+    ):
         """Verify cookie-based authentication is performant"""
         import time
 
         # Login
-        client.post("/api/v1/auth/token-fixed", data={
-            "username": "admin@psychsync.com",
-            "password": "testpassword123"
-        })
+        client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "admin@psychsync.com", "password": "testpassword123"},
+        )
 
         # Measure authentication time
         start = time.time()

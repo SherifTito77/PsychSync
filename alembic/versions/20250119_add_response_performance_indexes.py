@@ -18,15 +18,16 @@ Revises: 20250118_query_optimization_indexes
 Create Date: 2025-01-19 00:00:00.000000
 
 """
+
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '20250119_add_response_performance_indexes'
-down_revision: Union[str, None] = '20250118_query_optimization_indexes'
+revision: str = "20250119_add_response_performance_indexes"
+down_revision: Union[str, None] = "20250118_query_optimization_indexes"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -44,37 +45,45 @@ def upgrade() -> None:
     # Composite index for user's responses ordered by date
     # Optimizes: SELECT * FROM responses WHERE user_id = ? ORDER BY created_at DESC LIMIT 100
     # Used in: response_service.py:get_by_user(), dashboard queries
-    op.execute("""
+    op.execute(
+        """
         CREATE INDEX idx_response_user_created
         ON responses (user_id, created_at DESC);
-    """)
+    """
+    )
 
     # Composite index for assessment responses by user
     # Optimizes: SELECT * FROM responses WHERE assessment_id = ? AND user_id = ?
     # Used in: assessment completion checking, user assessment analytics
-    op.execute("""
+    op.execute(
+        """
         CREATE INDEX idx_response_assessment_user
         ON responses (assessment_id, user_id);
-    """)
+    """
+    )
 
     # Composite index for user's responses in specific assessment
     # Optimizes: SELECT * FROM responses
     #          WHERE user_id = ? AND assessment_id = ?
     #          ORDER BY created_at DESC
     # Used in: Detailed user response analytics
-    op.execute("""
+    op.execute(
+        """
         CREATE INDEX idx_response_user_assessment_created
         ON responses (user_id, assessment_id, created_at DESC);
-    """)
+    """
+    )
 
     # GIN index for JSONB queries on answer_data
     # Optimizes: SELECT * FROM responses WHERE answer_data->>'question_type' = 'multiple_choice'
     # Used in: Complex filtering, analytics by answer type
     # Note: GIN indexes are larger but much faster for JSONB containment queries
-    op.execute("""
+    op.execute(
+        """
         CREATE INDEX idx_response_answer_data_gin
         ON responses USING GIN (answer_data);
-    """)
+    """
+    )
 
     # Optional: Create a partial index for completed responses only
     # This index is smaller and faster for the common case of filtering completed responses

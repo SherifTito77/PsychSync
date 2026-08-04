@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from datetime import datetime, timedelta
+
 from app.core.database import AsyncSessionLocal
 from app.db.models.feature_requests import FeatureRequest
 from app.db.models.user import User
@@ -20,11 +21,11 @@ from app.db.models.user import User
 async def seed_feature_requests():
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 
@@ -54,7 +55,7 @@ Returns:
             effort="M",
             value="V2",
             source_type="internal",
-            submitted_by=test_user[0] if test_user else None
+            submitted_by=test_user[0] if test_user else None,
         )
         # Calculate RICE score
         fr1.reach_score = 3.0  # >1000 users would use
@@ -77,7 +78,7 @@ Returns:
             value="V2",
             source_type="customer",
             submitted_by=test_user[0] if test_user else None,
-            opportunity_id="DEAL-001"
+            opportunity_id="DEAL-001",
         )
         fr2.reach_score = 2.0  # 500-1000 users
         fr2.impact_score = 2.0  # High impact
@@ -99,7 +100,7 @@ Returns:
             value="V1",
             source_type="customer",
             submitted_by=test_user[0] if test_user else None,
-            target_release="Q2 2025"
+            target_release="Q2 2025",
         )
         fr3.reach_score = 1.0  # <500 users initially
         fr3.impact_score = 3.0  # Massive impact for enterprise
@@ -120,11 +121,11 @@ Returns:
 async def main():
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 

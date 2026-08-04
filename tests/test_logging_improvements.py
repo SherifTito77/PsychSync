@@ -21,11 +21,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def test_correlation_id_propagation():
     """Test that correlation IDs propagate through context"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 1: Correlation ID Propagation")
-    print("="*60)
+    print("=" * 60)
 
-    from app.core.correlation import set_correlation_id, get_correlation_id, clear_correlation_id
+    from app.core.correlation import (
+        clear_correlation_id,
+        get_correlation_id,
+        set_correlation_id,
+    )
 
     # Set correlation ID
     test_id = "test-correlation-123"
@@ -50,11 +54,11 @@ def test_correlation_id_propagation():
 
 def test_structured_logging():
     """Test structured logging with correlation ID injection"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 2: Structured Logging with log_with_context")
-    print("="*60)
+    print("=" * 60)
 
-    from app.core.correlation import set_correlation_id, log_with_context
+    from app.core.correlation import log_with_context, set_correlation_id
 
     # Set test correlation ID
     set_correlation_id("test-log-123")
@@ -64,9 +68,10 @@ def test_structured_logging():
 
     # Create a handler to capture log output
     from io import StringIO
+
     log_capture = StringIO()
     handler = logging.StreamHandler(log_capture)
-    handler.setFormatter(logging.Formatter('%(message)s'))
+    handler.setFormatter(logging.Formatter("%(message)s"))
     test_logger.addHandler(handler)
     test_logger.setLevel(logging.INFO)
 
@@ -100,12 +105,17 @@ def test_structured_logging():
 
 async def test_performance_decorator():
     """Test performance logging decorator"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 3: Performance Decorator")
-    print("="*60)
+    print("=" * 60)
 
-    from app.core.correlation import set_correlation_id, log_performance, log_with_context
     import logging
+
+    from app.core.correlation import (
+        log_performance,
+        log_with_context,
+        set_correlation_id,
+    )
 
     # Set correlation ID
     set_correlation_id("test-perf-123")
@@ -113,19 +123,24 @@ async def test_performance_decorator():
     # Create test logger with capture
     test_logger = logging.getLogger("test_performance")
     from io import StringIO
+
     log_capture = StringIO()
     handler = logging.StreamHandler(log_capture)
-    handler.setFormatter(logging.Formatter('%(message)s'))
+    handler.setFormatter(logging.Formatter("%(message)s"))
     test_logger.addHandler(handler)
     test_logger.setLevel(logging.INFO)
 
     # Define test function with decorator
-    @log_performance("test_operation", warning_threshold_ms=100, logger_instance=test_logger)
+    @log_performance(
+        "test_operation", warning_threshold_ms=100, logger_instance=test_logger
+    )
     async def fast_operation():
         await asyncio.sleep(0.01)  # 10ms
         return "success"
 
-    @log_performance("slow_operation", warning_threshold_ms=50, logger_instance=test_logger)
+    @log_performance(
+        "slow_operation", warning_threshold_ms=50, logger_instance=test_logger
+    )
     async def slow_operation():
         await asyncio.sleep(0.1)  # 100ms
         return "success"
@@ -157,12 +172,13 @@ async def test_performance_decorator():
 
 async def test_database_logging_pattern():
     """Test database operation logging pattern"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 4: Database Logging Pattern")
-    print("="*60)
+    print("=" * 60)
 
-    from app.core.correlation import set_correlation_id, log_with_context
     import logging
+
+    from app.core.correlation import log_with_context, set_correlation_id
 
     # Set correlation ID
     set_correlation_id("test-db-123")
@@ -170,9 +186,10 @@ async def test_database_logging_pattern():
     # Create test logger
     test_logger = logging.getLogger("test_database")
     from io import StringIO
+
     log_capture = StringIO()
     handler = logging.StreamHandler(log_capture)
-    handler.setFormatter(logging.Formatter('%(message)s'))
+    handler.setFormatter(logging.Formatter("%(message)s"))
     test_logger.addHandler(handler)
     test_logger.setLevel(logging.INFO)
 
@@ -242,13 +259,14 @@ async def test_database_logging_pattern():
 
 async def test_authentication_logging():
     """Test authentication endpoint logging pattern"""
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("TEST 5: Authentication Logging Pattern")
-    print("="*60)
+    print("=" * 60)
 
-    from app.core.correlation import set_correlation_id, log_with_context
-    from app.core.audit_logger import AuditLogger, SecurityEventType
     import logging
+
+    from app.core.audit_logger import AuditLogger, SecurityEventType
+    from app.core.correlation import log_with_context, set_correlation_id
 
     # Set correlation ID
     set_correlation_id("test-auth-123")
@@ -256,9 +274,10 @@ async def test_authentication_logging():
     # Create test logger
     test_logger = logging.getLogger("test_auth")
     from io import StringIO
+
     log_capture = StringIO()
     handler = logging.StreamHandler(log_capture)
-    handler.setFormatter(logging.Formatter('%(message)s'))
+    handler.setFormatter(logging.Formatter("%(message)s"))
     test_logger.addHandler(handler)
     test_logger.setLevel(logging.INFO)
 
@@ -291,7 +310,7 @@ async def test_authentication_logging():
         additional_data={
             "username": username,
             "reason": "user_not_found",
-        }
+        },
     )
 
     # Get logged output
@@ -314,9 +333,9 @@ async def test_authentication_logging():
 
 async def run_all_tests():
     """Run all logging improvement tests"""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("LOGGING IMPROVEMENTS TEST SUITE")
-    print("="*80)
+    print("=" * 80)
 
     tests = [
         ("Correlation ID Propagation", test_correlation_id_propagation),
@@ -343,11 +362,14 @@ async def run_all_tests():
             failed += 1
             print(f"❌ FAILED: {test_name} - {str(e)}")
             import traceback
+
             traceback.print_exc()
 
-    print("\n" + "="*80)
-    print(f"TEST RESULTS: {passed} passed, {failed} failed out of {passed + failed} total")
-    print("="*80)
+    print("\n" + "=" * 80)
+    print(
+        f"TEST RESULTS: {passed} passed, {failed} failed out of {passed + failed} total"
+    )
+    print("=" * 80)
 
     if failed == 0:
         print("\n🎉 ALL LOGGING IMPROVEMENT TESTS PASSED!")

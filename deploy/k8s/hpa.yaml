@@ -1,0 +1,70 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: psychsync-hpa
+  namespace: psychsync
+  labels:
+    app: psychsync
+    component: autoscaling
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: psychsync
+  minReplicas: 3
+  maxReplicas: 50
+  metrics:
+  # CPU-based scaling
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # Memory-based scaling
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  # Custom metrics for application-specific scaling
+  - type: Pods
+    pods:
+      metric:
+        name: active_requests_per_pod
+      target:
+        type: AverageValue
+        averageValue: "100"
+  # Database connection scaling
+  - type: External
+    external:
+      metric:
+        name: database_connections_usage
+        selector:
+          matchLabels:
+            app: psychsync
+      target:
+        type: Value
+        value: "0.8"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100  # Double pods during scale-up
+        periodSeconds: 30
+      - type: Pods
+        value: 10   # Add up to 10 pods
+        periodSeconds: 60
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300  # Wait 5 minutes before scaling down
+      policies:
+      - type: Percent
+        value: 25  # Reduce pods slowly
+        periodSeconds: 60
+      - type: Pods
+        value: 2    # Remove up to 2 pods
+        periodSeconds: 60
+      selectPolicy: Min

@@ -13,9 +13,10 @@ Usage:
 """
 
 import json
-from sqlalchemy import TypeDecorator, String
-from sqlalchemy.types import TEXT, LargeBinary
 from typing import Any, Optional
+
+from sqlalchemy import String, TypeDecorator
+from sqlalchemy.types import TEXT, LargeBinary
 
 from app.services.encryption_service import encryption_service
 
@@ -69,6 +70,7 @@ class EncryptedString(TypeDecorator):
         except Exception as e:
             # Log error but don't crash
             from app.core.logger import logger
+
             logger.error(f"Failed to decrypt encrypted string: {e}")
             return None
 
@@ -107,6 +109,7 @@ class EncryptedJSON(TypeDecorator):
         except Exception as e:
             # Log error but don't crash
             from app.core.logger import logger
+
             logger.error(f"Failed to decrypt encrypted JSON: {e}")
             return None
 
@@ -149,6 +152,7 @@ class EncryptedText(TypeDecorator):
 
         except Exception as e:
             from app.core.logger import logger
+
             logger.error(f"Failed to decrypt encrypted text: {e}")
             return None
 
@@ -189,6 +193,7 @@ class HashedString(TypeDecorator):
 # Convenience Functions
 # =============================================================================
 
+
 def encrypt_on_write(column_type: TypeDecorator) -> TypeDecorator:
     """
     Decorator to add encryption to any column type.
@@ -197,6 +202,7 @@ def encrypt_on_write(column_type: TypeDecorator) -> TypeDecorator:
         class MyModel(Base):
             custom_field = Column(encrypt_on_write(String(255)))
     """
+
     class EncryptedColumn(TypeDecorator):
         impl = column_type
         cache_ok = True

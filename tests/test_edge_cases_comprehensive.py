@@ -4,29 +4,30 @@ Covers extreme values, invalid inputs, race conditions, and error scenarios
 Ensures 1000% performance optimization maintains reliability under stress
 """
 
-import pytest
 import asyncio
+import json
 import time
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
-from unittest.mock import AsyncMock, patch, MagicMock
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import HTTPException, status
-import json
+from typing import Any, Dict, List
+from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.services.user_service import UserService
-from app.services.team_service import TeamService
+import pytest
+from fastapi import HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.enhanced_cache import CacheManager
+from app.db.models.assessment import Assessment, AssessmentCategory, AssessmentStatus
+from app.db.models.response import Response, ResponseType
+from app.db.models.team import Team, TeamMember, TeamRole
+from app.db.models.user import User, UserRole
+from app.schemas.assessment import AssessmentCreate, AssessmentUpdate
+from app.schemas.team import TeamCreate, TeamUpdate
+from app.schemas.user import UserCreate, UserUpdate
 from app.services.assessment_service import AssessmentService
 from app.services.response_service import ResponseService
 from app.services.security import create_access_token, verify_token
-from app.db.models.user import User, UserRole
-from app.db.models.team import Team, TeamMember, TeamRole
-from app.db.models.assessment import Assessment, AssessmentStatus, AssessmentCategory
-from app.db.models.response import Response, ResponseType
-from app.schemas.user import UserCreate, UserUpdate
-from app.schemas.team import TeamCreate, TeamUpdate
-from app.schemas.assessment import AssessmentCreate, AssessmentUpdate
-from app.core.enhanced_cache import CacheManager
+from app.services.team_service import TeamService
+from app.services.user_service import UserService
 from tests.conftest import TestDataFactory, TestUtils
 
 
@@ -59,7 +60,7 @@ class TestUserEdgeCases:
             "user@.com",
             "user@domain.",
             "user..name@domain.com",
-            "user@domain..com"
+            "user@domain..com",
         ]
 
         for invalid_email in invalid_emails:
@@ -78,64 +79,64 @@ class TestUserEdgeCases:
             "password",  # Too common
             "qwerty",  # Sequential keys
             "aaaaaa",  # Repeated characters
-            "abc12345"  # Common pattern
+            "abc12345",  # Common pattern
         ]
 
         for weak_password in weak_passwords:
             with pytest.raises(ValueError, match="Password too weak"):
-                user_data = TestDataFactory.create_user_data({"password": weak_password})
+                user_data = TestDataFactory.create_user_data(
+                    {"password": weak_password}
+                )
                 await user_service.create_user(UserCreate(**user_data))
 
     @pytest.mark.asyncio
-    async def test_duplicate_user_edge_cases(self, async_db: AsyncSession, test_user: User):
+    async def test_duplicate_user_edge_cases(
+        self, async_db: AsyncSession, test_user: User
+    ):
         """Test duplicate user creation with various edge cases"""
         user_service = UserService(async_db)
 
         # Test same email different case
         with pytest.raises(ValueError, match="Email already registered"):
-            user_data = TestDataFactory.create_user_data({
-                "email": test_user.email.upper(),
-                "full_name": "Different Name"
-            })
+            user_data = TestDataFactory.create_user_data(
+                {"email": test_user.email.upper(), "full_name": "Different Name"}
+            )
             await user_service.create_user(UserCreate(**user_data))
 
         # Test email with extra spaces
         with pytest.raises(ValueError, match="Email already registered"):
-            user_data = TestDataFactory.create_user_data({
-                "email": f"  {test_user.email}  ",
-                "full_name": "Different Name"
-            })
+            user_data = TestDataFactory.create_user_data(
+                {"email": f"  {test_user.email}  ", "full_name": "Different Name"}
+            )
             await user_service.create_user(UserCreate(**user_data))
 
         # Test same email with different special characters
         with pytest.raises(ValueError, match="Email already registered"):
-            user_data = TestDataFactory.create_user_data({
-                "email": test_user.email.replace("@", "+test@"),
-                "full_name": "Different Name"
-            })
+            user_data = TestDataFactory.create_user_data(
+                {
+                    "email": test_user.email.replace("@", "+test@"),
+                    "full_name": "Different Name",
+                }
+            )
             # This should pass if email is actually different
             user = await user_service.create_user(UserCreate(**user_data))
             assert user.email != test_user.email
 
     @pytest.mark.asyncio
-    async def test_user_update_boundary_conditions(self, async_db: AsyncSession, test_user: User):
+    async def test_user_update_boundary_conditions(
+        self, async_db: AsyncSession, test_user: User
+    ):
         """Test user updates with boundary conditions"""
         user_service = UserService(async_db)
 
         # Test updating to extreme values
-        update_data = UserUpdate(
-            full_name="B" * 500  # At boundary
-        )
+        update_data = UserUpdate(full_name="B" * 500)  # At boundary
 
         updated_user = await user_service.update_user(test_user.id, update_data)
         assert len(updated_user.full_name) == 500
 
         # Test updating with empty optional fields
-        update_data = UserUpdate(
-            phone=None,
-            bio=None,
-            department=""
-        )
+        update_data = UserUpdate(phone=None, bio=None, department="")
 
         updated_user = await user_service.update_user(test_user.id, update_data)
         assert updated_user.phone is None
@@ -172,24 +173,32 @@ class TestUserEdgeCases:
         assert len(failed_attempts) == 4
 
     @pytest.mark.asyncio
-    async def test_user_permission_edge_cases(self, async_db: AsyncSession, test_user: User, test_admin: User):
+    async def test_user_permission_edge_cases(
+        self, async_db: AsyncSession, test_user: User, test_admin: User
+    ):
         """Test user permission edge cases"""
         user_service = UserService(async_db)
 
         # Test admin updating regular user
         update_data = UserUpdate(full_name="Updated by Admin")
-        updated_user = await user_service.update_user(test_user.id, update_data, current_user=test_admin)
+        updated_user = await user_service.update_user(
+            test_user.id, update_data, current_user=test_admin
+        )
         assert updated_user.full_name == "Updated by Admin"
 
         # Test regular user trying to update admin
         with pytest.raises(ValueError, match="Insufficient permissions"):
             admin_update = UserUpdate(full_name="Updated by User")
-            await user_service.update_user(test_admin.id, admin_update, current_user=test_user)
+            await user_service.update_user(
+                test_admin.id, admin_update, current_user=test_user
+            )
 
         # Test user trying to change their own role
         with pytest.raises(ValueError, match="Cannot change own role"):
             role_update = UserUpdate(role=UserRole.ADMIN)
-            await user_service.update_user(test_user.id, role_update, current_user=test_user)
+            await user_service.update_user(
+                test_user.id, role_update, current_user=test_user
+            )
 
 
 @pytest.mark.comprehensive
@@ -197,36 +206,46 @@ class TestTeamEdgeCases:
     """Comprehensive edge case tests for Team Service"""
 
     @pytest.mark.asyncio
-    async def test_team_creation_boundary_values(self, async_db: AsyncSession, test_user: User, test_organization: Organization):
+    async def test_team_creation_boundary_values(
+        self, async_db: AsyncSession, test_user: User, test_organization: Organization
+    ):
         """Test team creation with boundary values"""
         team_service = TeamService(async_db)
 
         # Test extremely long team name
         with pytest.raises(ValueError, match="Team name too long"):
-            team_data = TestDataFactory.create_team_data({
-                "name": "X" * 200,
-                "organization_id": test_organization.id
-            })
-            await team_service.create_team(TeamCreate(**team_data), created_by_id=test_user.id)
+            team_data = TestDataFactory.create_team_data(
+                {"name": "X" * 200, "organization_id": test_organization.id}
+            )
+            await team_service.create_team(
+                TeamCreate(**team_data), created_by_id=test_user.id
+            )
 
         # Test empty team name
         with pytest.raises(ValueError, match="Team name required"):
-            team_data = TestDataFactory.create_team_data({
-                "name": "",
-                "organization_id": test_organization.id
-            })
-            await team_service.create_team(TeamCreate(**team_data), created_by_id=test_user.id)
+            team_data = TestDataFactory.create_team_data(
+                {"name": "", "organization_id": test_organization.id}
+            )
+            await team_service.create_team(
+                TeamCreate(**team_data), created_by_id=test_user.id
+            )
 
         # Test team with extremely long description
-        team_data = TestDataFactory.create_team_data({
-            "description": "Y" * 2000,  # At boundary
-            "organization_id": test_organization.id
-        })
-        team = await team_service.create_team(TeamCreate(**team_data), created_by_id=test_user.id)
+        team_data = TestDataFactory.create_team_data(
+            {
+                "description": "Y" * 2000,  # At boundary
+                "organization_id": test_organization.id,
+            }
+        )
+        team = await team_service.create_team(
+            TeamCreate(**team_data), created_by_id=test_user.id
+        )
         assert len(team.description) == 2000
 
     @pytest.mark.asyncio
-    async def test_team_membership_edge_cases(self, async_db: AsyncSession, test_team: Team, test_user: User):
+    async def test_team_membership_edge_cases(
+        self, async_db: AsyncSession, test_team: Team, test_user: User
+    ):
         """Test team membership edge cases"""
         team_service = TeamService(async_db)
 
@@ -246,10 +265,14 @@ class TestTeamEdgeCases:
 
         # Test adding user to non-existent team
         with pytest.raises(ValueError, match="Team not found"):
-            await team_service.add_member("non-existent-team-id", test_user.id, TeamRole.MEMBER)
+            await team_service.add_member(
+                "non-existent-team-id", test_user.id, TeamRole.MEMBER
+            )
 
     @pytest.mark.asyncio
-    async def test_team_role_hierarchy_edge_cases(self, async_db: AsyncSession, test_team: Team, test_user: User, test_admin: User):
+    async def test_team_role_hierarchy_edge_cases(
+        self, async_db: AsyncSession, test_team: Team, test_user: User, test_admin: User
+    ):
         """Test team role hierarchy edge cases"""
         team_service = TeamService(async_db)
 
@@ -259,22 +282,22 @@ class TestTeamEdgeCases:
         # Test member trying to add other members
         with pytest.raises(ValueError, match="Insufficient permissions"):
             await team_service.add_member(
-                test_team.id, test_admin.id, TeamRole.MEMBER,
-                current_user=test_user
+                test_team.id, test_admin.id, TeamRole.MEMBER, current_user=test_user
             )
 
         # Test admin trying to change roles
         await team_service.add_member(test_team.id, test_admin.id, TeamRole.ADMIN)
         await team_service.update_member_role(
-            test_team.id, test_user.id, TeamRole.MODERATOR,
-            current_user=test_admin
+            test_team.id, test_user.id, TeamRole.MODERATOR, current_user=test_admin
         )
 
         member = await team_service.get_member(test_team.id, test_user.id)
         assert member.role == TeamRole.MODERATOR
 
     @pytest.mark.asyncio
-    async def test_team_deletion_cascade_effects(self, async_db: AsyncSession, test_team: Team, test_user: User):
+    async def test_team_deletion_cascade_effects(
+        self, async_db: AsyncSession, test_team: Team, test_user: User
+    ):
         """Test team deletion cascade effects"""
         team_service = TeamService(async_db)
 
@@ -298,44 +321,66 @@ class TestAssessmentEdgeCases:
     """Comprehensive edge case tests for Assessment Service"""
 
     @pytest.mark.asyncio
-    async def test_assessment_creation_extreme_values(self, async_db: AsyncSession, test_user: User, test_organization: Organization):
+    async def test_assessment_creation_extreme_values(
+        self, async_db: AsyncSession, test_user: User, test_organization: Organization
+    ):
         """Test assessment creation with extreme values"""
         assessment_service = AssessmentService(async_db)
 
         # Test assessment with extremely long title
         with pytest.raises(ValueError, match="Title too long"):
-            assessment_data = TestDataFactory.create_assessment_data({
-                "title": "Z" * 300,
-                "organization_id": test_organization.id
-            })
-            await assessment_service.create_assessment(AssessmentCreate(**assessment_data), created_by_id=test_user.id)
+            assessment_data = TestDataFactory.create_assessment_data(
+                {"title": "Z" * 300, "organization_id": test_organization.id}
+            )
+            await assessment_service.create_assessment(
+                AssessmentCreate(**assessment_data), created_by_id=test_user.id
+            )
 
         # Test assessment with zero duration
         with pytest.raises(ValueError, match="Duration must be positive"):
-            assessment_data = TestDataFactory.create_assessment_data({
-                "estimated_duration_minutes": 0,
-                "organization_id": test_organization.id
-            })
-            await assessment_service.create_assessment(AssessmentCreate(**assessment_data), created_by_id=test_user.id)
+            assessment_data = TestDataFactory.create_assessment_data(
+                {
+                    "estimated_duration_minutes": 0,
+                    "organization_id": test_organization.id,
+                }
+            )
+            await assessment_service.create_assessment(
+                AssessmentCreate(**assessment_data), created_by_id=test_user.id
+            )
 
         # Test assessment with extremely long duration
         with pytest.raises(ValueError, match="Duration exceeds maximum"):
-            assessment_data = TestDataFactory.create_assessment_data({
-                "estimated_duration_minutes": 1000,  # Way too long
-                "organization_id": test_organization.id
-            })
-            await assessment_service.create_assessment(AssessmentCreate(**assessment_data), created_by_id=test_user.id)
+            assessment_data = TestDataFactory.create_assessment_data(
+                {
+                    "estimated_duration_minutes": 1000,  # Way too long
+                    "organization_id": test_organization.id,
+                }
+            )
+            await assessment_service.create_assessment(
+                AssessmentCreate(**assessment_data), created_by_id=test_user.id
+            )
 
     @pytest.mark.asyncio
-    async def test_assessment_status_transitions(self, async_db: AsyncSession, test_assessment: Assessment, test_user: User):
+    async def test_assessment_status_transitions(
+        self, async_db: AsyncSession, test_assessment: Assessment, test_user: User
+    ):
         """Test assessment status transition edge cases"""
         assessment_service = AssessmentService(async_db)
 
         # Test invalid status transitions
         invalid_transitions = [
-            (AssessmentStatus.DRAFT, AssessmentStatus.COMPLETED),  # Can't complete draft directly
-            (AssessmentStatus.COMPLETED, AssessmentStatus.DRAFT),   # Can't go back to draft
-            (AssessmentStatus.ARCHIVED, AssessmentStatus.ACTIVE),   # Can't reactivate archived
+            (
+                AssessmentStatus.DRAFT,
+                AssessmentStatus.COMPLETED,
+            ),  # Can't complete draft directly
+            (
+                AssessmentStatus.COMPLETED,
+                AssessmentStatus.DRAFT,
+            ),  # Can't go back to draft
+            (
+                AssessmentStatus.ARCHIVED,
+                AssessmentStatus.ACTIVE,
+            ),  # Can't reactivate archived
         ]
 
         for from_status, to_status in invalid_transitions:
@@ -367,7 +412,9 @@ class TestAssessmentEdgeCases:
             assert updated_assessment.status == to_status
 
     @pytest.mark.asyncio
-    async def test_assessment_concurrent_responses(self, async_db: AsyncSession, test_assessment: Assessment, test_user: User):
+    async def test_assessment_concurrent_responses(
+        self, async_db: AsyncSession, test_assessment: Assessment, test_user: User
+    ):
         """Test concurrent assessment response handling"""
         response_service = ResponseService(async_db)
 
@@ -376,9 +423,8 @@ class TestAssessmentEdgeCases:
             "assessment_id": test_assessment.id,
             "user_id": test_user.id,
             "responses": [
-                {"question_id": f"q_{i}", "value": i % 5 + 1}
-                for i in range(10)
-            ]
+                {"question_id": f"q_{i}", "value": i % 5 + 1} for i in range(10)
+            ],
         }
 
         async def submit_response():
@@ -401,20 +447,19 @@ class TestAssessmentEdgeCases:
         assert len(failed_attempts) == 4
 
     @pytest.mark.asyncio
-    async def test_assessment_boundary_scoring(self, async_db: AsyncSession, test_assessment: Assessment, test_user: User):
+    async def test_assessment_boundary_scoring(
+        self, async_db: AsyncSession, test_assessment: Assessment, test_user: User
+    ):
         """Test assessment scoring with boundary values"""
         response_service = ResponseService(async_db)
 
         # Test with minimum valid scores
-        min_scores = [
-            {"question_id": f"q_{i}", "value": 1}
-            for i in range(5)
-        ]
+        min_scores = [{"question_id": f"q_{i}", "value": 1} for i in range(5)]
 
         response_data = {
             "assessment_id": test_assessment.id,
             "user_id": test_user.id,
-            "responses": min_scores
+            "responses": min_scores,
         }
 
         response = await response_service.create_response(response_data)
@@ -426,10 +471,7 @@ class TestAssessmentEdgeCases:
             assert score <= 5.0
 
         # Test with maximum valid scores
-        max_scores = [
-            {"question_id": f"q_{i}", "value": 5}
-            for i in range(5)
-        ]
+        max_scores = [{"question_id": f"q_{i}", "value": 5} for i in range(5)]
 
         response_data["responses"] = max_scores
         response = await response_service.create_response(response_data)
@@ -485,7 +527,7 @@ class TestCacheEdgeCases:
             "nested": {
                 "arrays": [1, 2, 3] * 1000,
                 "objects": {"key": "value"} * 100,
-                "mixed": [None, True, False, 0, "string"]
+                "mixed": [None, True, False, 0, "string"],
             }
         }
         await cache.set("complex_key", complex_value)
@@ -504,10 +546,7 @@ class TestCacheEdgeCases:
             await cache.set(key, value)
             return await cache.get(key)
 
-        tasks = [
-            cache_operation(f"key_{i}", f"value_{i}")
-            for i in range(100)
-        ]
+        tasks = [cache_operation(f"key_{i}", f"value_{i}") for i in range(100)]
 
         results = await asyncio.gather(*tasks)
 
@@ -544,7 +583,7 @@ class TestSecurityEdgeCases:
         long_payload = {
             "sub": "user_id",
             "role": "user",
-            "data": "x" * 1000  # Long data field
+            "data": "x" * 1000,  # Long data field
         }
 
         token = create_access_token(data=long_payload)
@@ -554,7 +593,7 @@ class TestSecurityEdgeCases:
         special_payload = {
             "sub": "user@domain.com",
             "role": "admin",
-            "data": {"special": "chars: !@#$%^&*()"}
+            "data": {"special": "chars: !@#$%^&*()"},
         }
 
         token = create_access_token(data=special_payload)
@@ -564,7 +603,7 @@ class TestSecurityEdgeCases:
         # Test expired token
         expired_token_data = {
             "sub": "user_id",
-            "exp": int(time.time()) - 3600  # 1 hour ago
+            "exp": int(time.time()) - 3600,  # 1 hour ago
         }
 
         # This would need manual token creation to test expiration
@@ -617,7 +656,7 @@ class TestSecurityEdgeCases:
         large_data = {
             "email": "test@test.com",
             "full_name": "A" * 10000,  # Extremely long name
-            "data": ["item"] * 1000     # Large array
+            "data": ["item"] * 1000,  # Large array
         }
 
         response = await async_client.post("/api/v1/auth/register", json=large_data)
@@ -631,7 +670,9 @@ class TestPerformanceEdgeCases:
     """Performance tests for extreme conditions"""
 
     @pytest.mark.asyncio
-    async def test_concurrent_user_creation(self, async_db: AsyncSession, performance_timer):
+    async def test_concurrent_user_creation(
+        self, async_db: AsyncSession, performance_timer
+    ):
         """Test performance under concurrent user creation load"""
         user_service = UserService(async_db)
 
@@ -639,10 +680,9 @@ class TestPerformanceEdgeCases:
             tasks = []
 
             for i in range(50):
-                user_data = TestDataFactory.create_user_data({
-                    "email": f"user{i}@test.com",
-                    "full_name": f"User {i}"
-                })
+                user_data = TestDataFactory.create_user_data(
+                    {"email": f"user{i}@test.com", "full_name": f"User {i}"}
+                )
                 task = user_service.create_user(UserCreate(**user_data))
                 tasks.append(task)
 
@@ -656,7 +696,9 @@ class TestPerformanceEdgeCases:
             assert failed_count == 0
 
     @pytest.mark.asyncio
-    async def test_large_dataset_queries(self, async_db: AsyncSession, test_utils, performance_timer):
+    async def test_large_dataset_queries(
+        self, async_db: AsyncSession, test_utils, performance_timer
+    ):
         """Test query performance with large datasets"""
         # Create large number of users
         users = await test_utils.create_test_users(async_db, 1000)
@@ -673,7 +715,9 @@ class TestPerformanceEdgeCases:
         # Timer will show actual performance metrics
 
     @pytest.mark.asyncio
-    async def test_cache_performance_under_load(self, mock_cache_manager, performance_timer):
+    async def test_cache_performance_under_load(
+        self, mock_cache_manager, performance_timer
+    ):
         """Test cache performance under high load"""
         cache = mock_cache_manager
         cache.reset_mock()
@@ -705,14 +749,16 @@ class TestErrorRecoveryEdgeCases:
         user_service = UserService(async_db)
 
         # Simulate database connection failure
-        with patch.object(async_db, 'commit', side_effect=Exception("Connection lost")):
+        with patch.object(async_db, "commit", side_effect=Exception("Connection lost")):
             user_data = TestDataFactory.create_user_data()
 
             with pytest.raises(Exception, match="Connection lost"):
                 await user_service.create_user(UserCreate(**user_data))
 
     @pytest.mark.asyncio
-    async def test_external_service_failure_handling(self, async_client: AsyncClient, mock_email_service):
+    async def test_external_service_failure_handling(
+        self, async_client: AsyncClient, mock_email_service
+    ):
         """Test behavior when external services fail"""
         # Configure email service to fail
         mock_email_service.send_email.side_effect = Exception("Email service down")
@@ -725,7 +771,9 @@ class TestErrorRecoveryEdgeCases:
         assert response.status_code in [201, 503]
 
     @pytest.mark.asyncio
-    async def test_partial_failure_recovery(self, async_db: AsyncSession, test_user: User):
+    async def test_partial_failure_recovery(
+        self, async_db: AsyncSession, test_user: User
+    ):
         """Test recovery from partial operation failures"""
         user_service = UserService(async_db)
 
@@ -733,7 +781,7 @@ class TestErrorRecoveryEdgeCases:
         update_data = UserUpdate(
             full_name="Valid Name",
             email="invalid-email",  # This should fail
-            phone="1234567890"
+            phone="1234567890",
         )
 
         # Should either reject entirely or apply valid fields

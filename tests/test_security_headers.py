@@ -1,15 +1,31 @@
 """Auto-generated tests for security_headers"""
 
-import pytest
-from unittest.mock import Mock, patch
 import sys
 from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.security_headers import create_security_middleware_stack , __init__ , _should_skip_headers , _add_security_headers , _add_hsts_headers , _add_csp_headers , _build_csp_policy , _add_frame_options_headers , _add_referrer_policy_headers , _add_permissions_policy_headers , _add_api_cache_headers , __init__ , _get_client_ip , SecurityHeadersMiddleware , SecurityReportingMiddleware
+from app.security_headers import (
+    SecurityHeadersMiddleware,
+    SecurityReportingMiddleware,
+    __init__,
+    _add_api_cache_headers,
+    _add_csp_headers,
+    _add_frame_options_headers,
+    _add_hsts_headers,
+    _add_permissions_policy_headers,
+    _add_referrer_policy_headers,
+    _add_security_headers,
+    _build_csp_policy,
+    _get_client_ip,
+    _should_skip_headers,
+    create_security_middleware_stack,
+)
 
 
 class TestSecurity_Headers:

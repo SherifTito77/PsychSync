@@ -8,21 +8,22 @@ REST endpoints for video consultation sessions:
 - Webhook handlers for Twilio events
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
-from typing import Dict, List, Optional
-from datetime import datetime, timedelta
 import logging
 import uuid
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.dependencies.auth import get_current_active_user
 from app.core.config import settings
-from app.db.session import get_async_db
-from app.db.models.user import User
 from app.db.models.clinical_extended import TelehealthSession
+from app.db.models.user import User
+from app.db.session import get_async_db
 from app.services.telehealth.video_service import get_telehealth_service
-from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -33,18 +34,25 @@ router = APIRouter(prefix="/telehealth", tags=["telehealth"])
 # Pydantic Schemas
 # =====================================================================
 
+
 class ScheduleSessionRequest(BaseModel):
     """Request to schedule telehealth session"""
-    session_type: str = Field(..., description="Type: initial, follow_up, crisis, routine")
+
+    session_type: str = Field(
+        ..., description="Type: initial, follow_up, crisis, routine"
+    )
     consultation_reason: str = Field(..., description="Reason for consultation")
     scheduled_time: datetime = Field(..., description="When session should occur")
     duration_minutes: int = Field(50, description="Session duration in minutes")
-    related_assessment_id: Optional[str] = Field(None, description="Related assessment if applicable")
+    related_assessment_id: Optional[str] = Field(
+        None, description="Related assessment if applicable"
+    )
     timezone: str = Field("UTC", description="User's timezone")
 
 
 class SessionResponse(BaseModel):
     """Telehealth session response"""
+
     session_id: str
     session_type: str
     scheduled_time: datetime
@@ -57,16 +65,19 @@ class SessionResponse(BaseModel):
 
 class JoinSessionRequest(BaseModel):
     """Request to join session"""
+
     session_id: str
 
 
 class ClinicianJoinRequest(BaseModel):
     """Request for clinician to join session"""
+
     session_id: str
 
 
 class CancelSessionRequest(BaseModel):
     """Request to cancel session"""
+
     session_id: str
     reason: str = Field(..., description="Reason for cancellation")
 
@@ -75,12 +86,13 @@ class CancelSessionRequest(BaseModel):
 # Session Scheduling Endpoints
 # =====================================================================
 
+
 @router.post("/schedule", response_model=SessionResponse)
 async def schedule_telehealth_session(
     request: ScheduleSessionRequest,
     background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Schedule a new telehealth video consultation session
@@ -103,25 +115,23 @@ async def schedule_telehealth_session(
         if request.scheduled_time < datetime.utcnow() + timedelta(minutes=15):
             raise HTTPException(
                 status_code=400,
-                detail="Sessions must be scheduled at least 15 minutes in advance"
+                detail="Sessions must be scheduled at least 15 minutes in advance",
             )
 
         # Assign clinician (in production, this would use availability matching)
         # For now, assign first available clinician
-        clinician_query = select(User).where(
-            and_(
-                User.role == 'clinician',
-                User.is_active == True
-            )
-        ).limit(1)
+        clinician_query = (
+            select(User)
+            .where(and_(User.role == "clinician", User.is_active == True))
+            .limit(1)
+        )
 
         clinician_result = await db.execute(clinician_query)
         clinician = clinician_result.scalar_one_or_none()
 
         if not clinician:
             raise HTTPException(
-                status_code=503,
-                detail="No clinicians available at this time"
+                status_code=503, detail="No clinicians available at this time"
             )
 
         # Create session record
@@ -134,7 +144,7 @@ async def schedule_telehealth_session(
             scheduled_time=request.scheduled_time,
             duration_minutes=request.duration_minutes,
             timezone=request.timezone,
-            status='scheduled'
+            status="scheduled",
         )
 
         db.add(session)
@@ -147,23 +157,23 @@ async def schedule_telehealth_session(
             session_id=str(session.id),
             user_name=current_user.full_name or current_user.email,
             scheduled_time=request.scheduled_time,
-            duration_minutes=request.duration_minutes
+            duration_minutes=request.duration_minutes,
         )
 
-        if room_result.get('error'):
+        if room_result.get("error"):
             # Rollback session creation if video room fails
             await db.delete(session)
             await db.commit()
 
             raise HTTPException(
                 status_code=503,
-                detail=f"Failed to create video room: {room_result['error']}"
+                detail=f"Failed to create video room: {room_result['error']}",
             )
 
         # Update session with room details
-        session.room_sid = room_result['room_sid']
-        session.room_name = room_result['room_name']
-        session.user_token = room_result['user_token']
+        session.room_sid = room_result["room_sid"]
+        session.room_name = room_result["room_name"]
+        session.user_token = room_result["user_token"]
         await db.commit()
 
         # Send calendar invitation in background
@@ -172,10 +182,12 @@ async def schedule_telehealth_session(
             session_id=str(session.id),
             participant_email=current_user.email,
             scheduled_time=request.scheduled_time,
-            duration_minutes=request.duration_minutes
+            duration_minutes=request.duration_minutes,
         )
 
-        logger.info(f"Scheduled telehealth session {session.id} for user {current_user.id}")
+        logger.info(
+            f"Scheduled telehealth session {session.id} for user {current_user.id}"
+        )
 
         return SessionResponse(
             session_id=str(session.id),
@@ -184,8 +196,8 @@ async def schedule_telehealth_session(
             duration_minutes=session.duration_minutes,
             status=session.status,
             room_name=session.room_name,
-            access_token=room_result['user_token'],
-            consultation_link=f"{settings.API_BASE_URL}/telehealth/join/{session.id}"
+            access_token=room_result["user_token"],
+            consultation_link=f"{settings.API_BASE_URL}/telehealth/join/{session.id}",
         )
 
     except HTTPException:
@@ -198,7 +210,7 @@ async def schedule_telehealth_session(
 @router.get("/sessions/active")
 async def get_active_sessions(
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get all active/scheduled sessions for current user
@@ -213,17 +225,13 @@ async def get_active_sessions(
         telehealth_service = get_telehealth_service()
 
         # Determine if user is patient or clinician
-        role = 'clinician' if current_user.role == 'clinician' else 'patient'
+        role = "clinician" if current_user.role == "clinician" else "patient"
 
         sessions = await telehealth_service.get_active_sessions_for_user(
-            user_id=str(current_user.id),
-            role=role
+            user_id=str(current_user.id), role=role
         )
 
-        return {
-            "active_sessions": sessions,
-            "count": len(sessions)
-        }
+        return {"active_sessions": sessions, "count": len(sessions)}
 
     except Exception as e:
         logger.error(f"Failed to get active sessions: {str(e)}")
@@ -234,14 +242,12 @@ async def get_active_sessions(
 async def get_session_details(
     session_id: str,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Get details of a specific telehealth session"""
 
     try:
-        query = select(TelehealthSession).where(
-            TelehealthSession.id == session_id
-        )
+        query = select(TelehealthSession).where(TelehealthSession.id == session_id)
 
         result = await db.execute(query)
         session = result.scalar_one_or_none()
@@ -250,8 +256,14 @@ async def get_session_details(
             raise HTTPException(status_code=404, detail="Session not found")
 
         # Check authorization
-        if current_user.role != 'admin' and str(session.user_id) != str(current_user.id) and str(session.clinician_id) != str(current_user.id):
-            raise HTTPException(status_code=403, detail="Not authorized to view this session")
+        if (
+            current_user.role != "admin"
+            and str(session.user_id) != str(current_user.id)
+            and str(session.clinician_id) != str(current_user.id)
+        ):
+            raise HTTPException(
+                status_code=403, detail="Not authorized to view this session"
+            )
 
         return {
             "id": str(session.id),
@@ -262,7 +274,7 @@ async def get_session_details(
             "status": session.status,
             "room_name": session.room_name,
             "timezone": session.timezone,
-            "created_at": session.created_at.isoformat()
+            "created_at": session.created_at.isoformat(),
         }
 
     except HTTPException:
@@ -276,11 +288,12 @@ async def get_session_details(
 # Video Room Endpoints
 # =====================================================================
 
+
 @router.post("/join")
 async def join_video_session(
     request: JoinSessionRequest,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Join a telehealth video session (patient)
@@ -296,7 +309,7 @@ async def join_video_session(
         query = select(TelehealthSession).where(
             and_(
                 TelehealthSession.id == request.session_id,
-                TelehealthSession.user_id == current_user.id
+                TelehealthSession.user_id == current_user.id,
             )
         )
 
@@ -307,17 +320,17 @@ async def join_video_session(
             raise HTTPException(status_code=404, detail="Session not found")
 
         # Check if session is scheduled/in-progress
-        if session.status not in ['scheduled', 'in_progress']:
+        if session.status not in ["scheduled", "in_progress"]:
             raise HTTPException(
                 status_code=400,
-                detail=f"Cannot join session with status: {session.status}"
+                detail=f"Cannot join session with status: {session.status}",
             )
 
         # Check if session time has arrived (allow 5 min early)
         if session.scheduled_time > datetime.utcnow() + timedelta(minutes=5):
             raise HTTPException(
                 status_code=400,
-                detail=f"Session is scheduled for {session.scheduled_time.strftime('%Y-%m-%d %H:%M')} UTC"
+                detail=f"Session is scheduled for {session.scheduled_time.strftime('%Y-%m-%d %H:%M')} UTC",
             )
 
         # Generate fresh access token
@@ -327,12 +340,12 @@ async def join_video_session(
         user_token = telehealth_service._generate_access_token(
             room_name=session.room_name,
             participant_identity=f"patient-{session.id}",
-            ttl=session.duration_minutes * 60 + 300
+            ttl=session.duration_minutes * 60 + 300,
         )
 
         # Update session status
-        if session.status == 'scheduled':
-            session.status = 'in_progress'
+        if session.status == "scheduled":
+            session.status = "in_progress"
             await db.commit()
 
         logger.info(f"User {current_user.id} joined session {session.id}")
@@ -347,8 +360,8 @@ async def join_video_session(
             "connection_info": {
                 "domain": "psychsync.video",  # Would configure in production
                 "region": "us1",  # Twilio region
-                "turn_enabled": True
-            }
+                "turn_enabled": True,
+            },
         }
 
     except HTTPException:
@@ -362,7 +375,7 @@ async def join_video_session(
 async def clinician_join_session(
     request: ClinicianJoinRequest,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Join a telehealth video session (clinician)
@@ -371,8 +384,10 @@ async def clinician_join_session(
     """
 
     # Verify clinician role
-    if current_user.role != 'clinician' and current_user.role != 'admin':
-        raise HTTPException(status_code=403, detail="Only clinicians can join via this endpoint")
+    if current_user.role != "clinician" and current_user.role != "admin":
+        raise HTTPException(
+            status_code=403, detail="Only clinicians can join via this endpoint"
+        )
 
     try:
         # Get session
@@ -394,9 +409,7 @@ async def clinician_join_session(
         telehealth_service = get_telehealth_service()
 
         clinician_token = telehealth_service.generate_clinician_token(
-            room_name=session.room_name,
-            session_id=str(session.id),
-            ttl=3600  # 1 hour
+            room_name=session.room_name, session_id=str(session.id), ttl=3600  # 1 hour
         )
 
         logger.info(f"Clinician {current_user.id} joined session {session.id}")
@@ -409,7 +422,7 @@ async def clinician_join_session(
             "session_type": session.session_type,
             "consultation_reason": session.consultation_reason,
             "related_assessment_id": session.related_assessment_id,
-            "recording_enabled": session.recording_enabled
+            "recording_enabled": session.recording_enabled,
         }
 
     except HTTPException:
@@ -423,7 +436,7 @@ async def clinician_join_session(
 async def end_session(
     session_id: str,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     End an active telehealth session
@@ -433,9 +446,7 @@ async def end_session(
 
     try:
         # Get session
-        query = select(TelehealthSession).where(
-            TelehealthSession.id == session_id
-        )
+        query = select(TelehealthSession).where(TelehealthSession.id == session_id)
 
         result = await db.execute(query)
         session = result.scalar_one_or_none()
@@ -444,22 +455,24 @@ async def end_session(
             raise HTTPException(status_code=404, detail="Session not found")
 
         # Check authorization
-        if (str(session.user_id) != str(current_user.id) and
-            str(session.clinician_id) != str(current_user.id) and
-            current_user.role != 'admin'):
-            raise HTTPException(status_code=403, detail="Not authorized to end this session")
+        if (
+            str(session.user_id) != str(current_user.id)
+            and str(session.clinician_id) != str(current_user.id)
+            and current_user.role != "admin"
+        ):
+            raise HTTPException(
+                status_code=403, detail="Not authorized to end this session"
+            )
 
         # End the video room
         telehealth_service = get_telehealth_service()
         end_result = await telehealth_service.complete_room(
-            room_sid=session.room_sid,
-            session_id=session_id
+            room_sid=session.room_sid, session_id=session_id
         )
 
-        if end_result.get('error'):
+        if end_result.get("error"):
             raise HTTPException(
-                status_code=500,
-                detail=f"Failed to end session: {end_result['error']}"
+                status_code=500, detail=f"Failed to end session: {end_result['error']}"
             )
 
         logger.info(f"Session {session_id} ended by user {current_user.id}")
@@ -467,8 +480,8 @@ async def end_session(
         return {
             "status": "ended",
             "session_id": session_id,
-            "ended_at": end_result.get('ended_at'),
-            "duration_minutes": end_result.get('duration_minutes')
+            "ended_at": end_result.get("ended_at"),
+            "duration_minutes": end_result.get("duration_minutes"),
         }
 
     except HTTPException:
@@ -482,7 +495,7 @@ async def end_session(
 async def cancel_session(
     request: CancelSessionRequest,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Cancel a scheduled telehealth session
@@ -503,16 +516,20 @@ async def cancel_session(
             raise HTTPException(status_code=404, detail="Session not found")
 
         # Check authorization
-        if (str(session.user_id) != str(current_user.id) and
-            str(session.clinician_id) != str(current_user.id) and
-            current_user.role != 'admin'):
-            raise HTTPException(status_code=403, detail="Not authorized to cancel this session")
+        if (
+            str(session.user_id) != str(current_user.id)
+            and str(session.clinician_id) != str(current_user.id)
+            and current_user.role != "admin"
+        ):
+            raise HTTPException(
+                status_code=403, detail="Not authorized to cancel this session"
+            )
 
         # Can only cancel scheduled sessions
-        if session.status != 'scheduled':
+        if session.status != "scheduled":
             raise HTTPException(
                 status_code=400,
-                detail=f"Cannot cancel session with status: {session.status}"
+                detail=f"Cannot cancel session with status: {session.status}",
             )
 
         # Cancel the room
@@ -520,13 +537,13 @@ async def cancel_session(
         cancel_result = await telehealth_service.cancel_room(
             room_sid=session.room_sid,
             session_id=request.session_id,
-            cancellation_reason=request.reason
+            cancellation_reason=request.reason,
         )
 
-        if cancel_result.get('error'):
+        if cancel_result.get("error"):
             raise HTTPException(
                 status_code=500,
-                detail=f"Failed to cancel session: {cancel_result['error']}"
+                detail=f"Failed to cancel session: {cancel_result['error']}",
             )
 
         logger.info(f"Session {request.session_id} cancelled by user {current_user.id}")
@@ -534,8 +551,8 @@ async def cancel_session(
         return {
             "status": "cancelled",
             "session_id": request.session_id,
-            "cancelled_at": cancel_result.get('cancelled_at'),
-            "reason": request.reason
+            "cancelled_at": cancel_result.get("cancelled_at"),
+            "reason": request.reason,
         }
 
     except HTTPException:
@@ -549,11 +566,9 @@ async def cancel_session(
 # Webhook Endpoints
 # =====================================================================
 
+
 @router.post("/webhooks/room")
-async def twilio_room_webhook(
-    webhook_data: Dict,
-    background_tasks: BackgroundTasks
-):
+async def twilio_room_webhook(webhook_data: Dict, background_tasks: BackgroundTasks):
     """
     Handle Twilio Video room webhooks
 
@@ -572,8 +587,7 @@ async def twilio_room_webhook(
         telehealth_service = get_telehealth_service()
 
         background_tasks.add_task(
-            telehealth_service.handle_room_webhook,
-            webhook_data=webhook_data
+            telehealth_service.handle_room_webhook, webhook_data=webhook_data
         )
 
         return {"status": "received"}
@@ -588,10 +602,13 @@ async def twilio_room_webhook(
 # Admin Endpoints
 # =====================================================================
 
+
 @router.post("/admin/cleanup")
 async def cleanup_expired_sessions(
-    hours_old: int = Query(26, description="Delete sessions older than this many hours"),
-    current_user: User = Depends(get_current_active_user)
+    hours_old: int = Query(
+        26, description="Delete sessions older than this many hours"
+    ),
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Clean up expired video sessions (admin only)
@@ -599,7 +616,7 @@ async def cleanup_expired_sessions(
     Should be run periodically via cron job
     """
 
-    if current_user.role != 'admin':
+    if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
 
     try:

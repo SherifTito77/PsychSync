@@ -9,7 +9,9 @@ Single Responsibility Principle: Only manage Redis connections.
 
 import logging
 from typing import Optional
+
 import redis
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -17,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 class RedisConnectionError(Exception):
     """Custom exception for Redis connection failures"""
+
     pass
 
 
@@ -36,7 +39,7 @@ class RedisConnectionManager:
         host: Optional[str] = None,
         port: Optional[int] = None,
         db: Optional[int] = None,
-        require_in_production: bool = True
+        require_in_production: bool = True,
     ):
         """
         Initialize Redis connection manager.
@@ -82,7 +85,7 @@ class RedisConnectionManager:
             self._is_available = True
             logger.info(
                 f"Redis connection established: {self.host}:{self.port}/{self.db}",
-                extra={"component": "RedisConnectionManager"}
+                extra={"component": "RedisConnectionManager"},
             )
 
         except redis.ConnectionError as e:
@@ -93,9 +96,9 @@ class RedisConnectionManager:
                     "host": self.host,
                     "port": self.port,
                     "db": self.db,
-                    "environment": settings.ENVIRONMENT
+                    "environment": settings.ENVIRONMENT,
                 },
-                exc_info=True
+                exc_info=True,
             )
 
             # Fail fast in production if required
@@ -122,9 +125,9 @@ class RedisConnectionManager:
                     "host": self.host,
                     "port": self.port,
                     "db": self.db,
-                    "environment": settings.ENVIRONMENT
+                    "environment": settings.ENVIRONMENT,
                 },
-                exc_info=True
+                exc_info=True,
             )
 
             if settings.ENVIRONMENT == "production" and self.require_in_production:

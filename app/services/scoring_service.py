@@ -4,8 +4,8 @@ Production-ready scoring service with implemented psychometric algorithms
 Fixed critical database query failures and added proper scoring implementations
 """
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -45,12 +45,16 @@ class ScoringService:
             assessment = assessment_result.scalar_one_or_none()
 
             if not assessment:
-                raise ValueError(f"Assessment {assessment_id} not found for user {user_id}")
+                raise ValueError(
+                    f"Assessment {assessment_id} not found for user {user_id}"
+                )
 
             # Get all responses for this assessment
             responses_query = (
                 select(Response)
-                .where(Response.assessment_id == assessment_id, Response.user_id == user_id)
+                .where(
+                    Response.assessment_id == assessment_id, Response.user_id == user_id
+                )
                 .order_by(Response.created_at)
             )
             responses_result = await db.execute(responses_query)
@@ -60,13 +64,21 @@ class ScoringService:
             framework = assessment.framework_code.upper()
 
             if framework == "MBTI":
-                return await ScoringService._calculate_mbti_scores(assessment, responses)
+                return await ScoringService._calculate_mbti_scores(
+                    assessment, responses
+                )
             if framework == "BIG_FIVE":
-                return await ScoringService._calculate_big_five_scores(assessment, responses)
+                return await ScoringService._calculate_big_five_scores(
+                    assessment, responses
+                )
             if framework == "DISC":
-                return await ScoringService._calculate_disc_scores(assessment, responses)
+                return await ScoringService._calculate_disc_scores(
+                    assessment, responses
+                )
             if framework == "ENNEAGRAM":
-                return await ScoringService._calculate_enneagram_scores(assessment, responses)
+                return await ScoringService._calculate_enneagram_scores(
+                    assessment, responses
+                )
             return await ScoringService._calculate_generic_scores(assessment, responses)
 
         except Exception as e:
@@ -146,25 +158,33 @@ class ScoringService:
                     "E_score": e_score,
                     "I_score": i_score,
                     "preference": ei_preference,
-                    "confidence": abs(e_score - i_score) / max(e_score + i_score, 1) * 100,
+                    "confidence": abs(e_score - i_score)
+                    / max(e_score + i_score, 1)
+                    * 100,
                 },
                 "S_N": {
                     "S_score": s_score,
                     "N_score": n_score,
                     "preference": sn_preference,
-                    "confidence": abs(s_score - n_score) / max(s_score + n_score, 1) * 100,
+                    "confidence": abs(s_score - n_score)
+                    / max(s_score + n_score, 1)
+                    * 100,
                 },
                 "T_F": {
                     "T_score": t_score,
                     "F_score": f_score,
                     "preference": tf_preference,
-                    "confidence": abs(t_score - f_score) / max(t_score + f_score, 1) * 100,
+                    "confidence": abs(t_score - f_score)
+                    / max(t_score + f_score, 1)
+                    * 100,
                 },
                 "J_P": {
                     "J_score": j_score,
                     "P_score": p_score,
                     "preference": jp_preference,
-                    "confidence": abs(j_score - p_score) / max(j_score + p_score, 1) * 100,
+                    "confidence": abs(j_score - p_score)
+                    / max(j_score + p_score, 1)
+                    * 100,
                 },
             },
             "response_count": len(responses),
@@ -263,7 +283,9 @@ class ScoringService:
             primary_style = "Unknown"
             secondary_style = "Unknown"
         elif len(sorted_disc) == 1:
-            logger.warning(f"DISC scoring produced only 1 dimension: {sorted_disc[0][0]}")
+            logger.warning(
+                f"DISC scoring produced only 1 dimension: {sorted_disc[0][0]}"
+            )
             primary_style = sorted_disc[0][0]
             secondary_style = "Unknown"
         else:
@@ -278,7 +300,9 @@ class ScoringService:
             "style_combination": f"{primary_style}{secondary_style}",
             "behavioral_pattern": ScoringService._get_disc_pattern(final_disc),
             "response_count": len(responses),
-            "interpretation": ScoringService._get_disc_interpretation(primary_style, final_disc),
+            "interpretation": ScoringService._get_disc_interpretation(
+                primary_style, final_disc
+            ),
             "assessment_date": assessment.completed_at or datetime.utcnow(),
         }
 
@@ -317,7 +341,9 @@ class ScoringService:
             "type_scores": final_scores,
             "primary_type": primary_type,
             "type_percentage": (dominant_type[1] - 1) / 4 * 100,
-            "wing_types": ScoringService._calculate_enneagram_wings(final_scores, primary_type),
+            "wing_types": ScoringService._calculate_enneagram_wings(
+                final_scores, primary_type
+            ),
             "response_count": len(responses),
             "interpretation": ScoringService._get_enneagram_interpretation(
                 primary_type, final_scores
@@ -349,8 +375,12 @@ class ScoringService:
             "percentage_score": round(percentage_score, 2),
             "answered_questions": answered_questions,
             "total_questions": len(responses),
-            "completion_rate": (answered_questions / len(responses) * 100) if responses else 0,
-            "interpretation": ScoringService._get_generic_interpretation(percentage_score),
+            "completion_rate": (
+                (answered_questions / len(responses) * 100) if responses else 0
+            ),
+            "interpretation": ScoringService._get_generic_interpretation(
+                percentage_score
+            ),
             "assessment_date": assessment.completed_at or datetime.utcnow(),
         }
 
@@ -381,7 +411,9 @@ class ScoringService:
         }
         return {
             "type": mbti_type,
-            "description": interpretations.get(mbti_type, "Unique personality combination"),
+            "description": interpretations.get(
+                mbti_type, "Unique personality combination"
+            ),
             "strengths": f"Natural strengths associated with {mbti_type} personality type",
             "growth_areas": f"Potential development opportunities for {mbti_type} types",
         }
@@ -431,7 +463,9 @@ class ScoringService:
             return "Unknown Pattern"
 
     @staticmethod
-    def _get_disc_interpretation(primary_style: str, scores: dict[str, float]) -> dict[str, str]:
+    def _get_disc_interpretation(
+        primary_style: str, scores: dict[str, float]
+    ) -> dict[str, str]:
         """Get DISC style interpretation"""
         interpretations = {
             "D": "Dominance - Direct, decisive, results-oriented",
@@ -441,14 +475,18 @@ class ScoringService:
         }
         return {
             "primary_style": primary_style,
-            "description": interpretations.get(primary_style, "Unique behavioral style"),
+            "description": interpretations.get(
+                primary_style, "Unique behavioral style"
+            ),
             "work_style": f"Natural work style: {primary_style} preference",
             "communication": f"Communication approach aligned with {primary_style} characteristics",
             "motivation": f"Key motivators for {primary_style} behavioral style",
         }
 
     @staticmethod
-    def _calculate_enneagram_wings(scores: dict[str, float], primary_type: int) -> dict[str, float]:
+    def _calculate_enneagram_wings(
+        scores: dict[str, float], primary_type: int
+    ) -> dict[str, float]:
         """Calculate Enneagram wing types"""
         wings = {}
         for wing_type in [primary_type - 1, primary_type + 1]:
@@ -458,7 +496,9 @@ class ScoringService:
         return wings
 
     @staticmethod
-    def _get_enneagram_interpretation(type_num: int, scores: dict[str, float]) -> dict[str, str]:
+    def _get_enneagram_interpretation(
+        type_num: int, scores: dict[str, float]
+    ) -> dict[str, str]:
         """Get Enneagram type interpretation"""
         descriptions = {
             1: "The Reformer - Rational and idealistic perfectionist",
@@ -514,24 +554,36 @@ class ScoringService:
             # Convert MBTI dichotomies to Big Five traits
             dichotomies = scores.get("dichotomies", {})
             return {
-                "extraversion": 80.0
-                if dichotomies.get("E_I", {}).get("preference") == "E"
-                else 30.0,
-                "openness": 80.0 if dichotomies.get("S_N", {}).get("preference") == "N" else 40.0,
-                "agreeableness": 80.0
-                if dichotomies.get("T_F", {}).get("preference") == "F"
-                else 40.0,
-                "conscientiousness": 80.0
-                if dichotomies.get("J_P", {}).get("preference") == "J"
-                else 50.0,
+                "extraversion": (
+                    80.0
+                    if dichotomies.get("E_I", {}).get("preference") == "E"
+                    else 30.0
+                ),
+                "openness": (
+                    80.0
+                    if dichotomies.get("S_N", {}).get("preference") == "N"
+                    else 40.0
+                ),
+                "agreeableness": (
+                    80.0
+                    if dichotomies.get("T_F", {}).get("preference") == "F"
+                    else 40.0
+                ),
+                "conscientiousness": (
+                    80.0
+                    if dichotomies.get("J_P", {}).get("preference") == "J"
+                    else 50.0
+                ),
                 "neuroticism": 45.0,  # Default moderate neuroticism
             }
         if framework == "disc":
             # Convert DISC to Big Five traits
             disc_scores = scores.get("disc_scores", {})
             return {
-                "extraversion": disc_scores.get("I", 50.0) + disc_scores.get("D", 30.0) / 2,
-                "agreeableness": disc_scores.get("S", 50.0) + disc_scores.get("C", 30.0) / 2,
+                "extraversion": disc_scores.get("I", 50.0)
+                + disc_scores.get("D", 30.0) / 2,
+                "agreeableness": disc_scores.get("S", 50.0)
+                + disc_scores.get("C", 30.0) / 2,
                 "conscientiousness": disc_scores.get("C", 50.0),
                 "openness": 60.0,  # Default moderate openness
                 "neuroticism": 40.0,  # Default moderate neuroticism

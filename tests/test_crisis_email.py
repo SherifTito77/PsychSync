@@ -5,8 +5,8 @@ Verifies SMTP configuration and email templates
 """
 
 import asyncio
-import sys
 import os
+import sys
 from datetime import datetime
 
 # Add app to path
@@ -66,7 +66,9 @@ Test Details:
 ✅ Email delivery is operational.
 
 This is only a test. No action required.
-""".format(timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+""".format(
+                timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ),
         )
 
         if success:
@@ -114,7 +116,9 @@ CRISIS RESOURCES:
 ═══════════════════════════════════════════════════════════
 This is a TEST. Real alerts will come from crisis-alerts@psychsync.ai
 ═══════════════════════════════════════════════════════════
-""".format(timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+""".format(
+                timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            ),
         )
 
         if crisis_success:
@@ -132,6 +136,7 @@ This is a TEST. Real alerts will come from crisis-alerts@psychsync.ai
     except Exception as e:
         print(f"  ❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -155,7 +160,9 @@ def test_configuration():
     all_present = True
     for var_name, var_value in required_vars.items():
         if var_value:
-            print(f"  ✅ {var_name}: {'*' * (len(str(var_value))-2) + str(var_value)[-2:] if 'PASSWORD' in var_name else var_value}")
+            print(
+                f"  ✅ {var_name}: {'*' * (len(str(var_value))-2) + str(var_value)[-2:] if 'PASSWORD' in var_name else var_value}"
+            )
         else:
             print(f"  ❌ {var_name}: NOT SET")
             all_present = False
@@ -177,7 +184,8 @@ async def main():
         print("⚠️  SMTP Configuration Incomplete")
         print("=" * 60)
         print("\nTo configure SMTP, update your .env file:")
-        print("""
+        print(
+            """
 # SMTP Configuration (using Gmail as example)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
@@ -190,7 +198,8 @@ ENABLE_EMAIL_VERIFICATION=true
 
 # For production, use SendGrid, AWS SES, or Mailgun
 # See CRISIS_EMAIL_SETUP_GUIDE.md for full instructions
-        """)
+        """
+        )
         return 1
 
     # Test email delivery

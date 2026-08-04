@@ -15,8 +15,8 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-from collections.abc import Callable
 import logging
+from collections.abc import Callable
 from typing import Any, TypeVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -105,7 +105,9 @@ class FastAPIAdapter:
         dependency_function.__di_service_type__ = service_type
         return dependency_function
 
-    def create_async_dependency_function(self, service_type: type[T]) -> Callable[[], T]:
+    def create_async_dependency_function(
+        self, service_type: type[T]
+    ) -> Callable[[], T]:
         """Create an async dependency function for async contexts"""
 
         async def dependency_function() -> T:

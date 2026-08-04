@@ -13,13 +13,13 @@ Consolidated implementation of operations automation agents:
 20. Refactoring Target Proposer - Suggests refactoring opportunities
 """
 
+import json
 import logging
-from typing import Dict, List, Optional, Any
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-import json
-import re
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -28,9 +28,11 @@ logger = logging.getLogger(__name__)
 # Agent #9: UX Telemetry Tracker
 # =============================================================================
 
+
 @dataclass
 class UXEvent:
     """User experience event"""
+
     event_type: str
     page: str
     user_action: str
@@ -88,30 +90,41 @@ class UXTelemetryAgent:
 
         for page, stats in page_errors.items():
             error_rate = stats["errors"] / stats["total"] if stats["total"] > 0 else 0
-            avg_duration = sum(page_durations[page]) / len(page_durations[page]) if page_durations[page] else 0
+            avg_duration = (
+                sum(page_durations[page]) / len(page_durations[page])
+                if page_durations[page]
+                else 0
+            )
 
-            friction_score = error_rate * 0.7 + (avg_duration / 10000) * 0.3  # Normalize
+            friction_score = (
+                error_rate * 0.7 + (avg_duration / 10000) * 0.3
+            )  # Normalize
 
             if friction_score > 0.3:  # Threshold
-                friction_points.append({
-                    "page": page,
-                    "friction_score": round(friction_score, 2),
-                    "error_rate": round(error_rate * 100, 2),
-                    "avg_duration_ms": round(avg_duration, 2),
-                    "priority": "high" if friction_score > 0.5 else "medium",
-                    "recommendation": "Review UX for complexity and error handling",
-                })
+                friction_points.append(
+                    {
+                        "page": page,
+                        "friction_score": round(friction_score, 2),
+                        "error_rate": round(error_rate * 100, 2),
+                        "avg_duration_ms": round(avg_duration, 2),
+                        "priority": "high" if friction_score > 0.5 else "medium",
+                        "recommendation": "Review UX for complexity and error handling",
+                    }
+                )
 
         return {
             "analyzed_period_hours": time_window_hours,
             "total_events": len(recent_events),
-            "friction_points": sorted(friction_points, key=lambda x: x["friction_score"], reverse=True),
+            "friction_points": sorted(
+                friction_points, key=lambda x: x["friction_score"], reverse=True
+            ),
         }
 
 
 # =============================================================================
 # Agent #10: Environment Config Detector
 # =============================================================================
+
 
 class EnvironmentConfigAgent:
     """Detects environment misconfigurations"""
@@ -169,7 +182,8 @@ class EnvironmentConfigAgent:
             "present_required": present,
             "insecure_configurations": insecure,
             "optional_vars_set": [
-                var for var in self.OPTIONAL_ENV_VARS
+                var
+                for var in self.OPTIONAL_ENV_VARS
                 if var in env_vars and env_vars[var]
             ],
         }
@@ -179,9 +193,11 @@ class EnvironmentConfigAgent:
 # Agent #11: Incident Mitigation Planner
 # =============================================================================
 
+
 @dataclass
 class Incident:
     """System incident"""
+
     id: str
     severity: str  # critical, high, medium, low
     description: str
@@ -242,7 +258,9 @@ class IncidentMitigationAgent:
             "incident_id": incident.id,
             "severity": incident.severity,
             "mitigation_steps": steps,
-            "estimated_resolution_time": self._estimate_resolution_time(incident.severity),
+            "estimated_resolution_time": self._estimate_resolution_time(
+                incident.severity
+            ),
             "affected_users": self._estimate_affected_users(incident),
             "communication_plan": self._generate_communication_plan(incident),
         }
@@ -270,10 +288,12 @@ class IncidentMitigationAgent:
         ]
 
         if incident.severity in ["critical", "high"]:
-            plan.extend([
-                "Send user notification",
-                "Schedule regular updates",
-            ])
+            plan.extend(
+                [
+                    "Send user notification",
+                    "Schedule regular updates",
+                ]
+            )
 
         return plan
 
@@ -281,6 +301,7 @@ class IncidentMitigationAgent:
 # =============================================================================
 # Agent #12: Dependency Updater
 # =============================================================================
+
 
 class DependencyUpdaterAgent:
     """Automatically updates dependency versions monthly"""
@@ -313,7 +334,9 @@ class DependencyUpdaterAgent:
                 "total_dependencies": len(all_deps),
                 "outdated": [],
                 "last_checked": datetime.now(timezone.utc).isoformat(),
-                "next_check_due": (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(),
+                "next_check_due": (
+                    datetime.now(timezone.utc) + timedelta(days=30)
+                ).isoformat(),
             }
 
         except Exception as e:
@@ -325,10 +348,11 @@ class DependencyUpdaterAgent:
 # Agent #13: PR-Jira Mapper
 # =============================================================================
 
+
 class PRJiraMapperAgent:
     """Maps PRs to Jira tickets"""
 
-    JIRA_TICKET_PATTERN = re.compile(r'[A-Z]+-\d+')
+    JIRA_TICKET_PATTERN = re.compile(r"[A-Z]+-\d+")
 
     async def map_pr_to_jira(
         self,
@@ -361,13 +385,16 @@ class PRJiraMapperAgent:
             "jira_tickets": list(tickets),
             "tickets_found": len(tickets),
             "status": "mapped" if tickets else "unmapped",
-            "recommendation": "Include Jira ticket in PR title if unmapped" if not tickets else None,
+            "recommendation": (
+                "Include Jira ticket in PR title if unmapped" if not tickets else None
+            ),
         }
 
 
 # =============================================================================
 # Agent #14: Test Coverage Reporter
 # =============================================================================
+
 
 class TestCoverageAgent:
     """Generates test coverage reports"""
@@ -437,6 +464,7 @@ class TestCoverageAgent:
 # Agent #18: Architecture Drift Detector
 # =============================================================================
 
+
 class ArchitectureDriftAgent:
     """Detects architectural drift from design principles"""
 
@@ -472,12 +500,14 @@ class ArchitectureDriftAgent:
 
                 # Check for direct database queries in endpoints
                 if "session.execute" in content or "db.execute" in content:
-                    drift_issues.append({
-                        "file": str(endpoint_file),
-                        "issue": "Database queries in endpoint",
-                        "principle": "service_layer",
-                        "recommendation": "Move database logic to service layer",
-                    })
+                    drift_issues.append(
+                        {
+                            "file": str(endpoint_file),
+                            "issue": "Database queries in endpoint",
+                            "principle": "service_layer",
+                            "recommendation": "Move database logic to service layer",
+                        }
+                    )
 
         return {
             "total_issues": len(drift_issues),
@@ -494,6 +524,7 @@ class ArchitectureDriftAgent:
 # =============================================================================
 # Agent #19: Bug Environment Creator
 # =============================================================================
+
 
 class BugEnvironmentAgent:
     """Creates reproducible bug environments"""
@@ -531,6 +562,7 @@ class BugEnvironmentAgent:
 # =============================================================================
 # Agent #20: Refactoring Target Proposer
 # =============================================================================
+
 
 class RefactoringTargetAgent:
     """Proposes refactoring targets each sprint"""

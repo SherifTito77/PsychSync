@@ -16,9 +16,9 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
-from datetime import datetime
 import logging
 import time
+from datetime import datetime
 from typing import Any
 
 from fastapi import Request, Response, status
@@ -51,7 +51,11 @@ class SecurityEventLogger:
         ]
 
     async def log_security_event(
-        self, event_type: str, request: Request, details: dict[str, Any], severity: str = "medium"
+        self,
+        event_type: str,
+        request: Request,
+        details: dict[str, Any],
+        severity: str = "medium",
     ):
         """Log security event with comprehensive context"""
         try:
@@ -72,7 +76,9 @@ class SecurityEventLogger:
                 user_agent=client_info.get("user_agent", "unknown"),
             )
 
-            security_middleware_logger.warning(f"Security event: {event_type}", extra=event_data)
+            security_middleware_logger.warning(
+                f"Security event: {event_type}", extra=event_data
+            )
 
         except Exception as e:
             security_middleware_logger.error(f"Error logging security event: {e}")
@@ -126,13 +132,17 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
             # Log successful request
             processing_time = time.time() - start_time
-            await self._log_request_completion(request, response, processing_time, "success")
+            await self._log_request_completion(
+                request, response, processing_time, "success"
+            )
 
             return response
 
         except Exception as e:
             processing_time = time.time() - start_time
-            await self._log_request_completion(request, None, processing_time, "error", str(e))
+            await self._log_request_completion(
+                request, None, processing_time, "error", str(e)
+            )
             raise
 
     async def _should_block_request(self, request: Request) -> bool:
@@ -208,7 +218,11 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             await self.event_logger.log_security_event(
                 "injection_attempt_detected",
                 request,
-                {"url_path": url_path, "query_string": query_string, "pattern": "unknown"},
+                {
+                    "url_path": url_path,
+                    "query_string": query_string,
+                    "pattern": "unknown",
+                },
                 "high",
             )
             return True
@@ -280,7 +294,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         for ip in list(self._rate_limit_cache.keys()):
             self._rate_limit_cache[ip] = [
-                req_time for req_time in self._rate_limit_cache[ip] if req_time > cutoff_time
+                req_time
+                for req_time in self._rate_limit_cache[ip]
+                if req_time > cutoff_time
             ]
             if not self._rate_limit_cache[ip]:
                 del self._rate_limit_cache[ip]
@@ -305,7 +321,10 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             if self._suspicious_ips[client_ip]["suspicious_count"] > 10:
                 self._blocked_ips.add(client_ip)
                 await self.event_logger.log_security_event(
-                    "ip_blocked", request, {"reason": "Too many suspicious requests"}, "high"
+                    "ip_blocked",
+                    request,
+                    {"reason": "Too many suspicious requests"},
+                    "high",
                 )
 
     async def _is_suspicious_request(self, request: Request) -> bool:
@@ -345,11 +364,14 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        response.headers["Permissions-Policy"] = (
+            "geolocation=(), microphone=(), camera=()"
+        )
 
         # Cache control for sensitive endpoints
         if hasattr(response, "url") and any(
-            endpoint in str(response.url).lower() for endpoint in ["/auth/", "/admin/", "/user/"]
+            endpoint in str(response.url).lower()
+            for endpoint in ["/auth/", "/admin/", "/user/"]
         ):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
             response.headers["Pragma"] = "no-cache"
@@ -357,7 +379,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         return response
 
-    async def _create_blocked_response(self, request: Request, reason: str) -> JSONResponse:
+    async def _create_blocked_response(
+        self, request: Request, reason: str
+    ) -> JSONResponse:
         """Create standardized blocked response"""
         return JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -403,7 +427,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                     f"Slow request detected: {processing_time:.2f}s", extra=log_data
                 )
             elif status == "error":
-                security_middleware_logger.error(f"Request failed: {error}", extra=log_data)
+                security_middleware_logger.error(
+                    f"Request failed: {error}", extra=log_data
+                )
 
         except Exception as e:
             security_middleware_logger.error(f"Error logging request completion: {e}")

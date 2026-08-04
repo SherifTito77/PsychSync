@@ -16,9 +16,10 @@ Compliance: OWASP Security Headers Guidelines
 """
 
 import logging
-from typing import Dict, List, Optional, Any, Set
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional, Set
+
 from fastapi import Request, Response
 from fastapi.routing import APIRoute
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -154,7 +155,9 @@ class SecurityHeadersAgent:
         Returns:
             Security validation summary
         """
-        logger.info(f"Starting security headers validation for {len(app_routes)} routes")
+        logger.info(
+            f"Starting security headers validation for {len(app_routes)} routes"
+        )
 
         reports = []
         critical_issues = 0
@@ -189,7 +192,9 @@ class SecurityHeadersAgent:
                 routes_with_auth += 1
 
         # Calculate overall security score
-        total_issues = critical_issues * 10 + high_issues * 5 + medium_issues * 2 + low_issues
+        total_issues = (
+            critical_issues * 10 + high_issues * 5 + medium_issues * 2 + low_issues
+        )
         max_possible_issues = len(reports) * 7  # 7 required headers per route
         overall_score = max(0.0, 1.0 - (total_issues / max_possible_issues))
 
@@ -228,7 +233,9 @@ class SecurityHeadersAgent:
             Route security report
         """
         route_path = route.path
-        methods = [m for m in route.methods if m in ["GET", "POST", "PUT", "DELETE", "PATCH"]]
+        methods = [
+            m for m in route.methods if m in ["GET", "POST", "PUT", "DELETE", "PATCH"]
+        ]
 
         # Check if route requires authentication
         auth_required = await self._check_auth_required(route)
@@ -385,8 +392,7 @@ class SecurityHeadersAgent:
         try:
             # Make request with Origin header
             response = await test_client.options(
-                route,
-                headers={"Origin": "https://malicious-site.com"}
+                route, headers={"Origin": "https://malicious-site.com"}
             )
 
             # Check Access-Control-Allow-Origin
@@ -435,9 +441,17 @@ class SecurityHeadersAgent:
         """
         # Check dependencies for authentication
         for depend in route.dependencies:
-            depend_name = str(depend.dependency.__name__) if hasattr(depend.dependency, "__name__") else ""
+            depend_name = (
+                str(depend.dependency.__name__)
+                if hasattr(depend.dependency, "__name__")
+                else ""
+            )
 
-            if "auth" in depend_name.lower() or "token" in depend_name.lower() or "user" in depend_name.lower():
+            if (
+                "auth" in depend_name.lower()
+                or "token" in depend_name.lower()
+                or "user" in depend_name.lower()
+            ):
                 return True
 
         return False
@@ -521,7 +535,8 @@ class SecurityHeadersAgent:
 
         # CORS recommendations
         cors_issues = [
-            issue for report in summary.reports
+            issue
+            for report in summary.reports
             for issue in report.issues
             if "CORS" in issue.issue
         ]

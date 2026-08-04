@@ -5,10 +5,11 @@ Demonstrates significant performance improvements
 """
 
 import asyncio
-import time
 import sys
+import time
 from contextlib import contextmanager
-from typing import Dict, Any, List
+from typing import Any, Dict, List
+
 
 class FastTestResults:
     """Track fast test results and performance metrics"""
@@ -18,23 +19,33 @@ class FastTestResults:
         self.start_time = time.time()
         self.performance_metrics = []
 
-    def add_result(self, test_name: str, success: bool, duration: float, details: Dict[str, Any] = None):
+    def add_result(
+        self,
+        test_name: str,
+        success: bool,
+        duration: float,
+        details: Dict[str, Any] = None,
+    ):
         """Add test result with performance tracking"""
         result = {
             "test_name": test_name,
             "success": success,
             "duration": duration,
             "timestamp": time.time() - self.start_time,
-            "details": details or {}
+            "details": details or {},
         }
         self.results.append(result)
 
         # Track performance
-        self.performance_metrics.append({
-            "test": test_name,
-            "duration": duration,
-            "category": "fast" if duration < 0.1 else "medium" if duration < 1.0 else "slow"
-        })
+        self.performance_metrics.append(
+            {
+                "test": test_name,
+                "duration": duration,
+                "category": (
+                    "fast" if duration < 0.1 else "medium" if duration < 1.0 else "slow"
+                ),
+            }
+        )
 
     def summary(self) -> Dict[str, Any]:
         """Generate test summary"""
@@ -43,7 +54,9 @@ class FastTestResults:
         total_duration = time.time() - self.start_time
 
         if self.performance_metrics:
-            avg_duration = sum(m["duration"] for m in self.performance_metrics) / len(self.performance_metrics)
+            avg_duration = sum(m["duration"] for m in self.performance_metrics) / len(
+                self.performance_metrics
+            )
             max_duration = max(m["duration"] for m in self.performance_metrics)
             min_duration = min(m["duration"] for m in self.performance_metrics)
         else:
@@ -59,9 +72,10 @@ class FastTestResults:
                 "average_test_duration": avg_duration,
                 "fastest_test": min_duration,
                 "slowest_test": max_duration,
-                "speed_improvement": f"{(56.18 - total_duration) / 56.18 * 100:.1f}%"  # Compared to original 56.18s
-            }
+                "speed_improvement": f"{(56.18 - total_duration) / 56.18 * 100:.1f}%",  # Compared to original 56.18s
+            },
         }
+
 
 async def run_fast_tests():
     """
@@ -110,14 +124,18 @@ async def run_fast_tests():
     print(f"   Total Duration: {summary['total_duration']:.2f}s")
 
     print(f"\n⚡ Performance Metrics:")
-    print(f"   Average Test Duration: {summary['performance']['average_test_duration']:.3f}s")
+    print(
+        f"   Average Test Duration: {summary['performance']['average_test_duration']:.3f}s"
+    )
     print(f"   Fastest Test: {summary['performance']['fastest_test']:.3f}s")
     print(f"   Slowest Test: {summary['performance']['slowest_test']:.3f}s")
     print(f"   Speed Improvement: {summary['performance']['speed_improvement']}")
 
     # Performance category breakdown
     fast_count = sum(1 for m in results.performance_metrics if m["category"] == "fast")
-    medium_count = sum(1 for m in results.performance_metrics if m["category"] == "medium")
+    medium_count = sum(
+        1 for m in results.performance_metrics if m["category"] == "medium"
+    )
     slow_count = sum(1 for m in results.performance_metrics if m["category"] == "slow")
 
     print(f"\n📈 Test Performance Categories:")
@@ -126,13 +144,16 @@ async def run_fast_tests():
     print(f"   Slow (>1s): {slow_count} tests")
 
     # Show slowest tests for optimization
-    slowest_tests = sorted(results.performance_metrics, key=lambda x: x["duration"], reverse=True)[:3]
+    slowest_tests = sorted(
+        results.performance_metrics, key=lambda x: x["duration"], reverse=True
+    )[:3]
     if slowest_tests:
         print(f"\n🐌 Slowest Tests (optimization targets):")
         for i, test in enumerate(slowest_tests, 1):
             print(f"   {i}. {test['test']}: {test['duration']:.3f}s")
 
     return summary
+
 
 async def run_schema_validation_tests(results: FastTestResults):
     """Run schema validation tests (no external dependencies)"""
@@ -145,7 +166,10 @@ async def run_schema_validation_tests(results: FastTestResults):
             ("Valid HR role", {"role": "hr", "challenge": "productivity"}),
             ("Valid lead role", {"role": "lead", "challenge": "turnover"}),
             ("Valid member role", {"role": "member", "challenge": "engagement"}),
-            ("Valid executive role", {"role": "executive", "challenge": "communication"}),
+            (
+                "Valid executive role",
+                {"role": "executive", "challenge": "communication"},
+            ),
         ]
 
         for test_name, data in test_cases:
@@ -153,7 +177,10 @@ async def run_schema_validation_tests(results: FastTestResults):
             try:
                 request = QuickAssessmentRequest(**data)
                 success = True
-                details = {"validated_role": request.role, "validated_challenge": request.challenge}
+                details = {
+                    "validated_role": request.role,
+                    "validated_challenge": request.challenge,
+                }
             except Exception as e:
                 success = False
                 details = {"error": str(e)}
@@ -179,16 +206,20 @@ async def run_schema_validation_tests(results: FastTestResults):
                 details = {"expected_validation_error": True}
 
             duration = time.time() - start_time
-            results.add_result(f"Schema Validation: {test_name}", success, duration, details)
+            results.add_result(
+                f"Schema Validation: {test_name}", success, duration, details
+            )
 
     except Exception as e:
         results.add_result("Schema Validation Tests", False, 0.0, {"error": str(e)})
+
 
 async def run_basic_api_tests(results: FastTestResults):
     """Run basic API tests with mocked dependencies"""
 
     try:
         from fastapi.testclient import TestClient
+
         from app.main import app
 
         client = TestClient(app)
@@ -198,7 +229,12 @@ async def run_basic_api_tests(results: FastTestResults):
         try:
             response = client.get("/health")
             success = response.status_code == 200
-            details = {"status_code": response.status_code, "has_json": response.headers.get("content-type", "").startswith("application/json")}
+            details = {
+                "status_code": response.status_code,
+                "has_json": response.headers.get("content-type", "").startswith(
+                    "application/json"
+                ),
+            }
         except Exception as e:
             success = False
             details = {"error": str(e)}
@@ -210,7 +246,10 @@ async def run_basic_api_tests(results: FastTestResults):
         try:
             response = client.get("/docs")
             success = response.status_code == 200
-            details = {"status_code": response.status_code, "content_type": response.headers.get("content-type", "")}
+            details = {
+                "status_code": response.status_code,
+                "content_type": response.headers.get("content-type", ""),
+            }
         except Exception as e:
             success = False
             details = {"error": str(e)}
@@ -232,6 +271,7 @@ async def run_basic_api_tests(results: FastTestResults):
     except Exception as e:
         results.add_result("Basic API Tests", False, 0.0, {"error": str(e)})
 
+
 async def run_performance_tests(results: FastTestResults):
     """Run performance benchmark tests"""
 
@@ -245,7 +285,9 @@ async def run_performance_tests(results: FastTestResults):
         duration = time.time() - start_time
         success = duration < 1.0  # Should complete 100 validations in < 1s
         details = {"validations_per_second": 100 / duration}
-        results.add_result("Performance: 100 Schema Validations", success, duration, details)
+        results.add_result(
+            "Performance: 100 Schema Validations", success, duration, details
+        )
 
     except Exception as e:
         results.add_result("Performance Tests", False, 0.0, {"error": str(e)})
@@ -255,7 +297,13 @@ async def run_performance_tests(results: FastTestResults):
     for i in range(1000):
         _ = i * 2 + 1
     duration = time.time() - start_time
-    results.add_result("Performance: 1000 Calculations", True, duration, {"operations_per_second": 1000 / duration})
+    results.add_result(
+        "Performance: 1000 Calculations",
+        True,
+        duration,
+        {"operations_per_second": 1000 / duration},
+    )
+
 
 async def run_error_handling_tests(results: FastTestResults):
     """Run error handling tests"""
@@ -281,12 +329,16 @@ async def run_error_handling_tests(results: FastTestResults):
         primary_failed = True
         fallback_success = not primary_failed
         success = True
-        details = {"fallback_triggered": primary_failed, "fallback_successful": fallback_success}
+        details = {
+            "fallback_triggered": primary_failed,
+            "fallback_successful": fallback_success,
+        }
     except Exception as e:
         success = False
         details = {"error": str(e)}
     duration = time.time() - start_time
     results.add_result("Error Handling: Fallback Logic", success, duration, details)
+
 
 async def run_mock_service_tests(results: FastTestResults):
     """Run mock service tests"""
@@ -306,7 +358,9 @@ async def run_mock_service_tests(results: FastTestResults):
         result = await mock_service.track_event("test_event", {"data": "test"})
         success = result["success"] is True
         duration = time.time() - start_time
-        results.add_result("Mock Service: Async Call", success, duration, {"mock_result": result})
+        results.add_result(
+            "Mock Service: Async Call", success, duration, {"mock_result": result}
+        )
 
     except Exception as e:
         results.add_result("Mock Service Tests", False, 0.0, {"error": str(e)})

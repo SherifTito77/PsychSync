@@ -19,28 +19,27 @@ Run with:
 """
 
 import pytest
-from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-from app.main import app
-from app.db.models.user import User, UserRole
+from app.core.database import get_async_db
 from app.db.models.assessment import Assessment, Response
 from app.db.models.team import Team
-from app.core.database import get_async_db
-
+from app.db.models.user import User, UserRole
+from app.main import app
 
 # ============================================================================
 # Test Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 async def test_client():
     """Create test client"""
     async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test"
+        transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         yield client
 
@@ -49,18 +48,14 @@ async def test_client():
 async def test_db():
     """Create test database session"""
     # Use test database
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        echo=False
-    )
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
 
-    async_session = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with engine.begin() as conn:
         # Create tables
         from app.db.models.base import Base
+
         await conn.run_sync(Base.metadata.create_all)
 
     async with async_session() as session:
@@ -80,7 +75,7 @@ async def test_users(test_db):
         email="admin@test.com",
         hashed_password="hashed_admin_pass",
         role=UserRole.SUPER_ADMIN,
-        is_active=True
+        is_active=True,
     )
     test_db.add(admin)
     await test_db.commit()
@@ -93,7 +88,7 @@ async def test_users(test_db):
         email="clinician1@test.com",
         hashed_password="hashed_clinician_pass",
         role=UserRole.CLINICIAN,
-        is_active=True
+        is_active=True,
     )
     test_db.add(clinician1)
     await test_db.commit()
@@ -105,7 +100,7 @@ async def test_users(test_db):
         email="clinician2@test.com",
         hashed_password="hashed_clinician_pass",
         role=UserRole.CLINICIAN,
-        is_active=True
+        is_active=True,
     )
     test_db.add(clinician2)
     await test_db.commit()
@@ -118,7 +113,7 @@ async def test_users(test_db):
         email="patient1@test.com",
         hashed_password="hashed_patient_pass",
         role=UserRole.PATIENT,
-        is_active=True
+        is_active=True,
     )
     test_db.add(patient1)
     await test_db.commit()
@@ -130,7 +125,7 @@ async def test_users(test_db):
         email="patient2@test.com",
         hashed_password="hashed_patient_pass",
         role=UserRole.PATIENT,
-        is_active=True
+        is_active=True,
     )
     test_db.add(patient2)
     await test_db.commit()
@@ -138,30 +133,19 @@ async def test_users(test_db):
     users["patient2"] = patient2
 
     # Create organization and teams
-    org = Organization(
-        name="Test Org",
-        slug="test-org"
-    )
+    org = Organization(name="Test Org", slug="test-org")
     test_db.add(org)
     await test_db.commit()
     await test_db.refresh(org)
 
     # Create team for clinician1
-    team1 = Team(
-        name="Team A",
-        organization_id=org.id,
-        created_by=clinician1.id
-    )
+    team1 = Team(name="Team A", organization_id=org.id, created_by=clinician1.id)
     test_db.add(team1)
     await test_db.commit()
     await test_db.refresh(team1)
 
     # Create team for clinician2
-    team2 = Team(
-        name="Team B",
-        organization_id=org.id,
-        created_by=clinician2.id
-    )
+    team2 = Team(name="Team B", organization_id=org.id, created_by=clinician2.id)
     test_db.add(team2)
     await test_db.commit()
     await test_db.refresh(team2)
@@ -171,7 +155,7 @@ async def test_users(test_db):
         title="Patient 1 Assessment",
         user_id=patient1.id,
         team_id=team1.id,
-        status="completed"
+        status="completed",
     )
     test_db.add(assessment1)
     await test_db.commit()
@@ -182,7 +166,7 @@ async def test_users(test_db):
         title="Patient 2 Assessment",
         user_id=patient2.id,
         team_id=team2.id,
-        status="completed"
+        status="completed",
     )
     test_db.add(assessment2)
     await test_db.commit()
@@ -196,14 +180,13 @@ async def test_users(test_db):
 # Horizontal Access Control Tests (Same Role, Different Users)
 # ============================================================================
 
+
 class TestHorizontalAccessControl:
     """Test horizontal access control (users can only access their own data)"""
 
     @pytest.mark.asyncio
     async def test_patient_cannot_access_other_patients_assessment(
-        self,
-        test_client: AsyncClient,
-        test_users
+        self, test_client: AsyncClient, test_users
     ):
         """
         Test that Patient 1 cannot access Patient 2's assessment
@@ -214,10 +197,7 @@ class TestHorizontalAccessControl:
         # Authenticate as patient1
         response = await test_client.post(
             "/api/v1/auth/login",
-            json={
-                "username": "patient1",
-                "password": "password"  # Test password
-            }
+            json={"username": "patient1", "password": "password"},  # Test password
         )
 
         # Assume login returns token
@@ -228,7 +208,7 @@ class TestHorizontalAccessControl:
 
         response = await test_client.get(
             f"/api/v1/assessments/{assessment2_id}",
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
 
         # Should be forbidden (403) or not found (404)
@@ -240,9 +220,7 @@ class TestHorizontalAccessControl:
 
     @pytest.mark.asyncio
     async def test_clinician_cannot_access_other_teams_data(
-        self,
-        test_client: AsyncClient,
-        test_users
+        self, test_client: AsyncClient, test_users
     ):
         """
         Test that Clinician 1 cannot access Clinician 2's team data
@@ -253,20 +231,17 @@ class TestHorizontalAccessControl:
         # Authenticate as clinician1
         response = await test_client.post(
             "/api/v1/auth/login",
-            json={
-                "username": "clinician1",
-                "password": "password"
-            }
+            json={"username": "clinician1", "password": "password"},
         )
 
         token = response.json().get("access_token")
 
         # Try to access team2's analytics
-        team2_id = test_users["team2"].id if hasattr(test_users["team2"], 'id') else 2
+        team2_id = test_users["team2"].id if hasattr(test_users["team2"], "id") else 2
 
         response = await test_client.get(
             f"/api/v1/teams/{team2_id}/analytics",
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
 
         # Should be forbidden (403) or not found (404)
@@ -277,9 +252,7 @@ class TestHorizontalAccessControl:
 
     @pytest.mark.asyncio
     async def test_user_cannot_access_other_users_profile(
-        self,
-        test_client: AsyncClient,
-        test_users
+        self, test_client: AsyncClient, test_users
     ):
         """
         Test that users cannot access other users' profile data
@@ -288,11 +261,7 @@ class TestHorizontalAccessControl:
         """
         # Authenticate as patient1
         response = await test_client.post(
-            "/api/v1/auth/login",
-            json={
-                "username": "patient1",
-                "password": "password"
-            }
+            "/api/v1/auth/login", json={"username": "patient1", "password": "password"}
         )
 
         token = response.json().get("access_token")
@@ -304,7 +273,7 @@ class TestHorizontalAccessControl:
 
         response = await test_client.get(
             f"/api/v1/users/{patient2_id}/profile",
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
 
         # Should be forbidden (403) or not found (404)
@@ -318,14 +287,13 @@ class TestHorizontalAccessControl:
 # Vertical Access Control Tests (Different Roles)
 # ============================================================================
 
+
 class TestVerticalAccessControl:
     """Test vertical access control (role-based permissions)"""
 
     @pytest.mark.asyncio
     async def test_patient_cannot_access_admin_endpoints(
-        self,
-        test_client: AsyncClient,
-        test_users
+        self, test_client: AsyncClient, test_users
     ):
         """
         Test that patients cannot access admin-only endpoints
@@ -334,19 +302,14 @@ class TestVerticalAccessControl:
         """
         # Authenticate as patient
         response = await test_client.post(
-            "/api/v1/auth/login",
-            json={
-                "username": "patient1",
-                "password": "password"
-            }
+            "/api/v1/auth/login", json={"username": "patient1", "password": "password"}
         )
 
         token = response.json().get("access_token")
 
         # Try to access admin dashboard
         response = await test_client.get(
-            "/api/v1/admin/dashboard",
-            headers={"Authorization": f"Bearer {token}"}
+            "/api/v1/admin/dashboard", headers={"Authorization": f"Bearer {token}"}
         )
 
         # Should be forbidden (403)
@@ -357,9 +320,7 @@ class TestVerticalAccessControl:
 
     @pytest.mark.asyncio
     async def test_clinician_cannot_delete_organization(
-        self,
-        test_client: AsyncClient,
-        test_users
+        self, test_client: AsyncClient, test_users
     ):
         """
         Test that clinicians cannot delete organizations
@@ -369,10 +330,7 @@ class TestVerticalAccessControl:
         # Authenticate as clinician
         response = await test_client.post(
             "/api/v1/auth/login",
-            json={
-                "username": "clinician1",
-                "password": "password"
-            }
+            json={"username": "clinician1", "password": "password"},
         )
 
         token = response.json().get("access_token")
@@ -382,7 +340,7 @@ class TestVerticalAccessControl:
 
         response = await test_client.delete(
             f"/api/v1/organizations/{org_id}",
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
 
         # Should be forbidden (403)
@@ -393,9 +351,7 @@ class TestVerticalAccessControl:
 
     @pytest.mark.asyncio
     async def test_patient_cannot_modify_assessment_template(
-        self,
-        test_client: AsyncClient,
-        test_users
+        self, test_client: AsyncClient, test_users
     ):
         """
         Test that patients cannot modify assessment templates
@@ -404,11 +360,7 @@ class TestVerticalAccessControl:
         """
         # Authenticate as patient
         response = await test_client.post(
-            "/api/v1/auth/login",
-            json={
-                "username": "patient1",
-                "password": "password"
-            }
+            "/api/v1/auth/login", json={"username": "patient1", "password": "password"}
         )
 
         token = response.json().get("access_token")
@@ -421,8 +373,8 @@ class TestVerticalAccessControl:
             headers={"Authorization": f"Bearer {token}"},
             json={
                 "title": "Modified Template",
-                "description": "This should not be allowed"
-            }
+                "description": "This should not be allowed",
+            },
         )
 
         # Should be forbidden (403) or not found (404)
@@ -436,14 +388,13 @@ class TestVerticalAccessControl:
 # Tenant Isolation Tests
 # ============================================================================
 
+
 class TestTenantIsolation:
     """Test multi-tenant data isolation"""
 
     @pytest.mark.asyncio
     async def test_organization_data_isolation(
-        self,
-        test_client: AsyncClient,
-        test_users
+        self, test_client: AsyncClient, test_users
     ):
         """
         Test that organizations cannot access each other's data
@@ -456,10 +407,7 @@ class TestTenantIsolation:
         # Authenticate as clinician1 (org1, team1)
         response = await test_client.post(
             "/api/v1/auth/login",
-            json={
-                "username": "clinician1",
-                "password": "password"
-            }
+            json={"username": "clinician1", "password": "password"},
         )
 
         token = response.json().get("access_token")
@@ -470,7 +418,7 @@ class TestTenantIsolation:
 
         response = await test_client.get(
             f"/api/v1/organizations/{org2_id}/teams",
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
 
         # Should be forbidden (403) or not found (404)
@@ -480,11 +428,7 @@ class TestTenantIsolation:
         )
 
     @pytest.mark.asyncio
-    async def test_team_data_isolation(
-        self,
-        test_client: AsyncClient,
-        test_users
-    ):
+    async def test_team_data_isolation(self, test_client: AsyncClient, test_users):
         """
         Test that teams within same organization are isolated
 
@@ -493,20 +437,17 @@ class TestTenantIsolation:
         # Authenticate as clinician1 (team1)
         response = await test_client.post(
             "/api/v1/auth/login",
-            json={
-                "username": "clinician1",
-                "password": "password"
-            }
+            json={"username": "clinician1", "password": "password"},
         )
 
         token = response.json().get("access_token")
 
         # Try to access team2's patient data
-        team2_id = test_users["team2"].id if hasattr(test_users["team2"], 'id') else 2
+        team2_id = test_users["team2"].id if hasattr(test_users["team2"], "id") else 2
 
         response = await test_client.get(
             f"/api/v1/teams/{team2_id}/members",
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
 
         # Should be forbidden (403) or not found (404)
@@ -520,14 +461,13 @@ class TestTenantIsolation:
 # Batch Operation Access Control Tests
 # ============================================================================
 
+
 class TestBatchOperationAccessControl:
     """Test access control for batch operations"""
 
     @pytest.mark.asyncio
     async def test_bulk_delete_respects_ownership(
-        self,
-        test_client: AsyncClient,
-        test_users
+        self, test_client: AsyncClient, test_users
     ):
         """
         Test that bulk delete operations respect ownership
@@ -537,10 +477,7 @@ class TestBatchOperationAccessControl:
         # Authenticate as clinician1
         response = await test_client.post(
             "/api/v1/auth/login",
-            json={
-                "username": "clinician1",
-                "password": "password"
-            }
+            json={"username": "clinician1", "password": "password"},
         )
 
         token = response.json().get("access_token")
@@ -554,26 +491,24 @@ class TestBatchOperationAccessControl:
         response = await test_client.post(
             "/api/v1/assessments/bulk-delete",
             headers={"Authorization": f"Bearer {token}"},
-            json={"assessment_ids": assessment_ids}
+            json={"assessment_ids": assessment_ids},
         )
 
         # Should be forbidden (403) or only delete own assessments
         # If 200, check that only own assessment was deleted
         if response.status_code == 200:
             # Verify assessment2 still exists
-            assert test_users["assessment2"].status == "completed", (
-                "Other team's assessment should not be deleted"
-            )
+            assert (
+                test_users["assessment2"].status == "completed"
+            ), "Other team's assessment should not be deleted"
         else:
-            assert response.status_code == 403, (
-                f"Bulk delete should be forbidden. Got {response.status_code}"
-            )
+            assert (
+                response.status_code == 403
+            ), f"Bulk delete should be forbidden. Got {response.status_code}"
 
     @pytest.mark.asyncio
     async def test_bulk_export_respects_team_boundaries(
-        self,
-        test_client: AsyncClient,
-        test_users
+        self, test_client: AsyncClient, test_users
     ):
         """
         Test that bulk export respects team boundaries
@@ -583,10 +518,7 @@ class TestBatchOperationAccessControl:
         # Authenticate as clinician1
         response = await test_client.post(
             "/api/v1/auth/login",
-            json={
-                "username": "clinician1",
-                "password": "password"
-            }
+            json={"username": "clinician1", "password": "password"},
         )
 
         token = response.json().get("access_token")
@@ -595,13 +527,14 @@ class TestBatchOperationAccessControl:
         response = await test_client.post(
             "/api/v1/responses/bulk-export",
             headers={"Authorization": f"Bearer {token}"},
-            json={"format": "csv"}
+            json={"format": "csv"},
         )
 
         # Should be forbidden (403) or only return own team's data
-        assert response.status_code in [200, 403], (
-            f"Unexpected status {response.status_code}"
-        )
+        assert response.status_code in [
+            200,
+            403,
+        ], f"Unexpected status {response.status_code}"
 
         if response.status_code == 200:
             # Verify only own team's data is exported
@@ -615,14 +548,12 @@ class TestBatchOperationAccessControl:
 # API Endpoint Authorization Tests
 # ============================================================================
 
+
 class TestAPIEndpointAuthorization:
     """Test API endpoint authorization enforcement"""
 
     @pytest.mark.asyncio
-    async def test_unauthenticated_access_blocked(
-        self,
-        test_client: AsyncClient
-    ):
+    async def test_unauthenticated_access_blocked(self, test_client: AsyncClient):
         """
         Test that unauthenticated requests are blocked
 
@@ -633,15 +564,11 @@ class TestAPIEndpointAuthorization:
 
         # Should be unauthorized (401)
         assert response.status_code == 401, (
-            f"Unauthenticated request should be blocked. "
-            f"Got {response.status_code}"
+            f"Unauthenticated request should be blocked. " f"Got {response.status_code}"
         )
 
     @pytest.mark.asyncio
-    async def test_invalid_token_blocked(
-        self,
-        test_client: AsyncClient
-    ):
+    async def test_invalid_token_blocked(self, test_client: AsyncClient):
         """
         Test that invalid tokens are rejected
 
@@ -649,21 +576,16 @@ class TestAPIEndpointAuthorization:
         """
         # Try with invalid token
         response = await test_client.get(
-            "/api/v1/users/me",
-            headers={"Authorization": "Bearer invalid_token_12345"}
+            "/api/v1/users/me", headers={"Authorization": "Bearer invalid_token_12345"}
         )
 
         # Should be unauthorized (401)
-        assert response.status_code == 401, (
-            f"Invalid token should be rejected. Got {response.status_code}"
-        )
+        assert (
+            response.status_code == 401
+        ), f"Invalid token should be rejected. Got {response.status_code}"
 
     @pytest.mark.asyncio
-    async def test_expired_token_blocked(
-        self,
-        test_client: AsyncClient,
-        test_users
-    ):
+    async def test_expired_token_blocked(self, test_client: AsyncClient, test_users):
         """
         Test that expired tokens are rejected
 
@@ -680,28 +602,26 @@ class TestAPIEndpointAuthorization:
         )
 
         response = await test_client.get(
-            "/api/v1/users/me",
-            headers={"Authorization": f"Bearer {expired_token}"}
+            "/api/v1/users/me", headers={"Authorization": f"Bearer {expired_token}"}
         )
 
         # Should be unauthorized (401)
-        assert response.status_code == 401, (
-            f"Expired token should be rejected. Got {response.status_code}"
-        )
+        assert (
+            response.status_code == 401
+        ), f"Expired token should be rejected. Got {response.status_code}"
 
 
 # ============================================================================
 # Edge Case Tests
 # ============================================================================
 
+
 class TestIDOREdgeCases:
     """Test edge cases and IDOR attack patterns"""
 
     @pytest.mark.asyncio
     async def test_sequential_id_enumeration_blocked(
-        self,
-        test_client: AsyncClient,
-        test_users
+        self, test_client: AsyncClient, test_users
     ):
         """
         Test that sequential ID enumeration is rate-limited or blocked
@@ -710,11 +630,7 @@ class TestIDOREdgeCases:
         """
         # Authenticate as patient1
         response = await test_client.post(
-            "/api/v1/auth/login",
-            json={
-                "username": "patient1",
-                "password": "password"
-            }
+            "/api/v1/auth/login", json={"username": "patient1", "password": "password"}
         )
 
         token = response.json().get("access_token")
@@ -729,7 +645,7 @@ class TestIDOREdgeCases:
 
             response = await test_client.get(
                 f"/api/v1/users/{target_id}/profile",
-                headers={"Authorization": f"Bearer {token}"}
+                headers={"Authorization": f"Bearer {token}"},
             )
 
             if response.status_code in [403, 404]:
@@ -742,11 +658,7 @@ class TestIDOREdgeCases:
         )
 
     @pytest.mark.asyncio
-    async def test_path_traversal_blocked(
-        self,
-        test_client: AsyncClient,
-        test_users
-    ):
+    async def test_path_traversal_blocked(self, test_client: AsyncClient, test_users):
         """
         Test that path traversal attacks are blocked
 
@@ -754,11 +666,7 @@ class TestIDOREdgeCases:
         """
         # Authenticate as patient
         response = await test_client.post(
-            "/api/v1/auth/login",
-            json={
-                "username": "patient1",
-                "password": "password"
-            }
+            "/api/v1/auth/login", json={"username": "patient1", "password": "password"}
         )
 
         token = response.json().get("access_token")
@@ -772,8 +680,7 @@ class TestIDOREdgeCases:
 
         for path in traversal_attempts:
             response = await test_client.get(
-                path,
-                headers={"Authorization": f"Bearer {token}"}
+                path, headers={"Authorization": f"Bearer {token}"}
             )
 
             # Should be not found (404) or bad request (400)
@@ -784,9 +691,7 @@ class TestIDOREdgeCases:
 
     @pytest.mark.asyncio
     async def test_parameter_pollution_blocked(
-        self,
-        test_client: AsyncClient,
-        test_users
+        self, test_client: AsyncClient, test_users
     ):
         """
         Test that parameter pollution attacks are blocked
@@ -795,11 +700,7 @@ class TestIDOREdgeCases:
         """
         # Authenticate as patient
         response = await test_client.post(
-            "/api/v1/auth/login",
-            json={
-                "username": "patient1",
-                "password": "password"
-            }
+            "/api/v1/auth/login", json={"username": "patient1", "password": "password"}
         )
 
         token = response.json().get("access_token")
@@ -811,19 +712,21 @@ class TestIDOREdgeCases:
         response = await test_client.get(
             f"/api/v1/users/{target_user_id}/profile",
             params={"user_id": test_users["patient1"].id},  # Try to override
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
 
         # Should be forbidden (403) or not found (404)
         # The override should not work
-        assert response.status_code in [403, 404], (
-            f"Parameter pollution should be blocked. Got {response.status_code}"
-        )
+        assert response.status_code in [
+            403,
+            404,
+        ], f"Parameter pollution should be blocked. Got {response.status_code}"
 
 
 # ============================================================================
 # Test Summary and Reporting
 # ============================================================================
+
 
 @pytest.mark.summarize
 def test_idor_protection_summary():
@@ -887,4 +790,5 @@ def test_idor_protection_summary():
 if __name__ == "__main__":
     # Run tests with pytest
     import sys
+
     sys.exit(pytest.main([__file__, "-v", "--tb=short"]))

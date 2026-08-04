@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_user, get_db
 from app.core.logging_config import logger
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.services.anonymous_feedback import anonymous_feedback_system
 
 router = APIRouter()
@@ -21,25 +21,42 @@ class AnonymousFeedbackSubmission(BaseModel):
         ..., description="Type of feedback (toxic_behavior, psychological_safety, etc.)"
     )
     category: str = Field(
-        ..., description="Specific category (harassment, bullying, discrimination, etc.)"
+        ...,
+        description="Specific category (harassment, bullying, discrimination, etc.)",
     )
     description: str = Field(
-        ..., min_length=10, max_length=5000, description="Detailed description of the issue"
+        ...,
+        min_length=10,
+        max_length=5000,
+        description="Detailed description of the issue",
     )
-    severity: str = Field(..., pattern="^(low|medium|high|critical)$", description="Severity level")
-    target_type: str | None = Field(None, description="Type of target (person, team, department)")
-    target_id: str | None = Field(None, description="ID of target (will be hashed for anonymity)")
-    evidence_urls: list[str] | None = Field(None, description="List of evidence file URLs")
-    incident_date: datetime | None = Field(None, description="When the incident occurred")
+    severity: str = Field(
+        ..., pattern="^(low|medium|high|critical)$", description="Severity level"
+    )
+    target_type: str | None = Field(
+        None, description="Type of target (person, team, department)"
+    )
+    target_id: str | None = Field(
+        None, description="ID of target (will be hashed for anonymity)"
+    )
+    evidence_urls: list[str] | None = Field(
+        None, description="List of evidence file URLs"
+    )
+    incident_date: datetime | None = Field(
+        None, description="When the incident occurred"
+    )
 
 
 class FeedbackStatusUpdate(BaseModel):
     """Feedback status update request"""
 
     new_status: str = Field(
-        ..., pattern="^(pending_review|investigating|awaiting_more_info|resolved|closed|escalated)$"
+        ...,
+        pattern="^(pending_review|investigating|awaiting_more_info|resolved|closed|escalated)$",
     )
-    resolution_notes: str | None = Field(None, description="Private notes for HR reviewers")
+    resolution_notes: str | None = Field(
+        None, description="Private notes for HR reviewers"
+    )
     public_resolution_notes: str | None = Field(
         None, description="Public notes visible to submitter"
     )
@@ -114,7 +131,9 @@ async def submit_anonymous_feedback(
 
 
 @router.get("/status/{tracking_id}", response_model=dict[str, Any])
-async def check_feedback_status(tracking_id: str, db: AsyncSession = Depends(get_async_db)):
+async def check_feedback_status(
+    tracking_id: str, db: AsyncSession = Depends(get_async_db)
+):
     """
     Check status of anonymous feedback using tracking ID
 
@@ -172,7 +191,11 @@ async def check_feedback_status(tracking_id: str, db: AsyncSession = Depends(get
         ) from e
 
 
-@router.get("/categories", response_model=dict[str, Any], dependencies=[Depends(get_current_user)])
+@router.get(
+    "/categories",
+    response_model=dict[str, Any],
+    dependencies=[Depends(get_current_user)],
+)
 async def get_feedback_categories():
     """
     Get available feedback categories and subcategories
@@ -212,7 +235,9 @@ async def get_feedback_categories():
 
     except Exception as e:
         logger.error(f"Error getting feedback categories: {e}")
-        raise HTTPException(status_code=500, detail="Failed to load feedback categories") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to load feedback categories"
+        ) from e
 
 
 # HR/Management endpoints (require authentication and permissions)
@@ -253,7 +278,9 @@ async def get_feedback_for_review(
             filters["feedback_type"] = category_filter
 
         result = await feedback_service.get_feedback_for_review(
-            hr_user_id=str(current_user.id), organization_id=organization_id, filters=filters
+            hr_user_id=str(current_user.id),
+            organization_id=organization_id,
+            filters=filters,
         )
 
         logger.info(f"Retrieved {result['total_count']} feedback items for review")
@@ -266,7 +293,9 @@ async def get_feedback_for_review(
         ) from e
     except Exception as e:
         logger.error(f"Error getting feedback for review: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve feedback for review") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve feedback for review"
+        ) from e
 
 
 @router.put("/{feedback_id}/status")
@@ -284,7 +313,9 @@ async def update_feedback_status(
     try:
         # Verify permissions in a real implementation
 
-        logger.info(f"Feedback status update requested for {feedback_id} by user {current_user.id}")
+        logger.info(
+            f"Feedback status update requested for {feedback_id} by user {current_user.id}"
+        )
 
         feedback_service = anonymous_feedback_system(db)
 
@@ -298,16 +329,22 @@ async def update_feedback_status(
         )
 
         if result["success"]:
-            logger.info(f"Feedback {feedback_id} status updated to {status_update.new_status}")
+            logger.info(
+                f"Feedback {feedback_id} status updated to {status_update.new_status}"
+            )
             return result
         logger.error(f"Failed to update feedback status: {result.get('error')}")
-        raise HTTPException(status_code=400, detail=result.get("error", "Failed to update status"))
+        raise HTTPException(
+            status_code=400, detail=result.get("error", "Failed to update status")
+        )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error updating feedback status: {e}")
-        raise HTTPException(status_code=500, detail="Failed to update feedback status") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to update feedback status"
+        ) from e
 
 
 @router.get("/statistics/{organization_id}")
@@ -336,12 +373,16 @@ async def get_anonymous_feedback_statistics(
             organization_id=organization_id, days_back=days_back
         )
 
-        logger.info(f"Statistics returned: {result['total_submissions']} submissions analyzed")
+        logger.info(
+            f"Statistics returned: {result['total_submissions']} submissions analyzed"
+        )
         return result
 
     except Exception as e:
         logger.error(f"Error getting feedback statistics: {e}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve feedback statistics") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve feedback statistics"
+        ) from e
 
 
 @router.get("/health")

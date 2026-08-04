@@ -4,8 +4,8 @@ Secure Configuration & Secrets Management for PsychSync
 Replaces vibe-coded config with production-ready secrets handling
 """
 
-from functools import lru_cache
 import logging
+from functools import lru_cache
 
 from pydantic import Field, SecretStr, validator
 from pydantic_settings import BaseSettings
@@ -75,7 +75,9 @@ class SecureSettings(BaseSettings):
 
         for pattern in dangerous_patterns:
             if pattern in url.lower():
-                raise ValueError(f"Database URL contains default credentials: {pattern}")
+                raise ValueError(
+                    f"Database URL contains default credentials: {pattern}"
+                )
 
         return v
 
@@ -97,7 +99,9 @@ class SecureSettings(BaseSettings):
     # ============================================
     SECRET_KEY: SecretStr = Field(..., env="SECRET_KEY")
     ALGORITHM: str = Field(default="HS256", env="JWT_ALGORITHM")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES"
+    )
     REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7, env="REFRESH_TOKEN_EXPIRE_DAYS")
 
     @validator("SECRET_KEY")
@@ -153,7 +157,9 @@ class SecureSettings(BaseSettings):
     # ============================================
     # CORS (Strict in Production)
     # ============================================
-    CORS_ORIGINS: list[str] = Field(default=["http://localhost:3000"], env="CORS_ORIGINS")
+    CORS_ORIGINS: list[str] = Field(
+        default=["http://localhost:3000"], env="CORS_ORIGINS"
+    )
 
     @validator("CORS_ORIGINS", pre=True)
     def parse_cors_origins(cls, v):
@@ -170,11 +176,15 @@ class SecureSettings(BaseSettings):
 
             for origin in v:
                 if origin in dangerous_origins:
-                    raise ValueError(f"CORS origin '{origin}' is too permissive for production")
+                    raise ValueError(
+                        f"CORS origin '{origin}' is too permissive for production"
+                    )
 
                 # Ensure HTTPS in production
                 if origin.startswith("http://") and "localhost" not in origin:
-                    raise ValueError(f"CORS origin must use HTTPS in production: {origin}")
+                    raise ValueError(
+                        f"CORS origin must use HTTPS in production: {origin}"
+                    )
 
         return v
 
@@ -198,10 +208,14 @@ class SecureSettings(BaseSettings):
     # THIRD-PARTY APIS (Secure Tokens)
     # ============================================
     SLACK_CLIENT_ID: str | None = Field(default=None, env="SLACK_CLIENT_ID")
-    SLACK_CLIENT_SECRET: SecretStr | None = Field(default=None, env="SLACK_CLIENT_SECRET")
+    SLACK_CLIENT_SECRET: SecretStr | None = Field(
+        default=None, env="SLACK_CLIENT_SECRET"
+    )
 
     GOOGLE_CLIENT_ID: str | None = Field(default=None, env="GOOGLE_CLIENT_ID")
-    GOOGLE_CLIENT_SECRET: SecretStr | None = Field(default=None, env="GOOGLE_CLIENT_SECRET")
+    GOOGLE_CLIENT_SECRET: SecretStr | None = Field(
+        default=None, env="GOOGLE_CLIENT_SECRET"
+    )
 
     OPENAI_API_KEY: SecretStr | None = Field(default=None, env="OPENAI_API_KEY")
 
@@ -214,7 +228,9 @@ class SecureSettings(BaseSettings):
     # ============================================
     # SECURITY SETTINGS
     # ============================================
-    ALLOWED_HOSTS: list[str] = Field(default=["localhost", "127.0.0.1"], env="ALLOWED_HOSTS")
+    ALLOWED_HOSTS: list[str] = Field(
+        default=["localhost", "127.0.0.1"], env="ALLOWED_HOSTS"
+    )
 
     # Session security
     SECURE_COOKIES: bool = Field(default=True, env="SECURE_COOKIES")

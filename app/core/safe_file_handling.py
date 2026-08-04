@@ -27,12 +27,12 @@ try:
 except ImportError:
     MAGIC_AVAILABLE = False
     magic = None
-from datetime import datetime
 import logging
-from pathlib import Path
 import tarfile
 import tempfile
 import zipfile
+from datetime import datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +152,9 @@ class SafeFileHandler:
                 logger.warning(
                     f"Content-Type mismatch: declared={content_type}, detected={detected_mime}"
                 )
-                raise FileValidationError("Declared content type doesn't match file content")
+                raise FileValidationError(
+                    "Declared content type doesn't match file content"
+                )
 
         # Check if MIME type is allowed
         if detected_mime not in SafeFileHandler.ALLOWED_MIME_TYPES:
@@ -184,13 +186,17 @@ class SafeFileHandler:
 
         # Check length
         if len(filename) > max_length:
-            raise FileValidationError(f"Filename too long. Maximum: {max_length} characters")
+            raise FileValidationError(
+                f"Filename too long. Maximum: {max_length} characters"
+            )
 
         # Check for dangerous characters
         dangerous_chars = ["..", "/", "\\", ":", "*", "?", '"', "<", ">", "|", "\x00"]
         for char in dangerous_chars:
             if char in filename:
-                raise FileValidationError(f"Filename contains dangerous character: {char}")
+                raise FileValidationError(
+                    f"Filename contains dangerous character: {char}"
+                )
 
         # Check for Windows reserved names
         reserved_names = {
@@ -220,7 +226,9 @@ class SafeFileHandler:
 
         name_without_ext = os.path.splitext(filename)[0].upper()
         if name_without_ext in reserved_names:
-            raise FileValidationError(f"Filename is a reserved system name: {name_without_ext}")
+            raise FileValidationError(
+                f"Filename is a reserved system name: {name_without_ext}"
+            )
 
         # Sanitize: replace remaining unsafe chars with underscore
         safe_filename = re.sub(r"[^\w\-_\.]", "_", filename)
@@ -258,7 +266,10 @@ class SafeFileHandler:
 
     @staticmethod
     def save_upload(
-        file_content: bytes, filename: str, upload_dir: str, generate_unique_name: bool = True
+        file_content: bytes,
+        filename: str,
+        upload_dir: str,
+        generate_unique_name: bool = True,
     ) -> str:
         """
         Securely save uploaded file.
@@ -395,7 +406,9 @@ class SafeFileHandler:
             with zipfile.ZipFile(zip_path, "r") as zip_ref:
                 # Check file count
                 if len(zip_ref.namelist()) > max_files:
-                    raise FileValidationError(f"ZIP contains too many files. Maximum: {max_files}")
+                    raise FileValidationError(
+                        f"ZIP contains too many files. Maximum: {max_files}"
+                    )
 
                 for member in zip_ref.namelist():
                     # Check for path traversal (zip-slip)
@@ -405,7 +418,9 @@ class SafeFileHandler:
                     try:
                         member_path.relative_to(extract_path)
                     except ValueError:
-                        raise FileValidationError(f"Path traversal attempt in ZIP: {member}")
+                        raise FileValidationError(
+                            f"Path traversal attempt in ZIP: {member}"
+                        )
 
                     # Get file size
                     info = zip_ref.getinfo(member)
@@ -522,7 +537,9 @@ class SafeFileHandler:
     # ==================== Temporary Files ====================
 
     @staticmethod
-    def create_temp_file(content: bytes, suffix: str = ".tmp", prefix: str = "psychsync_") -> str:
+    def create_temp_file(
+        content: bytes, suffix: str = ".tmp", prefix: str = "psychsync_"
+    ) -> str:
         """
         Create secure temporary file.
 

@@ -1,0 +1,394 @@
+{
+  "timestamp": "2024-01-01T00:00:00Z",
+  "project_root": "/Users/sheriftito/Downloads/psychsync/scripts",
+  "summary": {
+    "total_files_audited": 330,
+    "files_with_issues": 9,
+    "issues_by_severity": {
+      "critical": 0,
+      "high": 0,
+      "medium": 42,
+      "low": 0
+    }
+  },
+  "issues": [
+    {
+      "file_path": "check_no_bare_except.py",
+      "line_number": 5,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "This script scans Python files for bare 'except:' clauses and rejects commits"
+    },
+    {
+      "file_path": "check_no_bare_except.py",
+      "line_number": 76,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "print(f\"\u274c {path}:{error['line']}: Bare 'except:' clause found\")"
+    },
+    {
+      "file_path": "fix_bare_exceptions.py",
+      "line_number": 3,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "Systematically fix bare except: clauses in the codebase."
+    },
+    {
+      "file_path": "fix_bare_exceptions.py",
+      "line_number": 6,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "1. Finds all bare except: clauses"
+    },
+    {
+      "file_path": "auto_fix_bare_exceptions.py",
+      "line_number": 6,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "1. Finds all bare except: clauses"
+    },
+    {
+      "file_path": "auto_fix_bare_exceptions.py",
+      "line_number": 249,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "- Replaced bare 'except:' with specific exception types"
+    },
+    {
+      "file_path": "fix_high_priority_bare_exceptions.py",
+      "line_number": 107,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "print(f\"   \u2022 Fixed bare 'except:' clauses\")"
+    },
+    {
+      "file_path": "monitor_file_growth.py",
+      "line_number": 43,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "except:"
+    },
+    {
+      "file_path": "monitor_file_growth.py",
+      "line_number": 57,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "except:"
+    },
+    {
+      "file_path": "check_import_complexity.py",
+      "line_number": 46,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "except:"
+    },
+    {
+      "file_path": "visualize_dependencies.py",
+      "line_number": 75,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "except:"
+    },
+    {
+      "file_path": "visualize_dependencies.py",
+      "line_number": 84,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "except:"
+    },
+    {
+      "file_path": "security/fallback_audit.py",
+      "line_number": 48,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "SILENT_EXCEPT_PATTERN = re.compile(r'except:\\s*pass\\s*\\)|except:\\s*return\\s*(?:pass|None|False)')"
+    },
+    {
+      "file_path": "security/fallback_audit.py",
+      "line_number": 50,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "BARE_EXCEPT_PATTERN = re.compile(r'except:\\s*Exception')"
+    },
+    {
+      "file_path": "security/fallback_audit.py",
+      "line_number": 51,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "FAIL_OPEN_TRY_PATTERN = re.compile(r'try:\\s*except:\\s*:\\s*pass\\s*\\)|try:\\s*except:\\s*return\\s*None\\s*\\)')"
+    },
+    {
+      "file_path": "security/fallback_audit.py",
+      "line_number": 152,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "description=\"Bare exception handler (except:) without proper error handling\","
+    },
+    {
+      "file_path": "security/fallback_audit.py",
+      "line_number": 166,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "description=\"Empty exception handler (except:) without any error handling\","
+    },
+    {
+      "file_path": "security/fallback_audit.py",
+      "line_number": 313,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "print(\"\\n1. Never use bare exception handlers (except:)\")"
+    },
+    {
+      "file_path": "security/fallback_audit_simple.py",
+      "line_number": 82,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "if re.search(r'except:\\s*pass\\s*\\)|except:\\s*return\\s*(?:pass|None|False)', line):"
+    },
+    {
+      "file_path": "security/fallback_audit_simple.py",
+      "line_number": 100,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "description=\"Bare exception handler (except:) without handling\","
+    },
+    {
+      "file_path": "security/fallback_audit_simple.py",
+      "line_number": 141,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "print(\"\\n1. Never use bare exception handlers (except:)\")"
+    },
+    {
+      "file_path": "check_no_bare_except.py",
+      "line_number": 5,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "This script scans Python files for bare 'except:' clauses and rejects commits"
+    },
+    {
+      "file_path": "check_no_bare_except.py",
+      "line_number": 76,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "print(f\"\u274c {path}:{error['line']}: Bare 'except:' clause found\")"
+    },
+    {
+      "file_path": "fix_bare_exceptions.py",
+      "line_number": 3,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "Systematically fix bare except: clauses in the codebase."
+    },
+    {
+      "file_path": "fix_bare_exceptions.py",
+      "line_number": 6,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "1. Finds all bare except: clauses"
+    },
+    {
+      "file_path": "auto_fix_bare_exceptions.py",
+      "line_number": 6,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "1. Finds all bare except: clauses"
+    },
+    {
+      "file_path": "auto_fix_bare_exceptions.py",
+      "line_number": 249,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "- Replaced bare 'except:' with specific exception types"
+    },
+    {
+      "file_path": "fix_high_priority_bare_exceptions.py",
+      "line_number": 107,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "print(f\"   \u2022 Fixed bare 'except:' clauses\")"
+    },
+    {
+      "file_path": "monitor_file_growth.py",
+      "line_number": 43,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "except:"
+    },
+    {
+      "file_path": "monitor_file_growth.py",
+      "line_number": 57,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "except:"
+    },
+    {
+      "file_path": "check_import_complexity.py",
+      "line_number": 46,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "except:"
+    },
+    {
+      "file_path": "visualize_dependencies.py",
+      "line_number": 75,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "except:"
+    },
+    {
+      "file_path": "visualize_dependencies.py",
+      "line_number": 84,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "except:"
+    },
+    {
+      "file_path": "security/fallback_audit.py",
+      "line_number": 48,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "SILENT_EXCEPT_PATTERN = re.compile(r'except:\\s*pass\\s*\\)|except:\\s*return\\s*(?:pass|None|False)')"
+    },
+    {
+      "file_path": "security/fallback_audit.py",
+      "line_number": 50,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "BARE_EXCEPT_PATTERN = re.compile(r'except:\\s*Exception')"
+    },
+    {
+      "file_path": "security/fallback_audit.py",
+      "line_number": 51,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "FAIL_OPEN_TRY_PATTERN = re.compile(r'try:\\s*except:\\s*:\\s*pass\\s*\\)|try:\\s*except:\\s*return\\s*None\\s*\\)')"
+    },
+    {
+      "file_path": "security/fallback_audit.py",
+      "line_number": 152,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "description=\"Bare exception handler (except:) without proper error handling\","
+    },
+    {
+      "file_path": "security/fallback_audit.py",
+      "line_number": 166,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "description=\"Empty exception handler (except:) without any error handling\","
+    },
+    {
+      "file_path": "security/fallback_audit.py",
+      "line_number": 313,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "print(\"\\n1. Never use bare exception handlers (except:)\")"
+    },
+    {
+      "file_path": "security/fallback_audit_simple.py",
+      "line_number": 82,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "if re.search(r'except:\\s*pass\\s*\\)|except:\\s*return\\s*(?:pass|None|False)', line):"
+    },
+    {
+      "file_path": "security/fallback_audit_simple.py",
+      "line_number": 100,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "description=\"Bare exception handler (except:) without handling\","
+    },
+    {
+      "file_path": "security/fallback_audit_simple.py",
+      "line_number": 141,
+      "issue_type": "bare_exception",
+      "severity": "medium",
+      "description": "Bare exception handler (except:) without handling",
+      "recommendation": "Handle specific exceptions or remove empty handler",
+      "code_snippet": "print(\"\\n1. Never use bare exception handlers (except:)\")"
+    }
+  ]
+}

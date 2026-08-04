@@ -1,0 +1,58 @@
+{
+  "rules": {
+    // Prevent hardcoded colors in JSX/TSX
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "JSXAttribute[value=/^style=.*color.*#[0-9a-fA-F]{3,6}/]",
+        "message": "Use design tokens or Tailwind classes instead of hardcoded colors. Example: Use className='text-blue-600' instead of style={{ color: '#2563eb' }}"
+      }
+    ],
+
+    // Prevent hardcoded fontSize
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "JSXAttribute[value=/^style=.*fontSize.*\\d+px/]",
+        "message": "Use Tailwind typography classes instead of hardcoded font sizes. Example: Use className='text-lg' instead of style={{ fontSize: '18px' }}"
+      }
+    ],
+
+    // Prevent hardcoded padding/margin not on 4px scale
+    "react/style-prop-object": [
+      "error",
+      {
+        "validateStyles": {
+          "allowedProperties": {
+            "padding": false,
+            "margin": false,
+            "backgroundColor": false,
+            "color": false,
+            "fontSize": false,
+            "borderRadius": false,
+            "borderWidth": false,
+            "width": false,
+            "height": false
+          },
+          "message": "Use Tailwind utility classes instead of inline styles"
+        }
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["*.tsx", "*.jsx"],
+      "rules": {
+        // Enforce using design token API for complex styles
+        "@typescript-eslint/no-restricted-imports": [
+          "error",
+          {
+            "name": "design-system-api",
+            "message": "Import design tokens from utils/designTokens.ts instead of hardcoding values",
+            "allow": ["@/utils/designTokens"]
+          }
+        ]
+      }
+    }
+  ]
+}

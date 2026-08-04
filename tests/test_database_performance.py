@@ -4,11 +4,12 @@ Database performance and caching tests
 Tests for database query optimization and caching strategies
 """
 
-import pytest
 import asyncio
 import time
-from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 pytestmark = pytest.mark.unit
 
@@ -22,8 +23,11 @@ class TestDatabaseQueryOptimization:
         # Sample query analysis data
         slow_queries = [
             {"query": "SELECT * FROM users WHERE email LIKE '%test%'", "time": 250.5},
-            {"query": "SELECT * FROM assessments WHERE created_at > '2023-01-01'", "time": 180.2},
-            {"query": "SELECT u.*, a.* FROM users u JOIN assessments a", "time": 320.1}
+            {
+                "query": "SELECT * FROM assessments WHERE created_at > '2023-01-01'",
+                "time": 180.2,
+            },
+            {"query": "SELECT u.*, a.* FROM users u JOIN assessments a", "time": 320.1},
         ]
 
         # Test query performance thresholds
@@ -44,7 +48,7 @@ class TestDatabaseQueryOptimization:
         optimized_queries = [
             "SELECT id, email FROM users WHERE email LIKE 'test%'",
             "SELECT id, created_at FROM assessments WHERE created_at > '2023-01-01'",
-            "SELECT u.id, u.email, a.id FROM users u INNER JOIN assessments a ON u.id = a.user_id"
+            "SELECT u.id, u.email, a.id FROM users u INNER JOIN assessments a ON u.id = a.user_id",
         ]
 
         for query in optimized_queries:
@@ -64,20 +68,20 @@ class TestDatabaseQueryOptimization:
                 "rows": 10000,
                 "indexes": ["PRIMARY", "idx_email"],
                 "slow_queries": ["WHERE email LIKE '%search%'"],
-                "size_mb": 50
+                "size_mb": 50,
             },
             "assessments": {
                 "rows": 50000,
                 "indexes": ["PRIMARY"],
                 "slow_queries": ["WHERE user_id = ? AND created_at > ?"],
-                "size_mb": 200
+                "size_mb": 200,
             },
             "responses": {
                 "rows": 250000,
                 "indexes": ["PRIMARY"],
                 "slow_queries": ["WHERE assessment_id = ? ORDER BY created_at"],
-                "size_mb": 500
-            }
+                "size_mb": 500,
+            },
         }
 
         # Test index recommendations
@@ -86,10 +90,14 @@ class TestDatabaseQueryOptimization:
             recommendations = []
 
             if "user_id" in str(table_data.get("slow_queries", [])):
-                recommendations.append("CREATE INDEX idx_user_id ON table_name(user_id)")
+                recommendations.append(
+                    "CREATE INDEX idx_user_id ON table_name(user_id)"
+                )
 
             if "created_at" in str(table_data.get("slow_queries", [])):
-                recommendations.append("CREATE INDEX idx_created_at ON table_name(created_at)")
+                recommendations.append(
+                    "CREATE INDEX idx_created_at ON table_name(created_at)"
+                )
 
             if table_data.get("rows", 0) > 100000:
                 recommendations.append("Consider partitioning for large tables")
@@ -119,7 +127,7 @@ class TestDatabaseQueryOptimization:
             "max_connections": 20,
             "pool_timeout": 30,
             "pool_recycle": 3600,
-            "max_overflow": 10
+            "max_overflow": 10,
         }
 
         # Test pool configuration validation
@@ -141,7 +149,7 @@ class TestDatabaseQueryOptimization:
 
         # Test different usage scenarios
         test_scenarios = [
-            (3, 20, 2),   # Underutilized
+            (3, 20, 2),  # Underutilized
             (5, 20, 12),  # Optimal
             (5, 20, 25),  # Overloaded
         ]
@@ -163,20 +171,20 @@ class TestCachingStrategy:
                 "prefix": "user_profile",
                 "user_id": 123,
                 "team_id": 456,
-                "expected": "user_profile:user_id:123:team_id:456"
+                "expected": "user_profile:user_id:123:team_id:456",
             },
             {
                 "prefix": "assessment_results",
                 "assessment_id": 789,
                 "filters": {"status": "completed"},
-                "expected": "assessment_results:assessment_id:789:status:completed"
+                "expected": "assessment_results:assessment_id:789:status:completed",
             },
             {
                 "prefix": "team_list",
                 "page": 1,
                 "limit": 20,
-                "expected": "team_list:page:1:limit:20"
-            }
+                "expected": "team_list:page:1:limit:20",
+            },
         ]
 
         # Test cache key generation
@@ -190,7 +198,9 @@ class TestCachingStrategy:
 
         for scenario in cache_scenarios:
             # Build kwargs from scenario (excluding expected)
-            kwargs = {k: v for k, v in scenario.items() if k not in ["expected", "prefix"]}
+            kwargs = {
+                k: v for k, v in scenario.items() if k not in ["expected", "prefix"]
+            }
             generated_key = generate_cache_key(scenario["prefix"], **kwargs)
 
             # Test key structure
@@ -202,11 +212,11 @@ class TestCachingStrategy:
         """Test cache TTL (time to live) optimization"""
         # Cache TTL strategies
         ttl_strategies = {
-            "user_profile": 1800,      # 30 minutes
-            "team_data": 600,          # 10 minutes
-            "assessment_results": 3600, # 1 hour
-            "system_config": 86400,    # 24 hours
-            "analytics_data": 300      # 5 minutes
+            "user_profile": 1800,  # 30 minutes
+            "team_data": 600,  # 10 minutes
+            "assessment_results": 3600,  # 1 hour
+            "system_config": 86400,  # 24 hours
+            "analytics_data": 300,  # 5 minutes
         }
 
         # Test TTL optimization logic
@@ -225,8 +235,8 @@ class TestCachingStrategy:
         # Test TTL optimization scenarios
         test_cases = [
             (1800, 150, 0.1),  # High access, low change
-            (600, 50, 0.8),    # Low access, high change
-            (3600, 200, 0.05), # Very high access, very low change
+            (600, 50, 0.8),  # Low access, high change
+            (3600, 200, 0.05),  # Very high access, very low change
         ]
 
         for base_ttl, access_freq, change_rate in test_cases:
@@ -249,18 +259,30 @@ class TestCachingStrategy:
             {
                 "event": "user_updated",
                 "user_id": 123,
-                "patterns_to_clear": ["user_profile:123", "team_list", "assessment_results"]
+                "patterns_to_clear": [
+                    "user_profile:123",
+                    "team_list",
+                    "assessment_results",
+                ],
             },
             {
                 "event": "team_member_added",
                 "team_id": 456,
-                "patterns_to_clear": ["team_detail:456", "team_members:456", "team_list"]
+                "patterns_to_clear": [
+                    "team_detail:456",
+                    "team_members:456",
+                    "team_list",
+                ],
             },
             {
                 "event": "assessment_completed",
                 "assessment_id": 789,
-                "patterns_to_clear": ["assessment:789", "user_analytics", "team_analytics"]
-            }
+                "patterns_to_clear": [
+                    "assessment:789",
+                    "user_analytics",
+                    "team_analytics",
+                ],
+            },
         ]
 
         # Test invalidation pattern matching
@@ -286,7 +308,11 @@ class TestCachingStrategy:
 
         # Test pattern generation
         for scenario in invalidation_scenarios:
-            kwargs = {k: v for k, v in scenario.items() if k not in ["event", "patterns_to_clear"]}
+            kwargs = {
+                k: v
+                for k, v in scenario.items()
+                if k not in ["event", "patterns_to_clear"]
+            }
             generated_patterns = generate_invalidation_keys(scenario["event"], **kwargs)
 
             # Validate pattern generation
@@ -314,17 +340,35 @@ class TestCachingStrategy:
 
         hit_rate = (cache_hits / total_operations) * 100 if total_operations > 0 else 0
 
-        avg_get_time_hit = sum(op["time"] for op in cache_operations
-                            if op["operation"] == "get" and op.get("hit") == True) / cache_hits if cache_hits > 0 else 0
+        avg_get_time_hit = (
+            sum(
+                op["time"]
+                for op in cache_operations
+                if op["operation"] == "get" and op.get("hit") == True
+            )
+            / cache_hits
+            if cache_hits > 0
+            else 0
+        )
 
-        avg_get_time_miss = sum(op["time"] for op in cache_operations
-                             if op["operation"] == "get" and op.get("hit") == False) / cache_misses if cache_misses > 0 else 0
+        avg_get_time_miss = (
+            sum(
+                op["time"]
+                for op in cache_operations
+                if op["operation"] == "get" and op.get("hit") == False
+            )
+            / cache_misses
+            if cache_misses > 0
+            else 0
+        )
 
         # Performance assertions
         assert 0 <= hit_rate <= 100
         assert avg_get_time_hit < avg_get_time_miss  # Cache hits should be faster
         assert avg_get_time_hit < 0.01  # Cache hits should be very fast (< 10ms)
-        assert avg_get_time_miss < 0.2  # Even cache misses should be reasonable (< 200ms)
+        assert (
+            avg_get_time_miss < 0.2
+        )  # Even cache misses should be reasonable (< 200ms)
 
 
 @pytest.mark.integration
@@ -334,6 +378,7 @@ class TestDatabaseCachingIntegration:
     @pytest.mark.asyncio
     async def test_read_through_caching_pattern(self):
         """Test read-through caching pattern"""
+
         # Simulate read-through caching flow
         async def get_data_with_cache(cache_key, data_fetcher, cache_ttl=300):
             """Read-through cache pattern simulation"""
@@ -388,7 +433,7 @@ class TestDatabaseCachingIntegration:
             cache_storage[key] = {
                 **updated_data,
                 "last_updated": datetime.now().isoformat(),
-                "update_time_ms": db_time
+                "update_time_ms": db_time,
             }
 
             return updated_data
@@ -400,7 +445,9 @@ class TestDatabaseCachingIntegration:
 
         # Test write operation
         test_data = {"name": "Test Item", "value": 100}
-        result = await write_data_with_cache("write_test", test_data, mock_database_updater)
+        result = await write_data_with_cache(
+            "write_test", test_data, mock_database_updater
+        )
 
         assert result["name"] == "Test Item"
         assert "id" in result

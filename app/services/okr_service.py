@@ -6,25 +6,25 @@ achievement rates. Implements the OKR framework defined in the quarterly
 product team OKRs document.
 """
 
-from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Dict
-from uuid import UUID
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from typing import Dict, List, Optional
+from uuid import UUID
 
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, update
 from sqlalchemy.orm import selectinload
 
 from app.db.models.okr import (
-    Objective,
+    Initiative,
     KeyResult,
     KRProgressUpdate,
-    Initiative,
+    KRStatus,
+    Objective,
     OKRCheckIn,
-    OKRRetrospective,
     OKRPeriod,
+    OKRRetrospective,
     OKRStatus,
-    KRStatus
 )
 
 
@@ -61,7 +61,7 @@ class OKRService:
         strategic_priority: Optional[str] = None,
         parent_objective_id: Optional[UUID] = None,
         tags: Optional[List[str]] = None,
-        context: Optional[Dict] = None
+        context: Optional[Dict] = None,
     ) -> Objective:
         """
         Create a new Objective.
@@ -102,7 +102,7 @@ class OKRService:
             status=OKRStatus.DRAFT,
             progress_percentage=0.0,
             tags=tags or [],
-            context=context or {}
+            context=context or {},
         )
 
         self.db.add(objective)
@@ -121,11 +121,15 @@ class OKRService:
             raise ValueError(f"Objective {objective_id} not found")
 
         if objective.status != OKRStatus.DRAFT:
-            raise ValueError(f"Objective must be in DRAFT status to activate. Current: {objective.status}")
+            raise ValueError(
+                f"Objective must be in DRAFT status to activate. Current: {objective.status}"
+            )
 
         # Check if all KRs are defined
         if not objective.key_results:
-            raise ValueError("Cannot activate objective without key results. Add at least one key result first.")
+            raise ValueError(
+                "Cannot activate objective without key results. Add at least one key result first."
+            )
 
         objective.status = OKRStatus.ACTIVE
         await self.db.commit()
@@ -136,26 +140,28 @@ class OKRService:
     async def update_objective_progress(self, objective_id: UUID) -> Objective:
         """Update an existing resource.
 
-Args:
-    db: Database session
-    id: Resource ID
-    **kwargs: Attributes to update
+        Args:
+            db: Database session
+            id: Resource ID
+            **kwargs: Attributes to update
 
-Returns:
-    Updated resource object
+        Returns:
+            Updated resource object
 
-Raises:
-    NotFoundError: If resource doesn't exist
-    ValidationError: If input data is invalid
+        Raises:
+            NotFoundError: If resource doesn't exist
+            ValidationError: If input data is invalid
         """
         """
         Recalculate objective progress based on weighted average of key results.
 
         Progress = Σ(KR_progress × KR_weight) / Σ(KR_weights)
         """
-        query = select(Objective).options(
-            selectinload(Objective.key_results)
-        ).where(Objective.id == objective_id)
+        query = (
+            select(Objective)
+            .options(selectinload(Objective.key_results))
+            .where(Objective.id == objective_id)
+        )
 
         result = await self.db.execute(query)
         objective = result.scalar_one_or_none()
@@ -168,10 +174,11 @@ Raises:
         else:
             total_weight = sum(kr.weight for kr in objective.key_results)
             weighted_progress = sum(
-                kr.progress_percentage * kr.weight
-                for kr in objective.key_results
+                kr.progress_percentage * kr.weight for kr in objective.key_results
             )
-            objective.progress_percentage = weighted_progress / total_weight if total_weight > 0 else 0.0
+            objective.progress_percentage = (
+                weighted_progress / total_weight if total_weight > 0 else 0.0
+            )
 
         # Auto-complete objective if progress >= 100% and all KRs achieved
         if objective.progress_percentage >= 100.0:
@@ -206,7 +213,7 @@ Raises:
         weight: float = 1.0,
         depends_on_kr_ids: Optional[List[UUID]] = None,
         tags: Optional[List[str]] = None,
-        context: Optional[Dict] = None
+        context: Optional[Dict] = None,
     ) -> KeyResult:
         """
         Create a new Key Result.
@@ -240,9 +247,7 @@ Raises:
         # Calculate initial progress
         current_value = baseline_value or 0.0
         progress_percentage = self._calculate_kr_progress(
-            current_value,
-            baseline_value or 0.0,
-            target_value
+            current_value, baseline_value or 0.0, target_value
         )
 
         # Determine initial status
@@ -266,7 +271,7 @@ Raises:
             status=status,
             depends_on_kr_ids=depends_on_kr_ids or [],
             tags=tags or [],
-            context=context or {}
+            context=context or {},
         )
 
         self.db.add(key_result)
@@ -287,7 +292,7 @@ Raises:
         blockers: Optional[str] = None,
         next_steps: Optional[str] = None,
         confidence_level: Optional[str] = None,
-        sentiment: Optional[str] = None
+        sentiment: Optional[str] = None,
     ) -> KeyResult:
         """
         Update key result progress and create progress update record.
@@ -316,16 +321,12 @@ Raises:
         # Update values
         kr.current_value = current_value
         kr.progress_percentage = self._calculate_kr_progress(
-            current_value,
-            kr.baseline_value or 0.0,
-            kr.target_value
+            current_value, kr.baseline_value or 0.0, kr.target_value
         )
 
         # Update status based on progress
         kr.status = self._determine_kr_status(
-            kr.progress_percentage,
-            kr.end_date,
-            confidence_level
+            kr.progress_percentage, kr.end_date, confidence_level
         )
         kr.confidence_level = confidence_level or kr.confidence_level
 
@@ -347,7 +348,7 @@ Raises:
             next_steps=next_steps,
             confidence_level=confidence_level,
             sentiment=sentiment,
-            update_date=datetime.now(timezone.utc)
+            update_date=datetime.now(timezone.utc),
         )
 
         self.db.add(progress_update)
@@ -360,10 +361,7 @@ Raises:
         return kr
 
     def _calculate_kr_progress(
-        self,
-        current_value: float,
-        baseline_value: float,
-        target_value: float
+        self, current_value: float, baseline_value: float, target_value: float
     ) -> float:
         """
         Calculate KR progress percentage.
@@ -373,14 +371,16 @@ Raises:
         if target_value == baseline_value:
             return 100.0 if current_value >= target_value else 0.0
 
-        progress = ((current_value - baseline_value) / (target_value - baseline_value)) * 100
+        progress = (
+            (current_value - baseline_value) / (target_value - baseline_value)
+        ) * 100
         return max(0.0, min(100.0, progress))  # Clamp between 0-100
 
     def _determine_kr_status(
         self,
         progress_percentage: float,
         end_date: datetime,
-        confidence_level: Optional[str] = None
+        confidence_level: Optional[str] = None,
     ) -> KRStatus:
         """
         Determine KR health status based on progress and timeline.
@@ -443,7 +443,7 @@ Raises:
         estimated_hours: Optional[int] = None,
         depends_on_initiative_ids: Optional[List[UUID]] = None,
         tags: Optional[List[str]] = None,
-        context: Optional[Dict] = None
+        context: Optional[Dict] = None,
     ) -> Initiative:
         """
         Create a new Initiative.
@@ -470,7 +470,7 @@ Raises:
             status="not_started",
             completion_percentage=0,
             tags=tags or [],
-            context=context or {}
+            context=context or {},
         )
 
         self.db.add(initiative)
@@ -485,7 +485,7 @@ Raises:
         status: str,
         completion_percentage: int,
         actual_hours: Optional[int] = None,
-        outcome_summary: Optional[str] = None
+        outcome_summary: Optional[str] = None,
     ) -> Initiative:
         """Update initiative status and completion."""
         query = select(Initiative).where(Initiative.id == initiative_id)
@@ -531,7 +531,7 @@ Raises:
         decisions_made: Optional[str] = None,
         discussions: Optional[str] = None,
         next_check_in_date: Optional[datetime] = None,
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
     ) -> OKRCheckIn:
         """Create an OKR check-in meeting record."""
         check_in = OKRCheckIn(
@@ -547,7 +547,7 @@ Raises:
             decisions_made=decisions_made,
             discussions=discussions,
             next_check_in_date=next_check_in_date,
-            notes=notes
+            notes=notes,
         )
 
         self.db.add(check_in)
@@ -565,7 +565,7 @@ Raises:
         period: OKRPeriod,
         year: int,
         organization_id: Optional[UUID] = None,
-        team: Optional[str] = None
+        team: Optional[str] = None,
     ) -> Dict:
         """
         Get OKR summary for a period.
@@ -574,13 +574,15 @@ Raises:
             Dict with objectives, KRs, initiatives, and overall health
         """
         # Build query
-        query = select(Objective).options(
-            selectinload(Objective.key_results)
-        ).where(
-            and_(
-                Objective.period == period,
-                Objective.year == year,
-                Objective.status.in_([OKRStatus.ACTIVE, OKRStatus.COMPLETED])
+        query = (
+            select(Objective)
+            .options(selectinload(Objective.key_results))
+            .where(
+                and_(
+                    Objective.period == period,
+                    Objective.year == year,
+                    Objective.status.in_([OKRStatus.ACTIVE, OKRStatus.COMPLETED]),
+                )
             )
         )
 
@@ -594,7 +596,9 @@ Raises:
 
         # Calculate metrics
         total_objectives = len(objectives)
-        completed_objectives = sum(1 for o in objectives if o.status == OKRStatus.COMPLETED)
+        completed_objectives = sum(
+            1 for o in objectives if o.status == OKRStatus.COMPLETED
+        )
 
         total_krs = sum(len(o.key_results) for o in objectives)
         achieved_krs = sum(
@@ -631,7 +635,11 @@ Raises:
             "objectives": {
                 "total": total_objectives,
                 "completed": completed_objectives,
-                "completion_rate": round((completed_objectives / total_objectives * 100), 1) if total_objectives > 0 else 0
+                "completion_rate": (
+                    round((completed_objectives / total_objectives * 100), 1)
+                    if total_objectives > 0
+                    else 0
+                ),
             },
             "key_results": {
                 "total": total_krs,
@@ -639,7 +647,7 @@ Raises:
                 "on_track": on_track_krs,
                 "at_risk": at_risk_krs,
                 "off_track": off_track_krs,
-                "achievement_rate": round(success_rate, 1)
+                "achievement_rate": round(success_rate, 1),
             },
             "objectives_list": [
                 {
@@ -647,8 +655,8 @@ Raises:
                     "title": obj.title,
                     "progress": round(obj.progress_percentage, 1),
                     "status": obj.status.value,
-                    "key_results_count": len(obj.key_results)
+                    "key_results_count": len(obj.key_results),
                 }
                 for obj in objectives
-            ]
+            ],
         }

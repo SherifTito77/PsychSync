@@ -5,17 +5,17 @@ Integration of enhanced analytics service with FastAPI
 Provides comprehensive analytics for clinical screening data
 """
 
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_db, get_current_user
+from app.api.v1.deps import get_current_user, get_db
 from app.db.models.user import User
 from app.services.clinical.enhanced_analytics import (
+    EnhancedClinicalAnalytics,
     generate_analytics_report,
-    EnhancedClinicalAnalytics
 )
 
 router = APIRouter(prefix="/analytics", tags=["enhanced-analytics"])
@@ -26,7 +26,7 @@ async def get_user_analytics_summary(
     user_id: str,
     org_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get comprehensive analytics summary for user
@@ -38,10 +38,10 @@ async def get_user_analytics_summary(
     - Population health context
     """
     # Verify authorization (user can only access own data unless clinician/admin)
-    if current_user.id != user_id and current_user.role not in ['clinician', 'admin']:
+    if current_user.id != user_id and current_user.role not in ["clinician", "admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this user's analytics"
+            detail="Not authorized to access this user's analytics",
         )
 
     try:
@@ -49,12 +49,12 @@ async def get_user_analytics_summary(
         return {
             "status": "success",
             "data": report,
-            "generated_at": datetime.utcnow().isoformat()
+            "generated_at": datetime.utcnow().isoformat(),
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate analytics: {str(e)}"
+            detail=f"Failed to generate analytics: {str(e)}",
         )
 
 
@@ -64,7 +64,7 @@ async def get_user_trends(
     screening_type: str,
     weeks: int = 12,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get longitudinal trend analysis for specific screening
@@ -75,10 +75,9 @@ async def get_user_trends(
     - Statistical confidence
     - Clinical recommendations
     """
-    if current_user.id != user_id and current_user.role not in ['clinician', 'admin']:
+    if current_user.id != user_id and current_user.role not in ["clinician", "admin"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized"
         )
 
     analytics = EnhancedClinicalAnalytics(db)
@@ -88,7 +87,7 @@ async def get_user_trends(
         return {
             "status": "insufficient_data",
             "message": "Not enough data points for trend analysis",
-            "data": None
+            "data": None,
         }
 
     return {
@@ -101,8 +100,8 @@ async def get_user_trends(
             "confidence": trends.confidence,
             "slope": trends.slope,
             "r_squared": trends.r_squared,
-            "recommendation": trends.recommendation
-        }
+            "recommendation": trends.recommendation,
+        },
     }
 
 
@@ -111,7 +110,7 @@ async def get_comparative_metrics(
     user_id: str,
     screening_type: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Compare user's scores to population
@@ -123,10 +122,9 @@ async def get_comparative_metrics(
     - Z-score
     - Interpretation
     """
-    if current_user.id != user_id and current_user.role not in ['clinician', 'admin']:
+    if current_user.id != user_id and current_user.role not in ["clinician", "admin"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized"
         )
 
     analytics = EnhancedClinicalAnalytics(db)
@@ -135,7 +133,7 @@ async def get_comparative_metrics(
     if not comparative:
         return {
             "status": "no_data",
-            "message": "No screening data available for comparison"
+            "message": "No screening data available for comparison",
         }
 
     return {
@@ -146,8 +144,8 @@ async def get_comparative_metrics(
             "population_average": comparative.population_average,
             "percentile_rank": comparative.percentile_rank,
             "z_score": comparative.z_score,
-            "interpretation": comparative.interpretation
-        }
+            "interpretation": comparative.interpretation,
+        },
     }
 
 
@@ -158,7 +156,7 @@ async def get_outcome_metrics(
     baseline_days: int = 30,
     follow_up_days: int = 90,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Measure clinical outcomes over time
@@ -170,10 +168,9 @@ async def get_outcome_metrics(
     - Clinical significance
     - Achievement status
     """
-    if current_user.id != user_id and current_user.role not in ['clinician', 'admin']:
+    if current_user.id != user_id and current_user.role not in ["clinician", "admin"]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized"
         )
 
     analytics = EnhancedClinicalAnalytics(db)
@@ -185,7 +182,7 @@ async def get_outcome_metrics(
         return {
             "status": "insufficient_data",
             "message": "Need both baseline and follow-up data",
-            "data": None
+            "data": None,
         }
 
     return {
@@ -199,8 +196,8 @@ async def get_outcome_metrics(
             "change": outcomes.change,
             "clinically_significant": outcomes.clinically_significant,
             "minimal_important_change": outcomes.minimal_important_change,
-            "achieved": outcomes.achieved
-        }
+            "achieved": outcomes.achieved,
+        },
     }
 
 
@@ -209,7 +206,7 @@ async def get_population_health(
     org_id: str,
     screening_type: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get population health metrics for organization
@@ -221,10 +218,10 @@ async def get_population_health(
     - Organization-level insights
     """
     # Verify user belongs to organization
-    if current_user.org_id != org_id and current_user.role != 'admin':
+    if current_user.org_id != org_id and current_user.role != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this organization's data"
+            detail="Not authorized to access this organization's data",
         )
 
     analytics = EnhancedClinicalAnalytics(db)
@@ -235,7 +232,7 @@ async def get_population_health(
         "organization_id": org_id,
         "screening_type": screening_type or "all",
         "data": metrics,
-        "generated_at": datetime.utcnow().isoformat()
+        "generated_at": datetime.utcnow().isoformat(),
     }
 
 
@@ -243,7 +240,7 @@ async def get_population_health(
 async def get_analytics_dashboard(
     org_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     Get complete analytics dashboard for organization
@@ -255,10 +252,12 @@ async def get_analytics_dashboard(
     - Completion rates
     - Recent activity
     """
-    if current_user.org_id != org_id and current_user.role not in ['clinician', 'admin']:
+    if current_user.org_id != org_id and current_user.role not in [
+        "clinician",
+        "admin",
+    ]:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized"
         )
 
     analytics = EnhancedClinicalAnalytics(db)
@@ -272,11 +271,13 @@ async def get_analytics_dashboard(
         "dashboard": {
             "population_health": population_health,
             "summary": {
-                "total_screenings": population_health.get('total_screenings', 0),
-                "completion_rate": population_health.get('completion_rate', 0),
-                "high_risk_count": population_health.get('high_risk_count', 0),
-                "crisis_alerts_last_30_days": population_health.get('crisis_alerts_last_30_days', 0)
-            }
+                "total_screenings": population_health.get("total_screenings", 0),
+                "completion_rate": population_health.get("completion_rate", 0),
+                "high_risk_count": population_health.get("high_risk_count", 0),
+                "crisis_alerts_last_30_days": population_health.get(
+                    "crisis_alerts_last_30_days", 0
+                ),
+            },
         },
-        "generated_at": datetime.utcnow().isoformat()
+        "generated_at": datetime.utcnow().isoformat(),
     }

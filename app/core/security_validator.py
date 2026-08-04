@@ -4,11 +4,11 @@ Comprehensive Security Validation Module
 Provides enterprise-grade input validation and sanitization
 """
 
-from dataclasses import dataclass
-from enum import Enum
 import html
 import logging
 import re
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any
 from uuid import UUID
 
@@ -85,7 +85,8 @@ class SecurityValidator:
 
         # Compile regex patterns for performance
         self.sql_injection_regex = re.compile(
-            "|".join(self.SQL_INJECTION_PATTERNS), re.IGNORECASE | re.MULTILINE | re.DOTALL
+            "|".join(self.SQL_INJECTION_PATTERNS),
+            re.IGNORECASE | re.MULTILINE | re.DOTALL,
         )
         self.xss_regex = re.compile(
             "|".join(self.XSS_PATTERNS), re.IGNORECASE | re.MULTILINE | re.DOTALL
@@ -99,7 +100,9 @@ class SecurityValidator:
 
         logger.info(f"SecurityValidator initialized with level: {security_level.value}")
 
-    def validate_uuid(self, value: str | UUID, field_name: str = "id") -> ValidationResult:
+    def validate_uuid(
+        self, value: str | UUID, field_name: str = "id"
+    ) -> ValidationResult:
         """Validate and sanitize UUID input"""
         try:
             if isinstance(value, UUID):
@@ -255,7 +258,9 @@ class SecurityValidator:
                 return ValidationResult(
                     is_valid=False,
                     sanitized_value=None,
-                    security_issues=[f"{field_name} exceeds maximum length of {max_len}"],
+                    security_issues=[
+                        f"{field_name} exceeds maximum length of {max_len}"
+                    ],
                     risk_level=SecurityLevel.MEDIUM,
                     original_value=text,
                 )
@@ -264,7 +269,9 @@ class SecurityValidator:
                 return ValidationResult(
                     is_valid=False,
                     sanitized_value=None,
-                    security_issues=[f"{field_name} below minimum length of {min_length}"],
+                    security_issues=[
+                        f"{field_name} below minimum length of {min_length}"
+                    ],
                     risk_level=SecurityLevel.MEDIUM,
                     original_value=text,
                 )
@@ -375,7 +382,9 @@ class SecurityValidator:
             original_value=name,
         )
 
-    def validate_search_query(self, query: str, field_name: str = "search") -> ValidationResult:
+    def validate_search_query(
+        self, query: str, field_name: str = "search"
+    ) -> ValidationResult:
         """Validate search query parameters"""
         if not isinstance(query, str):
             return ValidationResult(
@@ -408,7 +417,10 @@ class SecurityValidator:
         # Remove potentially dangerous characters but keep search-friendly characters
         sanitized_query = re.sub(r'[<>"\'`;&|]', "", sanitized_query)
 
-        if issues and self.security_level in [SecurityLevel.HIGH, SecurityLevel.CRITICAL]:
+        if issues and self.security_level in [
+            SecurityLevel.HIGH,
+            SecurityLevel.CRITICAL,
+        ]:
             return ValidationResult(
                 is_valid=False,
                 sanitized_value=sanitized_query,
@@ -539,7 +551,9 @@ class SecurityValidator:
                 original_value=data,
             )
 
-    def validate_file_path(self, file_path: str, field_name: str = "file_path") -> ValidationResult:
+    def validate_file_path(
+        self, file_path: str, field_name: str = "file_path"
+    ) -> ValidationResult:
         """Validate file paths against traversal attacks"""
         if not isinstance(file_path, str):
             return ValidationResult(
@@ -576,7 +590,9 @@ class SecurityValidator:
             ".js",
             ".jar",
         ]
-        file_ext = normalized_path.lower().split(".")[-1] if "." in normalized_path else ""
+        file_ext = (
+            normalized_path.lower().split(".")[-1] if "." in normalized_path else ""
+        )
 
         if f".{file_ext}" in dangerous_extensions:
             issues.append(f"Dangerous file extension detected in {field_name}")

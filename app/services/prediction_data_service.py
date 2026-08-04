@@ -4,11 +4,11 @@ Comprehensive service for collecting, preprocessing, and preparing data
 for machine learning model training and prediction analytics.
 """
 
+import json
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import json
-import logging
 from typing import Any
 
 import numpy as np
@@ -347,7 +347,9 @@ class PredictionDataCollectionService:
                 return {"data": [], "statistics": self._create_empty_statistics()}
 
             # Calculate initial statistics
-            statistics = self._calculate_basic_statistics(df, DataType.ASSESSMENT_RESPONSES)
+            statistics = self._calculate_basic_statistics(
+                df, DataType.ASSESSMENT_RESPONSES
+            )
 
             # Apply data cleaning and validation
             df_cleaned = self._clean_response_data(df)
@@ -366,7 +368,10 @@ class PredictionDataCollectionService:
             return {"data": [], "statistics": self._create_empty_statistics()}
 
     async def collect_user_demographics(
-        self, db: Session, user_ids: list[str] | None = None, include_inactive: bool = False
+        self,
+        db: Session,
+        user_ids: list[str] | None = None,
+        include_inactive: bool = False,
     ) -> dict[str, Any]:
         """Collect user demographic data"""
         try:
@@ -460,7 +465,8 @@ class PredictionDataCollectionService:
                     {
                         "team_avg_correct": ("total_correct", "sum"),
                         "team_total_responses": ("total_responses", "sum"),
-                        "team_performance": ("total_correct", "sum") / ("total_responses", "sum"),
+                        "team_performance": ("total_correct", "sum")
+                        / ("total_responses", "sum"),
                         "team_response_time": ("mean_response_time", "mean"),
                         "team_member_count": ("user_id", "nunique"),
                         "assessment_count": ("assessment_count", "sum"),
@@ -491,7 +497,9 @@ class PredictionDataCollectionService:
             # This would analyze item difficulty, discrimination, etc.
             # For now, we'll collect basic item statistics from assessment data
 
-            assessment_data = await self.collect_assessment_data(db, assessment_ids=assessment_ids)
+            assessment_data = await self.collect_assessment_data(
+                db, assessment_ids=assessment_ids
+            )
 
             if not assessment_data["data"]:
                 return {"data": [], "statistics": self._create_empty_statistics()}
@@ -515,7 +523,9 @@ class PredictionDataCollectionService:
 
             return {
                 "data": item_stats.to_dict("records"),
-                "statistics": self._calculate_basic_statistics(item_stats, DataType.ITEM_ANALYTICS),
+                "statistics": self._calculate_basic_statistics(
+                    item_stats, DataType.ITEM_ANALYTICS
+                ),
             }
 
         except Exception as e:
@@ -550,7 +560,9 @@ class PredictionDataCollectionService:
 
                 # Calculate IRT features if requested
                 if include_irt_features:
-                    irt_features = await self._extract_irt_features(assessment_data["data"])
+                    irt_features = await self._extract_irt_features(
+                        assessment_data["data"]
+                    )
                     feature_matrices["irt_features"] = irt_features
 
             if (
@@ -596,9 +608,11 @@ class PredictionDataCollectionService:
                 "quality_score": quality_score,
                 "metadata": {
                     "data_types": list(dataset_parts.keys()),
-                    "feature_count": len(final_dataset.columns)
-                    if hasattr(final_dataset, "columns")
-                    else 0,
+                    "feature_count": (
+                        len(final_dataset.columns)
+                        if hasattr(final_dataset, "columns")
+                        else 0
+                    ),
                     "record_count": len(final_dataset),
                     "created_at": datetime.utcnow().isoformat(),
                 },
@@ -649,13 +663,17 @@ class PredictionDataCollectionService:
                         difficulty_estimate = 0.01  # Avoid log(0)
 
                     if difficulty_estimate > 0 and difficulty_estimate < 1:
-                        ability_estimate = math.log(difficulty_estimate / (1 - difficulty_estimate))
+                        ability_estimate = math.log(
+                            difficulty_estimate / (1 - difficulty_estimate)
+                        )
                     elif difficulty_estimate == 1:
                         ability_estimate = 3.0
                     elif difficulty_estimate == 0:
                         ability_estimate = -3.0
                     else:
-                        ability_estimate = math.log(difficulty_estimate / (1 - difficulty_estimate))
+                        ability_estimate = math.log(
+                            difficulty_estimate / (1 - difficulty_estimate)
+                        )
 
                     irt_features.append(
                         {
@@ -664,11 +682,14 @@ class PredictionDataCollectionService:
                             "estimated_ability": ability_estimate,
                             "accuracy_rate": accuracy,
                             "item_count": row["total_responses"],
-                            "logit_difficulty": math.log(
-                                row["difficulty_estimate"] / (1 - row["difficulty_estimate"])
-                            )
-                            if 0 < row["difficulty_estimate"] < 1
-                            else 3.0,
+                            "logit_difficulty": (
+                                math.log(
+                                    row["difficulty_estimate"]
+                                    / (1 - row["difficulty_estimate"])
+                                )
+                                if 0 < row["difficulty_estimate"] < 1
+                                else 3.0
+                            ),
                         }
                     )
 
@@ -754,12 +775,16 @@ class PredictionDataCollectionService:
             # Add IRT features
             if feature_matrices.get("irt_features"):
                 irt_df = pd.DataFrame(feature_matrices["irt_features"])
-                df = pd.merge(df, irt_df, left_on=["user_id", "assessment_id"], how="left")
+                df = pd.merge(
+                    df, irt_df, left_on=["user_id", "assessment_id"], how="left"
+                )
 
             # Add text features
             if feature_matrices.get("text_features"):
                 text_df = pd.DataFrame(feature_matrices["text_features"])
-                df = pd.merge(df, text_df, left_on=["user_id", "assessment_id"], how="left")
+                df = pd.merge(
+                    df, text_df, left_on=["user_id", "assessment_id"], how="left"
+                )
 
             # Add team features
             if "team_performance" in dataset_parts:
@@ -788,7 +813,9 @@ class PredictionDataCollectionService:
 
             # Filter responses with valid timing
             if "response_time" in df.columns:
-                df = df[(df["response_time"] > 0) & (df["response_time"] < 300)]  # 5 minutes max
+                df = df[
+                    (df["response_time"] > 0) & (df["response_time"] < 300)
+                ]  # 5 minutes max
 
             # Remove duplicate responses (same user, item, assessment)
             df = df.drop_duplicates(subset=["user_id", "item_id", "assessment_id"])
@@ -813,7 +840,9 @@ class PredictionDataCollectionService:
 
             # Validate ranges
             if "age" in df.columns:
-                df = df[(df["age"] >= 18) & (df["age"] <= 80)]  # Reasonable working age range
+                df = df[
+                    (df["age"] >= 18) & (df["age"] <= 80)
+                ]  # Reasonable working age range
 
             return df
 
@@ -890,11 +919,15 @@ class PredictionDataCollectionService:
                     q1 = df[col].quantile(0.25)
                     q3 = df[col].quantile(0.75)
                     iqr = q3 - q1
-                    outliers = ((df[col] < (q1 - 1.5 * iqr)) | (df[col] > (q3 + 1.5 * iqr))).sum()
+                    outliers = (
+                        (df[col] < (q1 - 1.5 * iqr)) | (df[col] > (q3 + 1.5 * iqr))
+                    ).sum()
                     total_numeric_values += len(df[col].dropna())
 
             outlier_score = (
-                1 - (outlier_count / total_numeric_values) if total_numeric_values > 0 else 1
+                1 - (outlier_count / total_numeric_values)
+                if total_numeric_values > 0
+                else 1
             )
 
             # Calculate missing data ratio
@@ -958,22 +991,32 @@ class PredictionDataCollectionService:
         """Validate dataset against provided rules"""
         try:
             if dataset.empty:
-                return {"valid": False, "issues": ["Dataset is empty"], "quality_score": 0.0}
+                return {
+                    "valid": False,
+                    "issues": ["Dataset is empty"],
+                    "quality_score": 0.0,
+                }
 
             issues = []
 
             # Validate record count
-            min_records = validation_rules.get("min_records", 100) if validation_rules else 100
+            min_records = (
+                validation_rules.get("min_records", 100) if validation_rules else 100
+            )
             if len(dataset) < min_records:
                 issues.append(f"Insufficient records: {len(dataset)} < {min_records}")
 
             # Validate feature completeness
             completeness_score = self._calculate_completeness_score(dataset)
             min_completeness = (
-                validation_rules.get("min_completeness", 0.9) if validation_rules else 0.9
+                validation_rules.get("min_completeness", 0.9)
+                if validation_rules
+                else 0.9
             )
             if completeness_score < min_completeness:
-                issues.append(f"Low completeness: {completeness_score:.3f} < {min_completeness}")
+                issues.append(
+                    f"Low completeness: {completeness_score:.3f} < {min_completeness}"
+                )
 
             # Validate data types
             for col in dataset.columns:
@@ -990,10 +1033,14 @@ class PredictionDataCollectionService:
 
                     if min_val is not None:
                         if dataset[feature_def.name].min() < min_val:
-                            issues.append(f"{feature_def.name} below minimum: {min_val}")
+                            issues.append(
+                                f"{feature_def.name} below minimum: {min_val}"
+                            )
                     if max_val is not None:
                         if dataset[feature_def.name].max() > max_val:
-                            issues.append(f"{feature_def.name} above maximum: {max_val}")
+                            issues.append(
+                                f"{feature_def.name} above maximum: {max_val}"
+                            )
 
             return {
                 "valid": len(issues) == 0,
@@ -1006,7 +1053,10 @@ class PredictionDataCollectionService:
             return {"valid": False, "issues": [str(e)]}
 
     async def export_dataset(
-        self, dataset: pd.DataFrame, export_format: str = "json", filename: str | None = None
+        self,
+        dataset: pd.DataFrame,
+        export_format: str = "json",
+        filename: str | None = None,
     ) -> str:
         """Export dataset to specified format"""
         try:
@@ -1037,7 +1087,9 @@ class PredictionDataCollectionService:
                 return {"error": "Empty dataset"}
 
             # Calculate correlation matrix for numeric features
-            numeric_features = dataset.select_dtypes(include=["int64", "float64"]).columns
+            numeric_features = dataset.select_dtypes(
+                include=["int64", "float64"]
+            ).columns
             correlation_matrix = dataset[numeric_features].corr()
 
             # Calculate feature importance based on correlation with target
@@ -1057,7 +1109,9 @@ class PredictionDataCollectionService:
                     weighted_scores[feature_def.name] = correlation * weight
 
             # Sort features by importance
-            sorted_features = sorted(sorted_features.items(), key=lambda x: x[1], reverse=True)
+            sorted_features = sorted(
+                sorted_features.items(), key=lambda x: x[1], reverse=True
+            )
 
             return {
                 "feature_correlation": correlation_matrix.to_dict(),
@@ -1076,7 +1130,11 @@ class PredictionDataCollectionService:
         self, sorted_features: list[tuple[str, float]]
     ) -> dict[str, list[str]]:
         """Categorize features by type and importance level"""
-        categories = {"high_importance": [], "medium_importance": [], "low_importance": []}
+        categories = {
+            "high_importance": [],
+            "medium_importance": [],
+            "low_importance": [],
+        }
 
         for feature, score in sorted_features:
             if score >= 0.7:
@@ -1103,7 +1161,9 @@ class PredictionDataCollectionService:
                 db.query(Assessment).filter(Assessment.created_at >= start_date).count()
             )
 
-            response_count = db.query(Response).filter(Response.created_at >= start_date).count()
+            response_count = (
+                db.query(Response).filter(Response.created_at >= start_date).count()
+            )
 
             user_count = db.query(User).filter(User.created_at >= start_date).count()
 
@@ -1143,7 +1203,9 @@ class PredictionDataCollectionService:
             "available_data_types": [dt.value for dt in DataType],
         }
 
-    async def collect_team_prediction_data(self, db: Session, team_id: int) -> dict[str, Any]:
+    async def collect_team_prediction_data(
+        self, db: Session, team_id: int
+    ) -> dict[str, Any]:
         """
         Collect team-specific data for prediction.
 
@@ -1161,14 +1223,21 @@ class PredictionDataCollectionService:
                 return {"success": False, "error": f"Team {team_id} not found"}
 
             # Get team members
-            team_members = db.query(TeamMember).filter(TeamMember.team_id == team_id).all()
+            team_members = (
+                db.query(TeamMember).filter(TeamMember.team_id == team_id).all()
+            )
             user_ids = [member.user_id for member in team_members]
 
             if not user_ids:
-                return {"success": False, "error": f"No members found for team {team_id}"}
+                return {
+                    "success": False,
+                    "error": f"No members found for team {team_id}",
+                }
 
             # Collect team performance data
-            performance_data = await self.collect_team_performance_data(db, team_ids=[team_id])
+            performance_data = await self.collect_team_performance_data(
+                db, team_ids=[team_id]
+            )
 
             # Collect assessment response data for team members
             assessment_data = await self.collect_assessment_data(db, user_ids=user_ids)
@@ -1227,7 +1296,10 @@ class PredictionDataCollectionService:
                 if not demo_df.empty:
                     # Calculate demographic diversity metrics
                     for col in demo_df.columns:
-                        if col != "user_id" and demo_df[col].dtype in ["object", "category"]:
+                        if col != "user_id" and demo_df[col].dtype in [
+                            "object",
+                            "category",
+                        ]:
                             # Diversity as proportion of unique categories
                             diversity = len(demo_df[col].unique()) / len(demo_df)
                             features[f"demo_{col}_diversity"] = diversity
@@ -1241,7 +1313,9 @@ class PredictionDataCollectionService:
             }
 
         except Exception as e:
-            logger.error(f"Error collecting team prediction data for team {team_id}: {e!s}")
+            logger.error(
+                f"Error collecting team prediction data for team {team_id}: {e!s}"
+            )
             return {"success": False, "error": str(e)}
 
     async def collect_training_data(
@@ -1298,7 +1372,9 @@ class PredictionDataCollectionService:
 
             # Collect demographics data
             if include_demographics:
-                demographics_data = await self.collect_demographics_data(db=db, user_ids=user_ids)
+                demographics_data = await self.collect_demographics_data(
+                    db=db, user_ids=user_ids
+                )
                 if demographics_data["success"]:
                     df_demographics = demographics_data["data"]
                     if not df_demographics.empty:
@@ -1340,8 +1416,12 @@ class PredictionDataCollectionService:
             numeric_columns = merged_df.select_dtypes(include=[np.number]).columns
             merged_df[numeric_columns] = merged_df[numeric_columns].fillna(0)
 
-            categorical_columns = merged_df.select_dtypes(include=["object", "category"]).columns
-            merged_df[categorical_columns] = merged_df[categorical_columns].fillna("unknown")
+            categorical_columns = merged_df.select_dtypes(
+                include=["object", "category"]
+            ).columns
+            merged_df[categorical_columns] = merged_df[categorical_columns].fillna(
+                "unknown"
+            )
 
             return {
                 "success": True,

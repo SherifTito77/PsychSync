@@ -6,26 +6,29 @@ Executes all comprehensive data validation scenarios and generates unified repor
 
 import asyncio
 import json
-import time
+import os
 import statistics
-from datetime import datetime
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass
 
 # Import all validation modules
 import sys
-import os
+import time
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+from test_large_scale_csv_export import LargeScaleCSVExportTester
+from test_pdf_dashboard_consistency import PDFDashboardConsistencyTester
 from test_psychometric_scoring_consistency import PsychometricScoringConsistencyTester
 from test_report_accuracy_midway_changes import ReportAccuracyMidwayTester
-from test_pdf_dashboard_consistency import PDFDashboardConsistencyTester
 from test_rounding_error_validation import RoundingErrorValidator
-from test_large_scale_csv_export import LargeScaleCSVExportTester
+
 
 @dataclass
 class UnifiedTestResult:
     """Unified result structure for all validation tests"""
+
     test_category: str
     test_name: str
     success_rate: float
@@ -37,9 +40,11 @@ class UnifiedTestResult:
     execution_time: float
     timestamp: datetime
 
+
 @dataclass
 class ComprehensiveValidationReport:
     """Complete validation report with executive summary"""
+
     execution_summary: Dict[str, Any]
     test_results: List[UnifiedTestResult]
     overall_success_rate: float
@@ -47,6 +52,7 @@ class ComprehensiveValidationReport:
     executive_recommendations: List[str]
     production_readiness: str
     timestamp: datetime
+
 
 class DataValidationOrchestrator:
     """Orchestrates all data validation tests and generates unified reporting"""
@@ -57,7 +63,7 @@ class DataValidationOrchestrator:
             "report_accuracy": ReportAccuracyMidwayTester(),
             "pdf_consistency": PDFDashboardConsistencyTester(),
             "rounding_validation": RoundingErrorValidator(),
-            "large_scale_export": LargeScaleCSVExportTester()
+            "large_scale_export": LargeScaleCSVExportTester(),
         }
         self.start_time = None
 
@@ -75,10 +81,14 @@ class DataValidationOrchestrator:
         print("📊 Test 1/5: Psychometric Scoring Consistency")
         print("-" * 50)
         try:
-            scoring_results = await self.testers["scoring_consistency"].run_all_consistency_tests()
+            scoring_results = await self.testers[
+                "scoring_consistency"
+            ].run_all_consistency_tests()
             test_results.append(self._format_scoring_results(scoring_results))
         except Exception as e:
-            test_results.append(self._create_error_result("scoring_consistency", str(e)))
+            test_results.append(
+                self._create_error_result("scoring_consistency", str(e))
+            )
 
         # Test 2: Report Accuracy with Answer Changes
         print("\n📊 Test 2/5: Report Accuracy with Answer Changes")
@@ -95,7 +105,9 @@ class DataValidationOrchestrator:
         print("\n📊 Test 3/5: PDF-Dashboard Consistency")
         print("-" * 50)
         try:
-            pdf_results = await self.testers["pdf_consistency"].test_pdf_dashboard_consistency(
+            pdf_results = await self.testers[
+                "pdf_consistency"
+            ].test_pdf_dashboard_consistency(
                 list(self.testers["pdf_consistency"].engine.question_banks.keys())[0]
             )
             test_results.append(self._format_pdf_results(pdf_results))
@@ -106,20 +118,30 @@ class DataValidationOrchestrator:
         print("\n📊 Test 4/5: Rounding Error Validation")
         print("-" * 50)
         try:
-            rounding_results = await self.testers["rounding_validation"].validate_rounding_errors(
-                list(self.testers["rounding_validation"].engine.question_banks.keys())[0]
+            rounding_results = await self.testers[
+                "rounding_validation"
+            ].validate_rounding_errors(
+                list(self.testers["rounding_validation"].engine.question_banks.keys())[
+                    0
+                ]
             )
             test_results.append(self._format_rounding_results(rounding_results))
         except Exception as e:
-            test_results.append(self._create_error_result("rounding_validation", str(e)))
+            test_results.append(
+                self._create_error_result("rounding_validation", str(e))
+            )
 
         # Test 5: Large-Scale CSV Export
         print("\n📊 Test 5/5: Large-Scale CSV Export")
         print("-" * 50)
         try:
-            export_results = await self.testers["large_scale_export"].test_large_scale_export(
-                list(self.testers["large_scale_export"].engine.question_banks.keys())[0],
-                user_count=1000  # Reduced for demo
+            export_results = await self.testers[
+                "large_scale_export"
+            ].test_large_scale_export(
+                list(self.testers["large_scale_export"].engine.question_banks.keys())[
+                    0
+                ],
+                user_count=1000,  # Reduced for demo
             )
             test_results.append(self._format_export_results(export_results))
         except Exception as e:
@@ -127,9 +149,13 @@ class DataValidationOrchestrator:
 
         # Calculate overall metrics
         execution_time = time.time() - self.start_time
-        overall_success_rate = statistics.mean([r.success_rate for r in test_results if r.success_rate >= 0])
+        overall_success_rate = statistics.mean(
+            [r.success_rate for r in test_results if r.success_rate >= 0]
+        )
         critical_issues = self._identify_critical_issues(test_results)
-        executive_recommendations = self._generate_executive_recommendations(test_results)
+        executive_recommendations = self._generate_executive_recommendations(
+            test_results
+        )
 
         # Determine production readiness
         production_readiness = self._assess_production_readiness(
@@ -140,15 +166,17 @@ class DataValidationOrchestrator:
             execution_summary={
                 "total_tests": len(test_results),
                 "total_execution_time": execution_time,
-                "tests_completed": len([r for r in test_results if r.success_rate >= 0]),
-                "tests_failed": len([r for r in test_results if r.success_rate < 0])
+                "tests_completed": len(
+                    [r for r in test_results if r.success_rate >= 0]
+                ),
+                "tests_failed": len([r for r in test_results if r.success_rate < 0]),
             },
             test_results=test_results,
             overall_success_rate=overall_success_rate,
             critical_issues=critical_issues,
             executive_recommendations=executive_recommendations,
             production_readiness=production_readiness,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
     def _format_scoring_results(self, results: Dict[str, Any]) -> UnifiedTestResult:
@@ -161,14 +189,18 @@ class DataValidationOrchestrator:
             target_rate=summary["target_consistency_rate"],
             meets_target=summary["meets_target"],
             key_metrics={
-                "assessments_tested": len(results["engine_capabilities"]["supported_assessments"]),
-                "question_bank_sizes": results["engine_capabilities"]["question_bank_sizes"],
-                "consistency_by_assessment": summary.get("by_assessment", {})
+                "assessments_tested": len(
+                    results["engine_capabilities"]["supported_assessments"]
+                ),
+                "question_bank_sizes": results["engine_capabilities"][
+                    "question_bank_sizes"
+                ],
+                "consistency_by_assessment": summary.get("by_assessment", {}),
             },
             issues_found=[],
             recommendations=results["recommendations"],
             execution_time=0.0,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
     def _format_accuracy_results(self, results) -> UnifiedTestResult:
@@ -182,12 +214,12 @@ class DataValidationOrchestrator:
             key_metrics={
                 "overall_accuracy": results.overall_accuracy,
                 "scenarios_tested": len(results.change_scenarios),
-                "assessment_type": results.assessment_type
+                "assessment_type": results.assessment_type,
             },
             issues_found=[],
             recommendations=results.recommendations,
             execution_time=0.0,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
     def _format_pdf_results(self, results) -> UnifiedTestResult:
@@ -201,12 +233,12 @@ class DataValidationOrchestrator:
             key_metrics={
                 "format_checks": len(results.consistency_results),
                 "critical_issues": len(results.critical_issues),
-                "export_formats": [f.value for f in results.export_formats]
+                "export_formats": [f.value for f in results.export_formats],
             },
             issues_found=results.critical_issues,
             recommendations=results.recommendations,
             execution_time=0.0,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
     def _format_rounding_results(self, results) -> UnifiedTestResult:
@@ -220,12 +252,12 @@ class DataValidationOrchestrator:
             key_metrics={
                 "methods_tested": len(results.rounding_methods),
                 "precision_levels": len(results.precision_levels),
-                "error_classifications": len(results.error_classifications)
+                "error_classifications": len(results.error_classifications),
             },
             issues_found=[],
             recommendations=results.recommendations,
             execution_time=0.0,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
     def _format_export_results(self, results: List) -> UnifiedTestResult:
@@ -233,8 +265,16 @@ class DataValidationOrchestrator:
         successful_exports = sum(1 for r in results if r.success)
         success_rate = (successful_exports / len(results)) * 100 if results else 0
 
-        avg_processing_rate = statistics.mean([r.performance_metrics.processing_rate for r in results]) if results else 0
-        avg_accuracy = statistics.mean([r.data_integrity.data_accuracy for r in results]) if results else 0
+        avg_processing_rate = (
+            statistics.mean([r.performance_metrics.processing_rate for r in results])
+            if results
+            else 0
+        )
+        avg_accuracy = (
+            statistics.mean([r.data_integrity.data_accuracy for r in results])
+            if results
+            else 0
+        )
 
         return UnifiedTestResult(
             test_category="Large-Scale Export",
@@ -246,12 +286,19 @@ class DataValidationOrchestrator:
                 "configurations_tested": len(results),
                 "avg_processing_rate": avg_processing_rate,
                 "avg_data_accuracy": avg_accuracy,
-                "peak_memory_usage": max([r.performance_metrics.peak_memory_usage for r in results]) if results else 0
+                "peak_memory_usage": (
+                    max([r.performance_metrics.peak_memory_usage for r in results])
+                    if results
+                    else 0
+                ),
             },
             issues_found=[],
-            recommendations=["Optimize export performance", "Ensure data accuracy validation"],
+            recommendations=[
+                "Optimize export performance",
+                "Ensure data accuracy validation",
+            ],
             execution_time=0.0,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
     def _create_error_result(self, category: str, error: str) -> UnifiedTestResult:
@@ -266,23 +313,34 @@ class DataValidationOrchestrator:
             issues_found=[f"Test execution failed: {error}"],
             recommendations=[f"Fix {category} test implementation"],
             execution_time=0.0,
-            timestamp=datetime.now()
+            timestamp=datetime.now(),
         )
 
-    def _identify_critical_issues(self, test_results: List[UnifiedTestResult]) -> List[str]:
+    def _identify_critical_issues(
+        self, test_results: List[UnifiedTestResult]
+    ) -> List[str]:
         """Identify critical issues across all tests"""
         critical_issues = []
 
         for result in test_results:
             if result.success_rate < 70:
-                critical_issues.append(f"Critical: {result.test_category} success rate below 70%")
+                critical_issues.append(
+                    f"Critical: {result.test_category} success rate below 70%"
+                )
 
             if result.issues_found:
-                critical_issues.extend([f"{result.test_category}: {issue}" for issue in result.issues_found[:2]])
+                critical_issues.extend(
+                    [
+                        f"{result.test_category}: {issue}"
+                        for issue in result.issues_found[:2]
+                    ]
+                )
 
         return critical_issues
 
-    def _generate_executive_recommendations(self, test_results: List[UnifiedTestResult]) -> List[str]:
+    def _generate_executive_recommendations(
+        self, test_results: List[UnifiedTestResult]
+    ) -> List[str]:
         """Generate executive-level recommendations"""
         recommendations = []
 
@@ -291,31 +349,46 @@ class DataValidationOrchestrator:
         if valid_results:
             avg_success_rate = statistics.mean([r.success_rate for r in valid_results])
             if avg_success_rate >= 90:
-                recommendations.append("✅ Excellent validation results - system ready for production deployment")
+                recommendations.append(
+                    "✅ Excellent validation results - system ready for production deployment"
+                )
             elif avg_success_rate >= 80:
-                recommendations.append("⚠️ Good validation results - minor optimizations recommended before production")
+                recommendations.append(
+                    "⚠️ Good validation results - minor optimizations recommended before production"
+                )
             else:
-                recommendations.append("❌ Validation issues found - address critical problems before production")
+                recommendations.append(
+                    "❌ Validation issues found - address critical problems before production"
+                )
 
         # Specific recommendations
         for result in test_results:
             if not result.meets_target and result.success_rate >= 0:
-                recommendations.append(f"Improve {result.test_category.lower()} to meet target performance")
+                recommendations.append(
+                    f"Improve {result.test_category.lower()} to meet target performance"
+                )
 
         # Performance recommendations
         slow_tests = [r for r in test_results if r.execution_time > 10]
         if slow_tests:
-            recommendations.append("Optimize test execution performance for faster validation cycles")
+            recommendations.append(
+                "Optimize test execution performance for faster validation cycles"
+            )
 
         # Security and compliance
-        recommendations.append("Implement continuous monitoring of data quality metrics")
+        recommendations.append(
+            "Implement continuous monitoring of data quality metrics"
+        )
         recommendations.append("Establish automated validation in CI/CD pipeline")
 
         return recommendations
 
-    def _assess_production_readiness(self, success_rate: float,
-                                   critical_issues: List[str],
-                                   recommendations: List[str]) -> str:
+    def _assess_production_readiness(
+        self,
+        success_rate: float,
+        critical_issues: List[str],
+        recommendations: List[str],
+    ) -> str:
         """Assess overall production readiness"""
         if success_rate >= 95 and len(critical_issues) == 0:
             return "PRODUCTION READY ✅"
@@ -325,6 +398,7 @@ class DataValidationOrchestrator:
             return "REQUIRES OPTIMIZATION BEFORE PRODUCTION 🔧"
         else:
             return "NOT PRODUCTION READY ❌"
+
 
 async def main():
     """Main function to run all data validation tests"""
@@ -346,15 +420,21 @@ async def main():
     print(f"   Total Tests: {report.execution_summary['total_tests']}")
     print(f"   Completed: {report.execution_summary['tests_completed']}")
     print(f"   Failed: {report.execution_summary['tests_failed']}")
-    print(f"   Execution Time: {report.execution_summary['total_execution_time']:.1f} seconds")
+    print(
+        f"   Execution Time: {report.execution_summary['total_execution_time']:.1f} seconds"
+    )
     print(f"   Overall Success Rate: {report.overall_success_rate:.1f}%")
 
     print(f"\n🏆 PRODUCTION READINESS: {report.production_readiness}")
 
     print(f"\n📈 TEST RESULTS:")
     for result in report.test_results:
-        status = "✅" if result.meets_target else "⚠️" if result.success_rate >= 70 else "❌"
-        print(f"   {status} {result.test_category}: {result.success_rate:.1f}% (Target: {result.target_rate}%)")
+        status = (
+            "✅" if result.meets_target else "⚠️" if result.success_rate >= 70 else "❌"
+        )
+        print(
+            f"   {status} {result.test_category}: {result.success_rate:.1f}% (Target: {result.target_rate}%)"
+        )
 
     if report.critical_issues:
         print(f"\n⚠️ CRITICAL ISSUES ({len(report.critical_issues)}):")
@@ -381,7 +461,7 @@ async def main():
                 "key_metrics": r.key_metrics,
                 "issues_found": r.issues_found,
                 "recommendations": r.recommendations,
-                "timestamp": r.timestamp.isoformat()
+                "timestamp": r.timestamp.isoformat(),
             }
             for r in report.test_results
         ],
@@ -389,19 +469,22 @@ async def main():
         "critical_issues": report.critical_issues,
         "executive_recommendations": report.executive_recommendations,
         "production_readiness": report.production_readiness,
-        "timestamp": report.timestamp.isoformat()
+        "timestamp": report.timestamp.isoformat(),
     }
 
-    with open(json_file, 'w') as f:
+    with open(json_file, "w") as f:
         json.dump(report_data, f, indent=2)
 
     print(f"\n📄 DETAILED REPORT GENERATED:")
     print(f"   📊 JSON Report: {json_file}")
 
     print(f"\n🎉 DATA VALIDATION FRAMEWORK DEPLOYMENT COMPLETE!")
-    print(f"The PsychSync platform now has comprehensive enterprise-grade data validation.")
+    print(
+        f"The PsychSync platform now has comprehensive enterprise-grade data validation."
+    )
 
     return report
+
 
 if __name__ == "__main__":
     asyncio.run(main())

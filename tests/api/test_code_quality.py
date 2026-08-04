@@ -1,18 +1,23 @@
-from app.core.database import get_async_db
-from app.services.security import create_access_token
-from app.db.models.user import User
-from app.main import app
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-import pytest
+
+from app.core.database import get_async_db
+from app.db.models.user import User
+from app.main import app
+from app.services.security import create_access_token
+
+
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -20,12 +25,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -39,10 +45,7 @@ def get_quality_summary(client, auth_headers):
     Get current code quality summary
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/metrics/summary"
-
-    )
+    response = client.get("/metrics/summary")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -50,16 +53,16 @@ def get_quality_summary(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -67,12 +70,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -86,8 +90,15 @@ def get_quality_metrics(client, auth_headers):
     Get code quality metrics with filtering and pagination
     """
     # TODO: Implement test logic
-    response = client.get("/metrics",
-        params={'skip': 'test_value', 'limit': 'test_value', 'module_name': 'test_value', 'start_date': 'test_value', 'end_date': 'test_value'}
+    response = client.get(
+        "/metrics",
+        params={
+            "skip": "test_value",
+            "limit": "test_value",
+            "module_name": "test_value",
+            "start_date": "test_value",
+            "end_date": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201]
@@ -96,16 +107,16 @@ def get_quality_metrics(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -113,12 +124,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -132,8 +144,9 @@ def get_latest_metrics(client, auth_headers):
     Get the most recent quality metric with optional issues
     """
     # TODO: Implement test logic
-    response = client.get("/metrics/latest",
-        params={'module_name': 'test_value', 'include_issues': 'test_value'}
+    response = client.get(
+        "/metrics/latest",
+        params={"module_name": "test_value", "include_issues": "test_value"},
     )
 
     assert response.status_code in [200, 201]
@@ -142,16 +155,16 @@ def get_latest_metrics(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -159,12 +172,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -178,8 +192,8 @@ def get_quality_trend(client, auth_headers):
     Get code quality trend over time
     """
     # TODO: Implement test logic
-    response = client.get("/metrics/trend",
-        params={'days': 'test_value', 'module_name': 'test_value'}
+    response = client.get(
+        "/metrics/trend", params={"days": "test_value", "module_name": "test_value"}
     )
 
     assert response.status_code in [200, 201]
@@ -188,16 +202,16 @@ def get_quality_trend(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -205,12 +219,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -224,8 +239,15 @@ def get_quality_issues(client, auth_headers):
     Get code quality issues with filtering
     """
     # TODO: Implement test logic
-    response = client.get("/issues",
-        params={'skip': 'test_value', 'limit': 'test_value', 'issue_type': 'test_value', 'severity': 'test_value', 'status': 'test_value'}
+    response = client.get(
+        "/issues",
+        params={
+            "skip": "test_value",
+            "limit": "test_value",
+            "issue_type": "test_value",
+            "severity": "test_value",
+            "status": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201]
@@ -234,16 +256,16 @@ def get_quality_issues(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -251,12 +273,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -270,9 +293,7 @@ def get_quality_hotspots(client, auth_headers):
     Get critical and major issues requiring attention
     """
     # TODO: Implement test logic
-    response = client.get("/issues/hotspots",
-        params={'limit': 'test_value'}
-    )
+    response = client.get("/issues/hotspots", params={"limit": "test_value"})
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -280,16 +301,16 @@ def get_quality_hotspots(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -297,12 +318,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -316,8 +338,14 @@ def get_pull_request_quality(client, auth_headers):
     Get pull request quality scores
     """
     # TODO: Implement test logic
-    response = client.get("/pull-requests",
-        params={'skip': 'test_value', 'limit': 'test_value', 'risk_level': 'test_value', 'min_score': 'test_value'}
+    response = client.get(
+        "/pull-requests",
+        params={
+            "skip": "test_value",
+            "limit": "test_value",
+            "risk_level": "test_value",
+            "min_score": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201]
@@ -326,16 +354,16 @@ def get_pull_request_quality(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -343,12 +371,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -362,9 +391,7 @@ def get_pull_request_summary(client, auth_headers):
     Get pull request quality summary
     """
     # TODO: Implement test logic
-    response = client.get("/pull-requests/summary",
-        params={'days': 'test_value'}
-    )
+    response = client.get("/pull-requests/summary", params={"days": "test_value"})
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -372,16 +399,16 @@ def get_pull_request_summary(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -389,12 +416,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -408,10 +436,7 @@ def health_check(client, auth_headers):
     Health check endpoint for code quality monitoring
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/health"
-
-    )
+    response = client.get("/health")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure

@@ -21,12 +21,12 @@ Usage:
 
 import argparse
 import ast
+import json
 import os
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
-import json
 
 
 class EndpointInfo:
@@ -63,13 +63,13 @@ class APIScanner:
         if not api_dir.exists():
             raise FileNotFoundError(f"API directory not found: {self.api_path}")
 
-        for py_file in api_dir.rglob('*.py'):
+        for py_file in api_dir.rglob("*.py"):
             self._scan_file(py_file)
 
     def _scan_file(self, file_path: Path):
         """Scan a single Python file for endpoint definitions"""
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 source_code = f.read()
 
             tree = ast.parse(source_code, filename=str(file_path))
@@ -88,7 +88,13 @@ class APIScanner:
         """Extract endpoint info from function"""
         for decorator in func_node.decorator_list:
             if isinstance(decorator, ast.Call):
-                if hasattr(decorator.func, 'attr') and decorator.func.attr in ['get', 'post', 'put', 'patch', 'delete']:
+                if hasattr(decorator.func, "attr") and decorator.func.attr in [
+                    "get",
+                    "post",
+                    "put",
+                    "patch",
+                    "delete",
+                ]:
                     method = decorator.func.attr
                     path = self._extract_path(decorator)
 
@@ -120,7 +126,7 @@ class APIScanner:
 
         # Check keyword arguments
         for keyword in decorator.keywords:
-            if keyword.arg == 'path':
+            if keyword.arg == "path":
                 if isinstance(keyword.value, ast.Constant):
                     return keyword.value.value
 
@@ -131,10 +137,17 @@ class APIScanner:
         params = []
 
         for arg in func_node.args.args:
-            if arg.arg not in ['self', 'request', 'db', 'current_user', 'token', 'Depends']:
-                param_info = {'name': arg.arg}
+            if arg.arg not in [
+                "self",
+                "request",
+                "db",
+                "current_user",
+                "token",
+                "Depends",
+            ]:
+                param_info = {"name": arg.arg}
                 if arg.annotation:
-                    param_info['type'] = ast.unparse(arg.annotation)
+                    param_info["type"] = ast.unparse(arg.annotation)
                 params.append(param_info)
 
         return params
@@ -146,7 +159,7 @@ class APIScanner:
                 docstring = func_node.body[0].value.value
                 if isinstance(docstring, str):
                     # Extract first line as description
-                    first_line = docstring.strip().split('\n')[0]
+                    first_line = docstring.strip().split("\n")[0]
                     return first_line if first_line else None
 
         return None
@@ -156,16 +169,16 @@ class APIScanner:
         tags = []
 
         # Infer from function name
-        if 'auth' in func_node.name.lower():
-            tags.append('auth')
-        if 'user' in func_node.name.lower():
-            tags.append('user')
-        if 'assessment' in func_node.name.lower():
-            tags.append('assessment')
-        if 'team' in func_node.name.lower():
-            tags.append('team')
-        if 'admin' in func_node.name.lower():
-            tags.append('admin')
+        if "auth" in func_node.name.lower():
+            tags.append("auth")
+        if "user" in func_node.name.lower():
+            tags.append("user")
+        if "assessment" in func_node.name.lower():
+            tags.append("assessment")
+        if "team" in func_node.name.lower():
+            tags.append("team")
+        if "admin" in func_node.name.lower():
+            tags.append("admin")
 
         return tags
 
@@ -173,7 +186,7 @@ class APIScanner:
         """Check if endpoint requires authentication"""
         # Check if current_user or token is a parameter
         for arg in func_node.args.args:
-            if arg.arg in ['current_user', 'token']:
+            if arg.arg in ["current_user", "token"]:
                 return True
 
         return False
@@ -197,13 +210,13 @@ class TestScanner:
         """Scan test files for endpoint coverage"""
         tests_dir = Path(self.tests_path)
 
-        for test_file in tests_dir.rglob('test_*.py'):
+        for test_file in tests_dir.rglob("test_*.py"):
             self._scan_test_file(test_file)
 
     def _scan_test_file(self, test_file: Path):
         """Scan a single test file for endpoint references"""
         try:
-            with open(test_file, 'r') as f:
+            with open(test_file, "r") as f:
                 content = f.read()
 
             tree = ast.parse(content, filename=str(test_file))
@@ -211,13 +224,15 @@ class TestScanner:
             for node in ast.walk(tree):
                 # Look for function calls that might be endpoint tests
                 if isinstance(node, ast.Call):
-                    if hasattr(node.func, 'attr'):
+                    if hasattr(node.func, "attr"):
                         # Check for client.get, client.post, etc.
-                        if node.func.attr in ['get', 'post', 'put', 'patch', 'delete']:
+                        if node.func.attr in ["get", "post", "put", "patch", "delete"]:
                             # Extract URL path
                             for arg in node.args:
                                 if isinstance(arg, ast.Constant):
-                                    if isinstance(arg.value, str) and arg.value.startswith('/'):
+                                    if isinstance(
+                                        arg.value, str
+                                    ) and arg.value.startswith("/"):
                                         self.covered_endpoints.add(arg.value)
 
         except Exception as e:
@@ -319,10 +334,10 @@ def auth_headers(test_user):
 
     def _get_test_args(self) -> List[str]:
         """Get test function arguments"""
-        args = ['client']
+        args = ["client"]
 
         if self.endpoint.requires_auth:
-            args.append('auth_headers')
+            args.append("auth_headers")
 
         return args
 
@@ -331,45 +346,50 @@ def auth_headers(test_user):
         if self.endpoint.description:
             return self.endpoint.description
 
-        parts = [f"Method: {self.endpoint.method.upper()}", f"Path: {self.endpoint.path}"]
+        parts = [
+            f"Method: {self.endpoint.method.upper()}",
+            f"Path: {self.endpoint.path}",
+        ]
 
         if self.endpoint.parameters:
-            parts.append(f"Parameters: {', '.join(p['name'] for p in self.endpoint.parameters)}")
+            parts.append(
+                f"Parameters: {', '.join(p['name'] for p in self.endpoint.parameters)}"
+            )
 
         if self.endpoint.tags:
             parts.append(f"Tags: {', '.join(self.endpoint.tags)}")
 
-        return '\n    '.join(parts)
+        return "\n    ".join(parts)
 
     def _generate_request_params(self) -> str:
         """Generate request parameters"""
         parts = []
 
-        if self.endpoint.method in ['post', 'put', 'patch']:
-            parts.append('json={}')  # Placeholder for request body
+        if self.endpoint.method in ["post", "put", "patch"]:
+            parts.append("json={}")  # Placeholder for request body
 
         if self.endpoint.parameters:
-            param_dict = {p['name']: 'test_value' for p in self.endpoint.parameters}
-            parts.append(f'params={param_dict}')
+            param_dict = {p["name"]: "test_value" for p in self.endpoint.parameters}
+            parts.append(f"params={param_dict}")
 
         if parts:
-            return ',\n        '.join(parts)
-        return ''
+            return ",\n        ".join(parts)
+        return ""
 
     def _generate_assertions(self) -> str:
         """Generate test assertions"""
         assertions = []
 
         # Basic status code assertions
-        if self.endpoint.method == 'get':
+        if self.endpoint.method == "get":
             assertions.append("    assert response.status_code in [200, 201]")
-        elif self.endpoint.method in ['post', 'put', 'patch']:
+        elif self.endpoint.method in ["post", "put", "patch"]:
             assertions.append("    assert response.status_code in [200, 201, 202]")
-        elif self.endpoint.method == 'delete':
+        elif self.endpoint.method == "delete":
             assertions.append("    assert response.status_code in [200, 204]")
 
         # Data validation assertions
-        if self.endpoint.method == 'get':
+        if self.endpoint.method == "get":
             assertions.append("    # TODO: Validate response data structure")
             assertions.append("    data = response.json()")
             assertions.append("    assert isinstance(data, dict)")
@@ -377,7 +397,7 @@ def auth_headers(test_user):
         if not assertions:
             assertions.append("    pass  # TODO: Add assertions")
 
-        return '\n'.join(assertions)
+        return "\n".join(assertions)
 
 
 class TestFileManager:
@@ -406,7 +426,7 @@ class TestFileManager:
         # Check if file exists
         if os.path.exists(test_file_path):
             # Read existing file
-            with open(test_file_path, 'r') as f:
+            with open(test_file_path, "r") as f:
                 existing_code = f.read()
 
             # Check if test function already exists
@@ -416,12 +436,12 @@ class TestFileManager:
                 return test_file_path
             else:
                 # Append new test to existing file
-                with open(test_file_path, 'a') as f:
+                with open(test_file_path, "a") as f:
                     f.write(f"\n\n{test_code}")
                 print(f"✓ Updated: {test_file_name} - Added {endpoint.function_name}")
         else:
             # Create new test file
-            with open(test_file_path, 'w') as f:
+            with open(test_file_path, "w") as f:
                 f.write(test_code)
             print(f"✓ Created: {test_file_name} - {endpoint.function_name}")
 
@@ -430,9 +450,9 @@ class TestFileManager:
     def create_init_files(self):
         """Create __init__.py files in test directories"""
         for root, dirs, files in os.walk(self.tests_path):
-            if '__init__.py' not in files:
-                init_path = os.path.join(root, '__init__.py')
-                with open(init_path, 'w') as f:
+            if "__init__.py" not in files:
+                init_path = os.path.join(root, "__init__.py")
+                with open(init_path, "w") as f:
                     f.write('"""Test package"""')
 
 
@@ -522,7 +542,7 @@ def watch_for_new_endpoints(api_path: str, tests_path: str, interval: int = 60):
                 print(f"\n🆕 Detected {len(new_signatures)} new endpoint(s):")
 
                 for sig in new_signatures:
-                    method, path, func_name = sig.split(':')
+                    method, path, func_name = sig.split(":")
                     print(f"   {method.upper()} {path} ({func_name})")
 
                 # Generate tests for new endpoints
@@ -539,7 +559,7 @@ def watch_for_new_endpoints(api_path: str, tests_path: str, interval: int = 60):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Automatic Test Generation Agent',
+        description="Automatic Test Generation Agent",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -551,14 +571,25 @@ Examples:
 
   # Continuously watch for new endpoints
   python agents/auto_test_agent.py --api-path app/api/v1/endpoints/ --tests-path tests/api/ --watch
-        """
+        """,
     )
 
-    parser.add_argument('--api-path', required=True, help='Path to API endpoints directory')
-    parser.add_argument('--tests-path', required=True, help='Path to tests directory')
-    parser.add_argument('--dry-run', action='store_true', help='Preview changes without writing files')
-    parser.add_argument('--watch', action='store_true', help='Enable continuous monitoring mode')
-    parser.add_argument('--interval', type=int, default=60, help='Check interval in seconds (default: 60)')
+    parser.add_argument(
+        "--api-path", required=True, help="Path to API endpoints directory"
+    )
+    parser.add_argument("--tests-path", required=True, help="Path to tests directory")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Preview changes without writing files"
+    )
+    parser.add_argument(
+        "--watch", action="store_true", help="Enable continuous monitoring mode"
+    )
+    parser.add_argument(
+        "--interval",
+        type=int,
+        default=60,
+        help="Check interval in seconds (default: 60)",
+    )
 
     args = parser.parse_args()
 
@@ -568,5 +599,5 @@ Examples:
         generate_missing_tests(args.api_path, args.tests_path, args.dry_run)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

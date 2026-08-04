@@ -4,23 +4,24 @@ Comprehensive testing of file upload functionality including validation,
 security, storage, and various file types
 """
 
-import pytest
 import asyncio
+import hashlib
+import mimetypes
 import os
 import tempfile
-import mimetypes
-import hashlib
 from pathlib import Path
-from httpx import AsyncClient
-from fastapi import UploadFile
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
-from app.main import app
-from app.core.database import get_db
+import pytest
+from fastapi import UploadFile
+from httpx import AsyncClient
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import settings
-from app.db.models.user import User
+from app.core.database import get_db
 from app.db.models.file import FileUpload
+from app.db.models.user import User
+from app.main import app
 
 
 @pytest.mark.integration

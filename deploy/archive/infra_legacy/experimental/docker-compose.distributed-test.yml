@@ -1,0 +1,137 @@
+# Docker Compose configuration for distributed rate limiting tests
+# Spins up 3 backend instances behind a load balancer to test shared Redis rate limiting
+version: "3.9"
+
+services:
+  # Shared Redis for distributed rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: psychsync-redis-test
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - psychsync-test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Instance 1
+  backend-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: psychsync-backend-1
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://redis:6379/2
+      - USE_REDIS_RATE_LIMIT=true
+      - DATABASE_URL=postgresql+asyncpg://psychsync_user:password@db:5432/psychsync_db
+    ports:
+      - "8001:8001"
+    depends_on:
+      - redis
+      - db
+    networks:
+      - psychsync-test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Instance 2
+  backend-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: psychsync-backend-2
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8002
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://redis:6379/2
+      - USE_REDIS_RATE_LIMIT=true
+      - DATABASE_URL=postgresql+asyncpg://psychsync_user:password@db:5432/psychsync_db
+    ports:
+      - "8002:8002"
+    depends_on:
+      - redis
+      - db
+    networks:
+      - psychsync-test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Instance 3
+  backend-3:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: psychsync-backend-3
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8003
+    environment:
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://redis:6379/2
+      - USE_REDIS_RATE_LIMIT=true
+      - DATABASE_URL=postgresql+asyncpg://psychsync_user:password@db:5432/psychsync_db
+    ports:
+      - "8003:8003"
+    depends_on:
+      - redis
+      - db
+    networks:
+      - psychsync-test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Nginx Load Balancer
+  nginx-lb:
+    image: nginx:alpine
+    container_name: psychsync-nginx-lb
+    volumes:
+      - ./tests/load/nginx-test.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend-1
+      - backend-2
+      - backend-3
+    networks:
+      - psychsync-test-network
+
+  # PostgreSQL (shared by all instances)
+  db:
+    image: postgres:15-alpine
+    container_name: psychsync-db-test
+    restart: always
+    environment:
+      POSTGRES_USER: psychsync_user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: psychsync_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-test:/var/lib/postgresql/data
+    networks:
+      - psychsync-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U psychsync_user -d psychsync_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata-test:
+
+networks:
+  psychsync-test-network:
+    driver: bridge

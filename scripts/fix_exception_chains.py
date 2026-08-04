@@ -38,7 +38,7 @@ def find_raise_without_from(content: str) -> list[dict]:
     # Pattern to match: except X as e: ... raise Y(...) without 'from'
     # This is a simplified regex-based approach for demonstration
 
-    lines = content.split('\n')
+    lines = content.split("\n")
     in_except_block = False
     exception_var = None
     indent_level = 0
@@ -48,9 +48,9 @@ def find_raise_without_from(content: str) -> list[dict]:
         current_indent = len(line) - len(stripped)
 
         # Check if we're entering an except block
-        if re.match(r'except\s+\w+\s+as\s+(\w+):', stripped):
+        if re.match(r"except\s+\w+\s+as\s+(\w+):", stripped):
             in_except_block = True
-            exception_var = re.match(r'except\s+\w+\s+as\s+(\w+):', stripped).group(1)
+            exception_var = re.match(r"except\s+\w+\s+as\s+(\w+):", stripped).group(1)
             indent_level = current_indent
             continue
 
@@ -60,15 +60,17 @@ def find_raise_without_from(content: str) -> list[dict]:
             exception_var = None
 
         # If we're in an except block, look for raise statements
-        if in_except_block and re.match(r'raise\s+\w+Exception\(', stripped):
+        if in_except_block and re.match(r"raise\s+\w+Exception\(", stripped):
             # Check if this raise already has 'from'
-            if ' from ' not in line and ' from' not in line:
-                issues.append({
-                    'line': i,
-                    'exception_var': exception_var,
-                    'raise_line': line.strip(),
-                    'indent': len(line) - len(stripped)
-                })
+            if " from " not in line and " from" not in line:
+                issues.append(
+                    {
+                        "line": i,
+                        "exception_var": exception_var,
+                        "raise_line": line.strip(),
+                        "indent": len(line) - len(stripped),
+                    }
+                )
 
     return issues
 
@@ -86,7 +88,7 @@ def fix_raise_statement(line: str, exception_var: str) -> str:
     """
     # Find the closing parenthesis of the raise statement
     # and insert 'from exception_var' before it
-    match = re.match(r'(raise\s+\w+Exception\([^)]*\))', line)
+    match = re.match(r"(raise\s+\w+Exception\([^)]*\))", line)
     if match:
         raise_part = match.group(1)
         return f"{raise_part} from {exception_var}"
@@ -118,13 +120,13 @@ def fix_file(file_path: Path, dry_run: bool = False) -> int:
         return len(issues)
 
     # Apply fixes (reverse order to maintain line numbers)
-    lines = content.split('\n')
+    lines = content.split("\n")
     fixes_applied = 0
 
     for issue in reversed(issues):
-        line_idx = issue['line'] - 1
+        line_idx = issue["line"] - 1
         original_line = lines[line_idx]
-        fixed_line = fix_raise_statement(original_line, issue['exception_var'])
+        fixed_line = fix_raise_statement(original_line, issue["exception_var"])
 
         if fixed_line != original_line:
             lines[line_idx] = fixed_line
@@ -132,7 +134,7 @@ def fix_file(file_path: Path, dry_run: bool = False) -> int:
             print(f"  Fixed line {issue['line']}: {original_line[:60]}...")
 
     # Write back
-    file_path.write_text('\n'.join(lines))
+    file_path.write_text("\n".join(lines))
     return fixes_applied
 
 
@@ -141,19 +143,15 @@ def main():
         description='Fix exception chains by adding "from err" to raise statements'
     )
     parser.add_argument(
-        '--file',
-        type=str,
-        help='Specific file to fix (default: fix all files)'
+        "--file", type=str, help="Specific file to fix (default: fix all files)"
     )
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Show what would be changed without making changes'
+        "--dry-run",
+        action="store_true",
+        help="Show what would be changed without making changes",
     )
     parser.add_argument(
-        '--interactive',
-        action='store_true',
-        help='Ask before fixing each file'
+        "--interactive", action="store_true", help="Ask before fixing each file"
     )
 
     args = parser.parse_args()
@@ -178,10 +176,11 @@ def main():
     # Find all Python files with B904 errors
     print("Scanning for B904 errors...")
     import subprocess
+
     result = subprocess.run(
-        ['ruff', 'check', 'app/', '--select', 'B904', '--output-format=json'],
+        ["ruff", "check", "app/", "--select", "B904", "--output-format=json"],
         capture_output=True,
-        text=True
+        text=True,
     )
 
     if result.returncode == 0:
@@ -189,12 +188,13 @@ def main():
         return 0
 
     import json
+
     errors = json.loads(result.stdout)
 
     # Group errors by file
     files_with_errors = {}
     for error in errors:
-        filename = error['filename']
+        filename = error["filename"]
         if filename not in files_with_errors:
             files_with_errors[filename] = []
         files_with_errors[filename].append(error)
@@ -207,8 +207,10 @@ def main():
         file_path = Path(file_path_str)
 
         if args.interactive:
-            response = input(f"\nFix {len(file_errors)} errors in {file_path_str}? [y/N] ")
-            if response.lower() != 'y':
+            response = input(
+                f"\nFix {len(file_errors)} errors in {file_path_str}? [y/N] "
+            )
+            if response.lower() != "y":
                 continue
 
         print(f"\n{file_path_str}:")
@@ -224,5 +226,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     exit(main())

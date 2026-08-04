@@ -16,14 +16,15 @@ Priority: P0 (Critical)
 Coverage Target: 85% lines, 80% branches, 90% functions
 """
 
-import pytest
-from uuid import uuid4
 from datetime import datetime
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from uuid import uuid4
 
-from app.db.models.response import Response
+import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.models.assessment import Assessment
+from app.db.models.response import Response
 from app.db.models.user import User
 from app.schemas.response import ResponseCreate, ResponseUpdate
 from app.services.response_service import ResponseService
@@ -37,7 +38,9 @@ class TestResponseServiceCRUDRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_create_response_success(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_create_response_success(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify response creation in database
 
@@ -49,7 +52,7 @@ class TestResponseServiceCRUDRegression:
             assessment_id=test_assessment.id,
             user_id=test_user.id,
             question_id=uuid4(),  # Generic question ID
-            answer_value=5
+            answer_value=5,
         )
 
         response = await ResponseService.create(db=test_db, response_in=response_in)
@@ -63,7 +66,9 @@ class TestResponseServiceCRUDRegression:
         assert response.updated_at is not None
 
     @pytest.mark.asyncio
-    async def test_create_response_with_score(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_create_response_with_score(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify automatic score calculation
 
@@ -75,7 +80,7 @@ class TestResponseServiceCRUDRegression:
             assessment_id=test_assessment.id,
             user_id=test_user.id,
             question_id=uuid4(),
-            answer_value=4  # Should normalize to 0.8 (4/5)
+            answer_value=4,  # Should normalize to 0.8 (4/5)
         )
 
         response = await ResponseService.create(db=test_db, response_in=response_in)
@@ -85,7 +90,9 @@ class TestResponseServiceCRUDRegression:
         assert abs(response.score - 0.8) < 0.01  # 4/5 = 0.8
 
     @pytest.mark.asyncio
-    async def test_get_by_id_success(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_get_by_id_success(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify retrieval by UUID
 
@@ -98,12 +105,16 @@ class TestResponseServiceCRUDRegression:
             assessment_id=test_assessment.id,
             user_id=test_user.id,
             question_id=uuid4(),
-            answer_value=3
+            answer_value=3,
         )
-        created_response = await ResponseService.create(db=test_db, response_in=response_in)
+        created_response = await ResponseService.create(
+            db=test_db, response_in=response_in
+        )
 
         # Retrieve by ID
-        retrieved_response = await ResponseService.get_by_id(db=test_db, response_id=created_response.id)
+        retrieved_response = await ResponseService.get_by_id(
+            db=test_db, response_id=created_response.id
+        )
 
         assert retrieved_response is not None
         assert retrieved_response.id == created_response.id
@@ -124,7 +135,9 @@ class TestResponseServiceCRUDRegression:
         assert response is None
 
     @pytest.mark.asyncio
-    async def test_get_by_assessment_success(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_get_by_assessment_success(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify filtering by assessment
 
@@ -138,21 +151,22 @@ class TestResponseServiceCRUDRegression:
                 assessment_id=test_assessment.id,
                 user_id=test_user.id,
                 question_id=uuid4(),
-                answer_value=i + 1
+                answer_value=i + 1,
             )
             await ResponseService.create(db=test_db, response_in=response_in)
 
         # Retrieve all responses for assessment
         responses = await ResponseService.get_by_assessment(
-            db=test_db,
-            assessment_id=test_assessment.id
+            db=test_db, assessment_id=test_assessment.id
         )
 
         assert len(responses) == 5
         assert all(r.assessment_id == test_assessment.id for r in responses)
 
     @pytest.mark.asyncio
-    async def test_get_by_assessment_with_user_filter(self, test_db: AsyncSession, test_user: User, test_admin: User, test_assessment):
+    async def test_get_by_assessment_with_user_filter(
+        self, test_db: AsyncSession, test_user: User, test_admin: User, test_assessment
+    ):
         """
         Test: Verify user filtering
 
@@ -166,7 +180,7 @@ class TestResponseServiceCRUDRegression:
                 assessment_id=test_assessment.id,
                 user_id=test_user.id,
                 question_id=uuid4(),
-                answer_value=i + 1
+                answer_value=i + 1,
             )
             await ResponseService.create(db=test_db, response_in=response_in)
 
@@ -175,22 +189,22 @@ class TestResponseServiceCRUDRegression:
                 assessment_id=test_assessment.id,
                 user_id=test_admin.id,
                 question_id=uuid4(),
-                answer_value=i + 1
+                answer_value=i + 1,
             )
             await ResponseService.create(db=test_db, response_in=response_in)
 
         # Retrieve only test_user's responses
         responses = await ResponseService.get_by_assessment(
-            db=test_db,
-            assessment_id=test_assessment.id,
-            user_id=test_user.id
+            db=test_db, assessment_id=test_assessment.id, user_id=test_user.id
         )
 
         assert len(responses) == 3
         assert all(r.user_id == test_user.id for r in responses)
 
     @pytest.mark.asyncio
-    async def test_get_by_user_success(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_get_by_user_success(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify retrieval by user
 
@@ -204,15 +218,13 @@ class TestResponseServiceCRUDRegression:
                 assessment_id=test_assessment.id,
                 user_id=test_user.id,
                 question_id=uuid4(),
-                answer_value=i + 1
+                answer_value=i + 1,
             )
             await ResponseService.create(db=test_db, response_in=response_in)
 
         # Retrieve user's responses
         responses = await ResponseService.get_by_user(
-            db=test_db,
-            user_id=test_user.id,
-            limit=100
+            db=test_db, user_id=test_user.id, limit=100
         )
 
         assert len(responses) == 10
@@ -221,7 +233,9 @@ class TestResponseServiceCRUDRegression:
         # (This assumes the service orders by created_at desc)
 
     @pytest.mark.asyncio
-    async def test_update_response_success(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_update_response_success(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify response update
 
@@ -234,20 +248,19 @@ class TestResponseServiceCRUDRegression:
             assessment_id=test_assessment.id,
             user_id=test_user.id,
             question_id=uuid4(),
-            answer_value=3
+            answer_value=3,
         )
         response = await ResponseService.create(db=test_db, response_in=response_in)
 
         # Wait a bit to ensure updated_at changes
         import asyncio
+
         await asyncio.sleep(0.01)
 
         # Update response
         update_in = ResponseUpdate(answer_value=5)
         updated_response = await ResponseService.update(
-            db=test_db,
-            response_id=response.id,
-            response_in=update_in
+            db=test_db, response_id=response.id, response_in=update_in
         )
 
         assert updated_response is not None
@@ -265,15 +278,15 @@ class TestResponseServiceCRUDRegression:
         """
         update_in = ResponseUpdate(answer_value=5)
         result = await ResponseService.update(
-            db=test_db,
-            response_id=uuid4(),
-            response_in=update_in
+            db=test_db, response_id=uuid4(), response_in=update_in
         )
 
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_update_response_recalculates_score(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_update_response_recalculates_score(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify score recalculation on answer update
 
@@ -286,7 +299,7 @@ class TestResponseServiceCRUDRegression:
             assessment_id=test_assessment.id,
             user_id=test_user.id,
             question_id=uuid4(),
-            answer_value=2  # Score = 0.4
+            answer_value=2,  # Score = 0.4
         )
         response = await ResponseService.create(db=test_db, response_in=response_in)
         original_score = response.score
@@ -294,16 +307,16 @@ class TestResponseServiceCRUDRegression:
         # Update answer_value
         update_in = ResponseUpdate(answer_value=5)  # New score = 1.0
         updated_response = await ResponseService.update(
-            db=test_db,
-            response_id=response.id,
-            response_in=update_in
+            db=test_db, response_id=response.id, response_in=update_in
         )
 
         assert updated_response.score != original_score
         assert abs(updated_response.score - 1.0) < 0.01
 
     @pytest.mark.asyncio
-    async def test_delete_response_success(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_delete_response_success(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify deletion
 
@@ -316,7 +329,7 @@ class TestResponseServiceCRUDRegression:
             assessment_id=test_assessment.id,
             user_id=test_user.id,
             question_id=uuid4(),
-            answer_value=3
+            answer_value=3,
         )
         response = await ResponseService.create(db=test_db, response_in=response_in)
 
@@ -326,7 +339,9 @@ class TestResponseServiceCRUDRegression:
         assert result is True
 
         # Verify deletion
-        deleted_response = await ResponseService.get_by_id(db=test_db, response_id=response.id)
+        deleted_response = await ResponseService.get_by_id(
+            db=test_db, response_id=response.id
+        )
         assert deleted_response is None
 
     @pytest.mark.asyncio
@@ -349,7 +364,9 @@ class TestResponseServiceAnalyticsRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_get_assessment_completion_all_answered(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_get_assessment_completion_all_answered(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify completion calculation - all answered
 
@@ -366,15 +383,13 @@ class TestResponseServiceAnalyticsRegression:
                 assessment_id=test_assessment.id,
                 user_id=test_user.id,
                 question_id=uuid4(),
-                answer_value=i + 1
+                answer_value=i + 1,
             )
             await ResponseService.create(db=test_db, response_in=response_in)
 
         # Get completion stats
         stats = await ResponseService.get_assessment_completion(
-            db=test_db,
-            assessment_id=test_assessment.id,
-            user_id=test_user.id
+            db=test_db, assessment_id=test_assessment.id, user_id=test_user.id
         )
 
         assert stats["total_questions"] == num_questions
@@ -382,7 +397,9 @@ class TestResponseServiceAnalyticsRegression:
         assert stats["completion_rate"] == 1.0
 
     @pytest.mark.asyncio
-    async def test_get_assessment_completion_partial(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_get_assessment_completion_partial(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify partial completion calculation
 
@@ -397,22 +414,22 @@ class TestResponseServiceAnalyticsRegression:
                 user_id=test_user.id,
                 question_id=uuid4(),
                 answer_value=i + 1,
-                score=0.5 + (i * 0.1)  # Set scores
+                score=0.5 + (i * 0.1),  # Set scores
             )
             await ResponseService.create(db=test_db, response_in=response_in)
 
         # Get completion stats
         stats = await ResponseService.get_assessment_completion(
-            db=test_db,
-            assessment_id=test_assessment.id,
-            user_id=test_user.id
+            db=test_db, assessment_id=test_assessment.id, user_id=test_user.id
         )
 
         assert stats["total_questions"] == 5  # Only counted responses
         assert stats["completion_rate"] == 1.0  # All answered questions completed
 
     @pytest.mark.asyncio
-    async def test_get_assessment_completion_score_rate(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_get_assessment_completion_score_rate(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify score rate calculation
 
@@ -427,7 +444,7 @@ class TestResponseServiceAnalyticsRegression:
                 user_id=test_user.id,
                 question_id=uuid4(),
                 answer_value=i + 1,
-                score=0.5 if i < 3 else None  # First 3 have scores
+                score=0.5 if i < 3 else None,  # First 3 have scores
             )
             response = await ResponseService.create(db=test_db, response_in=response_in)
 
@@ -438,9 +455,7 @@ class TestResponseServiceAnalyticsRegression:
 
         # Get completion stats
         stats = await ResponseService.get_assessment_completion(
-            db=test_db,
-            assessment_id=test_assessment.id,
-            user_id=test_user.id
+            db=test_db, assessment_id=test_assessment.id, user_id=test_user.id
         )
 
         assert stats["scored_questions"] == 3
@@ -454,7 +469,9 @@ class TestResponseServiceBulkOperationsRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_bulk_create_success(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_bulk_create_success(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify batch creation
 
@@ -469,14 +486,13 @@ class TestResponseServiceBulkOperationsRegression:
                 assessment_id=test_assessment.id,
                 user_id=test_user.id,
                 question_id=uuid4(),
-                answer_value=i % 5 + 1
+                answer_value=i % 5 + 1,
             )
             responses_data.append(response_in)
 
         # Bulk create
         created_responses = await ResponseService.bulk_create(
-            db=test_db,
-            responses=responses_data
+            db=test_db, responses=responses_data
         )
 
         assert len(created_responses) == 50
@@ -484,17 +500,20 @@ class TestResponseServiceBulkOperationsRegression:
 
         # Verify they exist in database
         from sqlalchemy import func
+
         result = await test_db.execute(
             select(func.count(Response.id)).where(
                 Response.assessment_id == test_assessment.id,
-                Response.user_id == test_user.id
+                Response.user_id == test_user.id,
             )
         )
         count = result.scalar()
         assert count == 50
 
     @pytest.mark.asyncio
-    async def test_bulk_create_with_invalid_data(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_bulk_create_with_invalid_data(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify partial failure handling
 
@@ -511,24 +530,25 @@ class TestResponseServiceBulkOperationsRegression:
                 assessment_id=test_assessment.id,
                 user_id=test_user.id,
                 question_id=uuid4(),
-                answer_value=i + 1
+                answer_value=i + 1,
             )
             responses_data.append(response_in)
 
         # Invalid response (no question_id)
-        responses_data.append(ResponseCreate(
-            assessment_id=test_assessment.id,
-            user_id=test_user.id,
-            question_id=None,  # Invalid
-            answer_value=1
-        ))
+        responses_data.append(
+            ResponseCreate(
+                assessment_id=test_assessment.id,
+                user_id=test_user.id,
+                question_id=None,  # Invalid
+                answer_value=1,
+            )
+        )
 
         # Attempt bulk create
         # Note: Depending on implementation, this may fail fast or partial
         try:
             created_responses = await ResponseService.bulk_create(
-                db=test_db,
-                responses=responses_data
+                db=test_db, responses=responses_data
             )
             # If partial success is supported
             assert len(created_responses) >= 3  # At least valid ones
@@ -551,7 +571,9 @@ class TestResponseServiceEdgeCasesRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_response_scoring_edge_cases(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_response_scoring_edge_cases(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify scoring edge cases
 
@@ -564,7 +586,7 @@ class TestResponseServiceEdgeCasesRegression:
             assessment_id=test_assessment.id,
             user_id=test_user.id,
             question_id=uuid4(),
-            answer_value=0
+            answer_value=0,
         )
         response = await ResponseService.create(db=test_db, response_in=response_in)
         assert response.score == 0.0
@@ -574,7 +596,7 @@ class TestResponseServiceEdgeCasesRegression:
             assessment_id=test_assessment.id,
             user_id=test_user.id,
             question_id=uuid4(),
-            answer_value=5
+            answer_value=5,
         )
         response = await ResponseService.create(db=test_db, response_in=response_in)
         assert response.score == 1.0
@@ -585,14 +607,16 @@ class TestResponseServiceEdgeCasesRegression:
             user_id=test_user.id,
             question_id=uuid4(),
             answer_value=None,
-            answer_text="Text response"
+            answer_text="Text response",
         )
         response = await ResponseService.create(db=test_db, response_in=response_in)
         # Score should remain None
         assert response.score is None
 
     @pytest.mark.asyncio
-    async def test_concurrent_response_creation(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_concurrent_response_creation(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify thread safety
 
@@ -607,7 +631,7 @@ class TestResponseServiceEdgeCasesRegression:
                 assessment_id=test_assessment.id,
                 user_id=test_user.id,
                 question_id=uuid4(),
-                answer_value=value
+                answer_value=value,
             )
             return await ResponseService.create(db=test_db, response_in=response_in)
 
@@ -620,7 +644,9 @@ class TestResponseServiceEdgeCasesRegression:
         assert all(r.id is not None for r in results)
 
     @pytest.mark.asyncio
-    async def test_response_with_text_answer(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_response_with_text_answer(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify text answer handling
 
@@ -632,7 +658,7 @@ class TestResponseServiceEdgeCasesRegression:
             assessment_id=test_assessment.id,
             user_id=test_user.id,
             question_id=uuid4(),
-            answer_text="This is my answer"
+            answer_text="This is my answer",
         )
 
         response = await ResponseService.create(db=test_db, response_in=response_in)
@@ -641,7 +667,9 @@ class TestResponseServiceEdgeCasesRegression:
         assert response.score is None  # No score for text answers
 
     @pytest.mark.asyncio
-    async def test_response_with_answer_data(self, test_db: AsyncSession, test_user: User, test_assessment):
+    async def test_response_with_answer_data(
+        self, test_db: AsyncSession, test_user: User, test_assessment
+    ):
         """
         Test: Verify JSON answer_data handling
 
@@ -652,14 +680,14 @@ class TestResponseServiceEdgeCasesRegression:
         answer_data = {
             "selected_options": [1, 3, 5],
             "rating": 4,
-            "comment": "Good question"
+            "comment": "Good question",
         }
 
         response_in = ResponseCreate(
             assessment_id=test_assessment.id,
             user_id=test_user.id,
             question_id=uuid4(),
-            answer_data=answer_data
+            answer_data=answer_data,
         )
 
         response = await ResponseService.create(db=test_db, response_in=response_in)
@@ -669,6 +697,12 @@ class TestResponseServiceEdgeCasesRegression:
 
 # Test class markers
 TestResponseServiceCRUDRegression = pytest.mark.P0(TestResponseServiceCRUDRegression)
-TestResponseServiceAnalyticsRegression = pytest.mark.P0(TestResponseServiceAnalyticsRegression)
-TestResponseServiceBulkOperationsRegression = pytest.mark.P0(TestResponseServiceBulkOperationsRegression)
-TestResponseServiceEdgeCasesRegression = pytest.mark.P1(TestResponseServiceEdgeCasesRegression)
+TestResponseServiceAnalyticsRegression = pytest.mark.P0(
+    TestResponseServiceAnalyticsRegression
+)
+TestResponseServiceBulkOperationsRegression = pytest.mark.P0(
+    TestResponseServiceBulkOperationsRegression
+)
+TestResponseServiceEdgeCasesRegression = pytest.mark.P1(
+    TestResponseServiceEdgeCasesRegression
+)

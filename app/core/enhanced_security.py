@@ -11,28 +11,33 @@ Features:
 - Data encryption
 """
 
-from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta
-from enum import Enum
 import hashlib
 import hmac
 import json
+from datetime import datetime, timedelta
+from enum import Enum
 from functools import wraps
+from typing import Any, Dict, List, Optional
 
-from fastapi import Request, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
-from redis import Redis
 import boto3
 from botocore.exceptions import ClientError
+from fastapi import HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from redis import Redis
+from sqlalchemy import and_, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.db.models.clinical_screening import ClinicalAuditLog, ClinicalScreening, ClinicalAlert
+from app.db.models.clinical_screening import (
+    ClinicalAlert,
+    ClinicalAuditLog,
+    ClinicalScreening,
+)
 
 
 class SecurityLevel(Enum):
     """Security clearance levels"""
+
     PATIENT = "patient"
     CLINICIAN = "clinician"
     ADMIN = "admin"
@@ -41,6 +46,7 @@ class SecurityLevel(Enum):
 
 class AuditAction(Enum):
     """Audit action types"""
+
     CREATE = "create"
     READ = "read"
     UPDATE = "update"
@@ -68,18 +74,14 @@ class EnhancedSecurityManager:
         self.db = db
         self.redis = Redis.from_url(settings.REDIS_URL, decode_responses=True)
         self.kms_client = boto3.client(
-            'kms',
+            "kms",
             region_name=settings.AWS_REGION,
             aws_access_key_id=settings.AWS_ACCESS_KEY,
-            aws_secret_access_key=settings.AWS_SECRET_KEY
+            aws_secret_access_key=settings.AWS_SECRET_KEY,
         )
 
     async def check_rate_limit(
-        self,
-        user_id: str,
-        action: str,
-        limit: int = 100,
-        window: int = 3600
+        self, user_id: str, action: str, limit: int = 100, window: int = 3600
     ) -> bool:
         """
         Check if user has exceeded rate limit
@@ -104,7 +106,7 @@ class EnhancedSecurityManager:
             await self._log_security_event(
                 user_id=user_id,
                 event_type="rate_limit_exceeded",
-                details={"action": action, "count": count, "limit": limit}
+                details={"action": action, "count": count, "limit": limit},
             )
             return False
 
@@ -117,11 +119,7 @@ class EnhancedSecurityManager:
         return True
 
     async def validate_phi_access(
-        self,
-        user_id: str,
-        resource_type: str,
-        resource_id: str,
-        action: AuditAction
+        self, user_id: str, resource_type: str, resource_id: str, action: AuditAction
     ) -> bool:
         """
         Validate and log PHI access
@@ -144,7 +142,7 @@ class EnhancedSecurityManager:
                 action=AuditAction.UNAUTHORIZED_ACCESS,
                 entity_type=resource_type,
                 entity_id=resource_id,
-                details={"reason": "no_valid_consent"}
+                details={"reason": "no_valid_consent"},
             )
             return False
 
@@ -154,16 +152,12 @@ class EnhancedSecurityManager:
             action=action,
             entity_type=resource_type,
             entity_id=resource_id,
-            details={"authorized": True}
+            details={"authorized": True},
         )
 
         return True
 
-    async def encrypt_phi(
-        self,
-        data: Dict[str, Any],
-        user_id: str
-    ) -> str:
+    async def encrypt_phi(self, data: Dict[str, Any], user_id: str) -> str:
         """
         Encrypt PHI data using AWS KMS
 
@@ -182,26 +176,23 @@ class EnhancedSecurityManager:
             response = self.kms_client.encrypt(
                 KeyId=settings.KMS_KEY_ID,
                 Plaintext=json_data.encode(),
-                EncryptionContext={'user_id': user_id}
+                EncryptionContext={"user_id": user_id},
             )
 
             # Return base64 encoded ciphertext
             import base64
-            return base64.b64encode(response['CiphertextBlob']).decode()
+
+            return base64.b64encode(response["CiphertextBlob"]).decode()
 
         except ClientError as e:
             await self._log_security_event(
                 user_id=user_id,
                 event_type="encryption_failed",
-                details={"error": str(e)}
+                details={"error": str(e)},
             )
             raise
 
-    async def decrypt_phi(
-        self,
-        encrypted_data: str,
-        user_id: str
-    ) -> Dict[str, Any]:
+    async def decrypt_phi(self, encrypted_data: str, user_id: str) -> Dict[str, Any]:
         """
         Decrypt PHI data using AWS KMS
 
@@ -215,30 +206,27 @@ class EnhancedSecurityManager:
         try:
             # Decode base64
             import base64
+
             ciphertext = base64.b64decode(encrypted_data)
 
             # Decrypt with KMS
             response = self.kms_client.decrypt(
-                CiphertextBlob=ciphertext,
-                EncryptionContext={'user_id': user_id}
+                CiphertextBlob=ciphertext, EncryptionContext={"user_id": user_id}
             )
 
             # Deserialize
-            return json.loads(response['Plaintext'].decode())
+            return json.loads(response["Plaintext"].decode())
 
         except ClientError as e:
             await self._log_security_event(
                 user_id=user_id,
                 event_type="decryption_failed",
-                details={"error": str(e)}
+                details={"error": str(e)},
             )
             raise
 
     async def detect_anomaly(
-        self,
-        user_id: str,
-        action: str,
-        context: Dict[str, Any]
+        self, user_id: str, action: str, context: Dict[str, Any]
     ) -> bool:
         """
         Detect anomalous behavior
@@ -257,20 +245,20 @@ class EnhancedSecurityManager:
 
         if pattern:
             pattern_data = json.loads(pattern)
-            last_ip = pattern_data.get('ip')
-            last_user_agent = pattern_data.get('user_agent')
+            last_ip = pattern_data.get("ip")
+            last_user_agent = pattern_data.get("user_agent")
 
             # Check for IP change
-            if context.get('ip') != last_ip:
+            if context.get("ip") != last_ip:
                 # Log potential session hijacking
                 await self._log_security_event(
                     user_id=user_id,
                     event_type="ip_change_detected",
                     details={
                         "old_ip": last_ip,
-                        "new_ip": context.get('ip'),
-                        "action": action
-                    }
+                        "new_ip": context.get("ip"),
+                        "action": action,
+                    },
                 )
 
                 # Could require re-authentication here
@@ -280,20 +268,18 @@ class EnhancedSecurityManager:
         self.redis.setex(
             key,
             86400,  # 24 hours
-            json.dumps({
-                'ip': context.get('ip'),
-                'user_agent': context.get('user_agent'),
-                'last_seen': datetime.utcnow().isoformat()
-            })
+            json.dumps(
+                {
+                    "ip": context.get("ip"),
+                    "user_agent": context.get("user_agent"),
+                    "last_seen": datetime.utcnow().isoformat(),
+                }
+            ),
         )
 
         return False
 
-    async def enforce_data_retention(
-        self,
-        entity_type: str,
-        entity_id: str
-    ) -> bool:
+    async def enforce_data_retention(self, entity_type: str, entity_id: str) -> bool:
         """
         Enforce HIPAA data retention policies
 
@@ -313,7 +299,7 @@ class EnhancedSecurityManager:
             query = select(ClinicalScreening).where(
                 and_(
                     ClinicalScreening.id == entity_id,
-                    ClinicalScreening.created_at < cutoff_date
+                    ClinicalScreening.created_at < cutoff_date,
                 )
             )
 
@@ -327,7 +313,7 @@ class EnhancedSecurityManager:
                     action=AuditAction.UPDATE,
                     entity_type=entity_type,
                     entity_id=entity_id,
-                    details={"action": "archived", "reason": "retention_policy"}
+                    details={"action": "archived", "reason": "retention_policy"},
                 )
                 return False
 
@@ -344,7 +330,7 @@ class EnhancedSecurityManager:
         action: AuditAction,
         entity_type: str,
         entity_id: str,
-        details: Dict[str, Any]
+        details: Dict[str, Any],
     ):
         """Create audit log entry"""
         log_entry = ClinicalAuditLog(
@@ -353,18 +339,15 @@ class EnhancedSecurityManager:
             entity_type=entity_type,
             entity_id=entity_id,
             details=details,
-            ip_address=details.get('ip'),
-            user_agent=details.get('user_agent')
+            ip_address=details.get("ip"),
+            user_agent=details.get("user_agent"),
         )
 
         self.db.add(log_entry)
         await self.db.commit()
 
     async def _log_security_event(
-        self,
-        user_id: str,
-        event_type: str,
-        details: Dict[str, Any]
+        self, user_id: str, event_type: str, details: Dict[str, Any]
     ):
         """Log security-relevant event"""
         # Log to separate security table or external SIEM
@@ -380,6 +363,7 @@ def require_security_level(level: SecurityLevel):
         async def sensitive_endpoint():
             ...
     """
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -387,7 +371,9 @@ def require_security_level(level: SecurityLevel):
             # Check security level
             # Raise exception if insufficient
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -403,17 +389,13 @@ def validate_request_signature(request: Request, secret: str) -> bool:
         True if signature valid, False otherwise
     """
     # Get signature from header
-    signature = request.headers.get('X-Signature')
+    signature = request.headers.get("X-Signature")
     if not signature:
         return False
 
     # Calculate expected signature
     payload = request.body()
-    expected = hmac.new(
-        secret.encode(),
-        payload,
-        hashlib.sha256
-    ).hexdigest()
+    expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
 
     # Compare signatures
     return hmac.compare_digest(expected, signature)
@@ -427,7 +409,7 @@ class DataSanitizer:
         """Recursively sanitize input data"""
         if isinstance(data, str):
             # Remove potentially dangerous characters
-            return data.replace('<', '&lt;').replace('>', '&gt;')
+            return data.replace("<", "&lt;").replace(">", "&gt;")
         elif isinstance(data, dict):
             return {k: DataSanitizer.sanitize_input(v) for k, v in data.items()}
         elif isinstance(data, list):
@@ -439,9 +421,7 @@ class DataSanitizer:
     def validate_screening_responses(responses: Dict[str, Any]) -> bool:
         """Validate screening responses"""
         # Check for SQL injection patterns
-        dangerous_patterns = [
-            '--', ';--', '/*', '*/', 'xp_', '1=1', 'DROP', 'DELETE'
-        ]
+        dangerous_patterns = ["--", ";--", "/*", "*/", "xp_", "1=1", "DROP", "DELETE"]
 
         for value in responses.values():
             if isinstance(value, str):

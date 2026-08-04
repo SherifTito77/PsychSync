@@ -13,12 +13,12 @@ Key Features:
 - Predictive modeling for churn and engagement
 """
 
+import logging
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -288,14 +288,18 @@ class LongitudinalAnalyzer:
             # For now, return mock data
 
             # Generate time buckets
-            time_buckets = self._generate_time_buckets(start_time, end_time, bucket_size)
+            time_buckets = self._generate_time_buckets(
+                start_time, end_time, bucket_size
+            )
 
             # Generate mock data for each bucket
             time_series_data = []
             for i, bucket_start in enumerate(time_buckets):
                 # Create realistic behavioral data with trends and seasonality
                 base_value = 50 + i * 0.5  # Slight upward trend
-                seasonal_component = 10 * np.sin(2 * np.pi * i / 7)  # Weekly seasonality
+                seasonal_component = 10 * np.sin(
+                    2 * np.pi * i / 7
+                )  # Weekly seasonality
                 noise = np.random.normal(0, 5)  # Random noise
                 value = max(0, base_value + seasonal_component + noise)
 
@@ -355,10 +359,14 @@ class LongitudinalAnalyzer:
                     )
                     all_change_points.extend(change_points)
                 except Exception as e:
-                    logger.error(f"Error with change detection method {method.value}: {e}")
+                    logger.error(
+                        f"Error with change detection method {method.value}: {e}"
+                    )
 
             # Consolidate and filter change points
-            consolidated_changes = await self._consolidate_change_points(all_change_points)
+            consolidated_changes = await self._consolidate_change_points(
+                all_change_points
+            )
 
             # Calculate impact levels and attention requirements
             for change in consolidated_changes:
@@ -425,7 +433,9 @@ class LongitudinalAnalyzer:
             seasonal_period = None
             seasonal_strength = None
 
-            if self.config.seasonal_detection_enabled and len(values) >= 14:  # At least 2 weeks
+            if (
+                self.config.seasonal_detection_enabled and len(values) >= 14
+            ):  # At least 2 weeks
                 seasonal_info = await self._detect_seasonality(values, timestamps)
                 seasonal_component = seasonal_info["has_seasonality"]
                 seasonal_period = seasonal_info["period"]
@@ -437,7 +447,9 @@ class LongitudinalAnalyzer:
             forecast_upper = None
 
             if len(values) >= self.config.trend_detection_window:
-                forecasts = await self._generate_forecast(values, slope, intercept, std_err)
+                forecasts = await self._generate_forecast(
+                    values, slope, intercept, std_err
+                )
                 forecast_next = forecasts["next_value"]
                 forecast_lower = forecasts["confidence_lower"]
                 forecast_upper = forecasts["confidence_upper"]
@@ -498,11 +510,17 @@ class LongitudinalAnalyzer:
 
             # Get data for baseline calculation
             if baseline_type == "personal":
-                data = await self._get_user_metric_data(user_id, metric_name, start_time, end_time)
+                data = await self._get_user_metric_data(
+                    user_id, metric_name, start_time, end_time
+                )
             elif baseline_type == "peer_group":
-                data = await self._get_peer_group_data(user_id, metric_name, start_time, end_time)
+                data = await self._get_peer_group_data(
+                    user_id, metric_name, start_time, end_time
+                )
             elif baseline_type == "organizational":
-                data = await self._get_organizational_data(metric_name, start_time, end_time)
+                data = await self._get_organizational_data(
+                    metric_name, start_time, end_time
+                )
             else:
                 raise ValueError(f"Unknown baseline type: {baseline_type}")
 
@@ -601,10 +619,14 @@ class LongitudinalAnalyzer:
                     continue
 
                 # Trend analysis
-                trend_analysis = await self.analyze_trends(user_id, metric, time_series_data)
+                trend_analysis = await self.analyze_trends(
+                    user_id, metric, time_series_data
+                )
 
                 # Change detection
-                change_points = await self.detect_changes(user_id, metric, time_series_data)
+                change_points = await self.detect_changes(
+                    user_id, metric, time_series_data
+                )
 
                 # Baseline comparison
                 current_baseline = await self.calculate_baseline(user_id, metric)
@@ -614,7 +636,9 @@ class LongitudinalAnalyzer:
                     "trend": trend_analysis.__dict__ if trend_analysis else None,
                     "change_points": [cp.__dict__ for cp in change_points],
                     "baseline": current_baseline.__dict__ if current_baseline else None,
-                    "current_value": time_series_data[-1].value if time_series_data else None,
+                    "current_value": (
+                        time_series_data[-1].value if time_series_data else None
+                    ),
                     "data_points": len(time_series_data),
                 }
 
@@ -636,15 +660,18 @@ class LongitudinalAnalyzer:
                         )
 
             # Generate overall insights
-            progression_analysis["overall_insights"] = await self._generate_progression_insights(
-                progression_analysis["metrics_analysis"]
+            progression_analysis["overall_insights"] = (
+                await self._generate_progression_insights(
+                    progression_analysis["metrics_analysis"]
+                )
             )
 
             # Generate recommendations
-            progression_analysis[
-                "recommendations"
-            ] = await self._generate_progression_recommendations(
-                progression_analysis["metrics_analysis"], progression_analysis["overall_insights"]
+            progression_analysis["recommendations"] = (
+                await self._generate_progression_recommendations(
+                    progression_analysis["metrics_analysis"],
+                    progression_analysis["overall_insights"],
+                )
             )
 
             return progression_analysis
@@ -692,20 +719,34 @@ class LongitudinalAnalyzer:
         if method == DetectionMethod.CUSUM:
             return await self._cusum_detection(user_id, metric_name, timestamps, values)
         if method == DetectionMethod.E_DIVISIVE:
-            return await self._edivisive_detection(user_id, metric_name, timestamps, values)
+            return await self._edivisive_detection(
+                user_id, metric_name, timestamps, values
+            )
         if method == DetectionMethod.BAYESIAN:
-            return await self._bayesian_detection(user_id, metric_name, timestamps, values)
+            return await self._bayesian_detection(
+                user_id, metric_name, timestamps, values
+            )
         if method == DetectionMethod.STATISTICAL:
-            return await self._statistical_detection(user_id, metric_name, timestamps, values)
+            return await self._statistical_detection(
+                user_id, metric_name, timestamps, values
+            )
         if method == DetectionMethod.WINDOW_BASED:
-            return await self._window_based_detection(user_id, metric_name, timestamps, values)
+            return await self._window_based_detection(
+                user_id, metric_name, timestamps, values
+            )
         if method == DetectionMethod.ML_BASED:
-            return await self._ml_based_detection(user_id, metric_name, timestamps, values)
+            return await self._ml_based_detection(
+                user_id, metric_name, timestamps, values
+            )
         logger.warning(f"Unknown change detection method: {method}")
         return []
 
     async def _cusum_detection(
-        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+        self,
+        user_id: str,
+        metric_name: str,
+        timestamps: list[datetime],
+        values: list[float],
     ) -> list[ChangePoint]:
         """CUSUM (Cumulative Sum) change detection."""
         try:
@@ -777,7 +818,11 @@ class LongitudinalAnalyzer:
             return []
 
     async def _edivisive_detection(
-        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+        self,
+        user_id: str,
+        metric_name: str,
+        timestamps: list[datetime],
+        values: list[float],
     ) -> list[ChangePoint]:
         """E-Divisive change detection using ruptures library."""
         try:
@@ -819,7 +864,11 @@ class LongitudinalAnalyzer:
             return []
 
     async def _bayesian_detection(
-        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+        self,
+        user_id: str,
+        metric_name: str,
+        timestamps: list[datetime],
+        values: list[float],
     ) -> list[ChangePoint]:
         """Bayesian change point detection."""
         try:
@@ -846,7 +895,8 @@ class LongitudinalAnalyzer:
                 if std_before > 0 and std_after > 0:
                     # Simplified Bayesian change detection
                     se = np.sqrt(
-                        std_before**2 / len(before_window) + std_after**2 / len(after_window)
+                        std_before**2 / len(before_window)
+                        + std_after**2 / len(after_window)
                     )
                     if se > 0:
                         z_score = abs(mean_after - mean_before) / se
@@ -873,7 +923,11 @@ class LongitudinalAnalyzer:
             return []
 
     async def _statistical_detection(
-        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+        self,
+        user_id: str,
+        metric_name: str,
+        timestamps: list[datetime],
+        values: list[float],
     ) -> list[ChangePoint]:
         """Statistical change detection using t-tests."""
         try:
@@ -901,7 +955,9 @@ class LongitudinalAnalyzer:
                     )
 
                     if pooled_std > 0:
-                        effect_size = (np.mean(after_window) - np.mean(before_window)) / pooled_std
+                        effect_size = (
+                            np.mean(after_window) - np.mean(before_window)
+                        ) / pooled_std
                     else:
                         effect_size = 0
 
@@ -929,7 +985,11 @@ class LongitudinalAnalyzer:
             return []
 
     async def _window_based_detection(
-        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+        self,
+        user_id: str,
+        metric_name: str,
+        timestamps: list[datetime],
+        values: list[float],
     ) -> list[ChangePoint]:
         """Window-based change detection comparing adjacent windows."""
         try:
@@ -959,7 +1019,8 @@ class LongitudinalAnalyzer:
                     # Statistical significance test
                     if std_before > 0 and std_after > 0:
                         se = np.sqrt(
-                            std_before**2 / len(before_window) + std_after**2 / len(after_window)
+                            std_before**2 / len(before_window)
+                            + std_after**2 / len(after_window)
                         )
                         if se > 0:
                             z_score = abs(mean_after - mean_before) / se
@@ -988,7 +1049,11 @@ class LongitudinalAnalyzer:
             return []
 
     async def _ml_based_detection(
-        self, user_id: str, metric_name: str, timestamps: list[datetime], values: list[float]
+        self,
+        user_id: str,
+        metric_name: str,
+        timestamps: list[datetime],
+        values: list[float],
     ) -> list[ChangePoint]:
         """Machine learning based change detection."""
         try:
@@ -1034,7 +1099,9 @@ class LongitudinalAnalyzer:
                     ChangeType.PATTERN_CHANGE,
                 )
                 if change_point:
-                    change_point.statistic_value = float(anomaly_scores[max_consecutive_idx])
+                    change_point.statistic_value = float(
+                        anomaly_scores[max_consecutive_idx]
+                    )
                     change_points.append(change_point)
 
             return change_points
@@ -1077,7 +1144,9 @@ class LongitudinalAnalyzer:
             change_magnitude = abs(post_change_mean - baseline_mean)
 
             # Calculate confidence score based on change magnitude and consistency
-            confidence_score = min(1.0, change_magnitude / (np.std(baseline_values) + 1e-8))
+            confidence_score = min(
+                1.0, change_magnitude / (np.std(baseline_values) + 1e-8)
+            )
 
             change_point = ChangePoint(
                 id=f"change_{user_id}_{metric_name}_{change_idx}_{datetime.utcnow().timestamp()}",
@@ -1125,7 +1194,9 @@ class LongitudinalAnalyzer:
                     try:
                         # Perform seasonal decomposition
                         series = pd.Series(values, index=pd.to_datetime(timestamps))
-                        decomposition = seasonal_decompose(series, model="additive", period=period)
+                        decomposition = seasonal_decompose(
+                            series, model="additive", period=period
+                        )
 
                         # Calculate seasonal strength
                         seasonal_var = np.var(decomposition.seasonal.dropna())
@@ -1170,7 +1241,9 @@ class LongitudinalAnalyzer:
                 1
                 + 1 / len(values)
                 + (next_x - np.mean(range(len(values)))) ** 2
-                / np.sum([(x - np.mean(range(len(values)))) ** 2 for x in range(len(values))])
+                / np.sum(
+                    [(x - np.mean(range(len(values)))) ** 2 for x in range(len(values))]
+                )
             )
 
             margin = t_value * se_prediction
@@ -1183,7 +1256,11 @@ class LongitudinalAnalyzer:
 
         except Exception as e:
             logger.error(f"Error generating forecast: {e}")
-            return {"next_value": None, "confidence_lower": None, "confidence_upper": None}
+            return {
+                "next_value": None,
+                "confidence_lower": None,
+                "confidence_upper": None,
+            }
 
     def _calculate_impact_level(self, change: ChangePoint) -> ImpactLevel:
         """Calculate impact level based on change characteristics."""
@@ -1313,7 +1390,9 @@ class LongitudinalAnalyzer:
         base_cp = max(change_points, key=lambda cp: cp.confidence_score)
 
         # Update with information from other points
-        base_cp.description = f"Multiple changes detected: {len(change_points)} methods agree"
+        base_cp.description = (
+            f"Multiple changes detected: {len(change_points)} methods agree"
+        )
 
         # Average the statistics
         baseline_means = [cp.baseline_mean for cp in change_points]
@@ -1336,7 +1415,10 @@ class LongitudinalAnalyzer:
             # Trend insights
             if analysis.get("trend"):
                 trend = analysis["trend"]
-                if trend["trend_direction"] == "increasing" and trend["r_squared"] > 0.7:
+                if (
+                    trend["trend_direction"] == "increasing"
+                    and trend["r_squared"] > 0.7
+                ):
                     insights.append(
                         {
                             "type": "positive_trend",
@@ -1345,7 +1427,10 @@ class LongitudinalAnalyzer:
                             "confidence": trend["r_squared"],
                         }
                     )
-                elif trend["trend_direction"] == "decreasing" and trend["r_squared"] > 0.7:
+                elif (
+                    trend["trend_direction"] == "decreasing"
+                    and trend["r_squared"] > 0.7
+                ):
                     insights.append(
                         {
                             "type": "negative_trend",
@@ -1375,15 +1460,21 @@ class LongitudinalAnalyzer:
         return insights
 
     async def _generate_progression_recommendations(
-        self, metrics_analysis: dict[str, dict[str, Any]], insights: list[dict[str, Any]]
+        self,
+        metrics_analysis: dict[str, dict[str, Any]],
+        insights: list[dict[str, Any]],
     ) -> list[str]:
         """Generate recommendations based on progression analysis."""
         recommendations = []
 
         # Trend-based recommendations
-        negative_trends = [insight for insight in insights if insight["type"] == "negative_trend"]
+        negative_trends = [
+            insight for insight in insights if insight["type"] == "negative_trend"
+        ]
         if negative_trends:
-            recommendations.append("Investigate decreasing trends in behavioral metrics")
+            recommendations.append(
+                "Investigate decreasing trends in behavioral metrics"
+            )
 
         # Change-based recommendations
         significant_changes = [

@@ -20,19 +20,19 @@ Usage:
     python scripts/test_report_dashboard.py --export-format json
 """
 
-import os
-import sys
-import json
-import csv
-import time
 import argparse
-import subprocess
-from pathlib import Path
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass, asdict
 import asyncio
+import csv
+import json
+import os
+import subprocess
+import sys
+import time
 from collections import defaultdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent
@@ -42,6 +42,7 @@ sys.path.insert(0, str(project_root))
 @dataclass
 class TestResult:
     """Individual test result data"""
+
     name: str
     status: str  # passed, failed, skipped, error
     duration: float
@@ -55,6 +56,7 @@ class TestResult:
 @dataclass
 class CoverageData:
     """Coverage analysis data"""
+
     total_lines: int
     covered_lines: int
     missing_lines: int
@@ -65,6 +67,7 @@ class CoverageData:
 @dataclass
 class PerformanceMetrics:
     """Performance testing metrics"""
+
     test_name: str
     avg_duration: float
     min_duration: float
@@ -76,6 +79,7 @@ class PerformanceMetrics:
 @dataclass
 class SecurityTestResult:
     """Security test specific results"""
+
     vulnerability_type: str
     severity: str  # critical, high, medium, low, info
     status: str  # passed, failed, warning
@@ -87,6 +91,7 @@ class SecurityTestResult:
 @dataclass
 class TestReport:
     """Comprehensive test report"""
+
     timestamp: datetime
     total_tests: int
     passed_tests: int
@@ -109,7 +114,9 @@ class TestRunner:
         self.project_root = project_root
         self.test_results: List[TestResult] = []
 
-    async def run_tests(self, test_types: List[str] = None) -> Tuple[List[TestResult], float]:
+    async def run_tests(
+        self, test_types: List[str] = None
+    ) -> Tuple[List[TestResult], float]:
         """Run tests and collect results"""
         test_types = test_types or ["unit", "integration", "security", "performance"]
 
@@ -132,13 +139,15 @@ class TestRunner:
 
         # Construct pytest command based on test type
         cmd = [
-            sys.executable, "-m", "pytest",
+            sys.executable,
+            "-m",
+            "pytest",
             "tests/",
             f"-m {test_type}" if test_type != "all" else "",
             "--tb=short",
             "--json-report",
             "--json-report-file=/tmp/test_results.json",
-            "-v"
+            "-v",
         ]
 
         # Remove empty strings from command
@@ -151,7 +160,7 @@ class TestRunner:
                 cwd=self.project_root,
                 capture_output=True,
                 text=True,
-                timeout=300  # 5 minute timeout
+                timeout=300,  # 5 minute timeout
             )
 
             duration = time.time() - start_time
@@ -159,7 +168,9 @@ class TestRunner:
             # Parse test results from JSON report if available
             test_results = []
             if os.path.exists("/tmp/test_results.json"):
-                test_results = self._parse_json_report("/tmp/test_results.json", test_type)
+                test_results = self._parse_json_report(
+                    "/tmp/test_results.json", test_type
+                )
             else:
                 # Fallback to parsing stdout
                 test_results = self._parse_stdout_output(result.stdout, test_type)
@@ -176,20 +187,20 @@ class TestRunner:
     def _parse_json_report(self, report_path: str, test_type: str) -> List[TestResult]:
         """Parse pytest JSON report"""
         try:
-            with open(report_path, 'r') as f:
+            with open(report_path, "r") as f:
                 data = json.load(f)
 
             results = []
-            for test in data.get('tests', []):
+            for test in data.get("tests", []):
                 result = TestResult(
-                    name=test.get('nodeid', ''),
-                    status=test.get('outcome', 'unknown'),
-                    duration=test.get('duration', 0.0),
-                    file_path=test.get('nodeid', '').split('::')[0],
+                    name=test.get("nodeid", ""),
+                    status=test.get("outcome", "unknown"),
+                    duration=test.get("duration", 0.0),
+                    file_path=test.get("nodeid", "").split("::")[0],
                     line_number=0,  # Extract from nodeid if needed
-                    error_message=test.get('call', {}).get('longrepr', ''),
-                    markers=test.get('markers', []),
-                    test_type=test_type
+                    error_message=test.get("call", {}).get("longrepr", ""),
+                    markers=test.get("markers", []),
+                    test_type=test_type,
                 )
                 results.append(result)
 
@@ -202,29 +213,34 @@ class TestRunner:
     def _parse_stdout_output(self, stdout: str, test_type: str) -> List[TestResult]:
         """Parse pytest stdout output"""
         results = []
-        lines = stdout.split('\n')
+        lines = stdout.split("\n")
 
         for line in lines:
-            if '::' in line and ('PASSED' in line or 'FAILED' in line or 'SKIPPED' in line):
+            if "::" in line and (
+                "PASSED" in line or "FAILED" in line or "SKIPPED" in line
+            ):
                 parts = line.split()
                 if len(parts) >= 2:
                     test_name = parts[0]
-                    status = parts[1].lower().rstrip('[]')
+                    status = parts[1].lower().rstrip("[]")
                     duration = 0.0
 
                     # Extract duration if available
                     for part in parts:
-                        if 's' in part and part.replace('s', '').replace('.', '').isdigit():
-                            duration = float(part.rstrip('s'))
+                        if (
+                            "s" in part
+                            and part.replace("s", "").replace(".", "").isdigit()
+                        ):
+                            duration = float(part.rstrip("s"))
                             break
 
                     result = TestResult(
                         name=test_name,
                         status=status,
                         duration=duration,
-                        file_path=test_name.split('::')[0],
+                        file_path=test_name.split("::")[0],
                         line_number=0,
-                        test_type=test_type
+                        test_type=test_type,
                     )
                     results.append(result)
 
@@ -243,22 +259,20 @@ class CoverageAnalyzer:
 
         # Run coverage with pytest-cov
         cmd = [
-            sys.executable, "-m", "pytest",
+            sys.executable,
+            "-m",
+            "pytest",
             "tests/",
             "--cov=app",
             "--cov-report=json",
             "--cov-report=html",
             "--cov-report=term",
-            "--cov-fail-under=0"  # Don't fail on low coverage for analysis
+            "--cov-fail-under=0",  # Don't fail on low coverage for analysis
         ]
 
         try:
             result = subprocess.run(
-                cmd,
-                cwd=self.project_root,
-                capture_output=True,
-                text=True,
-                timeout=180
+                cmd, cwd=self.project_root, capture_output=True, text=True, timeout=180
             )
 
             # Parse coverage JSON report
@@ -272,7 +286,7 @@ class CoverageAnalyzer:
                     covered_lines=0,
                     missing_lines=0,
                     coverage_percentage=0.0,
-                    file_coverage={}
+                    file_coverage={},
                 )
 
         except Exception as e:
@@ -282,32 +296,32 @@ class CoverageAnalyzer:
                 covered_lines=0,
                 missing_lines=0,
                 coverage_percentage=0.0,
-                file_coverage={}
+                file_coverage={},
             )
 
     def _parse_coverage_report(self, coverage_file: Path) -> CoverageData:
         """Parse coverage JSON report"""
         try:
-            with open(coverage_file, 'r') as f:
+            with open(coverage_file, "r") as f:
                 data = json.load(f)
 
-            totals = data.get('totals', {})
-            files = data.get('files', {})
+            totals = data.get("totals", {})
+            files = data.get("files", {})
 
-            total_lines = totals.get('num_statements', 0)
-            covered_lines = totals.get('covered_lines', 0)
+            total_lines = totals.get("num_statements", 0)
+            covered_lines = totals.get("covered_lines", 0)
             missing_lines = total_lines - covered_lines
-            coverage_percentage = totals.get('percent_covered', 0.0)
+            coverage_percentage = totals.get("percent_covered", 0.0)
 
             # Parse file-level coverage
             file_coverage = {}
             for file_path, file_data in files.items():
-                summary = file_data.get('summary', {})
+                summary = file_data.get("summary", {})
                 file_coverage[file_path] = {
-                    'total_lines': summary.get('num_statements', 0),
-                    'covered_lines': summary.get('covered_lines', 0),
-                    'coverage_percentage': summary.get('percent_covered', 0.0),
-                    'missing_lines': summary.get('missing_lines', 0)
+                    "total_lines": summary.get("num_statements", 0),
+                    "covered_lines": summary.get("covered_lines", 0),
+                    "coverage_percentage": summary.get("percent_covered", 0.0),
+                    "missing_lines": summary.get("missing_lines", 0),
                 }
 
             return CoverageData(
@@ -315,7 +329,7 @@ class CoverageAnalyzer:
                 covered_lines=covered_lines,
                 missing_lines=missing_lines,
                 coverage_percentage=coverage_percentage,
-                file_coverage=file_coverage
+                file_coverage=file_coverage,
             )
 
         except Exception as e:
@@ -325,20 +339,23 @@ class CoverageAnalyzer:
                 covered_lines=0,
                 missing_lines=0,
                 coverage_percentage=0.0,
-                file_coverage={}
+                file_coverage={},
             )
 
 
 class PerformanceAnalyzer:
     """Analyzes performance test results"""
 
-    def analyze_performance(self, test_results: List[TestResult]) -> List[PerformanceMetrics]:
+    def analyze_performance(
+        self, test_results: List[TestResult]
+    ) -> List[PerformanceMetrics]:
         """Analyze performance metrics from test results"""
         performance_results = []
 
         # Group performance tests by name
         performance_tests = [
-            result for result in test_results
+            result
+            for result in test_results
             if result.test_type == "performance" or "performance" in result.markers
         ]
 
@@ -346,7 +363,7 @@ class PerformanceAnalyzer:
         test_groups = defaultdict(list)
         for test in performance_tests:
             # Extract base test name (remove parameters and variants)
-            base_name = test.name.split('[')[0].split('::')[-1]
+            base_name = test.name.split("[")[0].split("::")[-1]
             test_groups[base_name].append(test.duration)
 
         # Calculate metrics for each test group
@@ -367,7 +384,7 @@ class PerformanceAnalyzer:
                     min_duration=min_duration,
                     max_duration=max_duration,
                     total_runs=total_runs,
-                    benchmark_score=benchmark_score
+                    benchmark_score=benchmark_score,
                 )
                 performance_results.append(metrics)
 
@@ -377,12 +394,15 @@ class PerformanceAnalyzer:
 class SecurityAnalyzer:
     """Analyzes security test results"""
 
-    def analyze_security(self, test_results: List[TestResult]) -> List[SecurityTestResult]:
+    def analyze_security(
+        self, test_results: List[TestResult]
+    ) -> List[SecurityTestResult]:
         """Analyze security test results"""
         security_results = []
 
         security_tests = [
-            result for result in test_results
+            result
+            for result in test_results
             if result.test_type == "security" or "security" in result.markers
         ]
 
@@ -392,7 +412,9 @@ class SecurityAnalyzer:
             vulnerability_type = self._extract_vulnerability_type(test.name)
             severity = self._determine_severity(test.name, vulnerability_type)
             status = test.status if test.status != "failed" else "warning"
-            description = test.error_message or f"Security test for {vulnerability_type}"
+            description = (
+                test.error_message or f"Security test for {vulnerability_type}"
+            )
             recommendation = self._generate_recommendation(vulnerability_type, severity)
             cwe_id = self._get_cwe_id(vulnerability_type)
 
@@ -402,7 +424,7 @@ class SecurityAnalyzer:
                 status=status,
                 description=description,
                 recommendation=recommendation,
-                cwe_id=cwe_id
+                cwe_id=cwe_id,
             )
             security_results.append(security_result)
 
@@ -420,7 +442,7 @@ class SecurityAnalyzer:
             "session_management": ["session", "cookie", "timeout"],
             "rate_limiting": ["rate", "limit", "throttle"],
             "encryption": ["encrypt", "hash", "crypto"],
-            "information_disclosure": ["disclosure", "information", "leak"]
+            "information_disclosure": ["disclosure", "information", "leak"],
         }
 
         test_name_lower = test_name.lower()
@@ -434,13 +456,14 @@ class SecurityAnalyzer:
     def _determine_severity(self, test_name: str, vulnerability_type: str) -> str:
         """Determine severity based on vulnerability type"""
         high_severity = [
-            "Sql Injection", "Cross Site Scripting", "Authentication",
-            "Information Disclosure", "Encryption"
+            "Sql Injection",
+            "Cross Site Scripting",
+            "Authentication",
+            "Information Disclosure",
+            "Encryption",
         ]
 
-        medium_severity = [
-            "Csrf", "Authorization", "Session Management"
-        ]
+        medium_severity = ["Csrf", "Authorization", "Session Management"]
 
         if vulnerability_type in high_severity:
             return "high"
@@ -460,7 +483,7 @@ class SecurityAnalyzer:
             "Input Validation": "Validate all inputs and use whitelist approach",
             "Session Management": "Use secure session handling and proper timeouts",
             "Rate Limiting": "Implement API rate limiting and account lockout",
-            "Encryption": "Use strong encryption algorithms and proper key management"
+            "Encryption": "Use strong encryption algorithms and proper key management",
         }
 
         return recommendations.get(vulnerability_type, "Review security best practices")
@@ -475,7 +498,7 @@ class SecurityAnalyzer:
             "Authorization": "CWE-285",
             "Input Validation": "CWE-20",
             "Session Management": "CWE-613",
-            "Information Disclosure": "CWE-200"
+            "Information Disclosure": "CWE-200",
         }
 
         return cwe_mapping.get(vulnerability_type)
@@ -496,14 +519,20 @@ class ReportGenerator:
 
         # Convert to dictionary and handle datetime serialization
         report_dict = asdict(test_report)
-        report_dict['timestamp'] = test_report.timestamp.isoformat()
+        report_dict["timestamp"] = test_report.timestamp.isoformat()
 
         # Convert test results to dictionaries
-        report_dict['test_results'] = [asdict(result) for result in test_report.test_results]
-        report_dict['performance_metrics'] = [asdict(metric) for metric in test_report.performance_metrics]
-        report_dict['security_results'] = [asdict(result) for result in test_report.security_results]
+        report_dict["test_results"] = [
+            asdict(result) for result in test_report.test_results
+        ]
+        report_dict["performance_metrics"] = [
+            asdict(metric) for metric in test_report.performance_metrics
+        ]
+        report_dict["security_results"] = [
+            asdict(result) for result in test_report.security_results
+        ]
 
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump(report_dict, f, indent=2, default=str)
 
         # Generate HTML report
@@ -517,7 +546,7 @@ class ReportGenerator:
 
         html_content = self._generate_html_content(test_report)
 
-        with open(html_file, 'w') as f:
+        with open(html_file, "w") as f:
             f.write(html_content)
 
         return html_file
@@ -525,9 +554,15 @@ class ReportGenerator:
     def _generate_html_content(self, test_report: TestReport) -> str:
         """Generate HTML dashboard content"""
         # Calculate statistics
-        pass_rate = (test_report.passed_tests / test_report.total_tests * 100) if test_report.total_tests > 0 else 0
+        pass_rate = (
+            (test_report.passed_tests / test_report.total_tests * 100)
+            if test_report.total_tests > 0
+            else 0
+        )
         security_score = self._calculate_security_score(test_report.security_results)
-        performance_score = self._calculate_performance_score(test_report.performance_metrics)
+        performance_score = self._calculate_performance_score(
+            test_report.performance_metrics
+        )
 
         html_template = f"""
 <!DOCTYPE html>
@@ -753,7 +788,11 @@ class ReportGenerator:
         rows = []
         for result in test_results[:50]:  # Limit to first 50 tests
             status_class = f"status-{result.status}"
-            file_name = result.file_path.split('/')[-1] if '/' in result.file_path else result.file_path
+            file_name = (
+                result.file_path.split("/")[-1]
+                if "/" in result.file_path
+                else result.file_path
+            )
 
             row = f"""
                     <tr>
@@ -766,19 +805,23 @@ class ReportGenerator:
             """
             rows.append(row)
 
-        return ''.join(rows)
+        return "".join(rows)
 
-    def _calculate_security_score(self, security_results: List[SecurityTestResult]) -> float:
+    def _calculate_security_score(
+        self, security_results: List[SecurityTestResult]
+    ) -> float:
         """Calculate overall security score"""
         if not security_results:
             return 100.0  # Perfect score if no security tests
 
-        passed = len([r for r in security_results if r.status == 'passed'])
+        passed = len([r for r in security_results if r.status == "passed"])
         total = len(security_results)
 
         return (passed / total) * 100
 
-    def _calculate_performance_score(self, performance_metrics: List[PerformanceMetrics]) -> float:
+    def _calculate_performance_score(
+        self, performance_metrics: List[PerformanceMetrics]
+    ) -> float:
         """Calculate overall performance score"""
         if not performance_metrics:
             return 100.0  # Perfect score if no performance tests
@@ -813,7 +856,9 @@ class TestReportDashboard:
 
         # Analyze performance
         print("\n⚡ Analyzing Performance...")
-        performance_metrics = self.performance_analyzer.analyze_performance(test_results)
+        performance_metrics = self.performance_analyzer.analyze_performance(
+            test_results
+        )
 
         # Analyze security
         print("\n🔒 Analyzing Security...")
@@ -837,7 +882,7 @@ class TestReportDashboard:
             performance_metrics=performance_metrics,
             security_results=security_results,
             test_categories=test_categories,
-            trends={}  # TODO: Implement historical trend tracking
+            trends={},  # TODO: Implement historical trend tracking
         )
 
         # Generate and save report
@@ -846,8 +891,12 @@ class TestReportDashboard:
         print(f"\n✅ Comprehensive test report generated!")
         print(f"📁 Report saved to: {report_file}")
         print(f"📊 Coverage: {coverage_data.coverage_percentage:.1f}%")
-        print(f"🔒 Security Score: {self.report_generator._calculate_security_score(security_results):.0f}/100")
-        print(f"⚡ Performance Score: {self.report_generator._calculate_performance_score(performance_metrics):.0f}/100")
+        print(
+            f"🔒 Security Score: {self.report_generator._calculate_security_score(security_results):.0f}/100"
+        )
+        print(
+            f"⚡ Performance Score: {self.report_generator._calculate_performance_score(performance_metrics):.0f}/100"
+        )
 
         return report_file
 
@@ -867,7 +916,7 @@ class TestReportDashboard:
             raise FileNotFoundError(f"Report file not found: {report_file}")
 
         # Load the report
-        with open(report_path, 'r') as f:
+        with open(report_path, "r") as f:
             report_data = json.load(f)
 
         if export_format.lower() == "csv":
@@ -877,8 +926,10 @@ class TestReportDashboard:
             exports_dir = self.project_root / "test_exports"
             exports_dir.mkdir(exist_ok=True)
 
-            export_file = exports_dir / f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-            with open(export_file, 'w') as f:
+            export_file = (
+                exports_dir / f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            )
+            with open(export_file, "w") as f:
                 json.dump(report_data, f, indent=2)
 
             print(f"Report exported to: {export_file}")
@@ -888,29 +939,40 @@ class TestReportDashboard:
         exports_dir = self.project_root / "test_exports"
         exports_dir.mkdir(exist_ok=True)
 
-        export_file = exports_dir / f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        export_file = (
+            exports_dir / f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        )
 
         # Write test results to CSV
-        with open(export_file, 'w', newline='') as f:
+        with open(export_file, "w", newline="") as f:
             writer = csv.writer(f)
 
             # Write header
-            writer.writerow([
-                'Test Name', 'Status', 'Duration', 'File Path', 'Test Type',
-                'Error Message', 'Markers'
-            ])
+            writer.writerow(
+                [
+                    "Test Name",
+                    "Status",
+                    "Duration",
+                    "File Path",
+                    "Test Type",
+                    "Error Message",
+                    "Markers",
+                ]
+            )
 
             # Write test results
-            for result in report_data.get('test_results', []):
-                writer.writerow([
-                    result.get('name', ''),
-                    result.get('status', ''),
-                    result.get('duration', 0),
-                    result.get('file_path', ''),
-                    result.get('test_type', ''),
-                    result.get('error_message', ''),
-                    ','.join(result.get('markers', []))
-                ])
+            for result in report_data.get("test_results", []):
+                writer.writerow(
+                    [
+                        result.get("name", ""),
+                        result.get("status", ""),
+                        result.get("duration", 0),
+                        result.get("file_path", ""),
+                        result.get("test_type", ""),
+                        result.get("error_message", ""),
+                        ",".join(result.get("markers", [])),
+                    ]
+                )
 
         print(f"Report exported to CSV: {export_file}")
 
@@ -924,26 +986,26 @@ async def main():
 Examples:
     python scripts/test_report_dashboard.py --generate
     python scripts/test_report_dashboard.py --generate --export-format csv
-        """
+        """,
     )
 
     parser.add_argument(
-        '--generate', '-g',
-        action='store_true',
-        help='Generate comprehensive test report'
+        "--generate",
+        "-g",
+        action="store_true",
+        help="Generate comprehensive test report",
     )
 
     parser.add_argument(
-        '--export-format', '-e',
-        choices=['json', 'csv'],
-        default='json',
-        help='Export format for the report (default: json)'
+        "--export-format",
+        "-e",
+        choices=["json", "csv"],
+        default="json",
+        help="Export format for the report (default: json)",
     )
 
     parser.add_argument(
-        '--serve', '-s',
-        action='store_true',
-        help='Start web server to serve reports'
+        "--serve", "-s", action="store_true", help="Start web server to serve reports"
     )
 
     args = parser.parse_args()

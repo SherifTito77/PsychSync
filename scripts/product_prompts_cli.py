@@ -14,18 +14,19 @@ Usage:
 """
 
 import argparse
-import sys
 import json
+import sys
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.services.product_management_service import ProductManagementPromptsService
-from app.db.database import async_session_maker
 import asyncio
+
+from app.db.database import async_session_maker
+from app.services.product_management_service import ProductManagementPromptsService
 
 
 def print_prompt(prompt: Dict[str, Any], index: int = None):
@@ -43,27 +44,27 @@ def print_prompt(prompt: Dict[str, Any], index: int = None):
     print(f"Time:        {prompt['estimated_time']}")
 
     print(f"\n📋 Expected Outputs:")
-    for i, output in enumerate(prompt['outputs'], 1):
+    for i, output in enumerate(prompt["outputs"], 1):
         print(f"   {i}. {output}")
 
     print(f"\n🎯 Use Cases:")
-    for i, use_case in enumerate(prompt['use_cases'], 1):
+    for i, use_case in enumerate(prompt["use_cases"], 1):
         print(f"   {i}. {use_case}")
 
-    if prompt.get('related_prompts'):
+    if prompt.get("related_prompts"):
         print(f"\n🔗 Related Prompts: {', '.join(prompt['related_prompts'])}")
 
 
 def print_category(category: Dict[str, Any]):
     """Pretty print a category."""
     icon_map = {
-        'roadmap': '🗺️',
-        'users': '👥',
-        'trending-up': '📈',
-        'chart-bar': '📊',
-        'cog': '⚙️',
+        "roadmap": "🗺️",
+        "users": "👥",
+        "trending-up": "📈",
+        "chart-bar": "📊",
+        "cog": "⚙️",
     }
-    icon = icon_map.get(category['icon'], '📁')
+    icon = icon_map.get(category["icon"], "📁")
 
     print(f"\n{icon}  {category['name']}")
     print(f"   {category['description']}")
@@ -77,9 +78,7 @@ async def list_prompts(args):
 
         if args.category:
             prompts = await service.get_prompts_by_category(
-                args.category,
-                args.complexity,
-                args.type
+                args.category, args.complexity, args.type
             )
         else:
             # Get all prompts
@@ -87,9 +86,7 @@ async def list_prompts(args):
             categories = await service.get_all_categories()
             for cat in categories:
                 cat_prompts = await service.get_prompts_by_category(
-                    cat['id'],
-                    args.complexity,
-                    args.type
+                    cat["id"], args.complexity, args.type
                 )
                 all_prompts.extend(cat_prompts)
             prompts = all_prompts
@@ -134,18 +131,18 @@ async def execute_prompt(args):
                 prompt_id=args.prompt_id,
                 user_id=1,  # TODO: Get from auth
                 context=context,
-                use_ai=args.use_ai
+                use_ai=args.use_ai,
             )
 
             print(f"\n✅ Prompt executed successfully!")
             print(f"   Execution ID: {result['execution_id']}")
             print(f"   Executed at: {result['executed_at']}")
 
-            if result.get('ai_suggestion'):
+            if result.get("ai_suggestion"):
                 print(f"\n🤖 AI-Enhanced Output:")
-                print("─"*80)
-                print(result['ai_suggestion'])
-                print("─"*80)
+                print("─" * 80)
+                print(result["ai_suggestion"])
+                print("─" * 80)
 
             if args.save:
                 output_file = Path(args.save)
@@ -184,7 +181,9 @@ async def show_workflow(args):
 
         if not workflow:
             print(f"❌ No workflow found for goal: {args.goal}")
-            print(f"   Try: feature_launch, retention_improvement, enterprise_expansion, quarterly_planning")
+            print(
+                f"   Try: feature_launch, retention_improvement, enterprise_expansion, quarterly_planning"
+            )
             return 1
 
         print(f"\n📋 Workflow: {args.goal.replace('_', ' ').title()}")
@@ -197,7 +196,7 @@ async def show_workflow(args):
 
         if args.execute:
             response = input("Execute this workflow? (y/n): ")
-            if response.lower() == 'y':
+            if response.lower() == "y":
                 for prompt in workflow:
                     print(f"\n{'='*80}")
                     print(f"Executing step {workflow.index(prompt)+1}/{len(workflow)}")
@@ -234,9 +233,9 @@ async def show_prompt_details(args):
         print_prompt(prompt)
 
         # Show related prompts
-        if prompt.get('related_prompts'):
+        if prompt.get("related_prompts"):
             print(f"\n🔗 Related Prompts:")
-            for rel_id in prompt['related_prompts']:
+            for rel_id in prompt["related_prompts"]:
                 rel_prompt = await service.get_prompt_by_id(rel_id)
                 if rel_prompt:
                     print(f"   [{rel_prompt['id']}] {rel_prompt['prompt']}")
@@ -248,20 +247,21 @@ async def show_history(args):
         service = ProductManagementPromptsService(db)
 
         history = await service.get_execution_history(
-            prompt_id=args.prompt_id,
-            limit=args.limit
+            prompt_id=args.prompt_id, limit=args.limit
         )
 
         if args.json:
             print(json.dumps(history, indent=2))
         else:
-            print(f"\n📜 Execution History (showing {len(history['executions'])} records)\n")
-            for exec in history['executions']:
+            print(
+                f"\n📜 Execution History (showing {len(history['executions'])} records)\n"
+            )
+            for exec in history["executions"]:
                 print(f"ID: {exec['id']}")
                 print(f"Prompt: {exec['prompt_id']}")
                 print(f"When: {exec['executed_at']}")
                 print(f"AI: {'Yes' if exec['use_ai'] else 'No'}")
-                if exec.get('quality_rating'):
+                if exec.get("quality_rating"):
                     print(f"Rating: {exec['quality_rating']}/5 ⭐")
                 print()
 
@@ -281,16 +281,18 @@ async def show_statistics(args):
             print(f"Categories:        {stats['categories_count']}")
             print(f"Total Executions:  {stats['total_executions']}")
 
-            if stats.get('most_used_prompts'):
+            if stats.get("most_used_prompts"):
                 print(f"\n🔥 Most Used Prompts:")
-                for item in stats['most_used_prompts']:
-                    print(f"   {item['prompt_id']}: {item.get('count', 'N/A')} executions")
+                for item in stats["most_used_prompts"]:
+                    print(
+                        f"   {item['prompt_id']}: {item.get('count', 'N/A')} executions"
+                    )
 
 
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description='Product Management Prompts CLI',
+        description="Product Management Prompts CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -304,51 +306,75 @@ Examples:
   %(prog)s categories                              List all categories
   %(prog)s history --limit 10                      Show execution history
   %(prog)s statistics                              Show usage statistics
-        """
+        """,
     )
 
-    parser.add_argument('--json', action='store_true', help='Output as JSON')
-    parser.add_argument('--verbose', '-v', action='store_true', help='Verbose output')
+    parser.add_argument("--json", action="store_true", help="Output as JSON")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
 
-    subparsers = parser.add_subparsers(dest='command', help='Command to execute')
+    subparsers = parser.add_subparsers(dest="command", help="Command to execute")
 
     # List command
-    list_parser = subparsers.add_parser('list', help='List prompts')
-    list_parser.add_argument('--category', help='Filter by category')
-    list_parser.add_argument('--complexity', choices=['low', 'medium', 'high'], help='Filter by complexity')
-    list_parser.add_argument('--type', choices=['strategic', 'tactical', 'analytical', 'technical', 'creative', 'experimental'], help='Filter by type')
+    list_parser = subparsers.add_parser("list", help="List prompts")
+    list_parser.add_argument("--category", help="Filter by category")
+    list_parser.add_argument(
+        "--complexity", choices=["low", "medium", "high"], help="Filter by complexity"
+    )
+    list_parser.add_argument(
+        "--type",
+        choices=[
+            "strategic",
+            "tactical",
+            "analytical",
+            "technical",
+            "creative",
+            "experimental",
+        ],
+        help="Filter by type",
+    )
 
     # Execute command
-    exec_parser = subparsers.add_parser('execute', help='Execute a prompt')
-    exec_parser.add_argument('prompt_id', help='Prompt ID (e.g., rs_001)')
-    exec_parser.add_argument('--use-ai', action='store_true', help='Use AI enhancement')
-    exec_parser.add_argument('--context', help='Context as JSON string')
-    exec_parser.add_argument('--save', help='Save output to file')
+    exec_parser = subparsers.add_parser("execute", help="Execute a prompt")
+    exec_parser.add_argument("prompt_id", help="Prompt ID (e.g., rs_001)")
+    exec_parser.add_argument("--use-ai", action="store_true", help="Use AI enhancement")
+    exec_parser.add_argument("--context", help="Context as JSON string")
+    exec_parser.add_argument("--save", help="Save output to file")
 
     # Search command
-    search_parser = subparsers.add_parser('search', help='Search prompts')
-    search_parser.add_argument('query', help='Search query')
-    search_parser.add_argument('--category', help='Limit search to category')
+    search_parser = subparsers.add_parser("search", help="Search prompts")
+    search_parser.add_argument("query", help="Search query")
+    search_parser.add_argument("--category", help="Limit search to category")
 
     # Workflow command
-    workflow_parser = subparsers.add_parser('workflow', help='Show workflow for goal')
-    workflow_parser.add_argument('goal', choices=['feature_launch', 'retention_improvement', 'enterprise_expansion', 'quarterly_planning'], help='Workflow goal')
-    workflow_parser.add_argument('--execute', action='store_true', help='Execute workflow interactively')
+    workflow_parser = subparsers.add_parser("workflow", help="Show workflow for goal")
+    workflow_parser.add_argument(
+        "goal",
+        choices=[
+            "feature_launch",
+            "retention_improvement",
+            "enterprise_expansion",
+            "quarterly_planning",
+        ],
+        help="Workflow goal",
+    )
+    workflow_parser.add_argument(
+        "--execute", action="store_true", help="Execute workflow interactively"
+    )
 
     # Categories command
-    subparsers.add_parser('categories', help='List all categories')
+    subparsers.add_parser("categories", help="List all categories")
 
     # Prompt details command
-    prompt_parser = subparsers.add_parser('prompt', help='Show prompt details')
-    prompt_parser.add_argument('prompt_id', help='Prompt ID')
+    prompt_parser = subparsers.add_parser("prompt", help="Show prompt details")
+    prompt_parser.add_argument("prompt_id", help="Prompt ID")
 
     # History command
-    history_parser = subparsers.add_parser('history', help='Show execution history')
-    history_parser.add_argument('--prompt-id', help='Filter by prompt ID')
-    history_parser.add_argument('--limit', type=int, default=20, help='Limit results')
+    history_parser = subparsers.add_parser("history", help="Show execution history")
+    history_parser.add_argument("--prompt-id", help="Filter by prompt ID")
+    history_parser.add_argument("--limit", type=int, default=20, help="Limit results")
 
     # Statistics command
-    subparsers.add_parser('statistics', help='Show usage statistics')
+    subparsers.add_parser("statistics", help="Show usage statistics")
 
     args = parser.parse_args()
 
@@ -358,14 +384,14 @@ Examples:
 
     # Execute command
     commands = {
-        'list': list_prompts,
-        'execute': execute_prompt,
-        'search': search_prompts,
-        'workflow': show_workflow,
-        'categories': show_categories,
-        'prompt': show_prompt_details,
-        'history': show_history,
-        'statistics': show_statistics,
+        "list": list_prompts,
+        "execute": execute_prompt,
+        "search": search_prompts,
+        "workflow": show_workflow,
+        "categories": show_categories,
+        "prompt": show_prompt_details,
+        "history": show_history,
+        "statistics": show_statistics,
     }
 
     command_func = commands.get(args.command)
@@ -376,5 +402,5 @@ Examples:
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

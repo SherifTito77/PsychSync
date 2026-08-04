@@ -4,20 +4,21 @@ Test Coverage Validation and Reporting System
 Provides comprehensive coverage analysis and reporting for the PsychSync test suite
 """
 
-import os
-import sys
 import json
+import os
 import subprocess
+import sys
 import time
-from datetime import datetime
-from typing import Dict, Any, List
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, List
 
 
 @dataclass
 class CoverageReport:
     """Coverage report data structure"""
+
     total_coverage: float
     coverage_by_module: Dict[str, float]
     uncovered_lines: List[str]
@@ -66,13 +67,15 @@ class CoverageValidator:
 
             # Run tests with coverage
             cmd = [
-                sys.executable, "-m", "pytest",
+                sys.executable,
+                "-m",
+                "pytest",
                 "--cov=app",
                 "--cov-report=json",
                 "--cov-report=term-missing",
                 "--cov-report=html",
                 "tests/",
-                "--tb=short"
+                "--tb=short",
             ]
 
             print(f"📊 Running: {' '.join(cmd)}")
@@ -83,7 +86,7 @@ class CoverageValidator:
                 cwd=self.project_root,
                 capture_output=True,
                 text=True,
-                timeout=300  # 5 minute timeout
+                timeout=300,  # 5 minute timeout
             )
             end_time = time.time()
 
@@ -98,7 +101,7 @@ class CoverageValidator:
             # Read coverage report
             coverage_file = self.project_root / "coverage.json"
             if coverage_file.exists():
-                with open(coverage_file, 'r') as f:
+                with open(coverage_file, "r") as f:
                     return json.load(f)
 
             return {"error": "Coverage report not generated", "stdout": result.stdout}
@@ -118,7 +121,7 @@ class CoverageValidator:
                 covered_lines=0,
                 total_lines=0,
                 missing_coverage=[],
-                timestamp=datetime.utcnow().isoformat()
+                timestamp=datetime.utcnow().isoformat(),
             )
 
         totals = coverage_data.get("totals", {})
@@ -140,14 +143,18 @@ class CoverageValidator:
             # Find uncovered lines
             missing_lines = file_data.get("missing_lines", [])
             if missing_lines:
-                uncovered_lines.extend([f"{module_name}:{line}" for line in missing_lines])
+                uncovered_lines.extend(
+                    [f"{module_name}:{line}" for line in missing_lines]
+                )
 
-                missing_coverage.append({
-                    "module": module_name,
-                    "file": file_path,
-                    "uncovered_lines": missing_lines,
-                    "coverage_percent": file_coverage
-                })
+                missing_coverage.append(
+                    {
+                        "module": module_name,
+                        "file": file_path,
+                        "uncovered_lines": missing_lines,
+                        "coverage_percent": file_coverage,
+                    }
+                )
 
         return CoverageReport(
             total_coverage=total_coverage,
@@ -156,10 +163,12 @@ class CoverageValidator:
             covered_lines=covered_lines,
             total_lines=total_lines,
             missing_coverage=missing_coverage,
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.utcnow().isoformat(),
         )
 
-    def _generate_coverage_report(self, report: CoverageReport, output_format: str = "json"):
+    def _generate_coverage_report(
+        self, report: CoverageReport, output_format: str = "json"
+    ):
         """Generate comprehensive coverage report"""
         print("\n📊 Coverage Analysis Results")
         print("=" * 60)
@@ -179,7 +188,9 @@ class CoverageValidator:
         if report.missing_coverage:
             print(f"\n🔍 Missing Coverage Details:")
             for item in report.missing_coverage[:10]:  # Show first 10
-                print(f"  📂 {item['module']}: {len(item['uncovered_lines'])} lines ({item['coverage_percent']:.1f}%)")
+                print(
+                    f"  📂 {item['module']}: {len(item['uncovered_lines'])} lines ({item['coverage_percent']:.1f}%)"
+                )
 
         if len(report.missing_coverage) > 10:
             print(f"  ... and {len(report.missing_coverage) - 10} more files")
@@ -199,33 +210,39 @@ class CoverageValidator:
 
         # JSON report
         json_file = reports_dir / f"coverage_report_{timestamp}.json"
-        with open(json_file, 'w') as f:
-            json.dump({
-                "metadata": {
-                    "target_coverage": self.target_coverage,
-                    "timestamp": report.timestamp,
-                    "project_root": str(self.project_root)
+        with open(json_file, "w") as f:
+            json.dump(
+                {
+                    "metadata": {
+                        "target_coverage": self.target_coverage,
+                        "timestamp": report.timestamp,
+                        "project_root": str(self.project_root),
+                    },
+                    "summary": {
+                        "total_coverage": report.total_coverage,
+                        "covered_lines": report.covered_lines,
+                        "total_lines": report.total_lines,
+                        "missing_lines": len(report.uncovered_lines),
+                    },
+                    "modules": report.coverage_by_module,
+                    "missing_coverage": report.missing_coverage,
                 },
-                "summary": {
-                    "total_coverage": report.total_coverage,
-                    "covered_lines": report.covered_lines,
-                    "total_lines": report.total_lines,
-                    "missing_lines": len(report.uncovered_lines)
-                },
-                "modules": report.coverage_by_module,
-                "missing_coverage": report.missing_coverage
-            }, f, indent=2)
+                f,
+                indent=2,
+            )
 
         print(f"\n📄 Detailed report saved: {json_file}")
 
         # Text report
         text_file = reports_dir / f"coverage_report_{timestamp}.txt"
-        with open(text_file, 'w') as f:
+        with open(text_file, "w") as f:
             f.write(f"PsychSync Test Coverage Report\n")
             f.write(f"Generated: {report.timestamp}\n")
             f.write(f"Target Coverage: {self.target_coverage}%\n")
             f.write(f"Actual Coverage: {report.total_coverage:.2f}%\n")
-            f.write(f"Status: {'✅ PASSED' if report.total_coverage >= self.target_coverage else '❌ FAILED'}\n\n")
+            f.write(
+                f"Status: {'✅ PASSED' if report.total_coverage >= self.target_coverage else '❌ FAILED'}\n\n"
+            )
 
             f.write("Module Coverage:\n")
             for module, coverage in sorted(report.coverage_by_module.items()):
@@ -236,10 +253,12 @@ class CoverageValidator:
                 f.write("\nMissing Coverage Details:\n")
                 for item in report.missing_coverage:
                     f.write(f"\n{item['module']} ({item['coverage_percent']:.1f}%):\n")
-                    for line in item['uncovered_lines'][:20]:  # Show first 20 lines
+                    for line in item["uncovered_lines"][:20]:  # Show first 20 lines
                         f.write(f"  Line {line}\n")
-                    if len(item['uncovered_lines']) > 20:
-                        f.write(f"  ... and {len(item['uncovered_lines']) - 20} more lines\n")
+                    if len(item["uncovered_lines"]) > 20:
+                        f.write(
+                            f"  ... and {len(item['uncovered_lines']) - 20} more lines\n"
+                        )
 
         print(f"📄 Text report saved: {text_file}")
 
@@ -249,23 +268,33 @@ class CoverageValidator:
         print("=" * 30)
 
         if report.total_coverage >= self.target_coverage:
-            print(f"✅ PASSED: Coverage {report.total_coverage:.2f}% exceeds target {self.target_coverage}%")
+            print(
+                f"✅ PASSED: Coverage {report.total_coverage:.2f}% exceeds target {self.target_coverage}%"
+            )
             return True
         else:
             deficit = self.target_coverage - report.total_coverage
-            print(f"❌ FAILED: Coverage {report.total_coverage:.2f}% below target {self.target_coverage}%")
+            print(
+                f"❌ FAILED: Coverage {report.total_coverage:.2f}% below target {self.target_coverage}%"
+            )
             print(f"📉 Coverage deficit: {deficit:.2f}%")
             print(f"\n💡 Recommendations:")
-            print(f"  • Add tests for uncovered lines in {len(report.missing_coverage)} files")
+            print(
+                f"  • Add tests for uncovered lines in {len(report.missing_coverage)} files"
+            )
             print(f"   Top files needing tests:")
 
             # Sort by missing lines count
-            sorted_missing = sorted(report.missing_coverage,
-                                     key=lambda x: len(x['uncovered_lines']),
-                                     reverse=True)
+            sorted_missing = sorted(
+                report.missing_coverage,
+                key=lambda x: len(x["uncovered_lines"]),
+                reverse=True,
+            )
 
             for item in sorted_missing[:5]:
-                print(f"     - {item['module']}: {len(item['uncovered_lines'])} uncovered lines")
+                print(
+                    f"     - {item['module']}: {len(item['uncovered_lines'])} uncovered lines"
+                )
 
             return False
 
@@ -275,9 +304,9 @@ class CoverageValidator:
             import pytest_cov
         except ImportError:
             print("📦 Installing pytest-cov...")
-            subprocess.run([
-                sys.executable, "-m", "pip", "install", "pytest-cov"
-            ], check=True)
+            subprocess.run(
+                [sys.executable, "-m", "pip", "install", "pytest-cov"], check=True
+            )
 
     def _create_coverage_config(self):
         """Create pytest coverage configuration"""
@@ -311,7 +340,7 @@ exclude_lines =
     """
 
         config_file = self.project_root / "pyproject.toml"
-        with open(config_file, 'w') as f:
+        with open(config_file, "w") as f:
             f.write(config_content)
 
         print(f"📄 Created coverage config: {config_file}")
@@ -351,22 +380,25 @@ exclude_lines =
 
         for test_file in test_files:
             try:
-                with open(test_file, 'r') as f:
+                with open(test_file, "r") as f:
                     content = f.read()
-                    lines = content.split('\n')
+                    lines = content.split("\n")
                     total_lines += len(lines)
 
                     # Count test functions
-                    test_functions += len([line for line in lines
-                                                if line.strip().startswith('def test_')])
+                    test_functions += len(
+                        [line for line in lines if line.strip().startswith("def test_")]
+                    )
 
                     # Count test classes
-                    test_classes += len([line for line in lines
-                                               if 'class Test' in line])
+                    test_classes += len(
+                        [line for line in lines if "class Test" in line]
+                    )
 
                     # Count async tests
-                    async_tests += len([line for line in lines
-                                               if 'async def test_' in line])
+                    async_tests += len(
+                        [line for line in lines if "async def test_" in line]
+                    )
 
             except Exception as e:
                 print(f"⚠️  Could not analyze {test_file}: {e}")
@@ -386,7 +418,7 @@ exclude_lines =
             "total_lines": total_lines,
             "test_functions": test_functions,
             "test_classes": test_classes,
-            "async_tests": async_tests
+            "async_tests": async_tests,
         }
 
     def validate_test_quality(self) -> Dict[str, Any]:
@@ -399,20 +431,23 @@ exclude_lines =
 
         for test_file in test_files:
             try:
-                with open(test_file, 'r') as f:
+                with open(test_file, "r") as f:
                     content = f.read()
-                    lines = content.split('\n')
+                    lines = content.split("\n")
 
                 # Check for test documentation
-                docstring_count = len([line for line in lines
-                                           if '"""' in line or "'''" in line])
+                docstring_count = len(
+                    [line for line in lines if '"""' in line or "'''" in line]
+                )
 
                 # Check for assertion usage
-                assertion_count = content.count('assert')
+                assertion_count = content.count("assert")
 
                 # Check for proper test structure
-                has_setup = any('def setUp' in line or '@pytest.fixture' in line for line in lines)
-                has_teardown = any('def tearDown' in line for line in lines)
+                has_setup = any(
+                    "def setUp" in line or "@pytest.fixture" in line for line in lines
+                )
+                has_teardown = any("def tearDown" in line for line in lines)
 
                 file_info = {
                     "file": str(test_file),
@@ -420,37 +455,45 @@ exclude_lines =
                     "docstrings": docstring_count,
                     "assertions": assertion_count,
                     "has_setup": has_setup,
-                    "has_teardown": has_teardown
+                    "has_teardown": has_teardown,
                 }
 
                 # Quality checks
                 if docstring_count == 0 and len(lines) > 20:
-                    quality_issues.append({
-                        "type": "no_docstring",
-                        "file": str(test_file),
-                        "message": "File lacks test documentation"
-                    })
+                    quality_issues.append(
+                        {
+                            "type": "no_docstring",
+                            "file": str(test_file),
+                            "message": "File lacks test documentation",
+                        }
+                    )
 
                 if assertion_count < 3 and len(lines) > 20:
-                    quality_issues.append({
-                        "type": "insufficient_assertions",
-                        "file": str(test_file),
-                        "message": f"Only {assertion_count} assertions found"
-                    })
+                    quality_issues.append(
+                        {
+                            "type": "insufficient_assertions",
+                            "file": str(test_file),
+                            "message": f"Only {assertion_count} assertions found",
+                        }
+                    )
 
                 if len(lines) > 500 and assertion_count < 10:
-                    quality_issues.append({
-                        "type": "low_test_ratio",
-                        "file": str(test_file),
-                        "message": f"Low assertion/line ratio: {assertion_count}/{len(lines)}"
-                    })
+                    quality_issues.append(
+                        {
+                            "type": "low_test_ratio",
+                            "file": str(test_file),
+                            "message": f"Low assertion/line ratio: {assertion_count}/{len(lines)}",
+                        }
+                    )
 
             except Exception as e:
-                quality_issues.append({
-                    "type": "analysis_error",
-                    "file": str(test_file),
-                    "message": f"Could not analyze file: {str(e)}"
-                })
+                quality_issues.append(
+                    {
+                        "type": "analysis_error",
+                        "file": str(test_file),
+                        "message": f"Could not analyze file: {str(e)}",
+                    }
+                )
 
         print(f"📊 Quality Issues Found: {len(quality_issues)}")
 
@@ -465,10 +508,7 @@ exclude_lines =
         else:
             print("✅ No quality issues found!")
 
-        return {
-            "total_issues": len(quality_issues),
-            "issues": quality_issues
-        }
+        return {"total_issues": len(quality_issues), "issues": quality_issues}
 
     def generate_test_suite_summary(self) -> Dict[str, Any]:
         """Generate comprehensive test suite summary"""
@@ -501,7 +541,7 @@ exclude_lines =
         return {
             "test_statistics": test_stats,
             "quality_analysis": quality_stats,
-            "syntax_errors": syntax_errors
+            "syntax_errors": syntax_errors,
         }
 
     def _check_test_syntax(self) -> List[Dict[str, str]]:
@@ -514,16 +554,17 @@ exclude_lines =
                 # Try to compile the file
                 py_compile.compile(test_file.read())
             except SyntaxError as e:
-                syntax_errors.append({
-                    "file": str(test_file),
-                    "error": str(e),
-                    "line": e.lineno if hasattr(e, 'lineno') else None
-                })
+                syntax_errors.append(
+                    {
+                        "file": str(test_file),
+                        "error": str(e),
+                        "line": e.lineno if hasattr(e, "lineno") else None,
+                    }
+                )
             except Exception as e:
-                syntax_errors.append({
-                    "file": str(test_file),
-                    "error": f"Compilation error: {str(e)}"
-                })
+                syntax_errors.append(
+                    {"file": str(test_file), "error": f"Compilation error: {str(e)}"}
+                )
 
         return syntax_errors
 
@@ -545,19 +586,26 @@ exclude_lines =
             "target_coverage": self.target_coverage,
             "coverage": {
                 "percentage": coverage_report.total_coverage,
-                "status": "PASS" if coverage_report.total_coverage >= self.target_coverage else "FAIL",
+                "status": (
+                    "PASS"
+                    if coverage_report.total_coverage >= self.target_coverage
+                    else "FAIL"
+                ),
                 "total_lines": coverage_report.total_lines,
-                "covered_lines": coverage_report.covered_lines
+                "covered_lines": coverage_report.covered_lines,
             },
-            "test_suite": suite_summary
+            "test_suite": suite_summary,
         }
 
         # Save final summary
         reports_dir = self.project_root / "test_reports"
         reports_dir.mkdir(exist_ok=True)
 
-        summary_file = reports_dir / f"test_summary_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(summary_file, 'w') as f:
+        summary_file = (
+            reports_dir
+            / f"test_summary_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+        )
+        with open(summary_file, "w") as f:
             json.dump(final_summary, f, indent=2)
 
         print(f"\n📄 Summary report saved: {summary_file}")
@@ -570,12 +618,23 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="PsychSync Coverage Validator")
-    parser.add_argument("--target-coverage", type=float, default=85.0,
-                       help="Target coverage percentage (default: 85.0)")
-    parser.add_argument("--format", choices=["json", "text"], default="json",
-                       help="Report format (default: json)")
-    parser.add_argument("--analyze-only", action="store_true",
-                       help="Only analyze test files, don't run tests")
+    parser.add_argument(
+        "--target-coverage",
+        type=float,
+        default=85.0,
+        help="Target coverage percentage (default: 85.0)",
+    )
+    parser.add_argument(
+        "--format",
+        choices=["json", "text"],
+        default="json",
+        help="Report format (default: json)",
+    )
+    parser.add_argument(
+        "--analyze-only",
+        action="store_true",
+        help="Only analyze test files, don't run tests",
+    )
 
     args = parser.parse_args()
 

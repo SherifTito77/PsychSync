@@ -19,10 +19,10 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.services.security import get_current_user
 from app.db.models import User
 from app.monitoring.audit_logger import AuditQuery, audit_logger
 from app.monitoring.security_analytics import ThreatLevel, security_analyzer
+from app.services.security import get_current_user
 
 router = APIRouter()
 
@@ -202,7 +202,9 @@ async def get_security_timeline(
     buckets = {}
     current = cutoff_time
     while current <= datetime.utcnow():
-        bucket_key = current.strftime("%Y-%m-%d %H:00" if interval == "hour" else "%Y-%m-%d")
+        bucket_key = current.strftime(
+            "%Y-%m-%d %H:00" if interval == "hour" else "%Y-%m-%d"
+        )
         buckets[bucket_key] = 0
         current += bucket_delta
 
@@ -272,7 +274,8 @@ async def get_audit_logs(
 
 @router.get("/audit/summary")
 async def get_audit_summary(
-    hours: int = Query(default=24, ge=1, le=168), current_user: User = Depends(get_current_user)
+    hours: int = Query(default=24, ge=1, le=168),
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     """
     Get audit log summary statistics.
@@ -302,7 +305,8 @@ async def get_audit_summary(
 
 @router.get("/alerts/active")
 async def get_active_alerts(
-    hours: int = Query(default=24, ge=1, le=168), current_user: User = Depends(get_current_user)
+    hours: int = Query(default=24, ge=1, le=168),
+    current_user: User = Depends(get_current_user),
 ) -> list[dict[str, Any]]:
     """
     Get active security alerts.
@@ -405,7 +409,9 @@ async def get_user_risk_profile(
         indicators = await security_analyzer.analyze_event(event)
         threat_count += len(indicators)
         high_severity_count += sum(
-            1 for i in indicators if i.severity in [ThreatLevel.HIGH, ThreatLevel.CRITICAL]
+            1
+            for i in indicators
+            if i.severity in [ThreatLevel.HIGH, ThreatLevel.CRITICAL]
         )
 
     # Calculate risk level
@@ -425,7 +431,9 @@ async def get_user_risk_profile(
         "total_events": len(recent_events),
         "threat_indicators_detected": threat_count,
         "high_severity_threats": high_severity_count,
-        "last_activity": recent_events[-1].timestamp.isoformat() if recent_events else None,
+        "last_activity": (
+            recent_events[-1].timestamp.isoformat() if recent_events else None
+        ),
     }
 
 

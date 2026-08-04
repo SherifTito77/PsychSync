@@ -9,19 +9,22 @@ Usage:
     python validate_pwa_staging.py
 """
 
-import os
-import sys
 import asyncio
 import json
-import time
-import subprocess
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, List, Any
 import logging
+import os
+import subprocess
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 class PWAStagingValidator:
     """Comprehensive PWA staging validator"""
@@ -36,7 +39,7 @@ class PWAStagingValidator:
             "backend_checks": {},
             "frontend_checks": {},
             "overall_status": "pending",
-            "recommendations": []
+            "recommendations": [],
         }
 
     async def run_validation(self) -> Dict[str, Any]:
@@ -81,7 +84,7 @@ class PWAStagingValidator:
             "pwa_manager": "frontend/src/utils/pwaManager.ts",
             "pwa_installer": "frontend/src/components/PWAInstaller.tsx",
             "offline_status": "frontend/src/components/OfflineStatus.tsx",
-            "pwa_styles": "frontend/src/styles/pwa.css"
+            "pwa_styles": "frontend/src/styles/pwa.css",
         }
 
         file_results = {}
@@ -94,7 +97,7 @@ class PWAStagingValidator:
                 "path": path,
                 "exists": exists,
                 "size_bytes": size,
-                "status": "✅ Found" if exists else "❌ Missing"
+                "status": "✅ Found" if exists else "❌ Missing",
             }
 
             if exists:
@@ -112,35 +115,40 @@ class PWAStagingValidator:
             "fastapi_running": False,
             "pwa_endpoints": False,
             "cors_configured": False,
-            "security_headers": False
+            "security_headers": False,
         }
 
         # Check if FastAPI server is running
         try:
             import httpx
+
             async with httpx.AsyncClient() as client:
-                response = await client.get("http://localhost:8000/api/v1/health", timeout=5)
+                response = await client.get(
+                    "http://localhost:8000/api/v1/health", timeout=5
+                )
                 if response.status_code == 200:
                     backend_results["fastapi_running"] = True
                     logger.info("  ✅ FastAPI server is running")
                 else:
-                    logger.warning(f"  ⚠️ FastAPI returned status {response.status_code}")
+                    logger.warning(
+                        f"  ⚠️ FastAPI returned status {response.status_code}"
+                    )
         except Exception as e:
             logger.warning(f"  ❌ FastAPI server not accessible: {e}")
 
         # Check for PWA-related endpoints
-        pwa_endpoints = [
-            "/api/v1/health",
-            "/api/v1/health/detailed"
-        ]
+        pwa_endpoints = ["/api/v1/health", "/api/v1/health/detailed"]
 
         endpoints_found = 0
         try:
             import httpx
+
             async with httpx.AsyncClient() as client:
                 for endpoint in pwa_endpoints:
                     try:
-                        response = await client.get(f"http://localhost:8000{endpoint}", timeout=5)
+                        response = await client.get(
+                            f"http://localhost:8000{endpoint}", timeout=5
+                        )
                         if response.status_code == 200:
                             endpoints_found += 1
                     except Exception as e:
@@ -162,21 +170,25 @@ class PWAStagingValidator:
             "package_json": False,
             "pwa_dependencies": False,
             "build_config": False,
-            "dist_build": False
+            "dist_build": False,
         }
 
         # Check package.json
         package_json_path = self.project_root / "frontend/package.json"
         if package_json_path.exists():
             try:
-                with open(package_json_path, 'r') as f:
+                with open(package_json_path, "r") as f:
                     package_data = json.load(f)
 
                 frontend_results["package_json"] = True
                 logger.info("  ✅ package.json found")
 
                 # Check for PWA-related dependencies
-                pwa_deps = ["workbox-webpack-plugin", "workbox-window", "@vitejs/plugin-pwa"]
+                pwa_deps = [
+                    "workbox-webpack-plugin",
+                    "workbox-window",
+                    "@vitejs/plugin-pwa",
+                ]
                 found_deps = [dep for dep in pwa_deps if dep in str(package_data)]
                 frontend_results["pwa_dependencies"] = len(found_deps) > 0
                 if found_deps:
@@ -203,13 +215,13 @@ class PWAStagingValidator:
             "icons": False,
             "offline_support": False,
             "installation_prompts": False,
-            "push_notifications": False
+            "push_notifications": False,
         }
 
         # Check service worker
         sw_path = self.project_root / "public/service-worker.js"
         if sw_path.exists():
-            with open(sw_path, 'r') as f:
+            with open(sw_path, "r") as f:
                 sw_content = f.read()
 
             if "CACHE_VERSION" in sw_content and "fetch" in sw_content:
@@ -219,11 +231,13 @@ class PWAStagingValidator:
         # Check manifest
         manifest_path = self.project_root / "public/manifest.json"
         if manifest_path.exists():
-            with open(manifest_path, 'r') as f:
+            with open(manifest_path, "r") as f:
                 manifest_data = json.load(f)
 
             required_fields = ["name", "short_name", "start_url", "display", "icons"]
-            missing_fields = [field for field in required_fields if field not in manifest_data]
+            missing_fields = [
+                field for field in required_fields if field not in manifest_data
+            ]
 
             pwa_results["manifest"] = len(missing_fields) == 0
             if pwa_results["manifest"]:
@@ -242,7 +256,7 @@ class PWAStagingValidator:
         # Check for offline support features
         sw_optimized_path = self.project_root / "public/service-worker-optimized.js"
         if sw_optimized_path.exists():
-            with open(sw_optimized_path, 'r') as f:
+            with open(sw_optimized_path, "r") as f:
                 sw_content = f.read()
 
             if "offline" in sw_content.lower() and "cache" in sw_content.lower():
@@ -255,7 +269,15 @@ class PWAStagingValidator:
         """Assess overall PWA readiness"""
         logger.info("🎯 Assessing PWA readiness...")
 
-        file_system_score = sum(1 for check in self.results["file_system_checks"].values() if check["exists"]) / len(self.results["file_system_checks"]) * 100
+        file_system_score = (
+            sum(
+                1
+                for check in self.results["file_system_checks"].values()
+                if check["exists"]
+            )
+            / len(self.results["file_system_checks"])
+            * 100
+        )
 
         backend_score = 0
         if self.results["backend_checks"]["fastapi_running"]:
@@ -271,17 +293,23 @@ class PWAStagingValidator:
         if self.results["frontend_checks"]["pwa_dependencies"]:
             frontend_score += 34
 
-        pwa_score = sum(1 for feature in self.results["pwa_features"].values() if feature) / len(self.results["pwa_features"]) * 100
+        pwa_score = (
+            sum(1 for feature in self.results["pwa_features"].values() if feature)
+            / len(self.results["pwa_features"])
+            * 100
+        )
 
         # Calculate overall score
-        overall_score = (file_system_score + backend_score + frontend_score + pwa_score) / 4
+        overall_score = (
+            file_system_score + backend_score + frontend_score + pwa_score
+        ) / 4
 
         self.results["scores"] = {
             "file_system": file_system_score,
             "backend": backend_score,
             "frontend": frontend_score,
             "pwa_features": pwa_score,
-            "overall": overall_score
+            "overall": overall_score,
         }
 
         # Determine status
@@ -312,7 +340,9 @@ class PWAStagingValidator:
 
         # Backend recommendations
         if not self.results["backend_checks"]["fastapi_running"]:
-            recommendations.append("Start FastAPI server: uvicorn app.main:app --host 0.0.0.0 --port 8000")
+            recommendations.append(
+                "Start FastAPI server: uvicorn app.main:app --host 0.0.0.0 --port 8000"
+            )
 
         # Frontend recommendations
         if not self.results["frontend_checks"]["pwa_dependencies"]:
@@ -334,7 +364,7 @@ class PWAStagingValidator:
         report_path = Path(f"pwa_staging_validation_report_{timestamp}.json")
 
         try:
-            with open(report_path, 'w') as f:
+            with open(report_path, "w") as f:
                 json.dump(self.results, f, indent=2, default=str)
 
             logger.info(f"📊 Validation report saved: {report_path}")
@@ -343,9 +373,9 @@ class PWAStagingValidator:
 
     def display_summary(self):
         """Display validation summary"""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("🚀 PSYCHSYNC PWA STAGING VALIDATION RESULTS")
-        print("="*60)
+        print("=" * 60)
         print(f"Environment: {self.results['environment']}")
         print(f"Timestamp: {self.results['validation_timestamp']}")
         print(f"Overall Status: {self.results['overall_status'].upper()}")
@@ -353,7 +383,7 @@ class PWAStagingValidator:
         print()
 
         print("📊 Category Scores:")
-        scores = self.results.get('scores', {})
+        scores = self.results.get("scores", {})
         for category, score in scores.items():
             status = "✅" if score >= 80 else "⚠️" if score >= 60 else "❌"
             print(f"  {status} {category.title()}: {score:.1f}%")
@@ -370,9 +400,9 @@ class PWAStagingValidator:
             print(f"  {status} {feature.replace('_', ' ').title()}")
         print()
 
-        if self.results.get('recommendations'):
+        if self.results.get("recommendations"):
             print("💡 Recommendations:")
-            for i, rec in enumerate(self.results['recommendations'], 1):
+            for i, rec in enumerate(self.results["recommendations"], 1):
                 print(f"  {i}. {rec}")
             print()
 
@@ -380,11 +410,14 @@ class PWAStagingValidator:
             "excellent": "🎉",
             "good": "✅",
             "acceptable": "⚠️",
-            "needs_work": "❌"
+            "needs_work": "❌",
         }.get(self.results["overall_status"], "❓")
 
-        print(f"{status_icon} Staging Validation: {self.results['overall_status'].upper()}")
-        print("="*60)
+        print(
+            f"{status_icon} Staging Validation: {self.results['overall_status'].upper()}"
+        )
+        print("=" * 60)
+
 
 async def main():
     """Main validation execution"""
@@ -402,6 +435,7 @@ async def main():
     except Exception as e:
         print(f"\n❌ Validation failed: {e}")
         return False
+
 
 if __name__ == "__main__":
     success = asyncio.run(main())

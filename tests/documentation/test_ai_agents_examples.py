@@ -22,7 +22,6 @@ from typing import Dict, List, Tuple
 import pytest
 from pydantic import BaseModel, ValidationError
 
-
 # =============================================================================
 # Test Configuration
 # =============================================================================
@@ -46,8 +45,10 @@ FORBIDDEN_PATTERNS = [
 # Data Models
 # =============================================================================
 
+
 class CodeExample(BaseModel):
     """Represents a code example found in documentation"""
+
     language: str
     code: str
     line_number: int
@@ -56,6 +57,7 @@ class CodeExample(BaseModel):
 
 class SecurityViolation(BaseModel):
     """Represents a security violation found in documentation"""
+
     line_number: int
     violation_type: str
     pattern: str
@@ -64,6 +66,7 @@ class SecurityViolation(BaseModel):
 
 class SyntaxError(BaseModel):
     """Represents a syntax error in code examples"""
+
     line_number: int
     language: str
     error_message: str
@@ -73,6 +76,7 @@ class SyntaxError(BaseModel):
 # =============================================================================
 # Helper Functions
 # =============================================================================
+
 
 def extract_code_blocks(markdown_content: str, file_path: Path) -> List[CodeExample]:
     """
@@ -86,7 +90,7 @@ def extract_code_blocks(markdown_content: str, file_path: Path) -> List[CodeExam
         List of CodeExample objects
     """
     code_blocks = []
-    lines = markdown_content.split('\n')
+    lines = markdown_content.split("\n")
 
     in_code_block = False
     current_language = ""
@@ -94,22 +98,24 @@ def extract_code_blocks(markdown_content: str, file_path: Path) -> List[CodeExam
     start_line = 0
 
     for i, line in enumerate(lines, 1):
-        if line.strip().startswith('```'):
+        if line.strip().startswith("```"):
             if not in_code_block:
                 # Start of code block
                 in_code_block = True
-                current_language = line.strip().replace('```', '').strip()
+                current_language = line.strip().replace("```", "").strip()
                 start_line = i
                 current_code = []
             else:
                 # End of code block
                 in_code_block = False
-                code_blocks.append(CodeExample(
-                    language=current_language or "text",
-                    code='\n'.join(current_code),
-                    line_number=start_line,
-                    file_path=file_path
-                ))
+                code_blocks.append(
+                    CodeExample(
+                        language=current_language or "text",
+                        code="\n".join(current_code),
+                        line_number=start_line,
+                        file_path=file_path,
+                    )
+                )
                 current_code = []
         elif in_code_block:
             current_code.append(line)
@@ -117,7 +123,9 @@ def extract_code_blocks(markdown_content: str, file_path: Path) -> List[CodeExam
     return code_blocks
 
 
-def check_for_hardcoded_credentials(content: str, file_path: Path) -> List[SecurityViolation]:
+def check_for_hardcoded_credentials(
+    content: str, file_path: Path
+) -> List[SecurityViolation]:
     """
     Check for hardcoded credentials in documentation
 
@@ -129,17 +137,19 @@ def check_for_hardcoded_credentials(content: str, file_path: Path) -> List[Secur
         List of SecurityViolation objects
     """
     violations = []
-    lines = content.split('\n')
+    lines = content.split("\n")
 
     for i, line in enumerate(lines, 1):
         for pattern, description in FORBIDDEN_PATTERNS:
             if re.search(pattern, line):
-                violations.append(SecurityViolation(
-                    line_number=i,
-                    violation_type=description,
-                    pattern=pattern,
-                    context=line.strip()[:80]
-                ))
+                violations.append(
+                    SecurityViolation(
+                        line_number=i,
+                        violation_type=description,
+                        pattern=pattern,
+                        context=line.strip()[:80],
+                    )
+                )
 
     return violations
 
@@ -172,7 +182,7 @@ def validate_python_syntax(code: str) -> Tuple[bool, str]:
         Tuple of (is_valid, error_message)
     """
     try:
-        compile(code, '<string>', 'exec')
+        compile(code, "<string>", "exec")
         return True, ""
     except SyntaxError as e:
         return False, f"Python syntax error: {str(e)}"
@@ -190,15 +200,12 @@ def validate_bash_syntax(code: str) -> Tuple[bool, str]:
     """
     try:
         # Write to temp file and check with bash -n
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.sh', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
             f.write(code)
             temp_path = f.name
 
         result = subprocess.run(
-            ['bash', '-n', temp_path],
-            capture_output=True,
-            text=True,
-            timeout=5
+            ["bash", "-n", temp_path], capture_output=True, text=True, timeout=5
         )
 
         os.unlink(temp_path)
@@ -225,7 +232,7 @@ def validate_curl_syntax(code: str) -> Tuple[bool, str]:
         Tuple of (is_valid, error_message)
     """
     # Basic validation - check for curl command
-    if not re.search(r'\bcurl\b', code):
+    if not re.search(r"\bcurl\b", code):
         return False, "No curl command found"
 
     # Check for balanced quotes
@@ -256,13 +263,13 @@ def check_python_imports(code: str) -> List[str]:
 
     # Common undefined functions found in broken docs
     undefined_patterns = [
-        r'load_metrics\(',
-        r'load_system_metrics\(',
+        r"load_metrics\(",
+        r"load_system_metrics\(",
     ]
 
     for pattern in undefined_patterns:
         if re.search(pattern, code):
-            func_name = pattern.replace(r'\(', '').replace('\\', '')
+            func_name = pattern.replace(r"\(", "").replace("\\", "")
             if f"def {func_name}" not in code:
                 undefined.append(func_name)
 
@@ -272,6 +279,7 @@ def check_python_imports(code: str) -> List[str]:
 # =============================================================================
 # Tests
 # =============================================================================
+
 
 class TestDocumentationSecurity:
     """Test suite for documentation security issues"""
@@ -285,7 +293,9 @@ class TestDocumentationSecurity:
         violations = check_for_hardcoded_credentials(content, ORIGINAL_DOC)
 
         # This test EXPECTS to find violations in the original
-        assert len(violations) > 0, "Expected to find hardcoded credentials in original doc"
+        assert (
+            len(violations) > 0
+        ), "Expected to find hardcoded credentials in original doc"
 
         # Print violations for reference
         print(f"\nFound {len(violations)} security violations in original doc:")
@@ -301,8 +311,10 @@ class TestDocumentationSecurity:
         violations = check_for_hardcoded_credentials(content, CORRECTED_DOC)
 
         assert len(violations) == 0, (
-            f"Found {len(violations)} hardcoded credential(s) in corrected doc:\n" +
-            "\n".join([f"  Line {v.line_number}: {v.violation_type}" for v in violations])
+            f"Found {len(violations)} hardcoded credential(s) in corrected doc:\n"
+            + "\n".join(
+                [f"  Line {v.line_number}: {v.violation_type}" for v in violations]
+            )
         )
 
 
@@ -317,22 +329,26 @@ class TestCodeExamplesSyntax:
         content = CORRECTED_DOC.read_text()
         code_blocks = extract_code_blocks(content, CORRECTED_DOC)
 
-        json_blocks = [b for b in code_blocks if b.language.lower() in ['json', 'jsonc']]
+        json_blocks = [
+            b for b in code_blocks if b.language.lower() in ["json", "jsonc"]
+        ]
         errors = []
 
         for block in json_blocks:
             is_valid, error_msg = validate_json_syntax(block.code)
             if not is_valid:
-                errors.append({
-                    'line': block.line_number,
-                    'error': error_msg,
-                    'code': block.code[:100]
-                })
+                errors.append(
+                    {
+                        "line": block.line_number,
+                        "error": error_msg,
+                        "code": block.code[:100],
+                    }
+                )
 
         if errors:
             pytest.fail(
-                f"Found {len(errors)} invalid JSON example(s):\n" +
-                "\n".join([f"  Line {e['line']}: {e['error']}" for e in errors])
+                f"Found {len(errors)} invalid JSON example(s):\n"
+                + "\n".join([f"  Line {e['line']}: {e['error']}" for e in errors])
             )
 
     def test_python_examples_are_valid(self):
@@ -343,22 +359,24 @@ class TestCodeExamplesSyntax:
         content = CORRECTED_DOC.read_text()
         code_blocks = extract_code_blocks(content, CORRECTED_DOC)
 
-        python_blocks = [b for b in code_blocks if b.language.lower() == 'python']
+        python_blocks = [b for b in code_blocks if b.language.lower() == "python"]
         errors = []
 
         for block in python_blocks:
             is_valid, error_msg = validate_python_syntax(block.code)
             if not is_valid:
-                errors.append({
-                    'line': block.line_number,
-                    'error': error_msg,
-                    'code': block.code[:100]
-                })
+                errors.append(
+                    {
+                        "line": block.line_number,
+                        "error": error_msg,
+                        "code": block.code[:100],
+                    }
+                )
 
         if errors:
             pytest.fail(
-                f"Found {len(errors)} Python syntax error(s):\n" +
-                "\n".join([f"  Line {e['line']}: {e['error']}" for e in errors])
+                f"Found {len(errors)} Python syntax error(s):\n"
+                + "\n".join([f"  Line {e['line']}: {e['error']}" for e in errors])
             )
 
     def test_bash_examples_are_valid(self):
@@ -369,26 +387,30 @@ class TestCodeExamplesSyntax:
         content = CORRECTED_DOC.read_text()
         code_blocks = extract_code_blocks(content, CORRECTED_DOC)
 
-        bash_blocks = [b for b in code_blocks if b.language.lower() in ['bash', 'sh', 'shell']]
+        bash_blocks = [
+            b for b in code_blocks if b.language.lower() in ["bash", "sh", "shell"]
+        ]
         errors = []
 
         for block in bash_blocks:
             # Skip if it's just inline commands
-            if not block.code.strip().startswith('#!') and 'echo ' in block.code[:50]:
+            if not block.code.strip().startswith("#!") and "echo " in block.code[:50]:
                 continue
 
             is_valid, error_msg = validate_bash_syntax(block.code)
             if not is_valid:
-                errors.append({
-                    'line': block.line_number,
-                    'error': error_msg,
-                    'code': block.code[:100]
-                })
+                errors.append(
+                    {
+                        "line": block.line_number,
+                        "error": error_msg,
+                        "code": block.code[:100],
+                    }
+                )
 
         if errors:
             pytest.fail(
-                f"Found {len(errors)} bash syntax error(s):\n" +
-                "\n".join([f"  Line {e['line']}: {e['error']}" for e in errors])
+                f"Found {len(errors)} bash syntax error(s):\n"
+                + "\n".join([f"  Line {e['line']}: {e['error']}" for e in errors])
             )
 
     def test_curl_examples_are_valid(self):
@@ -400,27 +422,28 @@ class TestCodeExamplesSyntax:
         code_blocks = extract_code_blocks(content, CORRECTED_DOC)
 
         curl_blocks = [
-            b for b in code_blocks
-            if b.language.lower() == 'bash' and 'curl' in b.code
+            b for b in code_blocks if b.language.lower() == "bash" and "curl" in b.code
         ]
         errors = []
 
         for block in curl_blocks:
             # Extract curl commands
-            for line in block.code.split('\n'):
-                if 'curl' in line:
+            for line in block.code.split("\n"):
+                if "curl" in line:
                     is_valid, error_msg = validate_curl_syntax(line)
                     if not is_valid:
-                        errors.append({
-                            'line': block.line_number,
-                            'error': error_msg,
-                            'command': line.strip()[:80]
-                        })
+                        errors.append(
+                            {
+                                "line": block.line_number,
+                                "error": error_msg,
+                                "command": line.strip()[:80],
+                            }
+                        )
 
         if errors:
             pytest.fail(
-                f"Found {len(errors)} cURL syntax error(s):\n" +
-                "\n".join([f"  Line {e['line']}: {e['error']}" for e in errors])
+                f"Found {len(errors)} cURL syntax error(s):\n"
+                + "\n".join([f"  Line {e['line']}: {e['error']}" for e in errors])
             )
 
 
@@ -435,25 +458,29 @@ class TestPythonCodeCompleteness:
         content = CORRECTED_DOC.read_text()
         code_blocks = extract_code_blocks(content, CORRECTED_DOC)
 
-        python_blocks = [b for b in code_blocks if b.language.lower() == 'python']
+        python_blocks = [b for b in code_blocks if b.language.lower() == "python"]
         undefined_issues = []
 
         for block in python_blocks:
             undefined = check_python_imports(block.code)
             if undefined:
-                undefined_issues.append({
-                    'line': block.line_number,
-                    'undefined': undefined,
-                    'code': block.code[:100]
-                })
+                undefined_issues.append(
+                    {
+                        "line": block.line_number,
+                        "undefined": undefined,
+                        "code": block.code[:100],
+                    }
+                )
 
         if undefined_issues:
             pytest.fail(
-                f"Found {len(undefined_issues)} Python example(s) with undefined functions:\n" +
-                "\n".join([
-                    f"  Line {issue['line']}: {', '.join(issue['undefined'])}"
-                    for issue in undefined_issues
-                ])
+                f"Found {len(undefined_issues)} Python example(s) with undefined functions:\n"
+                + "\n".join(
+                    [
+                        f"  Line {issue['line']}: {', '.join(issue['undefined'])}"
+                        for issue in undefined_issues
+                    ]
+                )
             )
 
 
@@ -468,19 +495,21 @@ class TestDocumentationCompleteness:
         content = CORRECTED_DOC.read_text()
 
         # Check for error response sections
-        assert 'error_responses' in content.lower() or 'error handling' in content.lower(), \
-            "Documentation should include error response examples"
+        assert (
+            "error_responses" in content.lower() or "error handling" in content.lower()
+        ), "Documentation should include error response examples"
 
         # Check for common error codes
-        error_codes = ['401', '404', '500', '400']
+        error_codes = ["401", "404", "500", "400"]
         missing_codes = []
 
         for code in error_codes:
             if code not in content:
                 missing_codes.append(code)
 
-        assert len(missing_codes) == 0, \
-            f"Missing error response examples for: {', '.join(missing_codes)}"
+        assert (
+            len(missing_codes) == 0
+        ), f"Missing error response examples for: {', '.join(missing_codes)}"
 
     def test_has_rate_limiting_documentation(self):
         """Test: Documentation should include rate limiting information"""
@@ -489,8 +518,9 @@ class TestDocumentationCompleteness:
 
         content = CORRECTED_DOC.read_text()
 
-        assert 'rate limit' in content.lower(), \
-            "Documentation should include rate limiting information"
+        assert (
+            "rate limit" in content.lower()
+        ), "Documentation should include rate limiting information"
 
     def test_has_parameter_documentation(self):
         """Test: Endpoints should have parameter documentation"""
@@ -500,17 +530,15 @@ class TestDocumentationCompleteness:
         content = CORRECTED_DOC.read_text()
 
         # Look for parameter tables
-        parameter_keywords = [
-            'parameter',
-            'type',
-            'required',
-            'description'
-        ]
+        parameter_keywords = ["parameter", "type", "required", "description"]
 
-        found_params = sum(1 for keyword in parameter_keywords if keyword.lower() in content.lower())
+        found_params = sum(
+            1 for keyword in parameter_keywords if keyword.lower() in content.lower()
+        )
 
-        assert found_params >= 3, \
-            "Documentation should include parameter documentation (Parameter, Type, Required, Description)"
+        assert (
+            found_params >= 3
+        ), "Documentation should include parameter documentation (Parameter, Type, Required, Description)"
 
     def test_has_authentication_section(self):
         """Test: Documentation should include authentication information"""
@@ -519,12 +547,14 @@ class TestDocumentationCompleteness:
 
         content = CORRECTED_DOC.read_text()
 
-        assert 'authentication' in content.lower() or 'auth' in content.lower(), \
-            "Documentation should include authentication section"
+        assert (
+            "authentication" in content.lower() or "auth" in content.lower()
+        ), "Documentation should include authentication section"
 
         # Check for JWT/token info
-        assert 'jwt' in content.lower() or 'token' in content.lower(), \
-            "Documentation should mention JWT tokens or authentication tokens"
+        assert (
+            "jwt" in content.lower() or "token" in content.lower()
+        ), "Documentation should mention JWT tokens or authentication tokens"
 
 
 class TestTemplateQuality:
@@ -532,37 +562,47 @@ class TestTemplateQuality:
 
     def test_template_exists(self):
         """Test: Documentation template should exist"""
-        template_path = DOCS_DIR.parent / "docs" / "templates" / "API_DOCUMENTATION_TEMPLATE.md"
+        template_path = (
+            DOCS_DIR.parent / "docs" / "templates" / "API_DOCUMENTATION_TEMPLATE.md"
+        )
 
-        assert template_path.exists(), \
-            f"Documentation template not found at {template_path}"
+        assert (
+            template_path.exists()
+        ), f"Documentation template not found at {template_path}"
 
     def test_template_has_security_checklist(self):
         """Test: Template should include security checklist"""
-        template_path = DOCS_DIR.parent / "docs" / "templates" / "API_DOCUMENTATION_TEMPLATE.md"
+        template_path = (
+            DOCS_DIR.parent / "docs" / "templates" / "API_DOCUMENTATION_TEMPLATE.md"
+        )
 
         if not template_path.exists():
             pytest.skip("Template not found")
 
         content = template_path.read_text()
 
-        assert 'security checklist' in content.lower() or 'security' in content.lower(), \
-            "Template should include security checklist"
+        assert (
+            "security checklist" in content.lower() or "security" in content.lower()
+        ), "Template should include security checklist"
 
-        assert 'hardcoded' in content.lower() or 'credential' in content.lower(), \
-            "Template should warn against hardcoded credentials"
+        assert (
+            "hardcoded" in content.lower() or "credential" in content.lower()
+        ), "Template should warn against hardcoded credentials"
 
     def test_template_has_code_validation_section(self):
         """Test: Template should include code example validation"""
-        template_path = DOCS_DIR.parent / "docs" / "templates" / "API_DOCUMENTATION_TEMPLATE.md"
+        template_path = (
+            DOCS_DIR.parent / "docs" / "templates" / "API_DOCUMENTATION_TEMPLATE.md"
+        )
 
         if not template_path.exists():
             pytest.skip("Template not found")
 
         content = template_path.read_text()
 
-        assert 'code example' in content.lower(), \
-            "Template should include code example guidelines"
+        assert (
+            "code example" in content.lower()
+        ), "Template should include code example guidelines"
 
 
 class TestCorrectedDocumentationQuality:
@@ -570,8 +610,9 @@ class TestCorrectedDocumentationQuality:
 
     def test_corrected_doc_exists(self):
         """Test: Corrected documentation should exist"""
-        assert CORRECTED_DOC.exists(), \
-            f"Corrected documentation not found at {CORRECTED_DOC}"
+        assert (
+            CORRECTED_DOC.exists()
+        ), f"Corrected documentation not found at {CORRECTED_DOC}"
 
     def test_corrected_doc_has_more_content_than_original(self):
         """Test: Corrected doc should be more complete than original"""
@@ -582,8 +623,9 @@ class TestCorrectedDocumentationQuality:
         corrected_content = CORRECTED_DOC.read_text()
 
         # Corrected should be longer (more comprehensive)
-        assert len(corrected_content) > len(original_content), \
-            "Corrected documentation should be more comprehensive than original"
+        assert len(corrected_content) > len(
+            original_content
+        ), "Corrected documentation should be more comprehensive than original"
 
     def test_corrected_doc_mentions_fixes(self):
         """Test: Corrected doc should mention fixes applied"""
@@ -593,13 +635,15 @@ class TestCorrectedDocumentationQuality:
         content = CORRECTED_DOC.read_text()
 
         # Should mention fixes or corrections
-        assert any(keyword in content.lower() for keyword in ['fix', 'corrected', 'quality']), \
-            "Corrected documentation should mention fixes applied"
+        assert any(
+            keyword in content.lower() for keyword in ["fix", "corrected", "quality"]
+        ), "Corrected documentation should mention fixes applied"
 
 
 # =============================================================================
 # Integration Tests
 # =============================================================================
+
 
 class TestDocumentationWorkflow:
     """Test suite for documentation workflow validation"""
@@ -631,18 +675,21 @@ class TestDocumentationWorkflow:
         content = CORRECTED_DOC.read_text()
         code_blocks = extract_code_blocks(content, CORRECTED_DOC)
 
-        python_blocks = [b for b in code_blocks if b.language.lower() == 'python']
+        python_blocks = [b for b in code_blocks if b.language.lower() == "python"]
 
         for block in python_blocks:
             try:
-                compile(block.code, '<string>', 'exec')
+                compile(block.code, "<string>", "exec")
             except SyntaxError as e:
-                pytest.fail(f"Python code at line {block.line_number} cannot be parsed: {e}")
+                pytest.fail(
+                    f"Python code at line {block.line_number} cannot be parsed: {e}"
+                )
 
 
 # =============================================================================
 # Performance Tests
 # =============================================================================
+
 
 class TestDocumentationPerformance:
     """Test suite for documentation performance"""
@@ -654,8 +701,9 @@ class TestDocumentationPerformance:
 
         size = CORRECTED_DOC.stat().st_size
 
-        assert size < 1_000_000, \
-            f"Documentation is too large: {size:,} bytes (should be < 1MB)"
+        assert (
+            size < 1_000_000
+        ), f"Documentation is too large: {size:,} bytes (should be < 1MB)"
 
     def test_code_examples_not_too_long(self):
         """Test: Individual code examples should be reasonable length (< 500 lines)"""
@@ -666,15 +714,16 @@ class TestDocumentationPerformance:
         code_blocks = extract_code_blocks(content, CORRECTED_DOC)
 
         for block in code_blocks:
-            line_count = len(block.code.split('\n'))
-            assert line_count < 500, \
-                f"Code example at line {block.line_number} is too long: {line_count} lines"
+            line_count = len(block.code.split("\n"))
+            assert (
+                line_count < 500
+            ), f"Code example at line {block.line_number} is too long: {line_count} lines"
 
 
 # =============================================================================
 # Main
 # =============================================================================
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Run tests with pytest
-    pytest.main([__file__, '-v', '--tb=short'])
+    pytest.main([__file__, "-v", "--tb=short"])

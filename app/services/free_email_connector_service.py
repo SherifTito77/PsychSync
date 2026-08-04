@@ -4,12 +4,12 @@ Free Email Connector Service - IMAP-based email connections
 Replaces OAuth with app passwords for free localhost deployment
 """
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta
 import email
-from email.header import decode_header
 import imaplib
 import logging
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from email.header import decode_header
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -97,7 +97,10 @@ class FreeEmailConnectorService:
                 )
 
             if not config:
-                return False, "Unsupported email provider. Please provide custom IMAP settings."
+                return (
+                    False,
+                    "Unsupported email provider. Please provide custom IMAP settings.",
+                )
 
             # Create IMAP connection
             if config.use_ssl:
@@ -151,7 +154,11 @@ class FreeEmailConnectorService:
                 raise ValueError(f"Invalid email address format: {email_address}")
 
             domain = domain.lower()
-            provider = "custom" if custom_imap_config else domain.split(".")[0] if "." in domain else "custom"
+            provider = (
+                "custom"
+                if custom_imap_config
+                else domain.split(".")[0] if "." in domain else "custom"
+            )
 
             # Encrypt password for storage
             from cryptography.fernet import Fernet
@@ -207,12 +214,17 @@ class FreeEmailConnectorService:
 
             # Get IMAP config
             config = self.get_provider_config(connection.email_address)
-            if hasattr(connection, "custom_imap_config") and connection.custom_imap_config:
+            if (
+                hasattr(connection, "custom_imap_config")
+                and connection.custom_imap_config
+            ):
                 config = IMAPConfig(
                     host=connection.custom_imap_config["host"],
                     port=connection.custom_imap_config["port"],
                     use_ssl=connection.custom_imap_config.get("use_ssl", True),
-                    use_starttls=connection.custom_imap_config.get("use_starttls", False),
+                    use_starttls=connection.custom_imap_config.get(
+                        "use_starttls", False
+                    ),
                 )
 
             # Connect to IMAP server
@@ -227,7 +239,9 @@ class FreeEmailConnectorService:
             imap.login(connection.email_address, app_password)
 
             # Calculate date filter
-            date_filter = (datetime.utcnow() - timedelta(days=days_back)).strftime("%d-%b-%Y")
+            date_filter = (datetime.utcnow() - timedelta(days=days_back)).strftime(
+                "%d-%b-%Y"
+            )
 
             # Select inbox
             imap.select("INBOX")
@@ -256,7 +270,9 @@ class FreeEmailConnectorService:
                     email_message = email.message_from_bytes(msg_data[0][1])
 
                     # Extract metadata
-                    metadata = self._extract_email_metadata(email_message, connection.id)
+                    metadata = self._extract_email_metadata(
+                        email_message, connection.id
+                    )
 
                     if metadata:
                         # Store in database
@@ -276,7 +292,9 @@ class FreeEmailConnectorService:
             connection.sync_status = "completed"
             await db.commit()
 
-            self.logger.info(f"Fetched {messages_processed} emails for {connection.email_address}")
+            self.logger.info(
+                f"Fetched {messages_processed} emails for {connection.email_address}"
+            )
             return messages_processed
 
         except Exception as e:
@@ -294,8 +312,12 @@ class FreeEmailConnectorService:
             # Basic headers
             subject = self._decode_header(email_message.get("Subject", ""))
             sender = self._decode_header(email_message.get("From", ""))
-            recipients = [self._decode_header(r) for r in email_message.get_all("To", [])]
-            cc_recipients = [self._decode_header(r) for r in email_message.get_all("Cc", [])]
+            recipients = [
+                self._decode_header(r) for r in email_message.get_all("To", [])
+            ]
+            cc_recipients = [
+                self._decode_header(r) for r in email_message.get_all("Cc", [])
+            ]
 
             # Date parsing
             date_sent = self._parse_date(email_message.get("Date"))
@@ -305,7 +327,10 @@ class FreeEmailConnectorService:
             message_id = email_message.get("Message-ID", "")
 
             # Implement duplicate checking to prevent processing the same email multiple times
-            if hasattr(self, "processed_messages") and message_id in self.processed_messages:
+            if (
+                hasattr(self, "processed_messages")
+                and message_id in self.processed_messages
+            ):
                 logger.debug(f"Skipping duplicate message: {message_id}")
                 return None
 
@@ -344,7 +369,8 @@ class FreeEmailConnectorService:
                 "is_internal": is_internal,
                 "folder_labels": ["INBOX"],
                 "message_size": len(str(email_message)),
-                "has_attachments": "attachment" in email_message.get("Content-Type", "").lower(),
+                "has_attachments": "attachment"
+                in email_message.get("Content-Type", "").lower(),
             }
 
         except Exception as e:
@@ -389,7 +415,9 @@ class FreeEmailConnectorService:
             sender_domain = sender.split("@")[-1].lower() if "@" in sender else ""
 
             for recipient in recipients:
-                recipient_domain = recipient.split("@")[-1].lower() if "@" in recipient else ""
+                recipient_domain = (
+                    recipient.split("@")[-1].lower() if "@" in recipient else ""
+                )
                 if recipient_domain and recipient_domain != sender_domain:
                     return False
 

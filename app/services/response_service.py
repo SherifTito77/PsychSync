@@ -8,7 +8,9 @@ import logging
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, select, select as sql_select
+from sqlalchemy import func
+from sqlalchemy import select
+from sqlalchemy import select as sql_select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,7 +45,9 @@ class ResponseService:
             # Calculate initial score if possible
             await ResponseService._calculate_score(db, response)
 
-            logger.info(f"Created response ID: {response.id} for assessment: {response_in.assessment_id}")
+            logger.info(
+                f"Created response ID: {response.id} for assessment: {response_in.assessment_id}"
+            )
             return response
 
         except IntegrityError as e:
@@ -75,7 +79,9 @@ class ResponseService:
         return result.scalars().all()
 
     @staticmethod
-    async def get_by_user(db: AsyncSession, user_id: UUID, limit: int = 100) -> list[Response]:
+    async def get_by_user(
+        db: AsyncSession, user_id: UUID, limit: int = 100
+    ) -> list[Response]:
         """
         Get user's responses with assessment data pre-loaded.
 
@@ -94,9 +100,7 @@ class ResponseService:
         try:
             # Use SELECT FOR UPDATE to prevent concurrent modification
             result = await db.execute(
-                select(Response)
-                .where(Response.id == response_id)
-                .with_for_update()
+                select(Response).where(Response.id == response_id).with_for_update()
             )
             response = result.scalar_one_or_none()
 
@@ -113,7 +117,10 @@ class ResponseService:
             await db.refresh(response)
 
             # Recalculate score if answer changed
-            if any(key in update_data for key in ["answer_text", "answer_value", "answer_data"]):
+            if any(
+                key in update_data
+                for key in ["answer_text", "answer_value", "answer_data"]
+            ):
                 await ResponseService._calculate_score(db, response)
 
             logger.info(f"Updated response ID: {response_id}")
@@ -128,7 +135,9 @@ class ResponseService:
     async def delete(db: AsyncSession, *, response_id: UUID) -> bool:
         """Delete a response with proper error handling."""
         try:
-            result = await db.execute(select(Response).where(Response.id == response_id))
+            result = await db.execute(
+                select(Response).where(Response.id == response_id)
+            )
             response = result.scalar_one_or_none()
 
             if not response:
@@ -186,7 +195,9 @@ class ResponseService:
             response.normalized_score = response.score
 
     @staticmethod
-    async def bulk_create(db: AsyncSession, responses: list[ResponseCreate]) -> list[Response]:
+    async def bulk_create(
+        db: AsyncSession, responses: list[ResponseCreate]
+    ) -> list[Response]:
         """Create multiple responses efficiently."""
         created_responses = []
 
@@ -209,7 +220,7 @@ class ResponseService:
         return {
             "raw_score": response.score,
             "normalized_score": response.normalized_score,
-            "percentage": response.percentage
+            "percentage": response.percentage,
         }
 
     @staticmethod
@@ -217,7 +228,7 @@ class ResponseService:
         db: AsyncSession,
         response: Response,
         responses_data: dict | None = None,
-        current_section: str | None = None
+        current_section: str | None = None,
     ) -> Response:
         """Save progress on a response with row-level locking."""
         try:
@@ -236,14 +247,15 @@ class ResponseService:
 
         except Exception as e:
             await db.rollback()
-            logger.error(f"Failed to save progress for response {response.id}: {e}", exc_info=True)
+            logger.error(
+                f"Failed to save progress for response {response.id}: {e}",
+                exc_info=True,
+            )
             raise
 
     @staticmethod
     async def validate_response_data(
-        db: AsyncSession,
-        assessment_id: UUID,
-        responses_data: dict
+        db: AsyncSession, assessment_id: UUID, responses_data: dict
     ) -> tuple[bool, str | None]:
         """Validate response data for an assessment."""
         # Basic validation - check if responses_data is not empty
@@ -258,7 +270,7 @@ class ResponseService:
         db: AsyncSession,
         response: Response,
         responses_data: dict,
-        time_taken: int | None = None
+        time_taken: int | None = None,
     ) -> Response:
         """Submit a completed response with row-level locking."""
         try:
@@ -267,7 +279,9 @@ class ResponseService:
             response.is_complete = True
 
             if time_taken is not None:
-                response.time_taken_minutes = time_taken / 60.0  # Convert seconds to minutes
+                response.time_taken_minutes = (
+                    time_taken / 60.0
+                )  # Convert seconds to minutes
 
             response.completed_at = datetime.utcnow()
             response.updated_at = datetime.utcnow()

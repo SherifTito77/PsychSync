@@ -18,69 +18,71 @@ Version: 1.0 Production Ready
 
 import asyncio
 import sys
-import uuid
 import time
+import uuid
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, patch
 
-sys.path.insert(0, '.')
+sys.path.insert(0, ".")
+
 
 class AccountDeletionCascadeTest:
     """Comprehensive cascade deletion testing for GDPR compliance"""
 
     def __init__(self):
-        self.test_results = {
-            'total': 0,
-            'passed': 0,
-            'failed': 0,
-            'modules': {}
-        }
+        self.test_results = {"total": 0, "passed": 0, "failed": 0, "modules": {}}
         self.test_user_id = None
         self.created_records = {}  # Track all records created for cleanup
 
     def run_test(self, module_name: str, test_name: str, test_func):
         """Execute and track test results"""
-        self.test_results['total'] += 1
+        self.test_results["total"] += 1
         start_time = time.time()
 
         try:
             test_func()
             duration = time.time() - start_time
 
-            if module_name not in self.test_results['modules']:
-                self.test_results['modules'][module_name] = {
-                    'passed': 0, 'failed': 0, 'duration': 0, 'tests': []
+            if module_name not in self.test_results["modules"]:
+                self.test_results["modules"][module_name] = {
+                    "passed": 0,
+                    "failed": 0,
+                    "duration": 0,
+                    "tests": [],
                 }
 
-            self.test_results['modules'][module_name]['passed'] += 1
-            self.test_results['modules'][module_name]['duration'] += duration
-            self.test_results['modules'][module_name]['tests'].append({
-                'name': test_name,
-                'status': 'passed',
-                'duration': duration
-            })
-            self.test_results['passed'] += 1
+            self.test_results["modules"][module_name]["passed"] += 1
+            self.test_results["modules"][module_name]["duration"] += duration
+            self.test_results["modules"][module_name]["tests"].append(
+                {"name": test_name, "status": "passed", "duration": duration}
+            )
+            self.test_results["passed"] += 1
 
             print(f"✅ {module_name}: {test_name} - PASSED ({duration:.3f}s)")
 
         except Exception as e:
             duration = time.time() - start_time
 
-            if module_name not in self.test_results['modules']:
-                self.test_results['modules'][module_name] = {
-                    'passed': 0, 'failed': 0, 'duration': 0, 'tests': []
+            if module_name not in self.test_results["modules"]:
+                self.test_results["modules"][module_name] = {
+                    "passed": 0,
+                    "failed": 0,
+                    "duration": 0,
+                    "tests": [],
                 }
 
-            self.test_results['modules'][module_name]['failed'] += 1
-            self.test_results['modules'][module_name]['duration'] += duration
-            self.test_results['modules'][module_name]['tests'].append({
-                'name': test_name,
-                'status': 'failed',
-                'duration': duration,
-                'error': str(e)
-            })
-            self.test_results['failed'] += 1
+            self.test_results["modules"][module_name]["failed"] += 1
+            self.test_results["modules"][module_name]["duration"] += duration
+            self.test_results["modules"][module_name]["tests"].append(
+                {
+                    "name": test_name,
+                    "status": "failed",
+                    "duration": duration,
+                    "error": str(e),
+                }
+            )
+            self.test_results["failed"] += 1
 
             print(f"❌ {module_name}: {test_name} - FAILED - {str(e)}")
 
@@ -92,7 +94,7 @@ class AccountDeletionCascadeTest:
         print()
 
         # Mock database session for testing
-        with patch('app.core.database.get_async_db') as mock_get_db:
+        with patch("app.core.database.get_async_db") as mock_get_db:
             mock_session = AsyncMock()
             mock_get_db.return_value.__aenter__.return_value = mock_session
             mock_get_db.return_value.__aexit__.return_value = None
@@ -101,73 +103,183 @@ class AccountDeletionCascadeTest:
             print("👤 CORE USER DATA MODULES")
             print("-" * 30)
 
-            self.run_test("User Management", "User Record Deletion", self.test_user_record_deletion)
-            self.run_test("User Management", "Authentication Data Removal", self.test_auth_data_removal)
-            self.run_test("User Management", "User Preferences Cleanup", self.test_user_preferences_cleanup)
-            self.run_test("User Management", "Profile Data Removal", self.test_profile_data_removal)
+            self.run_test(
+                "User Management",
+                "User Record Deletion",
+                self.test_user_record_deletion,
+            )
+            self.run_test(
+                "User Management",
+                "Authentication Data Removal",
+                self.test_auth_data_removal,
+            )
+            self.run_test(
+                "User Management",
+                "User Preferences Cleanup",
+                self.test_user_preferences_cleanup,
+            )
+            self.run_test(
+                "User Management",
+                "Profile Data Removal",
+                self.test_profile_data_removal,
+            )
 
             # Assessment Data Tests
             print("\n📊 ASSESSMENT DATA MODULES")
             print("-" * 30)
 
-            self.run_test("Assessments", "Assessment Response Deletion", self.test_assessment_response_deletion)
-            self.run_test("Assessments", "Response Score Cleanup", self.test_response_score_cleanup)
-            self.run_test("Assessments", "Assessment Creation Records", self.test_assessment_creation_records)
-            self.run_test("Assessments", "Psychometric Sessions", self.test_psychometric_sessions_cleanup)
+            self.run_test(
+                "Assessments",
+                "Assessment Response Deletion",
+                self.test_assessment_response_deletion,
+            )
+            self.run_test(
+                "Assessments",
+                "Response Score Cleanup",
+                self.test_response_score_cleanup,
+            )
+            self.run_test(
+                "Assessments",
+                "Assessment Creation Records",
+                self.test_assessment_creation_records,
+            )
+            self.run_test(
+                "Assessments",
+                "Psychometric Sessions",
+                self.test_psychometric_sessions_cleanup,
+            )
 
             # Team Data Tests
             print("\n👥 TEAM DATA MODULES")
             print("-" * 30)
 
-            self.run_test("Team Management", "Team Membership Removal", self.test_team_membership_removal)
-            self.run_test("Team Management", "Team Creation Records", self.test_team_creation_records)
-            self.run_test("Team Management", "Team Dynamics Data", self.test_team_dynamics_cleanup)
-            self.run_test("Team Management", "Organization Membership", self.test_organization_membership_cleanup)
+            self.run_test(
+                "Team Management",
+                "Team Membership Removal",
+                self.test_team_membership_removal,
+            )
+            self.run_test(
+                "Team Management",
+                "Team Creation Records",
+                self.test_team_creation_records,
+            )
+            self.run_test(
+                "Team Management", "Team Dynamics Data", self.test_team_dynamics_cleanup
+            )
+            self.run_test(
+                "Team Management",
+                "Organization Membership",
+                self.test_organization_membership_cleanup,
+            )
 
             # Communication Data Tests
             print("\n💬 COMMUNICATION DATA MODULES")
             print("-" * 30)
 
-            self.run_test("Communication", "Email Connections Cleanup", self.test_email_connections_cleanup)
-            self.run_test("Communication", "Communication Analysis Removal", self.test_communication_analysis_removal)
-            self.run_test("Communication", "Communication Patterns Cleanup", self.test_communication_patterns_cleanup)
-            self.run_test("Communication", "Alert Acknowledgment Records", self.test_alert_acknowledgment_cleanup)
+            self.run_test(
+                "Communication",
+                "Email Connections Cleanup",
+                self.test_email_connections_cleanup,
+            )
+            self.run_test(
+                "Communication",
+                "Communication Analysis Removal",
+                self.test_communication_analysis_removal,
+            )
+            self.run_test(
+                "Communication",
+                "Communication Patterns Cleanup",
+                self.test_communication_patterns_cleanup,
+            )
+            self.run_test(
+                "Communication",
+                "Alert Acknowledgment Records",
+                self.test_alert_acknowledgment_cleanup,
+            )
 
             # Analytics Data Tests
             print("\n📈 ANALYTICS DATA MODULES")
             print("-" * 30)
 
-            self.run_test("Analytics", "Analytics Events Cleanup", self.test_analytics_events_cleanup)
-            self.run_test("Analytics", "Growth Trajectory Removal", self.test_growth_trajectory_removal)
-            self.run_test("Analytics", "Intervention Participation", self.test_intervention_participation_cleanup)
-            self.run_test("Analytics", "Predictive Analytics Data", self.test_predictive_analytics_cleanup)
+            self.run_test(
+                "Analytics",
+                "Analytics Events Cleanup",
+                self.test_analytics_events_cleanup,
+            )
+            self.run_test(
+                "Analytics",
+                "Growth Trajectory Removal",
+                self.test_growth_trajectory_removal,
+            )
+            self.run_test(
+                "Analytics",
+                "Intervention Participation",
+                self.test_intervention_participation_cleanup,
+            )
+            self.run_test(
+                "Analytics",
+                "Predictive Analytics Data",
+                self.test_predictive_analytics_cleanup,
+            )
 
             # GDPR Compliance Tests
             print("\n🔒 GDPR COMPLIANCE MODULES")
             print("-" * 30)
 
-            self.run_test("GDPR", "Data Export Request Cleanup", self.test_data_export_request_cleanup)
-            self.run_test("GDPR", "Deletion Request Records", self.test_deletion_request_records)
-            self.run_test("GDPR", "Privacy Preferences Removal", self.test_privacy_preferences_cleanup)
+            self.run_test(
+                "GDPR",
+                "Data Export Request Cleanup",
+                self.test_data_export_request_cleanup,
+            )
+            self.run_test(
+                "GDPR", "Deletion Request Records", self.test_deletion_request_records
+            )
+            self.run_test(
+                "GDPR",
+                "Privacy Preferences Removal",
+                self.test_privacy_preferences_cleanup,
+            )
             self.run_test("GDPR", "Audit Log Records", self.test_audit_log_records)
 
             # File and Media Tests
             print("\n📁 FILE & MEDIA MODULES")
             print("-" * 30)
 
-            self.run_test("File Management", "Avatar Files Cleanup", self.test_avatar_files_cleanup)
-            self.run_test("File Management", "Assessment Attachments", self.test_assessment_attachments_cleanup)
-            self.run_test("File Management", "Report Files Removal", self.test_report_files_removal)
-            self.run_test("File Management", "Temporary Files Cleanup", self.test_temporary_files_cleanup)
+            self.run_test(
+                "File Management",
+                "Avatar Files Cleanup",
+                self.test_avatar_files_cleanup,
+            )
+            self.run_test(
+                "File Management",
+                "Assessment Attachments",
+                self.test_assessment_attachments_cleanup,
+            )
+            self.run_test(
+                "File Management",
+                "Report Files Removal",
+                self.test_report_files_removal,
+            )
+            self.run_test(
+                "File Management",
+                "Temporary Files Cleanup",
+                self.test_temporary_files_cleanup,
+            )
 
             # Session and Cache Tests
             print("\n🗄️  SESSION & CACHE MODULES")
             print("-" * 30)
 
-            self.run_test("Sessions", "User Session Cleanup", self.test_user_session_cleanup)
-            self.run_test("Sessions", "Cache Data Removal", self.test_cache_data_removal)
+            self.run_test(
+                "Sessions", "User Session Cleanup", self.test_user_session_cleanup
+            )
+            self.run_test(
+                "Sessions", "Cache Data Removal", self.test_cache_data_removal
+            )
             self.run_test("Sessions", "Token Revocation", self.test_token_revocation)
-            self.run_test("Sessions", "Rate Limiting Records", self.test_rate_limiting_cleanup)
+            self.run_test(
+                "Sessions", "Rate Limiting Records", self.test_rate_limiting_cleanup
+            )
 
             # Generate comprehensive report
             self.generate_comprehensive_report()
@@ -192,13 +304,13 @@ class AccountDeletionCascadeTest:
         """Test authentication data is properly removed"""
         # Test password tokens and sessions are removed
         auth_data = {
-            'password_reset_token': 'token_123',
-            'email_verification_token': 'verify_123',
-            'active_sessions': ['session_1', 'session_2']
+            "password_reset_token": "token_123",
+            "email_verification_token": "verify_123",
+            "active_sessions": ["session_1", "session_2"],
         }
 
         # Simulate auth data cleanup
-        assert len(auth_data['active_sessions']) >= 0
+        assert len(auth_data["active_sessions"]) >= 0
 
         # In real implementation:
         # 1. Invalidate all user sessions
@@ -209,10 +321,10 @@ class AccountDeletionCascadeTest:
     def test_user_preferences_cleanup(self):
         """Test user preferences are properly cleaned up"""
         preferences = {
-            'theme': 'dark',
-            'notifications': True,
-            'timezone': 'UTC',
-            'locale': 'en-US'
+            "theme": "dark",
+            "notifications": True,
+            "timezone": "UTC",
+            "locale": "en-US",
         }
 
         # Test preference cleanup
@@ -226,14 +338,14 @@ class AccountDeletionCascadeTest:
     def test_profile_data_removal(self):
         """Test profile data is properly removed"""
         profile_data = {
-            'full_name': 'Test User',
-            'avatar_url': 'https://example.com/avatar.jpg',
-            'bio': 'Test bio',
-            'phone': '555-0123'
+            "full_name": "Test User",
+            "avatar_url": "https://example.com/avatar.jpg",
+            "bio": "Test bio",
+            "phone": "555-0123",
         }
 
         # Test profile cleanup
-        assert profile_data['full_name'] is not None
+        assert profile_data["full_name"] is not None
 
         # In real implementation:
         # 1. Remove PII from user profile
@@ -243,8 +355,8 @@ class AccountDeletionCascadeTest:
     def test_assessment_response_deletion(self):
         """Test assessment responses are properly deleted"""
         responses = [
-            {'id': uuid.uuid4(), 'assessment_id': uuid.uuid4()},
-            {'id': uuid.uuid4(), 'assessment_id': uuid.uuid4()}
+            {"id": uuid.uuid4(), "assessment_id": uuid.uuid4()},
+            {"id": uuid.uuid4(), "assessment_id": uuid.uuid4()},
         ]
 
         # Test response deletion
@@ -258,8 +370,8 @@ class AccountDeletionCascadeTest:
     def test_response_score_cleanup(self):
         """Test response scores are properly cleaned up"""
         scores = [
-            {'id': uuid.uuid4(), 'score': 85.5, 'normalized_score': 0.855},
-            {'id': uuid.uuid4(), 'score': 92.0, 'normalized_score': 0.92}
+            {"id": uuid.uuid4(), "score": 85.5, "normalized_score": 0.855},
+            {"id": uuid.uuid4(), "score": 92.0, "normalized_score": 0.92},
         ]
 
         # Test score cleanup
@@ -273,7 +385,11 @@ class AccountDeletionCascadeTest:
     def test_assessment_creation_records(self):
         """Test assessment creation records are properly cleaned up"""
         created_assessments = [
-            {'id': uuid.uuid4(), 'title': 'Team Assessment', 'created_by': self.test_user_id}
+            {
+                "id": uuid.uuid4(),
+                "title": "Team Assessment",
+                "created_by": self.test_user_id,
+            }
         ]
 
         # Test assessment cleanup
@@ -287,8 +403,12 @@ class AccountDeletionCascadeTest:
     def test_psychometric_sessions_cleanup(self):
         """Test psychometric sessions are properly cleaned up"""
         sessions = [
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'session_type': 'big_five'},
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'session_type': 'mbti'}
+            {
+                "id": uuid.uuid4(),
+                "user_id": self.test_user_id,
+                "session_type": "big_five",
+            },
+            {"id": uuid.uuid4(), "user_id": self.test_user_id, "session_type": "mbti"},
         ]
 
         # Test session cleanup
@@ -302,8 +422,8 @@ class AccountDeletionCascadeTest:
     def test_team_membership_removal(self):
         """Test team memberships are properly removed"""
         memberships = [
-            {'id': uuid.uuid4(), 'team_id': uuid.uuid4(), 'role': 'member'},
-            {'id': uuid.uuid4(), 'team_id': uuid.uuid4(), 'role': 'lead'}
+            {"id": uuid.uuid4(), "team_id": uuid.uuid4(), "role": "member"},
+            {"id": uuid.uuid4(), "team_id": uuid.uuid4(), "role": "lead"},
         ]
 
         # Test membership cleanup
@@ -317,7 +437,7 @@ class AccountDeletionCascadeTest:
     def test_team_creation_records(self):
         """Test team creation records are properly cleaned up"""
         created_teams = [
-            {'id': uuid.uuid4(), 'name': 'Team A', 'created_by': self.test_user_id}
+            {"id": uuid.uuid4(), "name": "Team A", "created_by": self.test_user_id}
         ]
 
         # Test team records cleanup
@@ -331,7 +451,11 @@ class AccountDeletionCascadeTest:
     def test_team_dynamics_cleanup(self):
         """Test team dynamics data is properly cleaned up"""
         dynamics_data = [
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'metric_type': 'collaboration'}
+            {
+                "id": uuid.uuid4(),
+                "user_id": self.test_user_id,
+                "metric_type": "collaboration",
+            }
         ]
 
         # Test dynamics cleanup
@@ -345,13 +469,13 @@ class AccountDeletionCascadeTest:
     def test_organization_membership_cleanup(self):
         """Test organization membership is properly cleaned up"""
         org_membership = {
-            'organization_id': uuid.uuid4(),
-            'user_id': self.test_user_id,
-            'role': 'member'
+            "organization_id": uuid.uuid4(),
+            "user_id": self.test_user_id,
+            "role": "member",
         }
 
         # Test org membership cleanup
-        assert org_membership['user_id'] == self.test_user_id
+        assert org_membership["user_id"] == self.test_user_id
 
         # In real implementation:
         # 1. Remove user from organization
@@ -361,7 +485,7 @@ class AccountDeletionCascadeTest:
     def test_email_connections_cleanup(self):
         """Test email connections are properly cleaned up"""
         email_connections = [
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'provider': 'gmail'}
+            {"id": uuid.uuid4(), "user_id": self.test_user_id, "provider": "gmail"}
         ]
 
         # Test email cleanup
@@ -375,7 +499,11 @@ class AccountDeletionCascadeTest:
     def test_communication_analysis_removal(self):
         """Test communication analysis data is properly removed"""
         analysis_data = [
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'analysis_type': 'sentiment'}
+            {
+                "id": uuid.uuid4(),
+                "user_id": self.test_user_id,
+                "analysis_type": "sentiment",
+            }
         ]
 
         # Test analysis cleanup
@@ -389,7 +517,11 @@ class AccountDeletionCascadeTest:
     def test_communication_patterns_cleanup(self):
         """Test communication patterns are properly cleaned up"""
         patterns = [
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'pattern_type': 'response_time'}
+            {
+                "id": uuid.uuid4(),
+                "user_id": self.test_user_id,
+                "pattern_type": "response_time",
+            }
         ]
 
         # Test patterns cleanup
@@ -403,7 +535,11 @@ class AccountDeletionCascadeTest:
     def test_alert_acknowledgment_cleanup(self):
         """Test alert acknowledgment records are properly cleaned up"""
         alert_records = [
-            {'id': uuid.uuid4(), 'acknowledged_by': self.test_user_id, 'alert_type': 'communication'}
+            {
+                "id": uuid.uuid4(),
+                "acknowledged_by": self.test_user_id,
+                "alert_type": "communication",
+            }
         ]
 
         # Test alert cleanup
@@ -417,8 +553,16 @@ class AccountDeletionCascadeTest:
     def test_analytics_events_cleanup(self):
         """Test analytics events are properly cleaned up"""
         analytics_events = [
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'event_type': 'page_view'},
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'event_type': 'assessment_complete'}
+            {
+                "id": uuid.uuid4(),
+                "user_id": self.test_user_id,
+                "event_type": "page_view",
+            },
+            {
+                "id": uuid.uuid4(),
+                "user_id": self.test_user_id,
+                "event_type": "assessment_complete",
+            },
         ]
 
         # Test analytics cleanup
@@ -432,7 +576,11 @@ class AccountDeletionCascadeTest:
     def test_growth_trajectory_removal(self):
         """Test growth trajectory data is properly removed"""
         trajectories = [
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'trajectory_type': 'skill_development'}
+            {
+                "id": uuid.uuid4(),
+                "user_id": self.test_user_id,
+                "trajectory_type": "skill_development",
+            }
         ]
 
         # Test trajectory cleanup
@@ -446,7 +594,11 @@ class AccountDeletionCascadeTest:
     def test_intervention_participation_cleanup(self):
         """Test intervention participation records are properly cleaned up"""
         interventions = [
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'intervention_type': 'coaching'}
+            {
+                "id": uuid.uuid4(),
+                "user_id": self.test_user_id,
+                "intervention_type": "coaching",
+            }
         ]
 
         # Test intervention cleanup
@@ -460,7 +612,11 @@ class AccountDeletionCascadeTest:
     def test_predictive_analytics_cleanup(self):
         """Test predictive analytics data is properly cleaned up"""
         predictions = [
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'prediction_type': 'performance'}
+            {
+                "id": uuid.uuid4(),
+                "user_id": self.test_user_id,
+                "prediction_type": "performance",
+            }
         ]
 
         # Test predictions cleanup
@@ -474,7 +630,7 @@ class AccountDeletionCascadeTest:
     def test_data_export_request_cleanup(self):
         """Test data export request records are properly cleaned up"""
         export_requests = [
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'status': 'completed'}
+            {"id": uuid.uuid4(), "user_id": self.test_user_id, "status": "completed"}
         ]
 
         # Test export cleanup
@@ -488,7 +644,7 @@ class AccountDeletionCascadeTest:
     def test_deletion_request_records(self):
         """Test deletion request records are properly maintained"""
         deletion_requests = [
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'status': 'completed'}
+            {"id": uuid.uuid4(), "user_id": self.test_user_id, "status": "completed"}
         ]
 
         # Test deletion records (should be preserved for compliance)
@@ -502,9 +658,9 @@ class AccountDeletionCascadeTest:
     def test_privacy_preferences_cleanup(self):
         """Test privacy preferences are properly cleaned up"""
         privacy_settings = {
-            'data_sharing': False,
-            'analytics_consent': True,
-            'marketing_emails': False
+            "data_sharing": False,
+            "analytics_consent": True,
+            "marketing_emails": False,
         }
 
         # Test privacy cleanup
@@ -518,8 +674,8 @@ class AccountDeletionCascadeTest:
     def test_audit_log_records(self):
         """Test audit log records are properly handled"""
         audit_logs = [
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'action': 'login'},
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'action': 'data_export'}
+            {"id": uuid.uuid4(), "user_id": self.test_user_id, "action": "login"},
+            {"id": uuid.uuid4(), "user_id": self.test_user_id, "action": "data_export"},
         ]
 
         # Test audit handling
@@ -533,8 +689,8 @@ class AccountDeletionCascadeTest:
     def test_avatar_files_cleanup(self):
         """Test avatar files are properly cleaned up"""
         avatar_files = [
-            {'path': '/uploads/avatars/user_123.jpg', 'size': 1024},
-            {'path': '/uploads/avatars/user_456.png', 'size': 2048}
+            {"path": "/uploads/avatars/user_123.jpg", "size": 1024},
+            {"path": "/uploads/avatars/user_456.png", "size": 2048},
         ]
 
         # Test file cleanup
@@ -548,7 +704,7 @@ class AccountDeletionCascadeTest:
     def test_assessment_attachments_cleanup(self):
         """Test assessment attachments are properly cleaned up"""
         attachments = [
-            {'id': uuid.uuid4(), 'filename': 'assessment.pdf', 'size': 1024000}
+            {"id": uuid.uuid4(), "filename": "assessment.pdf", "size": 1024000}
         ]
 
         # Test attachment cleanup
@@ -562,7 +718,11 @@ class AccountDeletionCascadeTest:
     def test_report_files_removal(self):
         """Test report files are properly removed"""
         report_files = [
-            {'id': uuid.uuid4(), 'filename': 'team_report.pdf', 'generated_at': datetime.utcnow()}
+            {
+                "id": uuid.uuid4(),
+                "filename": "team_report.pdf",
+                "generated_at": datetime.utcnow(),
+            }
         ]
 
         # Test report cleanup
@@ -576,8 +736,8 @@ class AccountDeletionCascadeTest:
     def test_temporary_files_cleanup(self):
         """Test temporary files are properly cleaned up"""
         temp_files = [
-            {'path': '/tmp/upload_123.tmp', 'created_at': datetime.utcnow()},
-            {'path': '/tmp/cache_456.tmp', 'created_at': datetime.utcnow()}
+            {"path": "/tmp/upload_123.tmp", "created_at": datetime.utcnow()},
+            {"path": "/tmp/cache_456.tmp", "created_at": datetime.utcnow()},
         ]
 
         # Test temp file cleanup
@@ -591,7 +751,11 @@ class AccountDeletionCascadeTest:
     def test_user_session_cleanup(self):
         """Test user sessions are properly cleaned up"""
         sessions = [
-            {'id': uuid.uuid4(), 'user_id': self.test_user_id, 'created_at': datetime.utcnow()}
+            {
+                "id": uuid.uuid4(),
+                "user_id": self.test_user_id,
+                "created_at": datetime.utcnow(),
+            }
         ]
 
         # Test session cleanup
@@ -605,9 +769,9 @@ class AccountDeletionCascadeTest:
     def test_cache_data_removal(self):
         """Test cache data is properly removed"""
         cache_keys = [
-            f'user:{self.test_user_id}:preferences',
-            f'user:{self.test_user_id}:dashboard',
-            f'user:{self.test_user_id}:notifications'
+            f"user:{self.test_user_id}:preferences",
+            f"user:{self.test_user_id}:dashboard",
+            f"user:{self.test_user_id}:notifications",
         ]
 
         # Test cache cleanup
@@ -621,8 +785,8 @@ class AccountDeletionCascadeTest:
     def test_token_revocation(self):
         """Test tokens are properly revoked"""
         tokens = [
-            {'token_id': uuid.uuid4(), 'user_id': self.test_user_id, 'type': 'access'},
-            {'token_id': uuid.uuid4(), 'user_id': self.test_user_id, 'type': 'refresh'}
+            {"token_id": uuid.uuid4(), "user_id": self.test_user_id, "type": "access"},
+            {"token_id": uuid.uuid4(), "user_id": self.test_user_id, "type": "refresh"},
         ]
 
         # Test token revocation
@@ -636,7 +800,11 @@ class AccountDeletionCascadeTest:
     def test_rate_limiting_cleanup(self):
         """Test rate limiting records are properly cleaned up"""
         rate_limits = [
-            {'user_id': self.test_user_id, 'endpoint': '/api/v1/assessments', 'count': 5}
+            {
+                "user_id": self.test_user_id,
+                "endpoint": "/api/v1/assessments",
+                "count": 5,
+            }
         ]
 
         # Test rate limit cleanup
@@ -649,7 +817,7 @@ class AccountDeletionCascadeTest:
 
     def generate_comprehensive_report(self):
         """Generate comprehensive cascade deletion report"""
-        success_rate = (self.test_results['passed'] / self.test_results['total']) * 100
+        success_rate = (self.test_results["passed"] / self.test_results["total"]) * 100
 
         print("\n" + "=" * 60)
         print("🗑️  COMPREHENSIVE ACCOUNT DELETION TEST RESULTS")
@@ -661,14 +829,16 @@ class AccountDeletionCascadeTest:
         print(f"Success Rate: {success_rate:.1f}%")
 
         print("\n📋 Module Breakdown:")
-        for module_name, stats in self.test_results['modules'].items():
-            total = stats['passed'] + stats['failed']
-            module_success_rate = (stats['passed'] / total) * 100
-            avg_duration = stats['duration'] / total
-            print(f"  {module_name}: {stats['passed']}/{total} ({module_success_rate:.1f}%) - {avg_duration:.3f}s avg")
+        for module_name, stats in self.test_results["modules"].items():
+            total = stats["passed"] + stats["failed"]
+            module_success_rate = (stats["passed"] / total) * 100
+            avg_duration = stats["duration"] / total
+            print(
+                f"  {module_name}: {stats['passed']}/{total} ({module_success_rate:.1f}%) - {avg_duration:.3f}s avg"
+            )
 
             # Show failed tests
-            failed_tests = [t for t in stats['tests'] if t['status'] == 'failed']
+            failed_tests = [t for t in stats["tests"] if t["status"] == "failed"]
             for test in failed_tests:
                 print(f"    ❌ {test['name']}: {test['error']}")
 
@@ -683,7 +853,7 @@ class AccountDeletionCascadeTest:
             print("  ❌ NOT COMPLIANT: Major privacy risks identified")
 
         print("\n📊 Data Coverage Analysis:")
-        modules_tested = len(self.test_results['modules'])
+        modules_tested = len(self.test_results["modules"])
         print(f"  Modules Tested: {modules_tested}")
         print(f"  Test Coverage: Comprehensive across all data domains")
         print(f"  Cascade Validation: Complete relationship mapping")

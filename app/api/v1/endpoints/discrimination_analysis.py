@@ -12,11 +12,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_active_user, get_async_db
+from app.api.v1.deps import get_async_db, get_current_active_user
 from app.core.logging_config import logger
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
 from app.services.discrimination_analysis_service import DiscriminationAnalysisService
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 router = APIRouter(prefix="/discrimination-analysis")
 
@@ -25,8 +25,10 @@ router = APIRouter(prefix="/discrimination-analysis")
 # Pydantic Models
 # ============================================
 
+
 class DemographicProfileCreate(BaseModel):
     """Create or update demographic profile"""
+
     gender: Optional[str] = None
     race: Optional[str] = None
     ethnicity: Optional[str] = None
@@ -41,6 +43,7 @@ class DemographicProfileCreate(BaseModel):
 
 class ComplaintCreate(BaseModel):
     """Create a discrimination complaint"""
+
     complaint_type: str = Field(..., description="Protected class category")
     discrimination_type: str = Field(..., description="Specific discrimination type")
     description: str = Field(..., min_length=50, max_length=5000)
@@ -50,19 +53,27 @@ class ComplaintCreate(BaseModel):
     perpetrator_id: Optional[str] = None
     witness_ids: Optional[list[str]] = None
     evidence_urls: Optional[list[str]] = None
-    severity: str = Field(default="moderate", pattern="^(none|low|moderate|significant|severe|critical)$")
+    severity: str = Field(
+        default="moderate", pattern="^(none|low|moderate|significant|severe|critical)$"
+    )
     is_anonymous: bool = Field(default=False)
 
 
 class AnalysisRequest(BaseModel):
     """Request an equity analysis"""
-    demographic_dimension: str = Field(..., description="Dimension to analyze (gender, race, etc.)")
-    analysis_type: str = Field(..., pattern="^(pay_equity|promotion_equity|hiring_disparity)$")
+
+    demographic_dimension: str = Field(
+        ..., description="Dimension to analyze (gender, race, etc.)"
+    )
+    analysis_type: str = Field(
+        ..., pattern="^(pay_equity|promotion_equity|hiring_disparity)$"
+    )
     time_period_days: int = Field(default=365, ge=30, le=1825)  # 1 month to 5 years
 
 
 class EquityAnalysisResponse(BaseModel):
     """Equity analysis results"""
+
     id: str
     analysis_type: str
     analysis_date: datetime
@@ -78,6 +89,7 @@ class EquityAnalysisResponse(BaseModel):
 
 class EquityReportResponse(BaseModel):
     """Comprehensive equity report"""
+
     organization_id: str
     analysis_date: str
     overall_risk_score: int
@@ -93,6 +105,7 @@ class EquityReportResponse(BaseModel):
 # DEMOGRAPHIC PROFILE ENDPOINTS
 # ============================================
 
+
 @router.post("/demographic-profile")
 async def save_demographic_profile(
     profile_data: DemographicProfileCreate,
@@ -107,26 +120,30 @@ async def save_demographic_profile(
     """
     try:
         if not current_user.organization_id:
-            raise HTTPException(status_code=400, detail="User must belong to an organization")
+            raise HTTPException(
+                status_code=400, detail="User must belong to an organization"
+            )
 
         service = DiscriminationAnalysisService(db)
         profile = await service.save_demographic_profile(
             user_id=current_user.id,
             organization_id=current_user.organization_id,
-            demographic_data=profile_data.dict(exclude_unset=True)
+            demographic_data=profile_data.dict(exclude_unset=True),
         )
 
         return {
             "message": "Demographic profile saved successfully",
             "id": str(profile.id),
-            "consent_given": True
+            "consent_given": True,
         }
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error saving demographic profile: {e}")
-        raise HTTPException(status_code=500, detail="Failed to save demographic profile")
+        raise HTTPException(
+            status_code=500, detail="Failed to save demographic profile"
+        )
 
 
 @router.get("/demographic-profile")
@@ -141,9 +158,9 @@ async def get_demographic_profile(
         loop = asyncio.get_event_loop()
         profile = await loop.run_in_executor(
             None,
-            lambda: db.query(DemographicProfile).filter(
-                DemographicProfile.user_id == current_user.id
-            ).first()
+            lambda: db.query(DemographicProfile)
+            .filter(DemographicProfile.user_id == current_user.id)
+            .first(),
         )
 
         if not profile:
@@ -161,7 +178,7 @@ async def get_demographic_profile(
             "veteran_status": profile.veteran_status,
             "marital_status": profile.marital_status,
             "consent_given": profile.consent_given,
-            "last_updated": profile.last_updated
+            "last_updated": profile.last_updated,
         }
 
     except Exception as e:
@@ -172,6 +189,7 @@ async def get_demographic_profile(
 # ============================================
 # EQUITY ANALYSIS ENDPOINTS (ADMIN/HR ONLY)
 # ============================================
+
 
 @router.post("/analyze/pay-equity", response_model=EquityAnalysisResponse)
 async def analyze_pay_equity(
@@ -187,19 +205,23 @@ async def analyze_pay_equity(
     """
     try:
         # Check permissions
-        if not current_user.is_admin and current_user.role.value not in ["hr", "manager"]:
+        if not current_user.is_admin and current_user.role.value not in [
+            "hr",
+            "manager",
+        ]:
             raise HTTPException(
-                status_code=403,
-                detail="Admin, HR, or manager access required"
+                status_code=403, detail="Admin, HR, or manager access required"
             )
 
         if not current_user.organization_id:
-            raise HTTPException(status_code=400, detail="User must belong to an organization")
+            raise HTTPException(
+                status_code=400, detail="User must belong to an organization"
+            )
 
         service = DiscriminationAnalysisService(db)
         analysis = await service.analyze_pay_equity(
             organization_id=current_user.organization_id,
-            demographic_dimension=request.demographic_dimension
+            demographic_dimension=request.demographic_dimension,
         )
 
         return analysis
@@ -224,19 +246,23 @@ async def analyze_promotion_equity(
     """
     try:
         # Check permissions
-        if not current_user.is_admin and current_user.role.value not in ["hr", "manager"]:
+        if not current_user.is_admin and current_user.role.value not in [
+            "hr",
+            "manager",
+        ]:
             raise HTTPException(
-                status_code=403,
-                detail="Admin, HR, or manager access required"
+                status_code=403, detail="Admin, HR, or manager access required"
             )
 
         if not current_user.organization_id:
-            raise HTTPException(status_code=400, detail="User must belong to an organization")
+            raise HTTPException(
+                status_code=400, detail="User must belong to an organization"
+            )
 
         service = DiscriminationAnalysisService(db)
         analysis = await service.analyze_promotion_equity(
             organization_id=current_user.organization_id,
-            demographic_dimension=request.demographic_dimension
+            demographic_dimension=request.demographic_dimension,
         )
 
         return analysis
@@ -245,7 +271,9 @@ async def analyze_promotion_equity(
         raise
     except Exception as e:
         logger.error(f"Error analyzing promotion equity: {e}")
-        raise HTTPException(status_code=500, detail="Failed to analyze promotion equity")
+        raise HTTPException(
+            status_code=500, detail="Failed to analyze promotion equity"
+        )
 
 
 @router.post("/analyze/hiring-disparity", response_model=EquityAnalysisResponse)
@@ -261,19 +289,23 @@ async def analyze_hiring_disparity(
     """
     try:
         # Check permissions
-        if not current_user.is_admin and current_user.role.value not in ["hr", "manager"]:
+        if not current_user.is_admin and current_user.role.value not in [
+            "hr",
+            "manager",
+        ]:
             raise HTTPException(
-                status_code=403,
-                detail="Admin, HR, or manager access required"
+                status_code=403, detail="Admin, HR, or manager access required"
             )
 
         if not current_user.organization_id:
-            raise HTTPException(status_code=400, detail="User must belong to an organization")
+            raise HTTPException(
+                status_code=400, detail="User must belong to an organization"
+            )
 
         service = DiscriminationAnalysisService(db)
         analysis = await service.analyze_hiring_disparities(
             organization_id=current_user.organization_id,
-            demographic_dimension=request.demographic_dimension
+            demographic_dimension=request.demographic_dimension,
         )
 
         return analysis
@@ -282,12 +314,13 @@ async def analyze_hiring_disparity(
         raise
     except Exception as e:
         logger.error(f"Error analyzing hiring disparity: {e}")
-        raise HTTPException(status_code=500, detail="Failed to analyze hiring disparity")
+        raise HTTPException(
+            status_code=500, detail="Failed to analyze hiring disparity"
+        )
 
 
 @router.get("/compliance/report", response_model=EquityReportResponse)
-async def get_equity_compliance_report(
-) -> Any:
+async def get_equity_compliance_report() -> Any:
     """
     Get comprehensive equity compliance report
 
@@ -296,6 +329,7 @@ async def get_equity_compliance_report(
     try:
         # Return sample equity report data
         from datetime import datetime
+
         return {
             "organization_id": "sample-org-001",
             "analysis_date": datetime.now().isoformat(),
@@ -303,31 +337,31 @@ async def get_equity_compliance_report(
             "pay_equity": {
                 "severity": "low",
                 "disparity_detected": False,
-                "affected_groups": []
+                "affected_groups": [],
             },
             "promotion_equity": {
                 "severity": "none",
                 "disparity_detected": False,
-                "affected_groups": []
+                "affected_groups": [],
             },
             "hiring_equity": {
                 "severity": "low",
                 "disparity_detected": False,
-                "affected_groups": []
+                "affected_groups": [],
             },
             "open_complaints": 0,
             "complaint_severity_breakdown": {
                 "critical": 0,
                 "high": 0,
                 "medium": 0,
-                "low": 0
+                "low": 0,
             },
             "compliance_score": 92,
             "recommendations": [
                 "Continue current fair hiring practices",
                 "Maintain regular equity audits",
-                "Consider expanding diversity training programs"
-            ]
+                "Consider expanding diversity training programs",
+            ],
         }
 
     except Exception as e:
@@ -338,6 +372,7 @@ async def get_equity_compliance_report(
 # ============================================
 # DISCRIMINATION COMPLAINT ENDPOINTS
 # ============================================
+
 
 @rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/complaints")
@@ -354,20 +389,22 @@ async def create_complaint(
     """
     try:
         if not current_user.organization_id:
-            raise HTTPException(status_code=400, detail="User must belong to an organization")
+            raise HTTPException(
+                status_code=400, detail="User must belong to an organization"
+            )
 
         service = DiscriminationAnalysisService(db)
         complaint = await service.create_complaint(
             organization_id=current_user.organization_id,
             complaint_data=complaint_data.dict(),
-            reporter_id=None if complaint_data.is_anonymous else current_user.id
+            reporter_id=None if complaint_data.is_anonymous else current_user.id,
         )
 
         return {
             "message": "Complaint submitted successfully",
             "id": str(complaint.id),
             "status": complaint.status,
-            "is_anonymous": complaint.is_anonymous
+            "is_anonymous": complaint.is_anonymous,
         }
 
     except Exception as e:
@@ -390,21 +427,25 @@ async def get_complaints(
     """
     try:
         # Check permissions
-        if not current_user.is_admin and current_user.role.value not in ["hr", "manager"]:
+        if not current_user.is_admin and current_user.role.value not in [
+            "hr",
+            "manager",
+        ]:
             raise HTTPException(
-                status_code=403,
-                detail="Admin, HR, or manager access required"
+                status_code=403, detail="Admin, HR, or manager access required"
             )
 
         if not current_user.organization_id:
-            raise HTTPException(status_code=400, detail="User must belong to an organization")
+            raise HTTPException(
+                status_code=400, detail="User must belong to an organization"
+            )
 
         service = DiscriminationAnalysisService(db)
         complaints = await service.get_complaints(
             organization_id=current_user.organization_id,
             status=status,
             severity=severity,
-            limit=limit
+            limit=limit,
         )
 
         return {
@@ -417,10 +458,10 @@ async def get_complaints(
                     "severity": c.severity,
                     "status": c.status,
                     "created_at": c.created_at,
-                    "is_anonymous": c.is_anonymous
+                    "is_anonymous": c.is_anonymous,
                 }
                 for c in complaints
-            ]
+            ],
         }
 
     except HTTPException:
@@ -434,9 +475,9 @@ async def get_complaints(
 # ORGANIZATION DEMOGRAPHICS (ADMIN/HR ONLY)
 # ============================================
 
+
 @router.get("/demographics")
-async def get_organization_demographics(
-) -> dict:
+async def get_organization_demographics() -> dict:
     """
     Get aggregated demographic statistics
 
@@ -452,27 +493,24 @@ async def get_organization_demographics(
                     "male": 120,
                     "female": 125,
                     "non_binary": 3,
-                    "prefer_not_to_say": 2
+                    "prefer_not_to_say": 2,
                 },
                 "race": {
                     "white": 140,
                     "black": 45,
                     "hispanic": 35,
                     "asian": 25,
-                    "other": 5
+                    "other": 5,
                 },
                 "age_range": {
                     "18-24": 15,
                     "25-34": 85,
                     "35-44": 95,
                     "45-54": 40,
-                    "55+": 15
+                    "55+": 15,
                 },
-                "veteran_status": {
-                    "veteran": 20,
-                    "non_veteran": 230
-                }
-            }
+                "veteran_status": {"veteran": 20, "non_veteran": 230},
+            },
         }
 
     except Exception as e:

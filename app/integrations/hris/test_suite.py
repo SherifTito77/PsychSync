@@ -11,9 +11,9 @@ Usage:
 """
 
 import argparse
-from datetime import date, datetime, timedelta
 import logging
 import sys
+from datetime import date, datetime, timedelta
 
 # Setup logging
 logging.basicConfig(
@@ -27,7 +27,13 @@ class HRISTestSuite:
 
     def __init__(self):
         """Initialize test suite."""
-        self.results = {"total_tests": 0, "passed": 0, "failed": 0, "skipped": 0, "tests": []}
+        self.results = {
+            "total_tests": 0,
+            "passed": 0,
+            "failed": 0,
+            "skipped": 0,
+            "tests": [],
+        }
 
     def run_test(self, test_name: str, test_func, *args, **kwargs):
         """
@@ -46,21 +52,27 @@ class HRISTestSuite:
             status = "✓ PASS"
             logger.info(f"{status}: {test_name}")
 
-            self.results["tests"].append({"name": test_name, "status": "PASS", "error": None})
+            self.results["tests"].append(
+                {"name": test_name, "status": "PASS", "error": None}
+            )
 
         except AssertionError as e:
             self.results["failed"] += 1
             status = "✗ FAIL"
             logger.error(f"{status}: {test_name} - {e!s}")
 
-            self.results["tests"].append({"name": test_name, "status": "FAIL", "error": str(e)})
+            self.results["tests"].append(
+                {"name": test_name, "status": "FAIL", "error": str(e)}
+            )
 
         except Exception as e:
             self.results["failed"] += 1
             status = "✗ ERROR"
             logger.error(f"{status}: {test_name} - {e!s}")
 
-            self.results["tests"].append({"name": test_name, "status": "ERROR", "error": str(e)})
+            self.results["tests"].append(
+                {"name": test_name, "status": "ERROR", "error": str(e)}
+            )
 
     def print_summary(self):
         """Print test summary."""
@@ -191,8 +203,16 @@ def test_csv_connector():
         "record_id": ["ATT001", "ATT002", "ATT003"],
         "employee_id": ["EMP001", "EMP001", "EMP002"],
         "date": ["2025-01-01", "2025-01-02", "2025-01-01"],
-        "clock_in": ["2025-01-01 09:00:00", "2025-01-02 09:00:00", "2025-01-01 08:30:00"],
-        "clock_out": ["2025-01-01 17:00:00", "2025-01-02 17:00:00", "2025-01-01 16:30:00"],
+        "clock_in": [
+            "2025-01-01 09:00:00",
+            "2025-01-02 09:00:00",
+            "2025-01-01 08:30:00",
+        ],
+        "clock_out": [
+            "2025-01-01 17:00:00",
+            "2025-01-02 17:00:00",
+            "2025-01-01 16:30:00",
+        ],
         "hours_worked": [8.0, 8.0, 8.0],
         "status": ["present", "present", "present"],
     }
@@ -467,7 +487,9 @@ def test_specific_hris(hris_type: str, config: dict):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Test HRIS Connectors")
-    parser.add_argument("--hris", type=str, help="Test specific HRIS (orangehrm, csv, etc.)")
+    parser.add_argument(
+        "--hris", type=str, help="Test specific HRIS (orangehrm, csv, etc.)"
+    )
     parser.add_argument("--quick", action="store_true", help="Run quick tests only")
 
     args = parser.parse_args()

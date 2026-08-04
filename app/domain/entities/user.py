@@ -15,10 +15,10 @@ Author: Security Team
 Version: 2.0 Enterprise Security
 """
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import Any
 
 # Initialize domain logger
@@ -39,7 +39,12 @@ class UserRole(Enum):
         permissions = {
             cls.USER: ["read_profile", "update_profile"],
             cls.MODERATOR: ["read_profile", "update_profile", "manage_users"],
-            cls.MANAGER: ["read_profile", "update_profile", "manage_users", "view_reports"],
+            cls.MANAGER: [
+                "read_profile",
+                "update_profile",
+                "manage_users",
+                "view_reports",
+            ],
             cls.ADMIN: ["all"],
         }
         return permission in permissions.get(role, [])
@@ -145,7 +150,9 @@ class User:
 
     # Value objects
     preferences: UserPreferences = field(default_factory=UserPreferences)
-    security_metadata: UserSecurityMetadata = field(default_factory=UserSecurityMetadata)
+    security_metadata: UserSecurityMetadata = field(
+        default_factory=UserSecurityMetadata
+    )
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -197,7 +204,9 @@ class User:
         # Check if account should be suspended
         if self.security_metadata.failed_login_attempts >= 5:
             self.status = UserStatus.SUSPENDED
-            domain_logger.warning(f"User {self.id} suspended due to too many failed login attempts")
+            domain_logger.warning(
+                f"User {self.id} suspended due to too many failed login attempts"
+            )
             return True
 
         return False
@@ -361,7 +370,9 @@ class User:
 
         return False
 
-    def can_update_role(self, new_role: UserRole, requesting_user_role: UserRole) -> bool:
+    def can_update_role(
+        self, new_role: UserRole, requesting_user_role: UserRole
+    ) -> bool:
         """Check if role can be updated by requesting user"""
         # Only admins can change roles
         if requesting_user_role != UserRole.ADMIN:
@@ -387,7 +398,8 @@ class User:
         # Strong password indication (based on last change)
         if (
             self.security_metadata.password_changed_at
-            and (datetime.utcnow() - self.security_metadata.password_changed_at).days < 90
+            and (datetime.utcnow() - self.security_metadata.password_changed_at).days
+            < 90
         ):
             score += 20
 
@@ -429,9 +441,11 @@ class User:
                 "two_factor_enabled": self.preferences.two_factor_enabled,
             },
             "security_metadata": {
-                "last_login_at": self.security_metadata.last_login_at.isoformat()
-                if self.security_metadata.last_login_at
-                else None,
+                "last_login_at": (
+                    self.security_metadata.last_login_at.isoformat()
+                    if self.security_metadata.last_login_at
+                    else None
+                ),
                 "failed_login_attempts": self.security_metadata.failed_login_attempts,
                 "mfa_enabled": self.security_metadata.mfa_enabled,
                 "trusted_devices_count": len(self.security_metadata.device_trusted),

@@ -1,0 +1,98 @@
+# Secure Dockerfile for PsychSync Backend
+# Multi-stage build with security hardening
+
+FROM python:3.12-slim as builder
+
+# Set security-focused environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PIP_NO_CACHE_DIR=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Create non-root user
+RUN groupadd -r psychsync && useradd -r -g psychsync psychsync
+
+# Install system dependencies securely
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get clean
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Production stage
+FROM python:3.12-slim as production
+
+# Set security-focused environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV ENVIRONMENT=production
+ENV SSL_ENABLED=true
+
+# Install only runtime dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libpq5 \
+        curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get clean
+
+# Create non-root user
+RUN groupadd -r psychsync && useradd -r -g psychsync psychsync
+
+# Create directories with proper permissions
+RUN mkdir -p /app/logs /app/temp && \
+    chown -R psychsync:psychsync /app && \
+    chmod 750 /app && \
+    chmod 770 /app/logs /app/temp
+
+# Copy Python dependencies from builder
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Create app directory
+WORKDIR /app
+
+# Copy application code with proper permissions
+COPY --chown=psychsync:psychsync ./app ./app
+COPY --chown=psychsync:psychsync ./alembic.ini .
+COPY --chown=psychsync:psychsync ./alembic ./alembic
+
+# Copy certificates securely
+COPY --chown=psychsync:psychsync ./certs ./certs
+RUN chmod 640 ./certs/psychsync.crt && \
+    chmod 600 ./certs/psychsync.key
+
+# Copy environment configuration
+COPY --chown=psychsync:psychsync .env.secure .env
+
+# Switch to non-root user
+USER psychsync
+
+# Security hardening
+RUN python -c "import ssl; print(ssl.OPENSSL_VERSION)" && \
+    rm -rf ~/.cache && \
+    rm -rf /tmp/* 2>/dev/null || true
+
+# Expose internal port (not to host)
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -k https://localhost:8000/api/v1/health/public || exit 1
+
+# Set secure startup command
+CMD ["uvicorn", "app.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--ssl-keyfile", "/app/certs/psychsync.key", \
+     "--ssl-certfile", "/app/certs/psychsync.crt", \
+     "--workers", "1", \
+     "--access-log", "-", \
+     "--log-level", "info"]

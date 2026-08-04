@@ -3,15 +3,23 @@ Comprehensive Security Validation Tests
 Tests all security controls and input validation
 """
 
-import pytest
-from app.core.security_validator import (
-    SecurityValidator, SecurityLevel, ValidationResult
-)
-from app.core.audit_logger import AuditLogger, SecurityEventType
-from app.core.rate_limiter_unified import RateLimiter, AdvancedRateLimiter, RateLimitStrategy
 import time
 import uuid
 from unittest.mock import Mock, patch
+
+import pytest
+
+from app.core.audit_logger import AuditLogger, SecurityEventType
+from app.core.rate_limiter_unified import (
+    AdvancedRateLimiter,
+    RateLimiter,
+    RateLimitStrategy,
+)
+from app.core.security_validator import (
+    SecurityLevel,
+    SecurityValidator,
+    ValidationResult,
+)
 
 
 class TestSecurityValidator:
@@ -27,7 +35,7 @@ class TestSecurityValidator:
             "user@example.com",
             "test.user+tag@domain.co.uk",
             "user_name@sub.domain.com",
-            "12345@domain.com"
+            "12345@domain.com",
         ]
 
         for email in valid_emails:
@@ -45,7 +53,7 @@ class TestSecurityValidator:
             "user..name@domain.com",
             "user@.domain.com",
             "user name@domain.com",
-            "user@domain..com"
+            "user@domain..com",
         ]
 
         for email in invalid_emails:
@@ -59,7 +67,7 @@ class TestSecurityValidator:
             "user@example.com'; DROP TABLE users; --",
             "user@example.com<script>alert('xss')</script>",
             "user@example.com' OR '1'='1",
-            "<script>alert('xss')</script>@example.com"
+            "<script>alert('xss')</script>@example.com",
         ]
 
         for email in injection_emails:
@@ -73,7 +81,7 @@ class TestSecurityValidator:
             "Hello world",
             "This is a normal text with 123 numbers",
             "Special chars: !@#$%^&*()",
-            "Multi-line\ntext\nwith\ttabs"
+            "Multi-line\ntext\nwith\ttabs",
         ]
 
         for text in normal_texts:
@@ -88,7 +96,7 @@ class TestSecurityValidator:
             "'; DROP TABLE users; --",
             "javascript:alert('xss')",
             "{{7*7}}",  # Template injection
-            "${7*7}",   # Expression injection
+            "${7*7}",  # Expression injection
         ]
 
         for text in injection_texts:
@@ -119,7 +127,7 @@ class TestSecurityValidator:
         valid_uuids = [
             "123e4567-e89b-12d3-a456-426614174000",
             uuid.uuid4(),
-            str(uuid.uuid4())
+            str(uuid.uuid4()),
         ]
 
         for valid_uuid in valid_uuids:
@@ -134,7 +142,7 @@ class TestSecurityValidator:
             "123e4567-e89b-12d3-a456-42661417400",  # Missing digit
             "123e4567-e89b-12d3-a456-4266141740000",  # Extra digit
             "'; DROP TABLE users; --",
-            "<script>alert('xss')</script>"
+            "<script>alert('xss')</script>",
         ]
 
         for invalid_uuid in invalid_uuids:
@@ -148,7 +156,7 @@ class TestSecurityValidator:
             "Mary-Jane O'Connor",
             "Dr. Jane Smith",
             "Jean-Claude Van Damme",
-            "O'Neill"
+            "O'Neill",
         ]
 
         for name in valid_names:
@@ -163,7 +171,7 @@ class TestSecurityValidator:
             "'; DROP TABLE users; --",
             "Name with\nnewline",
             "Name\twith\ttab",
-            "Name/with/slash"
+            "Name/with/slash",
         ]
 
         for name in invalid_names:
@@ -177,7 +185,7 @@ class TestSecurityValidator:
             "john doe",
             "john@doe.com",
             "search term",
-            "multi word search"
+            "multi word search",
         ]
 
         for search in valid_searches:
@@ -188,7 +196,7 @@ class TestSecurityValidator:
         dangerous_searches = [
             "'; DROP TABLE users; --",
             "<script>alert('xss')</script>",
-            "javascript:alert('xss')"
+            "javascript:alert('xss')",
         ]
 
         for search in dangerous_searches:
@@ -221,14 +229,14 @@ class TestSecurityValidator:
             "email": "test@example.com'; DROP TABLE users; --",
             "description": "Normal description",
             "admin_notes": "Sensitive data that should be redacted",
-            "password": "secret123"
+            "password": "secret123",
         }
 
         result = self.validator.sanitize_dict(
             test_dict,
             text_fields=["name", "description"],
             email_fields=["email"],
-            name_fields=["admin_notes"]
+            name_fields=["admin_notes"],
         )
 
         assert result.is_valid
@@ -244,11 +252,7 @@ class TestSecurityValidator:
     def test_file_path_validation(self):
         """Test file path validation"""
         # Valid paths
-        valid_paths = [
-            "documents/file.pdf",
-            "uploads/image.jpg",
-            "data/report.csv"
-        ]
+        valid_paths = ["documents/file.pdf", "uploads/image.jpg", "data/report.csv"]
 
         for path in valid_paths:
             result = self.validator.validate_file_path(path)
@@ -260,7 +264,7 @@ class TestSecurityValidator:
             "..\\..\\windows\\system32\\config\\sam",
             "/etc/shadow",
             "C:\\Windows\\System32\\cmd.exe",
-            "file.txt;rm -rf /"
+            "file.txt;rm -rf /",
         ]
 
         for path in dangerous_paths:
@@ -275,7 +279,9 @@ class TestAuditLogger:
         """Setup test environment"""
         # Mock logger to avoid actual file writes during tests
         self.mock_logger = Mock()
-        with patch('app.core.audit_logger.AuditLogger._setup_security_logger') as mock_setup:
+        with patch(
+            "app.core.audit_logger.AuditLogger._setup_security_logger"
+        ) as mock_setup:
             mock_setup.return_value = self.mock_logger
             self.audit_logger = AuditLogger()
 
@@ -285,7 +291,7 @@ class TestAuditLogger:
             user_id="test-user-123",
             event_type=SecurityEventType.AUTHENTICATION_SUCCESS,
             details="User logged in successfully",
-            client_ip="192.168.1.1"
+            client_ip="192.168.1.1",
         )
 
         # Verify logger was called
@@ -300,7 +306,7 @@ class TestAuditLogger:
             event_type=SecurityEventType.INJECTION_ATTEMPT,
             details="SQL injection attempt detected",
             client_ip="192.168.1.1",
-            risk_score=90
+            risk_score=90,
         )
 
         # Verify critical logger was called
@@ -312,18 +318,12 @@ class TestAuditLogger:
     def test_calculate_risk_score(self):
         """Test risk score calculation"""
         # Test high-risk event
-        event_data = {
-            "event_type": "injection_attempt",
-            "status_code": 400
-        }
+        event_data = {"event_type": "injection_attempt", "status_code": 400}
         risk_score = self.audit_logger._calculate_risk_score(event_data)
         assert risk_score >= 60
 
         # Test low-risk event
-        event_data = {
-            "event_type": "authentication_success",
-            "status_code": 200
-        }
+        event_data = {"event_type": "authentication_success", "status_code": 200}
         risk_score = self.audit_logger._calculate_risk_score(event_data)
         assert risk_score < 50
 
@@ -333,7 +333,7 @@ class TestAuditLogger:
             "password": "secret123",
             "email": "test@example.com",
             "details": "User attempted login with password: secret123",
-            "user_id": "user-123"
+            "user_id": "user-123",
         }
 
         sanitized = self.audit_logger._sanitize_event_data(sensitive_data)
@@ -362,7 +362,9 @@ class TestRateLimiter:
 
         # First 5 requests should be allowed
         for i in range(5):
-            is_allowed, metadata = await self.rate_limiter.is_allowed(key, limit, window)
+            is_allowed, metadata = await self.rate_limiter.is_allowed(
+                key, limit, window
+            )
             assert is_allowed, f"Request {i+1} should be allowed"
             assert metadata["remaining"] == 4 - i
 
@@ -417,7 +419,7 @@ class TestRateLimiter:
             identifier="test-user",
             endpoint="login",
             user_id="user-123",
-            ip_address="192.168.1.1"
+            ip_address="192.168.1.1",
         )
 
         # Key should be consistent
@@ -425,7 +427,7 @@ class TestRateLimiter:
             identifier="test-user",
             endpoint="login",
             user_id="user-123",
-            ip_address="192.168.1.1"
+            ip_address="192.168.1.1",
         )
 
         assert key == key2
@@ -468,7 +470,7 @@ class TestIntegrationSecurity:
         user_data = {
             "email": "test@example.com",
             "password": "SecurePass123!",
-            "full_name": "John Doe"
+            "full_name": "John Doe",
         }
 
         # Validate each field
@@ -476,9 +478,7 @@ class TestIntegrationSecurity:
         password_result = validator.validate_text_input(
             user_data["password"], "password", max_length=128
         )
-        name_result = validator.validate_name_input(
-            user_data["full_name"], "full_name"
-        )
+        name_result = validator.validate_name_input(user_data["full_name"], "full_name")
 
         # All should be valid
         assert email_result.is_valid
@@ -489,7 +489,7 @@ class TestIntegrationSecurity:
         malicious_data = {
             "email": "test@example.com'; DROP TABLE users; --",
             "password": "<script>alert('xss')</script>",
-            "full_name": "javascript:alert('xss')"
+            "full_name": "javascript:alert('xss')",
         }
 
         malicious_email = validator.validate_email(malicious_data["email"])
@@ -507,7 +507,7 @@ class TestIntegrationSecurity:
     @pytest.mark.asyncio
     async def test_audit_logging_with_security_events(self):
         """Test audit logging integration with security events"""
-        with patch('app.core.audit_logger.AuditLogger._setup_security_logger'):
+        with patch("app.core.audit_logger.AuditLogger._setup_security_logger"):
             audit_logger = AuditLogger()
 
             # Simulate security events
@@ -515,14 +515,14 @@ class TestIntegrationSecurity:
                 event_type=SecurityEventType.AUTHENTICATION_FAILURE,
                 details="Invalid password attempt",
                 client_ip="192.168.1.100",
-                risk_score=40
+                risk_score=40,
             )
 
             audit_logger.log_security_event(
                 event_type=SecurityEventType.INJECTION_ATTEMPT,
                 details="SQL injection attempt blocked",
                 client_ip="192.168.1.100",
-                risk_score=90
+                risk_score=90,
             )
 
             # Test convenience functions

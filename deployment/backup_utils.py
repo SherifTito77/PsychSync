@@ -3,13 +3,14 @@ Backup utilities for PsychSync production environment
 Handles database backups, S3 uploads, and retention policies
 """
 
+import gzip
+import logging
 import os
 import subprocess
-import gzip
-import boto3
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
-import logging
+from typing import Any, Dict, Optional
+
+import boto3
 from botocore.exceptions import ClientError
 
 logger = logging.getLogger(__name__)
@@ -24,12 +25,12 @@ class BackupManager:
 
     def _initialize_s3(self):
         """Initialize S3 client if credentials are available"""
-        if os.getenv('AWS_ACCESS_KEY_ID') and os.getenv('AWS_SECRET_ACCESS_KEY'):
+        if os.getenv("AWS_ACCESS_KEY_ID") and os.getenv("AWS_SECRET_ACCESS_KEY"):
             self.s3_client = boto3.client(
-                's3',
-                aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
-                aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-                region_name=os.getenv('BACKUP_S3_REGION', 'us-west-2')
+                "s3",
+                aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+                aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+                region_name=os.getenv("BACKUP_S3_REGION", "us-west-2"),
             )
             logger.info("S3 client initialized")
         else:
@@ -40,36 +41,36 @@ class BackupManager:
         try:
             # Parse database URL
             # Expected format: postgresql://user:password@host:port/database
-            if not database_url.startswith('postgresql://'):
+            if not database_url.startswith("postgresql://"):
                 raise ValueError("Invalid database URL format")
 
             # Remove postgresql:// prefix for pg_dump
-            pg_url = database_url.replace('postgresql://', '')
+            pg_url = database_url.replace("postgresql://", "")
 
             # Create backup using pg_dump
             cmd = [
-                'pg_dump',
-                f'postgresql://{pg_url}',
-                '--no-password',
-                '--format=custom',
-                '--compress=9',
-                '--verbose',
-                f'--file={output_path}'
+                "pg_dump",
+                f"postgresql://{pg_url}",
+                "--no-password",
+                "--format=custom",
+                "--compress=9",
+                "--verbose",
+                f"--file={output_path}",
             ]
 
             # Set PGPASSWORD environment variable
             env = os.environ.copy()
-            if '@' in pg_url:
+            if "@" in pg_url:
                 # Extract password from URL
-                password_part = pg_url.split('@')[0].split(':')[-1]
-                env['PGPASSWORD'] = password_part
+                password_part = pg_url.split("@")[0].split(":")[-1]
+                env["PGPASSWORD"] = password_part
 
             result = subprocess.run(
                 cmd,
                 env=env,
                 capture_output=True,
                 text=True,
-                timeout=3600  # 1 hour timeout
+                timeout=3600,  # 1 hour timeout
             )
 
             if result.returncode == 0:
@@ -91,8 +92,8 @@ class BackupManager:
         compressed_path = f"{input_path}.gz"
 
         try:
-            with open(input_path, 'rb') as f_in:
-                with gzip.open(compressed_path, 'wb') as f_out:
+            with open(input_path, "rb") as f_in:
+                with gzip.open(compressed_path, "wb") as f_out:
                     f_out.writelines(f_in)
 
             # Remove uncompressed file
@@ -116,9 +117,9 @@ class BackupManager:
                 bucket,
                 key,
                 ExtraArgs={
-                    'StorageClass': 'STANDARD_IA',
-                    'ServerSideEncryption': 'AES256'
-                }
+                    "StorageClass": "STANDARD_IA",
+                    "ServerSideEncryption": "AES256",
+                },
             )
 
             # Verify upload
@@ -136,7 +137,9 @@ class BackupManager:
             cutoff_date = datetime.now() - timedelta(days=retention_days)
 
             for filename in os.listdir(backup_dir):
-                if filename.startswith('psychsync_db_') and filename.endswith('.sql.gz'):
+                if filename.startswith("psychsync_db_") and filename.endswith(
+                    ".sql.gz"
+                ):
                     file_path = os.path.join(backup_dir, filename)
                     file_mtime = datetime.fromtimestamp(os.path.getmtime(file_path))
 
@@ -154,22 +157,24 @@ class BackupManager:
 
         try:
             cutoff_date = datetime.now() - timedelta(days=retention_days)
-            cutoff_str = cutoff_date.strftime('%Y%m%d')
+            cutoff_str = cutoff_date.strftime("%Y%m%d")
 
-            paginator = self.s3_client.get_paginator('list_objects_v2')
-            pages = paginator.paginate(Bucket=bucket, Prefix='database/')
+            paginator = self.s3_client.get_paginator("list_objects_v2")
+            pages = paginator.paginate(Bucket=bucket, Prefix="database/")
 
             for page in pages:
-                if 'Contents' in page:
-                    for obj in page['Contents']:
-                        key = obj['Key']
+                if "Contents" in page:
+                    for obj in page["Contents"]:
+                        key = obj["Key"]
                         # Extract date from filename
-                        if 'psychsync_db_' in key:
+                        if "psychsync_db_" in key:
                             try:
-                                date_part = key.split('psychsync_db_')[1].split('_')[0]
+                                date_part = key.split("psychsync_db_")[1].split("_")[0]
                                 if len(date_part) == 8 and date_part.isdigit():
                                     if int(date_part) < int(cutoff_str):
-                                        self.s3_client.delete_object(Bucket=bucket, Key=key)
+                                        self.s3_client.delete_object(
+                                            Bucket=bucket, Key=key
+                                        )
                                         logger.info(f"Deleted old S3 backup: {key}")
                             except (IndexError, ValueError):
                                 continue
@@ -181,7 +186,7 @@ class BackupManager:
         """Get human-readable file size"""
         try:
             size_bytes = os.path.getsize(file_path)
-            for unit in ['B', 'KB', 'MB', 'GB']:
+            for unit in ["B", "KB", "MB", "GB"]:
                 if size_bytes < 1024.0:
                     return f"{size_bytes:.1f} {unit}"
                 size_bytes /= 1024.0
@@ -195,18 +200,18 @@ def main():
     import argparse
     from urllib.parse import urlparse
 
-    parser = argparse.ArgumentParser(description='PsychSync Database Backup')
-    parser.add_argument('--database-url', required=True, help='Database connection URL')
-    parser.add_argument('--backup-dir', default='/backups', help='Backup directory')
-    parser.add_argument('--s3-bucket', help='S3 bucket for uploads')
+    parser = argparse.ArgumentParser(description="PsychSync Database Backup")
+    parser.add_argument("--database-url", required=True, help="Database connection URL")
+    parser.add_argument("--backup-dir", default="/backups", help="Backup directory")
+    parser.add_argument("--s3-bucket", help="S3 bucket for uploads")
     args = parser.parse_args()
 
     # Initialize backup manager
     backup_manager = BackupManager()
 
     # Generate filename
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f'psychsync_db_{timestamp}.sql'
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"psychsync_db_{timestamp}.sql"
     backup_path = os.path.join(args.backup_dir, filename)
 
     # Create backup directory
@@ -220,7 +225,7 @@ def main():
 
             # Upload to S3 if specified
             if args.s3_bucket:
-                s3_key = f'database/{os.path.basename(compressed_path)}'
+                s3_key = f"database/{os.path.basename(compressed_path)}"
                 backup_manager.upload_to_s3(compressed_path, args.s3_bucket, s3_key)
 
             # Get file size
@@ -238,5 +243,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     exit(main())

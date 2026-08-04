@@ -3,14 +3,16 @@
 Schemas for Corporate Data Source Integration API
 """
 
-from typing import Dict, List, Optional, Any
 from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field, validator
 
 
 class PrivacyLevel(str, Enum):
     """Privacy levels for data sources"""
+
     METADATA_ONLY = "metadata_only"
     ANONYMIZED = "anonymized"
     FULL = "full"
@@ -18,6 +20,7 @@ class PrivacyLevel(str, Enum):
 
 class SyncStatus(str, Enum):
     """Sync status for data sources"""
+
     ACTIVE = "active"
     PAUSED = "paused"
     ERROR = "error"
@@ -27,6 +30,7 @@ class SyncStatus(str, Enum):
 
 class DataSourceType(str, Enum):
     """Types of corporate data sources"""
+
     EMAIL_METADATA = "email_metadata"
     SLACK_MESSAGES = "slack_messages"
     TEAMS_MESSAGES = "teams_messages"
@@ -64,35 +68,46 @@ class DataSourceType(str, Enum):
 
 class BehavioralSignal(BaseModel):
     """A behavioral signal extracted from data"""
+
     signal_name: str = Field(..., description="Name of the behavioral signal")
     value: float = Field(..., description="Signal value (normalized 0-1)")
     confidence: float = Field(..., description="Confidence score (0-1)")
     timestamp: datetime = Field(..., description="When the signal was detected")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional context")
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Additional context"
+    )
 
 
 class IntegrationConfig(BaseModel):
     """Configuration for a data source integration"""
+
     source_type: DataSourceType
     enabled: bool = True
     privacy_level: PrivacyLevel
-    sync_frequency_hours: int = Field(..., ge=1, le=168, description="Sync frequency (1-168 hours)")
-    data_retention_days: int = Field(..., ge=30, le=1095, description="Data retention (30-1095 days)")
+    sync_frequency_hours: int = Field(
+        ..., ge=1, le=168, description="Sync frequency (1-168 hours)"
+    )
+    data_retention_days: int = Field(
+        ..., ge=30, le=1095, description="Data retention (30-1095 days)"
+    )
     requires_consent: bool = False
     api_credentials: Optional[Dict[str, str]] = None
     custom_settings: Dict[str, Any] = Field(default_factory=dict)
 
-    @validator('sync_frequency_hours')
+    @validator("sync_frequency_hours")
     def validate_sync_frequency(cls, v, values):
         """Ensure sensitive data has appropriate sync frequency"""
-        if 'privacy_level' in values and values['privacy_level'] == PrivacyLevel.FULL:
+        if "privacy_level" in values and values["privacy_level"] == PrivacyLevel.FULL:
             if v < 24:
-                raise ValueError("Full privacy data requires sync frequency >= 24 hours")
+                raise ValueError(
+                    "Full privacy data requires sync frequency >= 24 hours"
+                )
         return v
 
 
 class IntegrationStatus(BaseModel):
     """Status of an integration"""
+
     source_type: DataSourceType
     status: SyncStatus
     last_sync: Optional[datetime] = None
@@ -104,14 +119,18 @@ class IntegrationStatus(BaseModel):
 
 class IntegrationResponse(BaseModel):
     """Response model for integration details"""
+
     config: IntegrationConfig
     status: IntegrationStatus
-    behavioral_signals: List[str] = Field(description="Available signals from this source")
+    behavioral_signals: List[str] = Field(
+        description="Available signals from this source"
+    )
     data_points_count: int = Field(description="Total data points collected")
 
 
 class CreateIntegrationRequest(BaseModel):
     """Request to create a new integration"""
+
     source_type: DataSourceType
     privacy_level: PrivacyLevel
     sync_frequency_hours: int = Field(24, ge=1, le=168)
@@ -122,6 +141,7 @@ class CreateIntegrationRequest(BaseModel):
 
 class UpdateIntegrationRequest(BaseModel):
     """Request to update an existing integration"""
+
     enabled: Optional[bool] = None
     privacy_level: Optional[PrivacyLevel] = None
     sync_frequency_hours: Optional[int] = Field(None, ge=1, le=168)
@@ -132,47 +152,54 @@ class UpdateIntegrationRequest(BaseModel):
 
 class SyncIntegrationRequest(BaseModel):
     """Request to manually trigger sync"""
+
     force_full_sync: bool = False
     date_range: Optional[Dict[str, datetime]] = Field(
-        None,
-        description="Optional date range: {'start': datetime, 'end': datetime}"
+        None, description="Optional date range: {'start': datetime, 'end': datetime}"
     )
 
 
 class BehavioralAnalysisRequest(BaseModel):
     """Request to analyze behavioral data"""
+
     source_types: List[DataSourceType] = Field(
         description="Which data sources to analyze"
     )
     date_range: Dict[str, datetime] = Field(
-        ...,
-        description="Date range: {'start': datetime, 'end': datetime}"
+        ..., description="Date range: {'start': datetime, 'end': datetime}"
     )
     employee_ids: Optional[List[int]] = Field(
-        None,
-        description="Specific employees to analyze (null = all)"
+        None, description="Specific employees to analyze (null = all)"
     )
     analysis_type: str = Field(
         "comprehensive",
-        description="Type: 'toxicity', 'burnout', 'team_health', 'comprehensive'"
+        description="Type: 'toxicity', 'burnout', 'team_health', 'comprehensive'",
     )
 
 
 class BehavioralInsight(BaseModel):
     """A behavioral insight derived from data"""
-    category: str = Field(..., description="Category: 'burnout', 'toxicity', 'engagement', etc.")
-    severity: str = Field(..., description="Severity: 'low', 'medium', 'high', 'critical'")
+
+    category: str = Field(
+        ..., description="Category: 'burnout', 'toxicity', 'engagement', etc."
+    )
+    severity: str = Field(
+        ..., description="Severity: 'low', 'medium', 'high', 'critical'"
+    )
     title: str = Field(..., description="Insight title")
     description: str = Field(..., description="Detailed description")
     affected_employees: List[int] = Field(description="Employee IDs affected")
     confidence: float = Field(..., ge=0, le=1, description="Confidence score")
     recommendations: List[str] = Field(description="Actionable recommendations")
-    data_sources: List[DataSourceType] = Field(description="Sources contributing to insight")
+    data_sources: List[DataSourceType] = Field(
+        description="Sources contributing to insight"
+    )
     detected_at: datetime = Field(..., description="When insight was generated")
 
 
 class OrganizationIntegrations(BaseModel):
     """All integrations for an organization"""
+
     organization_id: int
     integrations: List[IntegrationResponse]
     summary: Dict[str, Any] = Field(description="Summary statistics")
@@ -181,6 +208,7 @@ class OrganizationIntegrations(BaseModel):
 
 class DataIngestionRecord(BaseModel):
     """Record of data ingestion"""
+
     id: int
     source_type: DataSourceType
     employee_id: Optional[int]
@@ -192,6 +220,7 @@ class DataIngestionRecord(BaseModel):
 
 class IntegrationHealthMetrics(BaseModel):
     """Health metrics for integrations"""
+
     total_integrations: int
     active_integrations: int
     error_integrations: int
@@ -203,6 +232,7 @@ class IntegrationHealthMetrics(BaseModel):
 
 class ConsentRecord(BaseModel):
     """Employee consent for data collection"""
+
     employee_id: int
     source_types: List[DataSourceType]
     granted: bool
@@ -213,19 +243,19 @@ class ConsentRecord(BaseModel):
 
 class BulkIntegrationRequest(BaseModel):
     """Request to set up multiple integrations at once"""
+
     organization_size: int = Field(..., description="Number of employees")
     privacy_preference: str = Field(
-        "balanced",
-        description="Privacy level: 'minimal', 'balanced', 'comprehensive'"
+        "balanced", description="Privacy level: 'minimal', 'balanced', 'comprehensive'"
     )
     auto_enable_recommended: bool = Field(
-        True,
-        description="Automatically enable recommended integrations"
+        True, description="Automatically enable recommended integrations"
     )
 
 
 class IntegrationInsightsReport(BaseModel):
     """Comprehensive insights report from integrations"""
+
     report_id: str
     generated_at: datetime
     date_range: Dict[str, datetime]

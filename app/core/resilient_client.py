@@ -22,30 +22,35 @@ Usage:
 
 import asyncio
 import logging
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, Optional
-import uuid
 
 import httpx
 from tenacity import (
+    after_log,
+    before_sleep_log,
     retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
-    before_sleep_log,
-    after_log,
 )
 
-from app.core.resilience import Circuit, ErrorType, CircuitState
-
+from app.core.resilience import Circuit, CircuitState, ErrorType
 
 logger = logging.getLogger(__name__)
 
 
 class HTTPClientError(Exception):
     """Base exception for HTTP client errors"""
-    def __init__(self, message: str, status_code: int | None = None, response_data: dict | None = None):
+
+    def __init__(
+        self,
+        message: str,
+        status_code: int | None = None,
+        response_data: dict | None = None,
+    ):
         self.message = message
         self.status_code = status_code
         self.response_data = response_data
@@ -54,16 +59,19 @@ class HTTPClientError(Exception):
 
 class TimeoutError(HTTPClientError):
     """Request timed out"""
+
     pass
 
 
 class RetryExhaustedError(HTTPClientError):
     """All retry attempts exhausted"""
+
     pass
 
 
 class CircuitBreakerOpenError(HTTPClientError):
     """Circuit breaker is open, request blocked"""
+
     pass
 
 
@@ -93,13 +101,15 @@ class HTTPRequestConfig:
     retry_status_codes = frozenset({408, 429, 500, 502, 503, 504})
 
     # Retry on these exception types
-    retry_exceptions = frozenset({
-        # TimeoutError,  # Don't retry timeouts - they're usually permanent
-        ConnectionError,
-        ConnectionRefusedError,
-        ConnectionResetError,
-        # Add more specific exceptions as needed
-    })
+    retry_exceptions = frozenset(
+        {
+            # TimeoutError,  # Don't retry timeouts - they're usually permanent
+            ConnectionError,
+            ConnectionRefusedError,
+            ConnectionResetError,
+            # Add more specific exceptions as needed
+        }
+    )
 
     # Validation
     validate_response: bool = True  # Validate response structure
@@ -186,12 +196,7 @@ class ResilientHTTPClient:
         # Retry connection errors
         return isinstance(exception, self.config.retry_exceptions)
 
-    async def _execute_request(
-        self,
-        method: str,
-        url: str,
-        **kwargs
-    ) -> httpx.Response:
+    async def _execute_request(self, method: str, url: str, **kwargs) -> httpx.Response:
         """
         Execute HTTP request with resilience patterns.
 
@@ -206,6 +211,7 @@ class ResilientHTTPClient:
 
         # Extract endpoint key for circuit breaker
         from urllib.parse import urlparse
+
         parsed_url = urlparse(url)
         endpoint_key = f"{method}:{parsed_url.netloc}:{parsed_url.path}"
 
@@ -238,8 +244,11 @@ class ResilientHTTPClient:
 
                 # Validate response size
                 if self.config.validate_response:
-                    content_length = response.headers.get('content-length')
-                    if content_length and int(content_length) > self.config.max_response_size:
+                    content_length = response.headers.get("content-length")
+                    if (
+                        content_length
+                        and int(content_length) > self.config.max_response_size
+                    ):
                         logger.error(
                             f"[{request_id}] Response too large: {content_length} bytes "
                             f"(max: {self.config.max_response_size})"
@@ -250,10 +259,13 @@ class ResilientHTTPClient:
 
                 # Check if we should retry based on status code
                 if response.status_code >= 400:
-                    if attempt < self.config.max_retries and self._should_retry(response):
+                    if attempt < self.config.max_retries and self._should_retry(
+                        response
+                    ):
                         wait_time = min(
-                            self.config.retry_min * (self.config.retry_multiplier ** (attempt - 1)),
-                            self.config.retry_max
+                            self.config.retry_min
+                            * (self.config.retry_multiplier ** (attempt - 1)),
+                            self.config.retry_max,
                         )
                         logger.warning(
                             f"[{request_id}] Got {response.status_code}, "
@@ -291,7 +303,9 @@ class ResilientHTTPClient:
                     # Don't retry timeouts - they're usually permanent
                     # But we wait once more to be sure
                     wait_time = self.config.retry_min
-                    logger.warning(f"[{request_id}] Timeout, final retry in {wait_time}s")
+                    logger.warning(
+                        f"[{request_id}] Timeout, final retry in {wait_time}s"
+                    )
                     await asyncio.sleep(wait_time)
                     continue
                 else:
@@ -306,8 +320,9 @@ class ResilientHTTPClient:
 
                 if attempt < self.config.max_retries:
                     wait_time = min(
-                        self.config.retry_min * (self.config.retry_multiplier ** (attempt - 1)),
-                        self.config.retry_max
+                        self.config.retry_min
+                        * (self.config.retry_multiplier ** (attempt - 1)),
+                        self.config.retry_max,
                     )
                     logger.warning(f"[{request_id}] Retrying in {wait_time:.1f}s...")
                     await asyncio.sleep(wait_time)
@@ -316,7 +331,9 @@ class ResilientHTTPClient:
                     # Record failure in circuit breaker
                     if circuit:
                         await circuit.record_failure()
-                    raise HTTPClientError(f"Connection failed after {attempt} attempts") from e
+                    raise HTTPClientError(
+                        f"Connection failed after {attempt} attempts"
+                    ) from e
 
             except Exception as e:
                 last_exception = e
@@ -374,12 +391,10 @@ class ResilientHTTPClient:
 # Global instance for application-wide use
 resilient_http_client = ResilientHTTPClient()
 
+
 # Convenience function
 async def resilient_request(
-    method: str,
-    url: str,
-    config: HTTPRequestConfig | None = None,
-    **kwargs
+    method: str, url: str, config: HTTPRequestConfig | None = None, **kwargs
 ) -> httpx.Response:
     """
     Convenience function for making resilient HTTP requests.
@@ -428,6 +443,7 @@ def with_resilience(
             async with httpx.AsyncClient(timeout=30.0) as client:
                 return await client.post("https://api.example.com", json=data)
     """
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
             config = HTTPRequestConfig(
@@ -442,5 +458,7 @@ def with_resilience(
                 return result
             finally:
                 await client.close()
+
         return wrapper
+
     return decorator

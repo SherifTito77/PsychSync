@@ -70,7 +70,9 @@ def register_domain_services():
         # register_scoped(EmailService)
         # from app.domain.services.password_service import PasswordService
         # register_scoped(PasswordService)
-        service_logger.info("Domain services temporarily disabled - domain layer not ready")
+        service_logger.info(
+            "Domain services temporarily disabled - domain layer not ready"
+        )
 
         # TODO(human): Add other domain services as they are implemented
         # Example:
@@ -100,7 +102,9 @@ def register_application_services():
         #         "email_service": "EmailService"
         #     }
         # )
-        service_logger.info("Application services temporarily disabled - missing dependencies")
+        service_logger.info(
+            "Application services temporarily disabled - missing dependencies"
+        )
 
         # TODO(human): Add other application services as they are implemented
         # Example:
@@ -127,7 +131,9 @@ def register_infrastructure_services():
         service_logger.info("Registering infrastructure services...")
 
         # Email services
-        from app.services.email_service import EmailService as InfrastructureEmailService
+        from app.services.email_service import (
+            EmailService as InfrastructureEmailService,
+        )
 
         register_scoped(InfrastructureEmailService)
 
@@ -189,19 +195,25 @@ def register_configuration_values():
             "redis_url", getattr(settings, "REDIS_URL", "redis://localhost:6379")
         )
         register_configuration("secret_key", settings.SECRET_KEY)
-        register_configuration("environment", getattr(settings, "ENVIRONMENT", "development"))
+        register_configuration(
+            "environment", getattr(settings, "ENVIRONMENT", "development")
+        )
         register_configuration("debug", getattr(settings, "DEBUG", False))
 
         # Security configuration with fallbacks
         register_configuration(
-            "access_token_expire_minutes", getattr(settings, "ACCESS_TOKEN_EXPIRE_MINUTES", 30)
+            "access_token_expire_minutes",
+            getattr(settings, "ACCESS_TOKEN_EXPIRE_MINUTES", 30),
         )
         register_configuration("cors_origins", getattr(settings, "CORS_ORIGINS", []))
-        register_configuration("rate_limit_enabled", getattr(settings, "RATE_LIMIT_ENABLED", True))
+        register_configuration(
+            "rate_limit_enabled", getattr(settings, "RATE_LIMIT_ENABLED", True)
+        )
 
         # Feature flags with safe access
         register_configuration(
-            "email_verification_enabled", getattr(settings, "ENABLE_EMAIL_VERIFICATION", False)
+            "email_verification_enabled",
+            getattr(settings, "ENABLE_EMAIL_VERIFICATION", False),
         )
         register_configuration("mfa_enabled", False)  # MFA not implemented yet
         register_configuration(
@@ -227,7 +239,9 @@ def register_environment_specific_services():
         elif environment == "testing":
             register_testing_services()
 
-        service_logger.info(f"Environment-specific services registered for: {environment}")
+        service_logger.info(
+            f"Environment-specific services registered for: {environment}"
+        )
 
     except Exception as e:
         service_logger.error(f"Failed to register environment-specific services: {e}")
@@ -246,7 +260,8 @@ def register_development_services():
 
     # Development-specific tools
     register_scoped_by_name(
-        "dev_tools", lambda: {"sql_echo": True, "debug_requests": True, "profiling_enabled": True}
+        "dev_tools",
+        lambda: {"sql_echo": True, "debug_requests": True, "profiling_enabled": True},
     )
 
 
@@ -317,7 +332,9 @@ def validate_service_registrations():
         validation_errors = container.validate_dependencies()
 
         if validation_errors:
-            service_logger.error(f"Service registration validation failed: {validation_errors}")
+            service_logger.error(
+                f"Service registration validation failed: {validation_errors}"
+            )
             raise ValueError(f"DI container validation failed: {validation_errors}")
 
         # Log service information
@@ -328,7 +345,10 @@ def validate_service_registrations():
 
         # Log key services for debugging
         for service_name, info in service_info.items():
-            if any(key in service_name.lower() for key in ["user", "auth", "email", "security"]):
+            if any(
+                key in service_name.lower()
+                for key in ["user", "auth", "email", "security"]
+            ):
                 service_logger.debug(f"  - {service_name}: {info['lifetime']}")
 
         return True

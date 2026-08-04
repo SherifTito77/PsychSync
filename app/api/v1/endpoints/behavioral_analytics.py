@@ -3,14 +3,14 @@ Behavioral Analytics Endpoints
 Team behavioral intelligence and HR outcome measurements
 """
 
-from datetime import datetime
 import logging
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.v1.deps import get_current_user, get_db
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.services.assessment_service import assessment_service
 from app.services.nlp_service import nlp_service
 from app.services.team_service import team_service
@@ -39,7 +39,9 @@ async def get_team_behavioral_insights(
         team_assessments = await assessment_service.get_team_assessments(team_id)
 
         # Analyze behavioral patterns
-        behavioral_patterns = await nlp_service.analyze_behavioral_patterns(team_assessments)
+        behavioral_patterns = await nlp_service.analyze_behavioral_patterns(
+            team_assessments
+        )
 
         # Calculate business impact metrics
         business_impact = await calculate_business_impact(team_id, behavioral_patterns)
@@ -59,27 +61,41 @@ async def get_team_behavioral_insights(
             },
             "behavioral_metrics": {
                 "team_cohesion": behavioral_patterns.get("cohesion_score", 0),
-                "communication_effectiveness": behavioral_patterns.get("communication_score", 0),
-                "collaboration_quality": behavioral_patterns.get("collaboration_score", 0),
+                "communication_effectiveness": behavioral_patterns.get(
+                    "communication_score", 0
+                ),
+                "collaboration_quality": behavioral_patterns.get(
+                    "collaboration_score", 0
+                ),
                 "psychological_safety": behavioral_patterns.get("safety_score", 0),
                 "innovation_potential": behavioral_patterns.get("innovation_score", 0),
-                "conflict_resolution": behavioral_patterns.get("conflict_resolution_score", 0),
+                "conflict_resolution": behavioral_patterns.get(
+                    "conflict_resolution_score", 0
+                ),
             },
             "business_impact": business_impact,
             "team_composition": {
-                "personality_diversity": behavioral_patterns.get("personality_diversity", {}),
+                "personality_diversity": behavioral_patterns.get(
+                    "personality_diversity", {}
+                ),
                 "role_alignment": behavioral_patterns.get("role_alignment", {}),
-                "strength_distribution": behavioral_patterns.get("strength_distribution", {}),
+                "strength_distribution": behavioral_patterns.get(
+                    "strength_distribution", {}
+                ),
                 "risk_factors": behavioral_patterns.get("risk_factors", []),
             },
-            "recommendations": await generate_team_recommendations(team_id, behavioral_patterns),
+            "recommendations": await generate_team_recommendations(
+                team_id, behavioral_patterns
+            ),
             "predictions": predictions,
             "benchmarks": await get_team_benchmarks(team_id, behavioral_patterns),
         }
 
     except Exception as e:
         logger.error(f"Error getting team behavioral insights: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get team insights") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to get team insights"
+        ) from e
 
 
 @router.get("/hr-outcomes/{organization_id}")
@@ -87,7 +103,8 @@ async def get_hr_outcomes_metrics(
     organization_id: int,
     time_period: str = Query("90d", description="Time period: 30d, 90d, 1y"),
     outcome_types: list[str] = Query(
-        ["all"], description="Outcome types: productivity, retention, engagement, innovation"
+        ["all"],
+        description="Outcome types: productivity, retention, engagement, innovation",
     ),
     current_user=Depends(get_current_user),
     db=Depends(get_db),
@@ -103,7 +120,9 @@ async def get_hr_outcomes_metrics(
             )
 
         if "retention" in outcome_types or "all" in outcome_types:
-            hr_metrics["retention"] = await calculate_retention_impact(organization_id, time_period)
+            hr_metrics["retention"] = await calculate_retention_impact(
+                organization_id, time_period
+            )
 
         if "engagement" in outcome_types or "all" in outcome_types:
             hr_metrics["engagement"] = await calculate_engagement_impact(
@@ -123,8 +142,12 @@ async def get_hr_outcomes_metrics(
             "analysis_period": time_period,
             "hr_outcomes": hr_metrics,
             "roi_analysis": roi_analysis,
-            "executive_summary": await generate_executive_summary(organization_id, hr_metrics),
-            "recommendations": await generate_hr_recommendations(organization_id, hr_metrics),
+            "executive_summary": await generate_executive_summary(
+                organization_id, hr_metrics
+            ),
+            "recommendations": await generate_hr_recommendations(
+                organization_id, hr_metrics
+            ),
             "forecast_trends": await forecast_hr_trends(organization_id, hr_metrics),
         }
 
@@ -137,7 +160,9 @@ async def get_hr_outcomes_metrics(
 async def get_turnover_risk_analysis(
     organization_id: int,
     include_interventions: bool = Query(True),
-    risk_threshold: float = Query(0.7, description="Risk threshold for high-risk employees"),
+    risk_threshold: float = Query(
+        0.7, description="Risk threshold for high-risk employees"
+    ),
     current_user=Depends(get_current_user),
     db=Depends(get_db),
 ) -> dict[str, Any]:
@@ -148,11 +173,15 @@ async def get_turnover_risk_analysis(
 
         # Identify high-risk employees
         high_risk_employees = [
-            emp for emp in risk_analysis["employees"] if emp["risk_score"] >= risk_threshold
+            emp
+            for emp in risk_analysis["employees"]
+            if emp["risk_score"] >= risk_threshold
         ]
 
         # Calculate potential financial impact
-        financial_impact = await calculate_turnover_financial_impact(high_risk_employees)
+        financial_impact = await calculate_turnover_financial_impact(
+            high_risk_employees
+        )
 
         # Generate intervention recommendations
         interventions = None
@@ -172,7 +201,9 @@ async def get_turnover_risk_analysis(
             "risk_factors": risk_analysis["risk_factors"],
             "interventions": interventions,
             "success_metrics": {
-                "prevented_turnover_savings": financial_impact["prevented_turnover_savings"],
+                "prevented_turnover_savings": financial_impact[
+                    "prevented_turnover_savings"
+                ],
                 "intervention_cost": financial_impact["intervention_cost"],
                 "intervention_roi": financial_impact["intervention_roi"],
             },
@@ -180,7 +211,9 @@ async def get_turnover_risk_analysis(
 
     except Exception as e:
         logger.error(f"Error getting turnover risk analysis: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get turnover risk") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to get turnover risk"
+        ) from e
 
 
 @router.get("/team-composition-optimizer/{team_id}")
@@ -216,12 +249,16 @@ async def get_team_composition_optimizer(
             "expected_outcomes": await predict_optimization_outcomes(
                 team_id, recommendations, optimization_goal
             ),
-            "implementation_plan": await create_implementation_plan(team_id, recommendations),
+            "implementation_plan": await create_implementation_plan(
+                team_id, recommendations
+            ),
         }
 
     except Exception as e:
         logger.error(f"Error getting team composition optimizer: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get composition optimizer") from e
+        raise HTTPException(
+            status_code=500, detail="Failed to get composition optimizer"
+        ) from e
 
 
 # Helper functions for business impact calculations
@@ -234,8 +271,12 @@ async def calculate_business_impact(
 
     # Calculate productivity impact
     productivity_score = behavioral_patterns.get("collaboration_score", 0)
-    productivity_hours_saved = (productivity_score - 0.5) * 20 * 4  # 20 hours/week * 4 weeks
-    productivity_value = productivity_hours_saved * 75  # $75/hour average fully-loaded cost
+    productivity_hours_saved = (
+        (productivity_score - 0.5) * 20 * 4
+    )  # 20 hours/week * 4 weeks
+    productivity_value = (
+        productivity_hours_saved * 75
+    )  # $75/hour average fully-loaded cost
 
     # Calculate turnover reduction
     stability_score = behavioral_patterns.get("cohesion_score", 0)
@@ -270,7 +311,9 @@ async def calculate_business_impact(
     }
 
 
-async def calculate_productivity_impact(organization_id: int, time_period: str) -> dict[str, Any]:
+async def calculate_productivity_impact(
+    organization_id: int, time_period: str
+) -> dict[str, Any]:
     """Calculate productivity improvements from behavioral insights"""
 
     # Sample implementation - would integrate with actual productivity data
@@ -285,7 +328,10 @@ async def calculate_productivity_impact(organization_id: int, time_period: str) 
             "decisions_faster_per_month": 45,
             "value_per_faster_decision": 500,
         },
-        "collaboration_overhead": {"reduction_percent": 28, "friction_cost_savings": 8500},
+        "collaboration_overhead": {
+            "reduction_percent": 28,
+            "friction_cost_savings": 8500,
+        },
         "total_productivity_gain": {
             "monthly_value": 25700,
             "annual_value": 308400,
@@ -294,7 +340,9 @@ async def calculate_productivity_impact(organization_id: int, time_period: str) 
     }
 
 
-async def calculate_retention_impact(organization_id: int, time_period: str) -> dict[str, Any]:
+async def calculate_retention_impact(
+    organization_id: int, time_period: str
+) -> dict[str, Any]:
     """Calculate retention improvements from behavioral insights"""
 
     return {
@@ -316,7 +364,9 @@ async def calculate_retention_impact(organization_id: int, time_period: str) -> 
     }
 
 
-async def calculate_engagement_impact(organization_id: int, time_period: str) -> dict[str, Any]:
+async def calculate_engagement_impact(
+    organization_id: int, time_period: str
+) -> dict[str, Any]:
     """Calculate employee engagement improvements"""
 
     return {
@@ -338,7 +388,9 @@ async def calculate_engagement_impact(organization_id: int, time_period: str) ->
     }
 
 
-async def calculate_innovation_impact(organization_id: int, time_period: str) -> dict[str, Any]:
+async def calculate_innovation_impact(
+    organization_id: int, time_period: str
+) -> dict[str, Any]:
     """Calculate innovation improvements from team behavioral optimization"""
 
     return {
@@ -360,7 +412,9 @@ async def calculate_innovation_impact(organization_id: int, time_period: str) ->
     }
 
 
-async def calculate_hr_roi(organization_id: int, hr_metrics: dict[str, Any]) -> dict[str, Any]:
+async def calculate_hr_roi(
+    organization_id: int, hr_metrics: dict[str, Any]
+) -> dict[str, Any]:
     """Calculate ROI for HR investment in PsychSync"""
 
     # Calculate total value created

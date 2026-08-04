@@ -9,11 +9,16 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from app.api.v1.deps import get_current_active_user, get_current_admin_user
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.core.responses import APIResponse, get_request_id
-from app.core.security_monitoring import AlertSeverity, AnomalyType, RiskLevel, security_monitor
+from app.core.security_monitoring import (
+    AlertSeverity,
+    AnomalyType,
+    RiskLevel,
+    security_monitor,
+)
 from app.core.structured_logging import EventType, get_logger
 from app.db.models.user import User
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -77,7 +82,8 @@ async def get_security_dashboard(
                 [
                     a
                     for a in alerts
-                    if not a.resolved and a.severity in [AlertSeverity.HIGH, AlertSeverity.CRITICAL]
+                    if not a.resolved
+                    and a.severity in [AlertSeverity.HIGH, AlertSeverity.CRITICAL]
                 ]
             ),
             "resolved_alerts": len([a for a in alerts if a.resolved]),
@@ -99,9 +105,12 @@ async def get_security_dashboard(
         )
 
     except Exception as e:
-        logger.log_error(e, operation="get_security_dashboard", user_id=str(current_user.id))
+        logger.log_error(
+            e, operation="get_security_dashboard", user_id=str(current_user.id)
+        )
         return APIResponse.server_error(
-            message="Failed to retrieve security dashboard data", request_id=get_request_id(request)
+            message="Failed to retrieve security dashboard data",
+            request_id=get_request_id(request),
         )
 
 
@@ -126,16 +135,18 @@ async def get_security_alerts(
             try:
                 severity_enum = AlertSeverity(severity)
             except ValueError:
-                raise HTTPException(status_code=400, detail=f"Invalid severity level: {severity}") from e
-
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid severity level: {severity}"
+                ) from e
 
         anomaly_type_enum = None
         if anomaly_type:
             try:
                 anomaly_type_enum = AnomalyType(anomaly_type)
             except ValueError:
-                raise HTTPException(status_code=400, detail=f"Invalid anomaly type: {anomaly_type}") from e
-
+                raise HTTPException(
+                    status_code=400, detail=f"Invalid anomaly type: {anomaly_type}"
+                ) from e
 
         # Get alerts
         alerts = await security_monitor.get_security_alerts(
@@ -198,9 +209,12 @@ async def get_security_alerts(
     except HTTPException:
         raise
     except Exception as e:
-        logger.log_error(e, operation="get_security_alerts", user_id=str(current_user.id))
+        logger.log_error(
+            e, operation="get_security_alerts", user_id=str(current_user.id)
+        )
         return APIResponse.server_error(
-            message="Failed to retrieve security alerts", request_id=get_request_id(request)
+            message="Failed to retrieve security alerts",
+            request_id=get_request_id(request),
         )
 
 
@@ -219,8 +233,9 @@ async def resolve_security_alert(
         success = await security_monitor.resolve_alert(alert_id, resolution_note)
 
         if not success:
-            raise HTTPException(status_code=404, detail=f"Security alert not found: {alert_id}") from e
-
+            raise HTTPException(
+                status_code=404, detail=f"Security alert not found: {alert_id}"
+            ) from e
 
         logger.info(
             EventType.SECURITY_EVENT,
@@ -246,9 +261,12 @@ async def resolve_security_alert(
     except HTTPException:
         raise
     except Exception as e:
-        logger.log_error(e, operation="resolve_security_alert", user_id=str(current_user.id))
+        logger.log_error(
+            e, operation="resolve_security_alert", user_id=str(current_user.id)
+        )
         return APIResponse.server_error(
-            message="Failed to resolve security alert", request_id=get_request_id(request)
+            message="Failed to resolve security alert",
+            request_id=get_request_id(request),
         )
 
 
@@ -328,9 +346,12 @@ async def get_user_risk_assessment(
         )
 
     except Exception as e:
-        logger.log_error(e, operation="get_user_risk_assessment", user_id=str(current_user.id))
+        logger.log_error(
+            e, operation="get_user_risk_assessment", user_id=str(current_user.id)
+        )
         return APIResponse.server_error(
-            message="Failed to retrieve user risk assessment", request_id=get_request_id(request)
+            message="Failed to retrieve user risk assessment",
+            request_id=get_request_id(request),
         )
 
 
@@ -390,14 +411,20 @@ async def get_threat_intelligence_summary(
         metrics = {
             "total_alerts": len(alerts),
             "unresolved_alerts": len([a for a in alerts if not a.resolved]),
-            "critical_alerts": len([a for a in alerts if a.severity == AlertSeverity.CRITICAL]),
+            "critical_alerts": len(
+                [a for a in alerts if a.severity == AlertSeverity.CRITICAL]
+            ),
             "high_risk_alerts": len([a for a in alerts if a.risk_score >= 70]),
             "unique_users_affected": len(set(a.user_id for a in alerts if a.user_id)),
             "time_period_hours": hours,
-            "average_risk_score": sum(a.risk_score for a in alerts) / len(alerts) if alerts else 0,
-            "security_status": "healthy"
-            if len([a for a in alerts if a.severity == AlertSeverity.CRITICAL]) == 0
-            else "critical",
+            "average_risk_score": (
+                sum(a.risk_score for a in alerts) / len(alerts) if alerts else 0
+            ),
+            "security_status": (
+                "healthy"
+                if len([a for a in alerts if a.severity == AlertSeverity.CRITICAL]) == 0
+                else "critical"
+            ),
         }
 
         # Combine all data
@@ -406,7 +433,9 @@ async def get_threat_intelligence_summary(
             "analysis_period_hours": hours,
             "metrics": metrics,
             "threat_patterns": threat_patterns,
-            "security_recommendations": self._generate_system_recommendations(alerts, metrics),
+            "security_recommendations": self._generate_system_recommendations(
+                alerts, metrics
+            ),
         }
 
         logger.info(
@@ -449,7 +478,9 @@ async def record_security_event(
         ip_address = event_data.get(
             "ip_address", request.client.host if request.client else "unknown"
         )
-        user_agent = event_data.get("user_agent", request.headers.get("user-agent", "unknown"))
+        user_agent = event_data.get(
+            "user_agent", request.headers.get("user-agent", "unknown")
+        )
         success = event_data.get("success", True)
         endpoint = event_data.get("endpoint", str(request.url.path))
         metadata = event_data.get("metadata", {})
@@ -499,13 +530,18 @@ async def record_security_event(
         )
 
     except Exception as e:
-        logger.log_error(e, operation="record_security_event", user_id=str(current_user.id))
+        logger.log_error(
+            e, operation="record_security_event", user_id=str(current_user.id)
+        )
         return APIResponse.server_error(
-            message="Failed to record security event", request_id=get_request_id(request)
+            message="Failed to record security event",
+            request_id=get_request_id(request),
         )
 
 
-def _generate_security_recommendations(risk_level: RiskLevel, user_alerts: list) -> list[str]:
+def _generate_security_recommendations(
+    risk_level: RiskLevel, user_alerts: list
+) -> list[str]:
     """Generate security recommendations based on user risk level and alerts"""
     recommendations = []
 
@@ -529,7 +565,9 @@ def _generate_security_recommendations(risk_level: RiskLevel, user_alerts: list)
         recommendations.append("Force password reset and review account security")
 
     if "multiple_concurrent_sessions" in anomaly_types:
-        recommendations.append("Implement session management and limit concurrent access")
+        recommendations.append(
+            "Implement session management and limit concurrent access"
+        )
 
     if not recommendations:
         recommendations.append("Continue monitoring user activity for anomalies")
@@ -537,7 +575,9 @@ def _generate_security_recommendations(risk_level: RiskLevel, user_alerts: list)
     return recommendations
 
 
-def _generate_system_recommendations(alerts: list, metrics: dict[str, Any]) -> list[str]:
+def _generate_system_recommendations(
+    alerts: list, metrics: dict[str, Any]
+) -> list[str]:
     """Generate system-wide security recommendations"""
     recommendations = []
 
@@ -559,12 +599,18 @@ def _generate_system_recommendations(alerts: list, metrics: dict[str, Any]) -> l
         )
 
     if len([a for a in alerts if a.anomaly_type.value == "brute_force_pattern"]) > 5:
-        recommendations.append("Strengthen authentication mechanisms and implement rate limiting")
+        recommendations.append(
+            "Strengthen authentication mechanisms and implement rate limiting"
+        )
 
     if len([a for a in alerts if a.anomaly_type.value == "impossible_travel"]) > 3:
-        recommendations.append("Review authentication flows and implement additional verification")
+        recommendations.append(
+            "Review authentication flows and implement additional verification"
+        )
 
     if not recommendations:
-        recommendations.append("Security posture is stable - continue routine monitoring")
+        recommendations.append(
+            "Security posture is stable - continue routine monitoring"
+        )
 
     return recommendations

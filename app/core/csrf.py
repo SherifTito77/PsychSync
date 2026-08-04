@@ -75,11 +75,15 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         self.header_name = header_name
 
         # Debug: Log what exclude_paths we're using
-        print(f"🔒 CSRF Middleware initialized with {len(self.exclude_paths)} exclude_paths")
+        print(
+            f"🔒 CSRF Middleware initialized with {len(self.exclude_paths)} exclude_paths"
+        )
         if "/api/v1/simple-login" in self.exclude_paths:
             print("  ✅ /api/v1/simple-login is in exclude_paths")
         else:
-            print(f"  ❌ /api/v1/simple-login NOT in exclude_paths. Paths: {self.exclude_paths}")
+            print(
+                f"  ❌ /api/v1/simple-login NOT in exclude_paths. Paths: {self.exclude_paths}"
+            )
 
     async def dispatch(self, request: Request, call_next):
         # Skip CSRF check for safe paths and safe HTTP methods
@@ -115,7 +119,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
         # Skip based on path
         if any(request.url.path.startswith(path) for path in self.exclude_paths):
-            logger.debug(EventType.SYSTEM_EVENT, f"CSRF check skipped for path: {request.url.path}")
+            logger.debug(
+                EventType.SYSTEM_EVENT,
+                f"CSRF check skipped for path: {request.url.path}",
+            )
             return True
 
         # Skip based on HTTP method (safe methods don't need CSRF protection)
@@ -123,7 +130,9 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if request.method.upper() in safe_methods:
             return True
 
-        logger.debug(EventType.SYSTEM_EVENT, f"CSRF check required for path: {request.url.path}")
+        logger.debug(
+            EventType.SYSTEM_EVENT, f"CSRF check required for path: {request.url.path}"
+        )
         return False
 
     def _requires_csrf_protection(self, request: Request) -> bool:
@@ -136,7 +145,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         """Check if CSRF token should be generated for this request"""
         # Only generate tokens for authenticated users on safe methods
         safe_methods = ["GET", "HEAD"]
-        return request.method.upper() in safe_methods and self._is_authenticated_request(request)
+        return (
+            request.method.upper() in safe_methods
+            and self._is_authenticated_request(request)
+        )
 
     async def _validate_csrf_token(self, request: Request):
         """Validate CSRF token from request"""
@@ -181,7 +193,9 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                     "remote_addr": request.client.host if request.client else None,
                 },
             )
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF token")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF token"
+            )
 
     def _extract_csrf_token(self, request: Request) -> str | None:
         """Extract CSRF token from various sources"""
@@ -229,7 +243,9 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             EventType.SYSTEM_EVENT,
             "CSRF token generated",
             metadata={
-                "session_key_hash": hashlib.sha256(session_key.encode()).hexdigest()[:16],
+                "session_key_hash": hashlib.sha256(session_key.encode()).hexdigest()[
+                    :16
+                ],
                 "token_length": len(token),
             },
         )
@@ -244,7 +260,9 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         stored_token = await cache_get(session_key)
 
         if not stored_token:
-            logger.warning(EventType.AUTHENTICATION, "CSRF token expired or not found in session")
+            logger.warning(
+                EventType.AUTHENTICATION, "CSRF token expired or not found in session"
+            )
             return False
 
         # Use constant-time comparison to prevent timing attacks

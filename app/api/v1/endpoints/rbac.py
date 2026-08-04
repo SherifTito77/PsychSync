@@ -8,21 +8,21 @@ Access: Administrators only
 """
 
 import logging
-from typing import List, Dict, Any, Set
+from typing import Any, Dict, List, Set
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.endpoints.users import get_async_db, get_current_user
 from app.api.dependencies.permissions import require_super_admin
+from app.api.v1.endpoints.users import get_async_db, get_current_user
 from app.db.models.user import User
 from app.services.permission_service import (
-    permission_service,
-    Role,
-    Permission,
     FieldType,
+    Permission,
+    Role,
+    permission_service,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,8 +35,10 @@ router = APIRouter(prefix="/rbac", tags=["rbac-management"])
 # Pydantic Schemas
 # =============================================================================
 
+
 class RoleInfo(BaseModel):
     """Role information"""
+
     name: str
     permissions: Set[str]
     description: str
@@ -44,6 +46,7 @@ class RoleInfo(BaseModel):
 
 class PermissionCheckRequest(BaseModel):
     """Request schema for permission check"""
+
     permission: str
     resource_type: str | None = None
     resource_id: str | None = None
@@ -51,12 +54,14 @@ class PermissionCheckRequest(BaseModel):
 
 class PermissionCheckResponse(BaseModel):
     """Response schema for permission check"""
+
     has_permission: bool
     user_roles: Set[str]
 
 
 class FieldAccessRequest(BaseModel):
     """Request schema for field access check"""
+
     table_name: str
     field_name: str
     action: str = Permission.READ
@@ -64,18 +69,21 @@ class FieldAccessRequest(BaseModel):
 
 class FieldAccessResponse(BaseModel):
     """Response schema for field access check"""
+
     can_access: bool
     reason: str | None = None
 
 
 class AssignRoleRequest(BaseModel):
     """Request schema for role assignment"""
+
     user_id: UUID
     role: str
 
 
 class RevokeRoleRequest(BaseModel):
     """Request schema for role revocation"""
+
     user_id: UUID
     role: str
 
@@ -83,6 +91,7 @@ class RevokeRoleRequest(BaseModel):
 # =============================================================================
 # API Endpoints
 # =============================================================================
+
 
 @router.get("/roles", response_model=List[RoleInfo])
 async def list_roles(
@@ -129,11 +138,13 @@ async def list_roles(
                 Role.TEAM_VIEWER: "Team viewer with read-only access",
             }
 
-            roles.append(RoleInfo(
-                name=role_name,
-                permissions=set(permissions),
-                description=descriptions.get(role_name, ""),
-            ))
+            roles.append(
+                RoleInfo(
+                    name=role_name,
+                    permissions=set(permissions),
+                    description=descriptions.get(role_name, ""),
+                )
+            )
 
         return roles
 
@@ -172,14 +183,16 @@ async def list_permissions(
         permissions = [
             getattr(Permission, attr)
             for attr in dir(Permission)
-            if not attr.startswith('_') and isinstance(getattr(Permission, attr), str)
+            if not attr.startswith("_") and isinstance(getattr(Permission, attr), str)
         ]
 
         return sorted(set(permissions))
 
     except Exception as e:
         logger.error(f"Failed to list permissions: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to list permissions: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list permissions: {str(e)}"
+        )
 
 
 @router.post("/check", response_model=PermissionCheckResponse)
@@ -231,7 +244,9 @@ async def check_permission(
 
     except Exception as e:
         logger.error(f"Failed to check permission: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to check permission: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to check permission: {str(e)}"
+        )
 
 
 @router.post("/check-field-access", response_model=FieldAccessResponse)
@@ -294,7 +309,9 @@ async def check_field_access(
 
     except Exception as e:
         logger.error(f"Failed to check field access: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to check field access: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to check field access: {str(e)}"
+        )
 
 
 @router.get("/protected-fields")
@@ -366,7 +383,9 @@ async def list_protected_fields(
 
     except Exception as e:
         logger.error(f"Failed to list protected fields: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to list protected fields: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list protected fields: {str(e)}"
+        )
 
 
 @router.post("/roles/assign")
@@ -412,8 +431,7 @@ async def assign_role(
 
         if not success:
             raise HTTPException(
-                status_code=400,
-                detail=f"Failed to assign role '{request.role}'"
+                status_code=400, detail=f"Failed to assign role '{request.role}'"
             )
 
         return {
@@ -473,8 +491,7 @@ async def revoke_role(
 
         if not success:
             raise HTTPException(
-                status_code=400,
-                detail=f"Failed to revoke role '{request.role}'"
+                status_code=400, detail=f"Failed to revoke role '{request.role}'"
             )
 
         return {
@@ -538,4 +555,6 @@ async def get_my_permissions(
 
     except Exception as e:
         logger.error(f"Failed to get user permissions: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to get permissions: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get permissions: {str(e)}"
+        )

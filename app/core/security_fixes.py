@@ -3,14 +3,14 @@ Security fixes for critical session vulnerabilities
 This module provides secure, simplified versions of authentication functions
 """
 
-from datetime import datetime, timedelta
 import hashlib
 import secrets
+from datetime import datetime, timedelta
 from typing import Any
 
 import bcrypt
-from fastapi import HTTPException, status
 import jwt
+from fastapi import HTTPException, status
 
 
 class SecureTokenValidator:
@@ -257,7 +257,9 @@ class RateLimiter:
 
         # Remove old attempts outside the window
         user_attempts = [
-            attempt_time for attempt_time in user_attempts if attempt_time > window_start
+            attempt_time
+            for attempt_time in user_attempts
+            if attempt_time > window_start
         ]
 
         # Check if rate limit exceeded
@@ -293,7 +295,8 @@ def get_current_user_from_token(token: str) -> dict[str, Any]:
     """Get current user from token with validation"""
     if not token_validator:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Security not initialized"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Security not initialized",
         )
 
     payload = token_validator.verify_token(token)
@@ -306,18 +309,23 @@ def get_current_user_from_token(token: str) -> dict[str, Any]:
     }
 
 
-def create_secure_token_for_user(user_id: str, email: str, expires_delta: timedelta = None) -> str:
+def create_secure_token_for_user(
+    user_id: str, email: str, expires_delta: timedelta = None
+) -> str:
     """Create secure token for user"""
     if not token_validator:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Security not initialized"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Security not initialized",
         )
 
     # Create access token with custom or default expiration
     if expires_delta is None:
         expires_delta = timedelta(minutes=30)
 
-    token = token_validator.create_access_token(subject=user_id, expires_delta=expires_delta)
+    token = token_validator.create_access_token(
+        subject=user_id, expires_delta=expires_delta
+    )
 
     return token
 
@@ -358,9 +366,12 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify password against hash"""
     try:
-        return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"), hashed_password.encode("utf-8")
+        )
     except (ValueError, TypeError) as e:
         # Log specific errors for security auditing
         import logging
+
         logging.warning(f"Password verification error: {type(e).__name__}")
         return False

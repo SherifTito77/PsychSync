@@ -4,28 +4,29 @@ Penetration Testing Security Validation
 Comprehensive penetration testing checklist and validation framework
 """
 
-import pytest
 import asyncio
-import time
-import threading
-import requests
+import base64
 import hashlib
 import hmac
-import base64
 import json
-from datetime import datetime, timedelta
-from typing import Dict, Any, List
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
+from typing import Any, Dict, List
+
+import pytest
+import requests
 from fastapi.testclient import TestClient
 
+from app.core.config import settings
 from app.main import app
 from app.services.security import (
-create_token_pair,
-    verify_token,
+    create_token_pair,
     get_password_hash,
-    verify_password
+    verify_password,
+    verify_token,
 )
-from app.core.config import settings
 
 # Test client
 client = TestClient(app)
@@ -44,7 +45,7 @@ class PenetrationTestFramework:
             "test": test_name,
             "passed": passed,
             "details": details,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.utcnow().isoformat(),
         }
         self.results.append(result)
 
@@ -63,7 +64,7 @@ class PenetrationTestFramework:
             "failed": failed_tests,
             "pass_rate": (passed_tests / total_tests * 100) if total_tests > 0 else 0,
             "vulnerabilities": len(self.vulnerabilities_found),
-            "vulnerability_details": self.vulnerabilities_found
+            "vulnerability_details": self.vulnerabilities_found,
         }
 
 
@@ -78,8 +79,16 @@ class TestPasswordBruteForcePrevention:
         """Test protection against password brute force attacks"""
         email = "test@example.com"
         password_attempts = [
-            "password1", "password2", "password3", "password4", "password5",
-            "password6", "password7", "password8", "password9", "password10"
+            "password1",
+            "password2",
+            "password3",
+            "password4",
+            "password5",
+            "password6",
+            "password7",
+            "password8",
+            "password9",
+            "password10",
         ]
 
         # Make multiple login attempts with different passwords
@@ -87,16 +96,15 @@ class TestPasswordBruteForcePrevention:
         lockout_encountered = False
 
         for password in password_attempts:
-            login_data = {
-                "username": email,
-                "password": password
-            }
+            login_data = {"username": email, "password": password}
 
             response = client.post("/api/v1/token", data=login_data)
 
             if response.status_code == 200:
                 success_count += 1
-            elif "lockout" in response.text.lower() or "locked" in response.text.lower():
+            elif (
+                "lockout" in response.text.lower() or "locked" in response.text.lower()
+            ):
                 lockout_encountered = True
                 break
 
@@ -104,7 +112,7 @@ class TestPasswordBruteForcePrevention:
         pen_test.log_test_result(
             "Password Brute Force Protection",
             success_count == 0 and lockout_encountered,
-            f"Successful logins: {success_count}, Lockout encountered: {lockout_encountered}"
+            f"Successful logins: {success_count}, Lockout encountered: {lockout_encountered}",
         )
 
     def test_account_lockout_persistence(self):
@@ -113,22 +121,23 @@ class TestPasswordBruteForcePrevention:
 
         # Trigger lockout with failed attempts
         for i in range(settings.MAX_LOGIN_ATTEMPTS + 1):
-            response = client.post("/api/v1/token", data={
-                "username": email,
-                "password": f"wrong_password_{i}"
-            })
+            response = client.post(
+                "/api/v1/token",
+                data={"username": email, "password": f"wrong_password_{i}"},
+            )
 
         # Verify lockout message appears
-        response = client.post("/api/v1/token", data={
-            "username": email,
-            "password": "any_password"
-        })
+        response = client.post(
+            "/api/v1/token", data={"username": email, "password": "any_password"}
+        )
 
-        is_locked = "lockout" in response.text.lower() or "locked" in response.text.lower()
+        is_locked = (
+            "lockout" in response.text.lower() or "locked" in response.text.lower()
+        )
         pen_test.log_test_result(
             "Account Lockout Persistence",
             is_locked,
-            f"Lockout message present: {is_locked}"
+            f"Lockout message present: {is_locked}",
         )
 
     def test_brute_force_timing_protection(self):
@@ -156,12 +165,14 @@ class TestPasswordBruteForcePrevention:
         avg_incorrect = sum(incorrect_times) / len(incorrect_times)
 
         # Times should be similar (within reasonable variance)
-        time_diff_ratio = abs(avg_correct - avg_incorrect) / max(avg_correct, avg_incorrect, 0.001)
+        time_diff_ratio = abs(avg_correct - avg_incorrect) / max(
+            avg_correct, avg_incorrect, 0.001
+        )
 
         pen_test.log_test_result(
             "Brute Force Timing Protection",
             time_diff_ratio < 0.5,  # Less than 50% difference
-            f"Time difference ratio: {time_diff_ratio:.3f}"
+            f"Time difference ratio: {time_diff_ratio:.3f}",
         )
 
 
@@ -181,7 +192,7 @@ class TestJWTTokenTampering:
         if len(parts) == 3:
             # Decode payload (base64url)
             try:
-                payload_data = base64.urlsafe_b64decode(parts[1] + '==')
+                payload_data = base64.urlsafe_b64decode(parts[1] + "==")
                 payload = json.loads(payload_data)
 
                 # Modify user role in payload
@@ -189,30 +200,33 @@ class TestJWTTokenTampering:
                 payload["role"] = "admin"
 
                 # Re-encode modified payload
-                modified_payload = base64.urlsafe_b64encode(
-                    json.dumps(payload).encode()
-                ).decode().rstrip('=')
+                modified_payload = (
+                    base64.urlsafe_b64encode(json.dumps(payload).encode())
+                    .decode()
+                    .rstrip("=")
+                )
 
                 # Reconstruct token with modified payload
                 tampered_token = parts[0] + "." + modified_payload + "." + parts[2]
 
                 # Try to use tampered token
-                response = client.get("/api/v1/users/me", headers={
-                    "Authorization": f"Bearer {tampered_token}"
-                })
+                response = client.get(
+                    "/api/v1/users/me",
+                    headers={"Authorization": f"Bearer {tampered_token}"},
+                )
 
                 # Should reject tampered token
                 pen_test.log_test_result(
                     "JWT Payload Manipulation Protection",
                     response.status_code in [401, 403, 422],
-                    f"Response status: {response.status_code}"
+                    f"Response status: {response.status_code}",
                 )
 
             except Exception as e:
                 pen_test.log_test_result(
                     "JWT Payload Manipulation Protection",
                     True,  # Exception indicates protection is working
-                    f"Exception during tampering: {str(e)[:100]}"
+                    f"Exception during tampering: {str(e)[:100]}",
                 )
 
     def test_token_signature_forgery(self):
@@ -231,14 +245,14 @@ class TestJWTTokenTampering:
             fake_token = parts[0] + "." + parts[1] + "." + fake_signature
 
             # Try to use fake token
-            response = client.get("/api/v1/users/me", headers={
-                "Authorization": f"Bearer {fake_token}"
-            })
+            response = client.get(
+                "/api/v1/users/me", headers={"Authorization": f"Bearer {fake_token}"}
+            )
 
             pen_test.log_test_result(
                 "JWT Signature Forgery Protection",
                 response.status_code in [401, 403],
-                f"Response status: {response.status_code}"
+                f"Response status: {response.status_code}",
             )
 
     def test_token_algorithm_substitution(self):
@@ -253,28 +267,33 @@ class TestJWTTokenTampering:
 
             # Encode without signature (algorithm=none)
             malicious_token = (
-                base64.urlsafe_b64encode(json.dumps(header).encode()).decode().rstrip('=') +
-                "." +
-                base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip('=') +
-                "."  # Empty signature
+                base64.urlsafe_b64encode(json.dumps(header).encode())
+                .decode()
+                .rstrip("=")
+                + "."
+                + base64.urlsafe_b64encode(json.dumps(payload).encode())
+                .decode()
+                .rstrip("=")
+                + "."  # Empty signature
             )
 
             # Try to use malicious token
-            response = client.get("/api/v1/users/me", headers={
-                "Authorization": f"Bearer {malicious_token}"
-            })
+            response = client.get(
+                "/api/v1/users/me",
+                headers={"Authorization": f"Bearer {malicious_token}"},
+            )
 
             pen_test.log_test_result(
                 "JWT Algorithm Substitution Protection",
                 response.status_code in [401, 403],
-                f"Response status: {response.status_code}"
+                f"Response status: {response.status_code}",
             )
 
         except Exception as e:
             pen_test.log_test_result(
                 "JWT Algorithm Substitution Protection",
                 True,  # Exception indicates protection
-                f"Exception: {str(e)[:100]}"
+                f"Exception: {str(e)[:100]}",
             )
 
     def test_token_replay_attacks(self):
@@ -286,21 +305,21 @@ class TestJWTTokenTampering:
         access_token = tokens["access_token"]
 
         # Use token successfully first time
-        response1 = client.get("/api/v1/users/me", headers={
-            "Authorization": f"Bearer {access_token}"
-        })
+        response1 = client.get(
+            "/api/v1/users/me", headers={"Authorization": f"Bearer {access_token}"}
+        )
 
         # Try to replay the same token
-        response2 = client.get("/api/v1/users/me", headers={
-            "Authorization": f"Bearer {access_token}"
-        })
+        response2 = client.get(
+            "/api/v1/users/me", headers={"Authorization": f"Bearer {access_token}"}
+        )
 
         # Replay protection depends on implementation
         # Some systems allow token reuse, others prevent it
         pen_test.log_test_result(
             "JWT Token Replay Protection",
             True,  # Mark as passed if no vulnerabilities are obvious
-            f"First use: {response1.status_code}, Replay: {response2.status_code}"
+            f"First use: {response1.status_code}, Replay: {response2.status_code}",
         )
 
 
@@ -310,16 +329,16 @@ class TestCSRFAttackPrevention:
     def test_csrf_token_validation(self):
         """Test CSRF token validation for state-changing requests"""
         # Test POST request without CSRF token
-        response = client.post("/api/v1/users/me", json={
-            "email": "newemail@example.com"
-        })
+        response = client.post(
+            "/api/v1/users/me", json={"email": "newemail@example.com"}
+        )
 
         # Should require CSRF token for authenticated state-changing requests
         # (Implementation dependent - might return 401 if not authenticated)
         pen_test.log_test_result(
             "CSRF Token Required for State Changes",
             response.status_code in [401, 403, 422],
-            f"Response status: {response.status_code}"
+            f"Response status: {response.status_code}",
         )
 
     def test_csrf_token_binding(self):
@@ -337,16 +356,13 @@ class TestCSRFAttackPrevention:
         pen_test.log_test_result(
             "CSRF Token Session Binding",
             has_csrf_middleware,
-            f"CSRF middleware configured: {has_csrf_middleware}"
+            f"CSRF middleware configured: {has_csrf_middleware}",
         )
 
     def test_csrf_referer_validation(self):
         """Test CSRF referer header validation"""
         # Test request with suspicious referer
-        headers = {
-            "Referer": "http://evil-site.com",
-            "Origin": "http://evil-site.com"
-        }
+        headers = {"Referer": "http://evil-site.com", "Origin": "http://evil-site.com"}
 
         response = client.post("/api/v1/users/me", json={}, headers=headers)
 
@@ -354,7 +370,7 @@ class TestCSRFAttackPrevention:
         pen_test.log_test_result(
             "CSRF Referer Validation",
             response.status_code in [401, 403, 422],
-            f"Response status: {response.status_code}"
+            f"Response status: {response.status_code}",
         )
 
 
@@ -371,17 +387,16 @@ class TestSQLInjectionPrevention:
             "admin' OR 1=1#",
             "admin' OR 'x'='x",
             "'; UPDATE users SET password='hacked' WHERE email='admin'; --",
-            "admin'; DELETE FROM users WHERE '1'='1'; --"
+            "admin'; DELETE FROM users WHERE '1'='1'; --",
         ]
 
         vulnerabilities_detected = 0
 
         for payload in sql_injection_payloads:
             # Test in username field
-            response = client.post("/api/v1/token", data={
-                "username": payload,
-                "password": "password123"
-            })
+            response = client.post(
+                "/api/v1/token", data={"username": payload, "password": "password123"}
+            )
 
             # Should not cause database errors or successful authentication
             if response.status_code == 500:
@@ -391,10 +406,10 @@ class TestSQLInjectionPrevention:
                 vulnerabilities_detected += 1
 
             # Test in password field
-            response = client.post("/api/v1/token", data={
-                "username": "admin@example.com",
-                "password": payload
-            })
+            response = client.post(
+                "/api/v1/token",
+                data={"username": "admin@example.com", "password": payload},
+            )
 
             if response.status_code == 500:
                 vulnerabilities_detected += 1
@@ -404,7 +419,7 @@ class TestSQLInjectionPrevention:
         pen_test.log_test_result(
             "SQL Injection Prevention",
             vulnerabilities_detected == 0,
-            f"Vulnerabilities detected: {vulnerabilities_detected}"
+            f"Vulnerabilities detected: {vulnerabilities_detected}",
         )
 
     def test_blind_sql_injection(self):
@@ -413,15 +428,14 @@ class TestSQLInjectionPrevention:
         time_payloads = [
             "admin'; WAITFOR DELAY '00:00:05' --",
             "admin' AND (SELECT COUNT(*) FROM users) > 0 --",
-            "admin' OR (SELECT SLEEP(5)) --"
+            "admin' OR (SELECT SLEEP(5)) --",
         ]
 
         for payload in time_payloads:
             start_time = time.time()
-            response = client.post("/api/v1/token", data={
-                "username": payload,
-                "password": "password123"
-            })
+            response = client.post(
+                "/api/v1/token", data={"username": payload, "password": "password123"}
+            )
             end_time = time.time()
 
             # Request should complete quickly (not delayed by sleep commands)
@@ -431,14 +445,14 @@ class TestSQLInjectionPrevention:
                 pen_test.log_test_result(
                     "Blind SQL Injection Prevention",
                     False,
-                    f"Possible time-based injection detected (response time: {response_time:.2f}s)"
+                    f"Possible time-based injection detected (response time: {response_time:.2f}s)",
                 )
                 return
 
         pen_test.log_test_result(
             "Blind SQL Injection Prevention",
             True,
-            "No time-based SQL injection detected"
+            "No time-based SQL injection detected",
         )
 
 
@@ -455,17 +469,16 @@ class TestXSSPrevention:
             "';alert('XSS');//",
             "<iframe src=javascript:alert('XSS')>",
             "<body onload=alert('XSS')>",
-            "';document.location='http://evil.com';//"
+            "';document.location='http://evil.com';//",
         ]
 
         vulnerabilities_detected = 0
 
         for payload in xss_payloads:
             # Test in authentication response
-            response = client.post("/api/v1/token", data={
-                "username": payload,
-                "password": "password123"
-            })
+            response = client.post(
+                "/api/v1/token", data={"username": payload, "password": "password123"}
+            )
 
             # Check if XSS payload is reflected unescaped
             response_text = response.text.lower()
@@ -476,7 +489,7 @@ class TestXSSPrevention:
         pen_test.log_test_result(
             "Reflected XSS Prevention",
             vulnerabilities_detected == 0,
-            f"XSS vulnerabilities detected: {vulnerabilities_detected}"
+            f"XSS vulnerabilities detected: {vulnerabilities_detected}",
         )
 
     def test_content_type_sniffing_prevention(self):
@@ -484,15 +497,17 @@ class TestXSSPrevention:
         # Request with suspicious content type
         headers = {"Content-Type": "text/html"}
 
-        response = client.post("/api/v1/token",
-                             data={"username": "test@example.com", "password": "password123"},
-                             headers=headers)
+        response = client.post(
+            "/api/v1/token",
+            data={"username": "test@example.com", "password": "password123"},
+            headers=headers,
+        )
 
         # Should handle content type properly
         pen_test.log_test_result(
             "Content-Type Sniffing Prevention",
             response.status_code != 500,
-            f"Response status: {response.status_code}"
+            f"Response status: {response.status_code}",
         )
 
     def test_xss_in_error_messages(self):
@@ -500,11 +515,14 @@ class TestXSSPrevention:
         xss_payload = "<script>alert('XSS')</script>"
 
         # Test with XSS payload in various fields
-        response = client.post("/api/v1/register", json={
-            "email": "test@example.com",
-            "password": "password123",
-            "full_name": xss_payload
-        })
+        response = client.post(
+            "/api/v1/register",
+            json={
+                "email": "test@example.com",
+                "password": "password123",
+                "full_name": xss_payload,
+            },
+        )
 
         # Error messages should not contain unescaped XSS
         response_text = response.text.lower()
@@ -513,7 +531,7 @@ class TestXSSPrevention:
         pen_test.log_test_result(
             "XSS in Error Messages Prevention",
             not has_xss,
-            f"XSS found in response: {has_xss}"
+            f"XSS found in response: {has_xss}",
         )
 
 
@@ -530,7 +548,7 @@ class TestSessionFixationPrevention:
         pen_test.log_test_result(
             "Session Regeneration on Login",
             has_session_manager,
-            f"Session manager implemented: {has_session_manager}"
+            f"Session manager implemented: {has_session_manager}",
         )
 
     def test_session_token_randomness(self):
@@ -539,10 +557,7 @@ class TestSessionFixationPrevention:
 
         # Generate multiple session IDs to test randomness
         session_ids = []
-        headers = {
-            "User-Agent": "Test Browser",
-            "Accept": "application/json"
-        }
+        headers = {"User-Agent": "Test Browser", "Accept": "application/json"}
 
         for i in range(5):
             # Change user agent slightly for each session
@@ -557,20 +572,20 @@ class TestSessionFixationPrevention:
         pen_test.log_test_result(
             "Session Token Randomness",
             unique_sessions == len(session_ids),
-            f"Unique session IDs: {unique_sessions}/{len(session_ids)}"
+            f"Unique session IDs: {unique_sessions}/{len(session_ids)}",
         )
 
     def test_session_expiration_handling(self):
         """Test session expiration handling"""
         # Test with expired session would require time manipulation
         # For now, test that session duration is configured
-        session_duration = getattr(settings, 'SESSION_DURATION_HOURS', 24)
+        session_duration = getattr(settings, "SESSION_DURATION_HOURS", 24)
         has_duration = session_duration > 0
 
         pen_test.log_test_result(
             "Session Expiration Handling",
             has_duration,
-            f"Session duration configured: {session_duration} hours"
+            f"Session duration configured: {session_duration} hours",
         )
 
 
@@ -593,7 +608,7 @@ class TestDenialOfServiceProtection:
         pen_test.log_test_result(
             "Rate Limiting Enforcement",
             rate_limited,  # Should be rate limited eventually
-            f"Rate limiting enforced: {rate_limited}"
+            f"Rate limiting enforced: {rate_limited}",
         )
 
     def test_large_request_payload_protection(self):
@@ -601,25 +616,27 @@ class TestDenialOfServiceProtection:
         # Create very large payload
         large_payload = "A" * 10_000_000  # 10MB
 
-        response = client.post("/api/v1/token", data={
-            "username": "test@example.com",
-            "password": large_payload
-        })
+        response = client.post(
+            "/api/v1/token",
+            data={"username": "test@example.com", "password": large_payload},
+        )
 
         # Should handle large payloads gracefully
         pen_test.log_test_result(
             "Large Request Payload Protection",
-            response.status_code in [413, 422, 400],  # Payload too large or validation error
-            f"Response status: {response.status_code}"
+            response.status_code
+            in [413, 422, 400],  # Payload too large or validation error
+            f"Response status: {response.status_code}",
         )
 
     def test_concurrent_request_protection(self):
         """Test protection against concurrent request attacks"""
+
         def make_request():
-            return client.post("/api/v1/token", data={
-                "username": "test@example.com",
-                "password": "password123"
-            })
+            return client.post(
+                "/api/v1/token",
+                data={"username": "test@example.com", "password": "password123"},
+            )
 
         # Make concurrent requests
         with ThreadPoolExecutor(max_workers=10) as executor:
@@ -632,7 +649,7 @@ class TestDenialOfServiceProtection:
         pen_test.log_test_result(
             "Concurrent Request Protection",
             server_errors == 0,
-            f"Server errors in concurrent requests: {server_errors}"
+            f"Server errors in concurrent requests: {server_errors}",
         )
 
 
@@ -647,7 +664,7 @@ class TestAuthenticationBypass:
         pen_test.log_test_result(
             "Missing Token Protection",
             response.status_code == 401,
-            f"Response status: {response.status_code}"
+            f"Response status: {response.status_code}",
         )
 
     def test_invalid_token_protection(self):
@@ -658,44 +675,41 @@ class TestAuthenticationBypass:
             "",
             "null",
             "undefined",
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid.signature"
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid.signature",
         ]
 
         for token in invalid_tokens:
-            response = client.get("/api/v1/users/me", headers={
-                "Authorization": f"Bearer {token}"
-            })
+            response = client.get(
+                "/api/v1/users/me", headers={"Authorization": f"Bearer {token}"}
+            )
 
             if response.status_code != 401:
                 pen_test.log_test_result(
                     "Invalid Token Protection",
                     False,
-                    f"Invalid token accepted: {token}"
+                    f"Invalid token accepted: {token}",
                 )
                 return
 
         pen_test.log_test_result(
-            "Invalid Token Protection",
-            True,
-            "All invalid tokens properly rejected"
+            "Invalid Token Protection", True, "All invalid tokens properly rejected"
         )
 
     def test_expired_token_protection(self):
         """Test protection against expired tokens"""
         # Create expired token
         expired_token = create_token_pair(
-            "test@example.com",
-            access_expires_delta=timedelta(seconds=-1)  # Expired
+            "test@example.com", access_expires_delta=timedelta(seconds=-1)  # Expired
         )["access_token"]
 
-        response = client.get("/api/v1/users/me", headers={
-            "Authorization": f"Bearer {expired_token}"
-        })
+        response = client.get(
+            "/api/v1/users/me", headers={"Authorization": f"Bearer {expired_token}"}
+        )
 
         pen_test.log_test_result(
             "Expired Token Protection",
             response.status_code == 401,
-            f"Response status: {response.status_code}"
+            f"Response status: {response.status_code}",
         )
 
     def test_privilege_escalation_protection(self):
@@ -704,16 +718,16 @@ class TestAuthenticationBypass:
         user_token = create_token_pair("user@example.com")["access_token"]
 
         # Try to access admin endpoint (if exists)
-        response = client.get("/api/v1/admin/users", headers={
-            "Authorization": f"Bearer {user_token}"
-        })
+        response = client.get(
+            "/api/v1/admin/users", headers={"Authorization": f"Bearer {user_token}"}
+        )
 
         # Should not allow access to admin endpoints
         # (404 is acceptable if endpoint doesn't exist, 403 if it exists but access denied)
         pen_test.log_test_result(
             "Privilege Escalation Protection",
             response.status_code in [401, 403, 404],
-            f"Response status: {response.status_code}"
+            f"Response status: {response.status_code}",
         )
 
 
@@ -729,8 +743,8 @@ class TestPenetrationTestingFramework:
     def test_framework_setup(self):
         """Test that the penetration testing framework is properly set up"""
         assert pen_test is not None
-        assert hasattr(pen_test, 'results')
-        assert hasattr(pen_test, 'vulnerabilities_found')
+        assert hasattr(pen_test, "results")
+        assert hasattr(pen_test, "vulnerabilities_found")
 
     def test_test_logging(self):
         """Test that test results are properly logged"""
@@ -751,12 +765,11 @@ def run_penetration_tests():
     import subprocess
     import sys
 
-    result = subprocess.run([
-        sys.executable, "-m", "pytest",
-        __file__,
-        "-v",
-        "--tb=short"
-    ], capture_output=True, text=True)
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", __file__, "-v", "--tb=short"],
+        capture_output=True,
+        text=True,
+    )
 
     print(result.stdout)
     if result.stderr:
@@ -775,9 +788,9 @@ def run_penetration_tests():
     print(f"Pass Rate: {summary['pass_rate']:.1f}%")
     print(f"Vulnerabilities Found: {summary['vulnerabilities']}")
 
-    if summary['vulnerabilities'] > 0:
+    if summary["vulnerabilities"] > 0:
         print("\n🚨 VULNERABILITIES DETECTED:")
-        for vuln in summary['vulnerability_details']:
+        for vuln in summary["vulnerability_details"]:
             print(f"  ❌ {vuln['test']}: {vuln['details']}")
     else:
         print("\n✅ NO VULNERABILITIES DETECTED")
@@ -792,4 +805,4 @@ if __name__ == "__main__":
     results = run_penetration_tests()
 
     # Exit with appropriate code
-    sys.exit(0 if results['vulnerabilities'] == 0 else 1)
+    sys.exit(0 if results["vulnerabilities"] == 0 else 1)

@@ -15,23 +15,28 @@ Author: QA Team
 Version: 1.0 Service Layer Testing
 """
 
-import pytest
 import asyncio
 import json
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from sqlalchemy.ext.asyncio import AsyncSession
 from dataclasses import asdict
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
-from app.services.onboarding_service import OnboardingService
-from app.services.analytics_service import AnalyticsService
-from app.schemas.onboarding import (
-    UserRole, TeamChallenge, QuickAssessmentRequest,
-    QuickInsights, Recommendation, TeamProfile
-)
-from app.db.models.user import User, UserRole
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.db.models.team import Team
+from app.db.models.user import User, UserRole
+from app.schemas.onboarding import (
+    QuickAssessmentRequest,
+    QuickInsights,
+    Recommendation,
+    TeamChallenge,
+    TeamProfile,
+    UserRole,
+)
+from app.services.analytics_service import AnalyticsService
+from app.services.onboarding_service import OnboardingService
 
 
 class TestOnboardingService:
@@ -68,8 +73,18 @@ class TestOnboardingService:
     @pytest.mark.asyncio
     async def test_generate_quick_insights_all_roles(self, onboarding_service):
         """Test quick insights generation for all user roles"""
-        roles = [UserRole.MANAGER, UserRole.HR, UserRole.LEAD, UserRole.MEMBER, UserRole.EXECUTIVE]
-        challenges = [TeamChallenge.COMMUNICATION, TeamChallenge.PRODUCTIVITY, TeamChallenge.TURNOVER]
+        roles = [
+            UserRole.MANAGER,
+            UserRole.HR,
+            UserRole.LEAD,
+            UserRole.MEMBER,
+            UserRole.EXECUTIVE,
+        ]
+        challenges = [
+            TeamChallenge.COMMUNICATION,
+            TeamChallenge.PRODUCTIVITY,
+            TeamChallenge.TURNOVER,
+        ]
 
         insights_results = []
 
@@ -80,29 +95,33 @@ class TestOnboardingService:
                     challenge=challenge,
                     team_size="5-10",
                     industry="technology",
-                    user_id=None
+                    user_id=None,
                 )
 
                 insights_results.append(insights)
 
                 # Verify insights structure
-                assert hasattr(insights, 'primary_benefit')
-                assert hasattr(insights, 'recommendations')
-                assert hasattr(insights, 'conversion_probability')
+                assert hasattr(insights, "primary_benefit")
+                assert hasattr(insights, "recommendations")
+                assert hasattr(insights, "conversion_probability")
                 assert isinstance(insights.conversion_probability, float)
                 assert 0 <= insights.conversion_probability <= 1
                 assert len(insights.recommendations) > 0
 
                 # Verify role-specific content
-                assert role.value.lower() in insights.primary_benefit.lower() or \
-                       challenge.value.lower() in insights.primary_benefit.lower()
+                assert (
+                    role.value.lower() in insights.primary_benefit.lower()
+                    or challenge.value.lower() in insights.primary_benefit.lower()
+                )
 
         # Ensure all role-challenge combinations produce unique insights
         primary_benefits = [insights.primary_benefit for insights in insights_results]
         assert len(set(primary_benefits)) >= len(roles)  # At least some variety
 
     @pytest.mark.asyncio
-    async def test_generate_quick_insights_team_size_variations(self, onboarding_service):
+    async def test_generate_quick_insights_team_size_variations(
+        self, onboarding_service
+    ):
         """Test insights generation for different team sizes"""
         team_sizes = ["1-5", "5-10", "10-20", "20-50", "50+"]
 
@@ -112,7 +131,7 @@ class TestOnboardingService:
                 challenge=TeamChallenge.COMMUNICATION,
                 team_size=size,
                 industry="technology",
-                user_id=None
+                user_id=None,
             )
 
             # Larger teams should have different recommendations
@@ -124,12 +143,14 @@ class TestOnboardingService:
                 assert recommendation.effort in ["Low", "Medium", "High"]
 
     @pytest.mark.asyncio
-    async def test_generate_detailed_team_insights(self, onboarding_service, sample_user, sample_team):
+    async def test_generate_detailed_team_insights(
+        self, onboarding_service, sample_user, sample_team
+    ):
         """Test detailed team insights generation"""
         assessment_data = {
             "communication_style": "collaborative",
             "decision_making": "consensus",
-            "conflict_resolution": "open_discussion"
+            "conflict_resolution": "open_discussion",
         }
 
         team_composition = [
@@ -137,17 +158,17 @@ class TestOnboardingService:
                 "role": "developer",
                 "experience": 5,
                 "personality": "analytical",
-                "communication_preference": "written"
+                "communication_preference": "written",
             },
             {
                 "role": "designer",
                 "experience": 3,
                 "personality": "creative",
-                "communication_preference": "visual"
-            }
+                "communication_preference": "visual",
+            },
         ]
 
-        with patch('app.services.onboarding_service.TeamService') as mock_team_service:
+        with patch("app.services.onboarding_service.TeamService") as mock_team_service:
             mock_team_service.get_team_by_id.return_value = sample_team
             mock_team_service.get_team_members.return_value = team_composition
 
@@ -155,15 +176,15 @@ class TestOnboardingService:
                 user_id=sample_user.id,
                 team_id=sample_team.id,
                 assessment_data=assessment_data,
-                team_composition=team_composition
+                team_composition=team_composition,
             )
 
             # Verify detailed insights structure
-            assert hasattr(insights, 'team_profile')
-            assert hasattr(insights, 'detailed_insights')
-            assert hasattr(insights, 'action_items')
-            assert hasattr(insights, 'predicted_outcomes')
-            assert hasattr(insights, 'implementation_roadmap')
+            assert hasattr(insights, "team_profile")
+            assert hasattr(insights, "detailed_insights")
+            assert hasattr(insights, "action_items")
+            assert hasattr(insights, "predicted_outcomes")
+            assert hasattr(insights, "implementation_roadmap")
 
             # Verify team profile
             team_profile = insights.team_profile
@@ -174,9 +195,13 @@ class TestOnboardingService:
     @pytest.mark.asyncio
     async def test_get_onboarding_status(self, onboarding_service, sample_user):
         """Test onboarding status retrieval"""
-        with patch('app.services.onboarding_service.UserService') as mock_user_service, \
-             patch('app.services.onboarding_service.TeamService') as mock_team_service, \
-             patch('app.services.onboarding_service.AssessmentService') as mock_assessment_service:
+        with patch(
+            "app.services.onboarding_service.UserService"
+        ) as mock_user_service, patch(
+            "app.services.onboarding_service.TeamService"
+        ) as mock_team_service, patch(
+            "app.services.onboarding_service.AssessmentService"
+        ) as mock_assessment_service:
 
             # Mock user data
             mock_user_service.get_user_by_id.return_value = sample_user
@@ -204,34 +229,36 @@ class TestOnboardingService:
                 "data": {
                     "industry": "technology",
                     "company_size": "50-100",
-                    "primary_goal": "team_communication"
-                }
+                    "primary_goal": "team_communication",
+                },
             },
             {
                 "step": "team",
                 "data": {
                     "team_name": "Engineering",
                     "team_size": 10,
-                    "department": "Technology"
-                }
+                    "department": "Technology",
+                },
             },
             {
                 "step": "assessment",
                 "data": {
                     "assessment_type": "team_dynamics",
-                    "participants": ["user1", "user2"]
-                }
-            }
+                    "participants": ["user1", "user2"],
+                },
+            },
         ]
 
         for step_data in setup_steps:
-            with patch('app.services.onboarding_service.UserService') as mock_user_service:
+            with patch(
+                "app.services.onboarding_service.UserService"
+            ) as mock_user_service:
                 mock_user_service.update_user_profile.return_value = True
 
                 result = await onboarding_service.process_setup_step(
                     user_id=sample_user.id,
                     step=step_data["step"],
-                    data=step_data["data"]
+                    data=step_data["data"],
                 )
 
                 # Verify step processing result
@@ -242,8 +269,11 @@ class TestOnboardingService:
     @pytest.mark.asyncio
     async def test_calculate_value_metrics(self, onboarding_service, sample_user):
         """Test value metrics calculation"""
-        with patch('app.services.onboarding_service.AnalyticsService') as mock_analytics, \
-             patch('app.services.onboarding_service.TeamService') as mock_team_service:
+        with patch(
+            "app.services.onboarding_service.AnalyticsService"
+        ) as mock_analytics, patch(
+            "app.services.onboarding_service.TeamService"
+        ) as mock_team_service:
 
             # Mock team data
             mock_team = Mock()
@@ -256,7 +286,7 @@ class TestOnboardingService:
                 "productivity_score": 0.75,
                 "communication_score": 0.80,
                 "collaboration_score": 0.70,
-                "improvement_rate": 0.15
+                "improvement_rate": 0.15,
             }
 
             metrics = await onboarding_service.calculate_value_metrics(sample_user.id)
@@ -298,10 +328,10 @@ class TestAnalyticsService:
             "role": "manager",
             "challenge": "communication",
             "team_size": "5-10",
-            "conversion_probability": 0.75
+            "conversion_probability": 0.75,
         }
 
-        with patch('app.core.redis_client.get_redis_client') as mock_redis:
+        with patch("app.core.redis_client.get_redis_client") as mock_redis:
             mock_client = AsyncMock()
             mock_redis.return_value = mock_client
 
@@ -314,7 +344,7 @@ class TestAnalyticsService:
                 event_type="quick_assessment_completed",
                 user_id="test-user-uuid",
                 session_id="test-session-123",
-                data=event_data
+                data=event_data,
             )
 
             assert result is True
@@ -326,10 +356,10 @@ class TestAnalyticsService:
         invalid_data = {
             "malicious_payload": "'; DROP TABLE events; --",
             "large_data": "x" * 10000,  # Should be truncated
-            "nested_object": {"deep": {"very": {"deep": {"data": "test"}}}}
+            "nested_object": {"deep": {"very": {"deep": {"data": "test"}}}},
         }
 
-        with patch('app.core.redis_client.get_redis_client') as mock_redis:
+        with patch("app.core.redis_client.get_redis_client") as mock_redis:
             mock_client = AsyncMock()
             mock_redis.return_value = mock_client
             mock_client.setex.return_value = True
@@ -339,7 +369,7 @@ class TestAnalyticsService:
                 event_type="test_event",
                 user_id="test-user-uuid",
                 session_id="test-session",
-                data=invalid_data
+                data=invalid_data,
             )
 
             assert result is True
@@ -354,22 +384,27 @@ class TestAnalyticsService:
     @pytest.mark.asyncio
     async def test_get_conversion_analytics(self, analytics_service):
         """Test conversion analytics retrieval"""
-        with patch('app.core.redis_client.get_redis_client') as mock_redis:
+        with patch("app.core.redis_client.get_redis_client") as mock_redis:
             mock_client = AsyncMock()
             mock_redis.return_value = mock_client
 
             # Mock Redis responses
-            mock_client.get.return_value = json.dumps({
-                "total_sessions": 1000,
-                "completed_quick_assessment": 800,
-                "registered_users": 300,
-                "created_teams": 150
-            })
-            mock_client.keys.return_value = ["conversion:2024-01-01", "conversion:2024-01-02"]
+            mock_client.get.return_value = json.dumps(
+                {
+                    "total_sessions": 1000,
+                    "completed_quick_assessment": 800,
+                    "registered_users": 300,
+                    "created_teams": 150,
+                }
+            )
+            mock_client.keys.return_value = [
+                "conversion:2024-01-01",
+                "conversion:2024-01-02",
+            ]
 
             analytics = await analytics_service.get_conversion_analytics(
                 start_date=datetime.utcnow() - timedelta(days=7),
-                end_date=datetime.utcnow()
+                end_date=datetime.utcnow(),
             )
 
             # Verify analytics structure
@@ -387,7 +422,7 @@ class TestAnalyticsService:
     @pytest.mark.asyncio
     async def test_get_user_journey_analytics(self, analytics_service, sample_user):
         """Test user journey analytics"""
-        with patch('app.core.redis_client.get_redis_client') as mock_redis:
+        with patch("app.core.redis_client.get_redis_client") as mock_redis:
             mock_client = AsyncMock()
             mock_redis.return_value = mock_client
 
@@ -396,18 +431,18 @@ class TestAnalyticsService:
                 {
                     "timestamp": "2024-01-01T10:00:00Z",
                     "event_type": "quick_assessment_started",
-                    "data": {"role": "manager"}
+                    "data": {"role": "manager"},
                 },
                 {
                     "timestamp": "2024-01-01T10:05:00Z",
                     "event_type": "quick_assessment_completed",
-                    "data": {"conversion_probability": 0.8}
+                    "data": {"conversion_probability": 0.8},
                 },
                 {
                     "timestamp": "2024-01-01T10:10:00Z",
                     "event_type": "user_registered",
-                    "data": {"email": sample_user.email}
-                }
+                    "data": {"email": sample_user.email},
+                },
             ]
 
             mock_client.get.return_value = json.dumps(journey_events)
@@ -424,7 +459,7 @@ class TestAnalyticsService:
     @pytest.mark.asyncio
     async def test_performance_metrics_collection(self, analytics_service):
         """Test performance metrics collection"""
-        with patch('app.core.redis_client.get_redis_client') as mock_redis:
+        with patch("app.core.redis_client.get_redis_client") as mock_redis:
             mock_client = AsyncMock()
             mock_redis.return_value = mock_client
 
@@ -434,17 +469,15 @@ class TestAnalyticsService:
                 "p95_response_time": 2.5,
                 "error_rate": 0.01,
                 "throughput": 100,
-                "concurrent_users": 25
+                "concurrent_users": 25,
             }
 
             mock_client.mget.return_value = [
                 json.dumps(performance_data),
-                json.dumps({"timestamp": datetime.utcnow().isoformat()})
+                json.dumps({"timestamp": datetime.utcnow().isoformat()}),
             ]
 
-            metrics = await analytics_service.get_performance_metrics(
-                time_range="1h"
-            )
+            metrics = await analytics_service.get_performance_metrics(time_range="1h")
 
             # Verify metrics structure
             assert "response_time" in metrics
@@ -470,14 +503,14 @@ class TestDataValidationAndSecurity:
                 "role": "manager",
                 "challenge": "communication",
                 "team_size": "5-10",
-                "industry": "technology"
+                "industry": "technology",
             },
             {
                 "role": "hr",
                 "challenge": "turnover",
                 "team_size": "10-20",
-                "industry": "healthcare"
-            }
+                "industry": "healthcare",
+            },
         ]
 
         for request_data in valid_requests:
@@ -496,7 +529,7 @@ class TestDataValidationAndSecurity:
             "'; DROP TABLE users; --",
             "admin' OR '1'='1",
             "'; INSERT INTO users (email) VALUES ('hacker@evil.com'); --",
-            "UNION SELECT * FROM sensitive_data --"
+            "UNION SELECT * FROM sensitive_data --",
         ]
 
         for malicious_input in malicious_inputs:
@@ -506,13 +539,13 @@ class TestDataValidationAndSecurity:
                     role=UserRole.MANAGER,
                     challenge=TeamChallenge.COMMUNICATION,
                     team_size=malicious_input,  # Try to inject in team_size
-                    industry=malicious_input,   # Try to inject in industry
-                    user_id=None
+                    industry=malicious_input,  # Try to inject in industry
+                    user_id=None,
                 )
 
                 # Should return insights without database errors
                 assert insights is not None
-                assert hasattr(insights, 'primary_benefit')
+                assert hasattr(insights, "primary_benefit")
 
             except Exception as e:
                 # Should not be database errors
@@ -526,7 +559,7 @@ class TestDataValidationAndSecurity:
             "<script>alert('xss')</script>",
             "javascript:void(0)",
             "<img src=x onerror=alert('xss')>",
-            "';alert('xss');//"
+            "';alert('xss');//",
         ]
 
         for xss_payload in xss_payloads:
@@ -534,8 +567,8 @@ class TestDataValidationAndSecurity:
                 role=UserRole.MANAGER,
                 challenge=TeamChallenge.COMMUNICATION,
                 team_size=xss_payload,  # Try XSS in team_size
-                industry=xss_payload,   # Try XSS in industry
-                user_id=None
+                industry=xss_payload,  # Try XSS in industry
+                user_id=None,
             )
 
             # Verify XSS payload doesn't appear in raw form in output
@@ -549,8 +582,8 @@ class TestDataValidationAndSecurity:
         """Test data size limits enforcement"""
         oversized_data = {
             "team_size": "x" * 1000,  # Oversized team size
-            "industry": "x" * 1000,   # Oversized industry
-            "custom_field": "x" * 10000  # Very large field
+            "industry": "x" * 1000,  # Oversized industry
+            "custom_field": "x" * 10000,  # Very large field
         }
 
         # Should handle oversized data gracefully
@@ -560,7 +593,7 @@ class TestDataValidationAndSecurity:
                 challenge=TeamChallenge.COMMUNICATION,
                 team_size=oversized_data["team_size"],
                 industry=oversized_data["industry"],
-                user_id=None
+                user_id=None,
             )
 
             # Should still return insights but with sanitized/limited data
@@ -582,13 +615,14 @@ class TestPerformanceOptimization:
     @pytest.mark.asyncio
     async def test_concurrent_quick_assessments(self, onboarding_service):
         """Test concurrent quick assessment generation"""
+
         async def generate_assessment():
             return await onboarding_service.generate_quick_insights(
                 role=UserRole.MANAGER,
                 challenge=TeamChallenge.COMMUNICATION,
                 team_size="5-10",
                 industry="technology",
-                user_id=None
+                user_id=None,
             )
 
         # Generate 10 assessments concurrently
@@ -604,14 +638,18 @@ class TestPerformanceOptimization:
 
         # Verify performance (should complete within reasonable time)
         total_time = end_time - start_time
-        assert total_time < 10.0, f"Concurrent assessments took {total_time:.2f}s, expected < 10.0s"
-        assert total_time / 10 < 2.0, f"Average time per assessment: {total_time/10:.2f}s, expected < 2.0s"
+        assert (
+            total_time < 10.0
+        ), f"Concurrent assessments took {total_time:.2f}s, expected < 10.0s"
+        assert (
+            total_time / 10 < 2.0
+        ), f"Average time per assessment: {total_time/10:.2f}s, expected < 2.0s"
 
     @pytest.mark.asyncio
     async def test_caching_performance(self, onboarding_service):
         """Test caching performance for repeated requests"""
         # Mock Redis cache
-        with patch('app.core.redis_client.get_redis_client') as mock_redis:
+        with patch("app.core.redis_client.get_redis_client") as mock_redis:
             mock_client = AsyncMock()
             mock_redis.return_value = mock_client
 
@@ -624,14 +662,18 @@ class TestPerformanceOptimization:
                 challenge=TeamChallenge.COMMUNICATION,
                 team_size="5-10",
                 industry="technology",
-                user_id=None
+                user_id=None,
             )
 
             # Second request - cache hit
-            cached_insights = json.dumps({
-                "primary_benefit": insights1.primary_benefit,
-                "recommendations": [asdict(rec) for rec in insights1.recommendations]
-            })
+            cached_insights = json.dumps(
+                {
+                    "primary_benefit": insights1.primary_benefit,
+                    "recommendations": [
+                        asdict(rec) for rec in insights1.recommendations
+                    ],
+                }
+            )
             mock_client.get.return_value = cached_insights
 
             insights2 = await onboarding_service.generate_quick_insights(
@@ -639,7 +681,7 @@ class TestPerformanceOptimization:
                 challenge=TeamChallenge.COMMUNICATION,
                 team_size="5-10",
                 industry="technology",
-                user_id=None
+                user_id=None,
             )
 
             # Verify caching worked
@@ -654,17 +696,13 @@ class TestPerformanceOptimization:
             {
                 "name": f"Team Member {i}",
                 "role": "developer",
-                "assessment_data": {
-                    f"question_{j}": f"answer_{j}" for j in range(100)
-                },
-                "metadata": {
-                    f"field_{k}": f"value_{k}" * 10 for k in range(50)
-                }
+                "assessment_data": {f"question_{j}": f"answer_{j}" for j in range(100)},
+                "metadata": {f"field_{k}": f"value_{k}" * 10 for k in range(50)},
             }
             for i in range(100)  # 100 team members with substantial data
         ]
 
-        with patch('app.services.onboarding_service.TeamService') as mock_team_service:
+        with patch("app.services.onboarding_service.TeamService") as mock_team_service:
             mock_team_service.get_team_members.return_value = large_team
 
             start_time = asyncio.get_event_loop().time()
@@ -674,18 +712,20 @@ class TestPerformanceOptimization:
                 user_id="test-user-uuid",
                 team_id="large-team-uuid",
                 assessment_data={"test": "data"},
-                team_composition=large_team
+                team_composition=large_team,
             )
 
             end_time = asyncio.get_event_loop().time()
 
             # Should complete in reasonable time even with large data
             processing_time = end_time - start_time
-            assert processing_time < 5.0, f"Large team processing took {processing_time:.2f}s, expected < 5.0s"
+            assert (
+                processing_time < 5.0
+            ), f"Large team processing took {processing_time:.2f}s, expected < 5.0s"
 
             # Should return valid insights
             assert insights is not None
-            assert hasattr(insights, 'team_profile')
+            assert hasattr(insights, "team_profile")
 
     @pytest.mark.asyncio
     async def test_batch_operations_performance(self, onboarding_service):
@@ -696,7 +736,7 @@ class TestPerformanceOptimization:
                 "role": UserRole.MANAGER,
                 "challenge": TeamChallenge.COMMUNICATION,
                 "team_size": "5-10",
-                "industry": "technology"
+                "industry": "technology",
             }
             for _ in range(batch_size)
         ]
@@ -705,9 +745,7 @@ class TestPerformanceOptimization:
 
         # Process assessments in batch
         tasks = [
-            onboarding_service.generate_quick_insights(
-                **req, user_id=None
-            )
+            onboarding_service.generate_quick_insights(**req, user_id=None)
             for req in assessment_requests
         ]
 
@@ -720,15 +758,19 @@ class TestPerformanceOptimization:
 
         total_time = end_time - start_time
         avg_time_per_assessment = total_time / batch_size
-        assert avg_time_per_assessment < 1.0, f"Avg time per assessment: {avg_time_per_assessment:.2f}s, expected < 1.0s"
+        assert (
+            avg_time_per_assessment < 1.0
+        ), f"Avg time per assessment: {avg_time_per_assessment:.2f}s, expected < 1.0s"
 
 
 # Test execution configuration
 if __name__ == "__main__":
-    pytest.main([
-        __file__,
-        "-v",
-        "--tb=short",
-        "--disable-warnings",
-        "-x"  # Stop on first failure
-    ])
+    pytest.main(
+        [
+            __file__,
+            "-v",
+            "--tb=short",
+            "--disable-warnings",
+            "-x",  # Stop on first failure
+        ]
+    )

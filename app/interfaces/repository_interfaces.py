@@ -40,7 +40,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
 # =============================================================================
 # Common Repository Interface
 # =============================================================================
@@ -581,6 +580,7 @@ def get_user_repository() -> IUserRepository:
     """
     # Import concrete implementation
     from app.db.repositories.sqlalchemy_user_repository import SQLAlchemyUserRepository
+
     # This would typically be injected via DI container
     raise NotImplementedError("Implement DI container for repository creation")
 

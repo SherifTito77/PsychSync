@@ -14,11 +14,11 @@ Version: 1.0
 Date: 2025-12-26
 """
 
+import logging
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -166,7 +166,9 @@ class RealTimeSecurityAnalyzer:
 
         return indicators
 
-    async def _detect_unauthorized_access(self, event: SecurityEvent) -> list[ThreatIndicator]:
+    async def _detect_unauthorized_access(
+        self, event: SecurityEvent
+    ) -> list[ThreatIndicator]:
         """Detect repeated unauthorized access attempts"""
         indicators = []
 
@@ -178,11 +180,15 @@ class RealTimeSecurityAnalyzer:
                 recent_denials = [
                     e
                     for e in user_events
-                    if e.event_type in ["authz.access_denied", "authz.privilege_escalation"]
+                    if e.event_type
+                    in ["authz.access_denied", "authz.privilege_escalation"]
                     and e.timestamp > datetime.utcnow() - timedelta(hours=1)
                 ]
 
-                if len(recent_denials) >= self.thresholds["unauthorized_access_threshold"]:
+                if (
+                    len(recent_denials)
+                    >= self.thresholds["unauthorized_access_threshold"]
+                ):
                     indicators.append(
                         ThreatIndicator(
                             indicator_type="unauthorized_access_attempt",
@@ -200,7 +206,9 @@ class RealTimeSecurityAnalyzer:
 
         return indicators
 
-    async def _detect_bulk_operations(self, event: SecurityEvent) -> list[ThreatIndicator]:
+    async def _detect_bulk_operations(
+        self, event: SecurityEvent
+    ) -> list[ThreatIndicator]:
         """Detect suspicious bulk data operations"""
         indicators = []
 
@@ -225,7 +233,9 @@ class RealTimeSecurityAnalyzer:
 
         return indicators
 
-    async def _detect_anomalous_patterns(self, event: SecurityEvent) -> list[ThreatIndicator]:
+    async def _detect_anomalous_patterns(
+        self, event: SecurityEvent
+    ) -> list[ThreatIndicator]:
         """Detect anomalous behavioral patterns"""
         indicators = []
 
@@ -237,7 +247,9 @@ class RealTimeSecurityAnalyzer:
         # Pattern 1: Multiple resource types accessed in short time
         if len(user_events) > 10:
             recent_events = user_events[-10:]
-            resource_types = set(e.resource_type for e in recent_events if e.resource_type)
+            resource_types = set(
+                e.resource_type for e in recent_events if e.resource_type
+            )
 
             if len(resource_types) > 5:
                 indicators.append(
@@ -247,7 +259,10 @@ class RealTimeSecurityAnalyzer:
                         confidence=0.6,
                         description=f"Accessed {len(resource_types)} different resource types rapidly",
                         affected_entities=[f"user_{event.user_id}"],
-                        mitigation_suggestions=["Monitor user activity", "Verify user intent"],
+                        mitigation_suggestions=[
+                            "Monitor user activity",
+                            "Verify user intent",
+                        ],
                     )
                 )
 
@@ -267,13 +282,18 @@ class RealTimeSecurityAnalyzer:
                         confidence=0.7,
                         description="Rapid successive requests (possible automation)",
                         affected_entities=[f"user_{event.user_id}"],
-                        mitigation_suggestions=["Implement rate limiting", "Require CAPTCHA"],
+                        mitigation_suggestions=[
+                            "Implement rate limiting",
+                            "Require CAPTCHA",
+                        ],
                     )
                 )
 
         return indicators
 
-    async def _detect_geo_anomalies(self, event: SecurityEvent) -> list[ThreatIndicator]:
+    async def _detect_geo_anomalies(
+        self, event: SecurityEvent
+    ) -> list[ThreatIndicator]:
         """Detect geographic anomalies (impossible travel)"""
         indicators = []
 

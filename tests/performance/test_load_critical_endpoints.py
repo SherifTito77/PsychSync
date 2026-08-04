@@ -17,10 +17,11 @@ Priority: P1 (High)
 Tools: pytest-asyncio, pytest-benchmark (optional)
 """
 
-import pytest
 import asyncio
 import time
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
+import pytest
 from httpx import AsyncClient
 from memory_profiler import profile
 
@@ -51,17 +52,14 @@ class TestLoadPerformanceRegression:
             try:
                 response = await client.post(
                     "/api/v1/auth/token-fixed",
-                    data={
-                        "username": test_user.email,
-                        "password": "TestPassword123!"
-                    }
+                    data={"username": test_user.email, "password": "TestPassword123!"},
                 )
                 elapsed = time.time() - start
                 return {
                     "attempt": attempt_num,
                     "status": response.status_code,
                     "elapsed": elapsed,
-                    "success": response.status_code == 200
+                    "success": response.status_code == 200,
                 }
             except Exception as e:
                 elapsed = time.time() - start
@@ -70,7 +68,7 @@ class TestLoadPerformanceRegression:
                     "status": 500,
                     "elapsed": elapsed,
                     "success": False,
-                    "error": str(e)
+                    "error": str(e),
                 }
 
         # Execute concurrent requests
@@ -121,15 +119,14 @@ class TestLoadPerformanceRegression:
             start = time.time()
             try:
                 response = await client.get(
-                    "/api/v1/assessments/",
-                    headers=auth_headers
+                    "/api/v1/assessments/", headers=auth_headers
                 )
                 elapsed = time.time() - start
                 return {
                     "attempt": attempt_num,
                     "status": response.status_code,
                     "elapsed": elapsed,
-                    "success": response.status_code == 200
+                    "success": response.status_code == 200,
                 }
             except Exception as e:
                 elapsed = time.time() - start
@@ -138,7 +135,7 @@ class TestLoadPerformanceRegression:
                     "status": 500,
                     "elapsed": elapsed,
                     "success": False,
-                    "error": str(e)
+                    "error": str(e),
                 }
 
         # Execute concurrent requests
@@ -162,7 +159,9 @@ class TestLoadPerformanceRegression:
         print(f"p95: {p95:.3f}s")
 
     @pytest.mark.asyncio
-    async def test_response_submission_load(self, client: AsyncClient, auth_headers: dict, test_assessment):
+    async def test_response_submission_load(
+        self, client: AsyncClient, auth_headers: dict, test_assessment
+    ):
         """
         Test: Response submission endpoint under concurrent load
 
@@ -183,17 +182,17 @@ class TestLoadPerformanceRegression:
                         "assessment_id": str(test_assessment.id),
                         "responses": {
                             "q1": attempt_num % 5 + 1,
-                            "q2": attempt_num % 5 + 1
-                        }
+                            "q2": attempt_num % 5 + 1,
+                        },
                     },
-                    headers=auth_headers
+                    headers=auth_headers,
                 )
                 elapsed = time.time() - start
                 return {
                     "attempt": attempt_num,
                     "status": response.status_code,
                     "elapsed": elapsed,
-                    "success": response.status_code in [200, 201]
+                    "success": response.status_code in [200, 201],
                 }
             except Exception as e:
                 elapsed = time.time() - start
@@ -202,12 +201,14 @@ class TestLoadPerformanceRegression:
                     "status": 500,
                     "elapsed": elapsed,
                     "success": False,
-                    "error": str(e)
+                    "error": str(e),
                 }
 
         # Execute concurrent requests
         start_time = time.time()
-        results = await asyncio.gather(*[submit_attempt(i) for i in range(num_requests)])
+        results = await asyncio.gather(
+            *[submit_attempt(i) for i in range(num_requests)]
+        )
         total_time = time.time() - start_time
 
         # Analyze results
@@ -251,15 +252,14 @@ class TestStressPerformanceRegression:
             start = time.time()
             try:
                 response = await client.get(
-                    "/api/v1/assessments/",
-                    headers=auth_headers
+                    "/api/v1/assessments/", headers=auth_headers
                 )
                 elapsed = time.time() - start
                 return {
                     "user_id": user_id,
                     "status": response.status_code,
                     "elapsed": elapsed,
-                    "success": response.status_code == 200
+                    "success": response.status_code == 200,
                 }
             except Exception as e:
                 elapsed = time.time() - start
@@ -268,7 +268,7 @@ class TestStressPerformanceRegression:
                     "status": 500,
                     "elapsed": elapsed,
                     "success": False,
-                    "error": str(e)
+                    "error": str(e),
                 }
 
         # Execute with limited concurrency to avoid overwhelming the test system
@@ -279,7 +279,9 @@ class TestStressPerformanceRegression:
         all_results = []
 
         for i in range(0, num_concurrent, batch_size):
-            batch = [user_request(j) for j in range(i, min(i + batch_size, num_concurrent))]
+            batch = [
+                user_request(j) for j in range(i, min(i + batch_size, num_concurrent))
+            ]
             batch_results = await asyncio.gather(*batch)
             all_results.extend(batch_results)
 
@@ -306,8 +308,9 @@ class TestStressPerformanceRegression:
         Expected: Stable memory usage
         Priority: P1
         """
-        import psutil
         import os
+
+        import psutil
 
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss
@@ -330,12 +333,16 @@ class TestStressPerformanceRegression:
         memory_growth_percent = (memory_growth / initial_memory) * 100
 
         # Allow 20% memory growth as threshold
-        assert memory_growth_percent < 20, f"Memory grew by {memory_growth_percent:.2f}%"
+        assert (
+            memory_growth_percent < 20
+        ), f"Memory grew by {memory_growth_percent:.2f}%"
 
         print(f"\n=== Memory Leak Test Results ===")
         print(f"Initial memory: {initial_memory / (1024 * 1024):.2f} MB")
         print(f"Final memory: {final_memory / (1024 * 1024):.2f} MB")
-        print(f"Memory growth: {memory_growth_mb:.2f} MB ({memory_growth_percent:.2f}%)")
+        print(
+            f"Memory growth: {memory_growth_mb:.2f} MB ({memory_growth_percent:.2f}%)"
+        )
 
 
 class TestCachingPerformanceRegression:
@@ -345,7 +352,9 @@ class TestCachingPerformanceRegression:
     """
 
     @pytest.mark.asyncio
-    async def test_cache_hit_ratio(self, client: AsyncClient, auth_headers: dict, test_assessment):
+    async def test_cache_hit_ratio(
+        self, client: AsyncClient, auth_headers: dict, test_assessment
+    ):
         """
         Test: Verify cache effectiveness
 
@@ -358,16 +367,14 @@ class TestCachingPerformanceRegression:
 
         # First request (cache miss)
         response1 = await client.get(
-            f"/api/v1/assessments/{test_assessment.id}",
-            headers=auth_headers
+            f"/api/v1/assessments/{test_assessment.id}", headers=auth_headers
         )
 
         # Subsequent requests (should hit cache)
         start_time = time.time()
         for i in range(num_requests - 1):
             response = await client.get(
-                f"/api/v1/assessments/{test_assessment.id}",
-                headers=auth_headers
+                f"/api/v1/assessments/{test_assessment.id}", headers=auth_headers
             )
         total_time = time.time() - start_time
 
@@ -376,7 +383,9 @@ class TestCachingPerformanceRegression:
 
         # Cache should make responses faster
         # This is an indirect measure of cache effectiveness
-        assert avg_time < 0.1, f"Average response time {avg_time}s suggests cache not working"
+        assert (
+            avg_time < 0.1
+        ), f"Average response time {avg_time}s suggests cache not working"
 
         print(f"\n=== Cache Performance Results ===")
         print(f"Total requests: {num_requests}")
@@ -384,7 +393,9 @@ class TestCachingPerformanceRegression:
         print(f"Total time: {total_time:.2f}s")
 
     @pytest.mark.asyncio
-    async def test_cache_invalidation(self, client: AsyncClient, auth_headers: dict, test_assessment):
+    async def test_cache_invalidation(
+        self, client: AsyncClient, auth_headers: dict, test_assessment
+    ):
         """
         Test: Verify cache invalidates on update
 
@@ -394,8 +405,7 @@ class TestCachingPerformanceRegression:
         """
         # First get
         response1 = await client.get(
-            f"/api/v1/assessments/{test_assessment.id}",
-            headers=auth_headers
+            f"/api/v1/assessments/{test_assessment.id}", headers=auth_headers
         )
         data1 = response1.json()
 
@@ -403,13 +413,12 @@ class TestCachingPerformanceRegression:
         await client.put(
             f"/api/v1/assessments/{test_assessment.id}",
             json={"title": "Updated Title"},
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         # Get again (should return updated data, not stale cache)
         response2 = await client.get(
-            f"/api/v1/assessments/{test_assessment.id}",
-            headers=auth_headers
+            f"/api/v1/assessments/{test_assessment.id}", headers=auth_headers
         )
         data2 = response2.json()
 
@@ -425,7 +434,9 @@ class TestPerformanceBenchmarking:
     """
 
     @pytest.mark.asyncio
-    async def test_benchmark_assessment_list(self, client: AsyncClient, auth_headers: dict, benchmark):
+    async def test_benchmark_assessment_list(
+        self, client: AsyncClient, auth_headers: dict, benchmark
+    ):
         """
         Test: Benchmark assessment list endpoint
 
@@ -441,7 +452,9 @@ class TestPerformanceBenchmarking:
             import pytest_benchmark
 
             async def operation():
-                response = await client.get("/api/v1/assessments/", headers=auth_headers)
+                response = await client.get(
+                    "/api/v1/assessments/", headers=auth_headers
+                )
                 assert response.status_code == 200
                 return response
 
@@ -452,7 +465,9 @@ class TestPerformanceBenchmarking:
             pytest.skip("pytest-benchmark not installed")
 
     @pytest.mark.asyncio
-    async def test_benchmark_response_create(self, client: AsyncClient, auth_headers: dict, test_assessment, benchmark):
+    async def test_benchmark_response_create(
+        self, client: AsyncClient, auth_headers: dict, test_assessment, benchmark
+    ):
         """
         Test: Benchmark response creation
 
@@ -467,9 +482,9 @@ class TestPerformanceBenchmarking:
                     f"/api/v1/responses/",
                     json={
                         "assessment_id": str(test_assessment.id),
-                        "responses": {"q1": 5}
+                        "responses": {"q1": 5},
                     },
-                    headers=auth_headers
+                    headers=auth_headers,
                 )
                 return response
 
@@ -487,7 +502,9 @@ class TestPerformanceDegradation:
     """
 
     @pytest.mark.asyncio
-    async def test_response_time_stability(self, client: AsyncClient, auth_headers: dict):
+    async def test_response_time_stability(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         """
         Test: Verify response times remain stable over many requests
 
@@ -509,7 +526,9 @@ class TestPerformanceDegradation:
         degradation_ratio = last_100_avg / first_100_avg
 
         # Allow 2x degradation as threshold
-        assert degradation_ratio < 2.0, f"Response time degraded by {degradation_ratio:.2f}x"
+        assert (
+            degradation_ratio < 2.0
+        ), f"Response time degraded by {degradation_ratio:.2f}x"
 
         print(f"\n=== Response Time Stability Results ===")
         print(f"First 100 avg: {first_100_avg:.4f}s")
@@ -517,7 +536,9 @@ class TestPerformanceDegradation:
         print(f"Degradation ratio: {degradation_ratio:.2f}x")
 
     @pytest.mark.asyncio
-    async def test_database_connection_pool_exhaustion(self, client: AsyncClient, auth_headers: dict):
+    async def test_database_connection_pool_exhaustion(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         """
         Test: Verify database connection pool handles load
 
@@ -529,7 +550,9 @@ class TestPerformanceDegradation:
 
         async def make_request(i: int):
             try:
-                response = await client.get("/api/v1/assessments/", headers=auth_headers)
+                response = await client.get(
+                    "/api/v1/assessments/", headers=auth_headers
+                )
                 return response.status_code == 200
             except Exception:
                 return False
@@ -538,7 +561,9 @@ class TestPerformanceDegradation:
         success_count = sum(results)
 
         success_rate = success_count / num_requests
-        assert success_rate > 0.95, f"Connection pool exhaustion detected: {success_rate:.2%} success"
+        assert (
+            success_rate > 0.95
+        ), f"Connection pool exhaustion detected: {success_rate:.2%} success"
 
         print(f"\n=== Connection Pool Test Results ===")
         print(f"Success rate: {success_rate:.2%}")

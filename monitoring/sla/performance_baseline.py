@@ -4,21 +4,21 @@ PsychSync Performance Baselining and SLA Monitoring
 Automated performance monitoring with SLA compliance tracking
 """
 
+import argparse
 import asyncio
-import aiohttp
-import time
 import json
 import logging
 import statistics
 import sys
+import time
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
 from pathlib import Path
-import argparse
+from typing import Any, Dict, List, Optional, Tuple
 
+import aiohttp
 import prometheus_client
-from prometheus_client import start_http_server, Gauge, Histogram, Counter, Info
+from prometheus_client import Counter, Gauge, Histogram, Info, start_http_server
 
 # Configuration
 PROMETHEUS_URL = "http://prometheus:9090"
@@ -28,10 +28,18 @@ REPORT_OUTPUT_DIR = "/tmp/sla_reports"
 METRICS_PORT = 8083
 
 # SLA Metrics
-SLA_COMPLIANCE = Gauge('psychsync_sla_compliance_percentage', 'SLA compliance percentage', ['sla_type'])
-PERFORMANCE_BASELINE = Gauge('psychsync_performance_baseline_ms', 'Performance baseline value', ['metric_name'])
-PERFORMANCE_CURRENT = Gauge('psychsync_performance_current_ms', 'Current performance value', ['metric_name'])
-SLA_VIOLATIONS = Counter('psychsync_sla_violations_total', 'SLA violations', ['sla_type', 'severity'])
+SLA_COMPLIANCE = Gauge(
+    "psychsync_sla_compliance_percentage", "SLA compliance percentage", ["sla_type"]
+)
+PERFORMANCE_BASELINE = Gauge(
+    "psychsync_performance_baseline_ms", "Performance baseline value", ["metric_name"]
+)
+PERFORMANCE_CURRENT = Gauge(
+    "psychsync_performance_current_ms", "Current performance value", ["metric_name"]
+)
+SLA_VIOLATIONS = Counter(
+    "psychsync_sla_violations_total", "SLA violations", ["sla_type", "severity"]
+)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -41,6 +49,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class SLAConfig:
     """SLA configuration definition"""
+
     name: str
     metric: str
     query: str
@@ -55,6 +64,7 @@ class SLAConfig:
 @dataclass
 class PerformanceBaseline:
     """Performance baseline definition"""
+
     name: str
     metric: str
     query: str
@@ -66,6 +76,7 @@ class PerformanceBaseline:
 @dataclass
 class SLAViolation:
     """SLA violation record"""
+
     timestamp: datetime
     sla_type: str
     current_value: float
@@ -98,9 +109,11 @@ class PerformanceMonitor:
         """Load SLA and baseline configurations"""
         # Load SLA configurations
         try:
-            with open(SLA_CONFIG_FILE, 'r') as f:
+            with open(SLA_CONFIG_FILE, "r") as f:
                 sla_data = json.load(f)
-                self.sla_configs = [SLAConfig(**config) for config in sla_data.get('slas', [])]
+                self.sla_configs = [
+                    SLAConfig(**config) for config in sla_data.get("slas", [])
+                ]
             logger.info(f"Loaded {len(self.sla_configs)} SLA configurations")
         except FileNotFoundError:
             logger.warning(f"SLA config file not found: {SLA_CONFIG_FILE}")
@@ -108,11 +121,15 @@ class PerformanceMonitor:
 
         # Load baseline configurations
         try:
-            with open(BASELINE_CONFIG_FILE, 'r') as f:
+            with open(BASELINE_CONFIG_FILE, "r") as f:
                 baseline_data = json.load(f)
-                self.performance_baselines = [PerformanceBaseline(**config)
-                                           for config in baseline_data.get('baselines', [])]
-            logger.info(f"Loaded {len(self.performance_baselines)} baseline configurations")
+                self.performance_baselines = [
+                    PerformanceBaseline(**config)
+                    for config in baseline_data.get("baselines", [])
+                ]
+            logger.info(
+                f"Loaded {len(self.performance_baselines)} baseline configurations"
+            )
         except FileNotFoundError:
             logger.warning(f"Baseline config file not found: {BASELINE_CONFIG_FILE}")
             self.performance_baselines = self._get_default_baselines()
@@ -129,29 +146,29 @@ class PerformanceMonitor:
                 window="5m",
                 description="P95 API response time",
                 business_impact="User experience and satisfaction",
-                weight=0.3
+                weight=0.3,
             ),
             SLAConfig(
                 name="api_error_rate",
                 metric="error_rate",
-                query="rate(http_requests_total{status=~\"5..\"}[5m]) / rate(http_requests_total[5m])",
+                query='rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m])',
                 threshold=0.01,
                 comparison="lt",
                 window="5m",
                 description="API error rate",
                 business_impact="Service reliability",
-                weight=0.25
+                weight=0.25,
             ),
             SLAConfig(
                 name="api_availability",
                 metric="availability",
-                query="up{job=\"psychsync-api\"}",
+                query='up{job="psychsync-api"}',
                 threshold=0.999,
                 comparison="gt",
                 window="5m",
                 description="API availability",
                 business_impact="Service accessibility",
-                weight=0.25
+                weight=0.25,
             ),
             SLAConfig(
                 name="database_query_time",
@@ -162,7 +179,7 @@ class PerformanceMonitor:
                 window="5m",
                 description="Database query time",
                 business_impact="Application performance",
-                weight=0.1
+                weight=0.1,
             ),
             SLAConfig(
                 name="frontend_load_time",
@@ -173,8 +190,8 @@ class PerformanceMonitor:
                 window="5m",
                 description="Frontend page load time",
                 business_impact="User experience",
-                weight=0.1
-            )
+                weight=0.1,
+            ),
         ]
 
     def _get_default_baselines(self) -> List[PerformanceBaseline]:
@@ -186,7 +203,7 @@ class PerformanceMonitor:
                 query="rate(http_request_duration_seconds_sum[1h]) / rate(http_request_duration_seconds_count[1h])",
                 baseline_period="7d",
                 aggregation="avg",
-                description="Average API response time"
+                description="Average API response time",
             ),
             PerformanceBaseline(
                 name="api_response_time_p95",
@@ -194,7 +211,7 @@ class PerformanceMonitor:
                 query="histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[1h]))",
                 baseline_period="7d",
                 aggregation="p95",
-                description="P95 API response time"
+                description="P95 API response time",
             ),
             PerformanceBaseline(
                 name="database_connection_utilization",
@@ -202,7 +219,7 @@ class PerformanceMonitor:
                 query="pg_stat_activity_count / pg_settings_max_connections",
                 baseline_period="7d",
                 aggregation="avg",
-                description="Database connection utilization"
+                description="Database connection utilization",
             ),
             PerformanceBaseline(
                 name="memory_usage",
@@ -210,8 +227,8 @@ class PerformanceMonitor:
                 query="process_resident_memory_bytes",
                 baseline_period="7d",
                 aggregation="avg",
-                description="Application memory usage"
-            )
+                description="Application memory usage",
+            ),
         ]
 
     async def query_prometheus(self, query: str) -> Optional[float]:
@@ -240,12 +257,16 @@ class PerformanceMonitor:
         for baseline in self.performance_baselines:
             try:
                 # Query for baseline period
-                baseline_query = f"avg_over_time({baseline.query}, {baseline.baseline_period})"
+                baseline_query = (
+                    f"avg_over_time({baseline.query}, {baseline.baseline_period})"
+                )
                 baseline_value = await self.query_prometheus(baseline_query)
 
                 if baseline_value is not None:
                     baselines[baseline.name] = baseline_value
-                    PERFORMANCE_BASELINE.labels(metric_name=baseline.name).set(baseline_value * 1000)  # Convert to ms
+                    PERFORMANCE_BASELINE.labels(metric_name=baseline.name).set(
+                        baseline_value * 1000
+                    )  # Convert to ms
                     logger.info(f"Baseline for {baseline.name}: {baseline_value:.3f}")
                 else:
                     logger.warning(f"Could not calculate baseline for {baseline.name}")
@@ -265,25 +286,33 @@ class PerformanceMonitor:
 
                 if current_value is not None:
                     # Check compliance
-                    compliant = self._check_threshold(current_value, sla.threshold, sla.comparison)
+                    compliant = self._check_threshold(
+                        current_value, sla.threshold, sla.comparison
+                    )
                     severity = "critical" if not compliant else "ok"
 
                     # Update metrics
                     compliance_percentage = 100.0 if compliant else 0.0
                     SLA_COMPLIANCE.labels(sla_type=sla.name).set(compliance_percentage)
-                    PERFORMANCE_CURRENT.labels(metric_name=sla.metric).set(current_value * 1000)
+                    PERFORMANCE_CURRENT.labels(metric_name=sla.metric).set(
+                        current_value * 1000
+                    )
 
                     if not compliant:
-                        SLA_VIOLATIONS.labels(sla_type=sla.name, severity=severity).inc()
+                        SLA_VIOLATIONS.labels(
+                            sla_type=sla.name, severity=severity
+                        ).inc()
                         violation = SLAViolation(
                             timestamp=datetime.now(),
                             sla_type=sla.name,
                             current_value=current_value,
                             threshold=sla.threshold,
-                            severity=severity
+                            severity=severity,
                         )
                         self.violations.append(violation)
-                        logger.warning(f"SLA violation: {sla.name} = {current_value:.3f} (threshold: {sla.threshold})")
+                        logger.warning(
+                            f"SLA violation: {sla.name} = {current_value:.3f} (threshold: {sla.threshold})"
+                        )
 
                     compliance_results[sla.name] = {
                         "current_value": current_value,
@@ -292,7 +321,7 @@ class PerformanceMonitor:
                         "severity": severity,
                         "description": sla.description,
                         "business_impact": sla.business_impact,
-                        "weight": sla.weight
+                        "weight": sla.weight,
                     }
                 else:
                     logger.warning(f"Could not get value for SLA: {sla.name}")
@@ -315,7 +344,9 @@ class PerformanceMonitor:
         else:
             raise ValueError(f"Unknown comparison operator: {comparison}")
 
-    def calculate_overall_sla_compliance(self, compliance_results: Dict[str, Dict[str, Any]]) -> float:
+    def calculate_overall_sla_compliance(
+        self, compliance_results: Dict[str, Dict[str, Any]]
+    ) -> float:
         """Calculate overall SLA compliance weighted by SLA importance"""
         total_weight = 0.0
         compliant_weight = 0.0
@@ -332,12 +363,16 @@ class PerformanceMonitor:
         else:
             return 0.0
 
-    async def generate_sla_report(self, compliance_results: Dict[str, Dict[str, Any]], baselines: Dict[str, float]) -> Dict[str, Any]:
+    async def generate_sla_report(
+        self, compliance_results: Dict[str, Dict[str, Any]], baselines: Dict[str, float]
+    ) -> Dict[str, Any]:
         """Generate comprehensive SLA compliance report"""
         overall_compliance = self.calculate_overall_sla_compliance(compliance_results)
 
         # Count violations by severity
-        critical_violations = len([v for v in self.violations if v.severity == "critical"])
+        critical_violations = len(
+            [v for v in self.violations if v.severity == "critical"]
+        )
         total_violations = len(self.violations)
 
         # Calculate compliance trend (last 24 hours)
@@ -347,14 +382,18 @@ class PerformanceMonitor:
             "timestamp": datetime.now().isoformat(),
             "overall_sla_compliance": overall_compliance,
             "total_slas_checked": len(self.sla_configs),
-            "compliant_slas": len([r for r in compliance_results.values() if r.get("compliant", False)]),
+            "compliant_slas": len(
+                [r for r in compliance_results.values() if r.get("compliant", False)]
+            ),
             "critical_violations": critical_violations,
             "total_violations": total_violations,
             "compliance_trend": trend,
             "performance_baselines": baselines,
             "detailed_results": compliance_results,
-            "recent_violations": [asdict(v) for v in self.violations[-10:]],  # Last 10 violations
-            "sla_health": self._calculate_sla_health(overall_compliance)
+            "recent_violations": [
+                asdict(v) for v in self.violations[-10:]
+            ],  # Last 10 violations
+            "sla_health": self._calculate_sla_health(overall_compliance),
         }
 
         return report
@@ -370,7 +409,9 @@ class PerformanceMonitor:
                 compliant_count = 0
                 for sla in self.sla_configs:
                     value = await self.query_prometheus(sla.query.replace("5m", period))
-                    if value is not None and self._check_threshold(value, sla.threshold, sla.comparison):
+                    if value is not None and self._check_threshold(
+                        value, sla.threshold, sla.comparison
+                    ):
                         compliant_count += 1
 
                 if len(self.sla_configs) > 0:
@@ -402,7 +443,7 @@ class PerformanceMonitor:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         report_file = output_dir / f"sla_report_{timestamp}.json"
 
-        with open(report_file, 'w') as f:
+        with open(report_file, "w") as f:
             json.dump(report, f, indent=2, default=str)
 
         logger.info(f"SLA report saved to {report_file}")
@@ -452,7 +493,9 @@ class PerformanceMonitor:
                 # Send alerts if needed
                 await self.send_sla_alerts(report)
 
-                logger.info(f"SLA monitoring cycle completed. Overall compliance: {report['overall_sla_compliance']:.1f}%")
+                logger.info(
+                    f"SLA monitoring cycle completed. Overall compliance: {report['overall_sla_compliance']:.1f}%"
+                )
 
                 # Wait for next cycle
                 await asyncio.sleep(interval)
@@ -465,8 +508,12 @@ class PerformanceMonitor:
 async def main():
     """Main function to run SLA monitoring"""
     parser = argparse.ArgumentParser(description="PsychSync SLA Monitoring")
-    parser.add_argument("--interval", type=int, default=300, help="Monitoring interval in seconds")
-    parser.add_argument("--port", type=int, default=METRICS_PORT, help="Metrics server port")
+    parser.add_argument(
+        "--interval", type=int, default=300, help="Monitoring interval in seconds"
+    )
+    parser.add_argument(
+        "--port", type=int, default=METRICS_PORT, help="Metrics server port"
+    )
     parser.add_argument("--one-shot", action="store_true", help="Run once and exit")
 
     args = parser.parse_args()
@@ -484,7 +531,9 @@ async def main():
                 await monitor.load_configurations()
                 baselines = await monitor.calculate_performance_baselines()
                 compliance_results = await monitor.check_sla_compliance()
-                report = await monitor.generate_sla_report(compliance_results, baselines)
+                report = await monitor.generate_sla_report(
+                    compliance_results, baselines
+                )
                 monitor.save_report(report)
                 print(json.dumps(report, indent=2, default=str))
             else:

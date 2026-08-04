@@ -6,9 +6,9 @@ Supports multiple email clients with table-based responsive design.
 """
 
 import logging
-from typing import Dict, Any, Optional
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,12 @@ class EmailTemplateRenderer:
     def __init__(self, template_dir: Optional[Path] = None):
         """Initialize template renderer with template directory"""
         if template_dir is None:
-            template_dir = Path(__file__).parent.parent.parent.parent / "templates" / "emails" / "clinical"
+            template_dir = (
+                Path(__file__).parent.parent.parent.parent
+                / "templates"
+                / "emails"
+                / "clinical"
+            )
 
         self.template_dir = Path(template_dir)
         logger.info(f"Email template directory: {self.template_dir}")
@@ -40,7 +45,7 @@ class EmailTemplateRenderer:
         screening_type: str,
         screening_date: str,
         action_url: str,
-        organization_name: str = "PsychSync"
+        organization_name: str = "PsychSync",
     ) -> str:
         """
         Render crisis alert email template
@@ -53,22 +58,22 @@ class EmailTemplateRenderer:
         """
 
         # Format alert type for display
-        alert_type_formatted = alert_type.replace('_', ' ').title()
+        alert_type_formatted = alert_type.replace("_", " ").title()
 
         # Determine severity color
         severity_colors = {
-            'critical': '#dc2626',  # Red
-            'high': '#ea580c',  # Orange
-            'moderate': '#ca8a04',  # Yellow
-            'low': '#16a34a'  # Green
+            "critical": "#dc2626",  # Red
+            "high": "#ea580c",  # Orange
+            "moderate": "#ca8a04",  # Yellow
+            "low": "#16a34a",  # Green
         }
-        severity_color = severity_colors.get(severity.lower(), '#6b7280')
+        severity_color = severity_colors.get(severity.lower(), "#6b7280")
 
         # Load template
         template_path = self.template_dir / "crisis_alert.html"
 
         try:
-            with open(template_path, 'r', encoding='utf-8') as f:
+            with open(template_path, "r", encoding="utf-8") as f:
                 template_content = f.read()
 
         except FileNotFoundError:
@@ -78,22 +83,26 @@ class EmailTemplateRenderer:
                 alert_type=alert_type,
                 severity=severity,
                 alert_message=alert_message,
-                action_url=action_url
+                action_url=action_url,
             )
 
         # Render template with variables
-        rendered = template_content.replace('{{ recipient_name }}', recipient_name)
-        rendered = rendered.replace('{{ alert_type }}', alert_type)
-        rendered = rendered.replace('{{ alert_type_formatted }}', alert_type_formatted)
-        rendered = rendered.replace('{{ severity }}', severity)
-        rendered = rendered.replace('{{ severity_color }}', severity_color)
-        rendered = rendered.replace('{{ alert_message }}', alert_message)
-        rendered = rendered.replace('{{ screening_type }}', screening_type)
-        rendered = rendered.replace('{{ screening_date }}', screening_date)
-        rendered = rendered.replace('{{ action_url }}', action_url)
-        rendered = rendered.replace('{{ organization_name }}', organization_name)
-        rendered = rendered.replace('{{ notification_date }}', datetime.now().strftime('%Y-%m-%d %H:%M'))
-        rendered = rendered.replace('{{ unsubscribe_url }}', f'{action_url}/notifications')
+        rendered = template_content.replace("{{ recipient_name }}", recipient_name)
+        rendered = rendered.replace("{{ alert_type }}", alert_type)
+        rendered = rendered.replace("{{ alert_type_formatted }}", alert_type_formatted)
+        rendered = rendered.replace("{{ severity }}", severity)
+        rendered = rendered.replace("{{ severity_color }}", severity_color)
+        rendered = rendered.replace("{{ alert_message }}", alert_message)
+        rendered = rendered.replace("{{ screening_type }}", screening_type)
+        rendered = rendered.replace("{{ screening_date }}", screening_date)
+        rendered = rendered.replace("{{ action_url }}", action_url)
+        rendered = rendered.replace("{{ organization_name }}", organization_name)
+        rendered = rendered.replace(
+            "{{ notification_date }}", datetime.now().strftime("%Y-%m-%d %H:%M")
+        )
+        rendered = rendered.replace(
+            "{{ unsubscribe_url }}", f"{action_url}/notifications"
+        )
 
         return rendered
 
@@ -103,7 +112,7 @@ class EmailTemplateRenderer:
         alert_type: str,
         severity: str,
         alert_message: str,
-        action_url: str
+        action_url: str,
     ) -> str:
         """Fallback plain-text crisis alert if template fails to load"""
         return f"""
@@ -135,7 +144,7 @@ HIPAA-compliant • Secure • Encrypted
         pending_breakdown: Dict[str, int],
         hours_threshold: int,
         action_url: str,
-        organization_name: str = "PsychSync"
+        organization_name: str = "PsychSync",
     ) -> str:
         """
         Render pending review notification email
@@ -155,10 +164,12 @@ HIPAA-compliant • Secure • Encrypted
 
         # TODO(human): Implement HTML template rendering
         # For now, return plain text
-        breakdown_text = "\n".join([
-            f"- {screening_type}: {count} pending"
-            for screening_type, count in pending_breakdown.items()
-        ])
+        breakdown_text = "\n".join(
+            [
+                f"- {screening_type}: {count} pending"
+                for screening_type, count in pending_breakdown.items()
+            ]
+        )
 
         return f"""
 Pending Review Notification
@@ -188,7 +199,7 @@ HIPAA-compliant • Secure • Encrypted
         avg_response_time: float,
         top_concerns: list,
         action_url: str,
-        organization_name: str = "PsychSync"
+        organization_name: str = "PsychSync",
     ) -> str:
         """
         Render weekly summary email for clinicians
@@ -210,10 +221,9 @@ HIPAA-compliant • Secure • Encrypted
 
         # TODO(human): Implement HTML template rendering
         # For now, return plain text
-        concerns_text = "\n".join([
-            f"- {concern}: {count}"
-            for concern, count in top_concerns[:5]
-        ])
+        concerns_text = "\n".join(
+            [f"- {concern}: {count}" for concern, count in top_concerns[:5]]
+        )
 
         return f"""
 Weekly Clinical Summary - {week_start} to {week_end}

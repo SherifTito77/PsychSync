@@ -5,10 +5,10 @@ Comprehensive service for exporting anonymized research data with compliance,
 quality control, and multi-format output capabilities.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +17,11 @@ import pandas as pd
 from sqlalchemy.orm import Session
 
 # Import our anonymization service
-from app.services.data_anonymization import AnonymizationMethod, DataAnonymizer, QuasiIdentifier
+from app.services.data_anonymization import (
+    AnonymizationMethod,
+    DataAnonymizer,
+    QuasiIdentifier,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +137,11 @@ class ResearchDataExporter:
                 "security_measures": ["encryption", "access_control", "audit_logging"],
             },
             ComplianceStandard.HIPAA: {
-                "required_fields": ["phi_identifiers", "access_logs", "disclosure_tracking"],
+                "required_fields": [
+                    "phi_identifiers",
+                    "access_logs",
+                    "disclosure_tracking",
+                ],
                 "anonymization_level": "very_high",
                 "de_identification": True,
                 "minimum_necessary": True,
@@ -141,7 +149,11 @@ class ResearchDataExporter:
                 "business_associate_agreement": True,
             },
             ComplianceStandard.CCPA: {
-                "required_fields": ["consumer_rights", "data_categories", "opt_out_mechanism"],
+                "required_fields": [
+                    "consumer_rights",
+                    "data_categories",
+                    "opt_out_mechanism",
+                ],
                 "anonymization_level": "high",
                 "transparency": True,
                 "consumer_control": True,
@@ -191,7 +203,9 @@ class ResearchDataExporter:
 
             self.export_cache[config.export_id] = export_request
 
-            logger.info(f"Created export request {config.export_id} for user {config.user_id}")
+            logger.info(
+                f"Created export request {config.export_id} for user {config.user_id}"
+            )
             return config.export_id
 
         except Exception as e:
@@ -225,23 +239,33 @@ class ResearchDataExporter:
             )
 
             # Perform quality checks
-            quality_metrics = await self._perform_quality_checks(raw_data, anonymized_data, config)
+            quality_metrics = await self._perform_quality_checks(
+                raw_data, anonymized_data, config
+            )
 
             # Generate reports
             anonymization_report = await self._generate_anonymization_report(
                 raw_data, anonymized_data, config
             )
 
-            compliance_report = await self._generate_compliance_report(anonymized_data, config)
+            compliance_report = await self._generate_compliance_report(
+                anonymized_data, config
+            )
 
             # Export to file
-            file_path = await self._export_to_file(anonymized_data, config.output_format, export_id)
+            file_path = await self._export_to_file(
+                anonymized_data, config.output_format, export_id
+            )
 
             # Get file size
-            file_size = Path(file_path).stat().st_size if Path(file_path).exists() else 0
+            file_size = (
+                Path(file_path).stat().st_size if Path(file_path).exists() else 0
+            )
 
             # Generate download URL
-            download_url = await self._generate_download_url(file_path, config.export_id)
+            download_url = await self._generate_download_url(
+                file_path, config.export_id
+            )
 
             # Calculate processing time
             processing_time = (datetime.utcnow() - start_time).total_seconds()
@@ -267,7 +291,9 @@ class ResearchDataExporter:
             export_request["processing_end"] = datetime.utcnow()
             export_request["result"] = result
 
-            logger.info(f"Completed export {export_id}: {len(anonymized_data)} records exported")
+            logger.info(
+                f"Completed export {export_id}: {len(anonymized_data)} records exported"
+            )
             return result
 
         except Exception as e:
@@ -281,16 +307,24 @@ class ResearchDataExporter:
 
             raise
 
-    async def get_export_status(self, export_id: str, user_id: str | None = None) -> dict[str, Any]:
+    async def get_export_status(
+        self, export_id: str, user_id: str | None = None
+    ) -> dict[str, Any]:
         """Get status of export request"""
         try:
             export_request = self.export_cache.get(export_id)
             if not export_request:
-                return {"status": "not_found", "message": f"Export {export_id} not found"}
+                return {
+                    "status": "not_found",
+                    "message": f"Export {export_id} not found",
+                }
 
             # Check user authorization
             if user_id and export_request["config"].user_id != user_id:
-                return {"status": "unauthorized", "message": "Not authorized to view this export"}
+                return {
+                    "status": "unauthorized",
+                    "message": "Not authorized to view this export",
+                }
 
             config = export_request["config"]
             result = export_request.get("result")
@@ -299,12 +333,16 @@ class ResearchDataExporter:
                 "export_id": export_id,
                 "status": export_request["status"].value,
                 "created_date": export_request["created_date"].isoformat(),
-                "processing_start": export_request["processing_start"].isoformat()
-                if export_request["processing_start"]
-                else None,
-                "processing_end": export_request["processing_end"].isoformat()
-                if export_request["processing_end"]
-                else None,
+                "processing_start": (
+                    export_request["processing_start"].isoformat()
+                    if export_request["processing_start"]
+                    else None
+                ),
+                "processing_end": (
+                    export_request["processing_end"].isoformat()
+                    if export_request["processing_end"]
+                    else None
+                ),
                 "error_message": export_request.get("error_message"),
                 "config": {
                     "data_categories": [cat.value for cat in config.data_categories],
@@ -314,7 +352,9 @@ class ResearchDataExporter:
                     ],
                     "anonymization_method": config.anonymization_method.value,
                     "output_format": config.output_format.value,
-                    "compliance_standards": [std.value for std in config.compliance_standards],
+                    "compliance_standards": [
+                        std.value for std in config.compliance_standards
+                    ],
                 },
             }
 
@@ -356,7 +396,11 @@ class ResearchDataExporter:
                     result = export_request.get("result")
 
                     # Skip expired exports unless requested
-                    if not include_expired and result and result.expires_at < datetime.utcnow():
+                    if (
+                        not include_expired
+                        and result
+                        and result.expires_at < datetime.utcnow()
+                    ):
                         continue
 
                     export_info = {
@@ -364,7 +408,8 @@ class ResearchDataExporter:
                         "status": export_request["status"].value,
                         "created_date": export_request["created_date"].isoformat(),
                         "data_categories": [
-                            cat.value for cat in export_request["config"].data_categories
+                            cat.value
+                            for cat in export_request["config"].data_categories
                         ],
                         "output_format": export_request["config"].output_format.value,
                         "record_count": result.record_count if result else 0,
@@ -384,16 +429,24 @@ class ResearchDataExporter:
             logger.error(f"Error listing exports for user {user_id}: {e}")
             return []
 
-    async def delete_export(self, export_id: str, user_id: str | None = None) -> dict[str, Any]:
+    async def delete_export(
+        self, export_id: str, user_id: str | None = None
+    ) -> dict[str, Any]:
         """Delete an export and its files"""
         try:
             export_request = self.export_cache.get(export_id)
             if not export_request:
-                return {"status": "not_found", "message": f"Export {export_id} not found"}
+                return {
+                    "status": "not_found",
+                    "message": f"Export {export_id} not found",
+                }
 
             # Check user authorization
             if user_id and export_request["config"].user_id != user_id:
-                return {"status": "unauthorized", "message": "Not authorized to delete this export"}
+                return {
+                    "status": "unauthorized",
+                    "message": "Not authorized to delete this export",
+                }
 
             # Delete file if it exists
             result = export_request.get("result")
@@ -458,9 +511,13 @@ class ResearchDataExporter:
                     )
 
                 # Processing times
-                if export_request["processing_start"] and export_request["processing_end"]:
+                if (
+                    export_request["processing_start"]
+                    and export_request["processing_end"]
+                ):
                     processing_time = (
-                        export_request["processing_end"] - export_request["processing_start"]
+                        export_request["processing_end"]
+                        - export_request["processing_start"]
                     ).total_seconds()
                     stats["processing_times"].append(processing_time)
 
@@ -485,11 +542,14 @@ class ResearchDataExporter:
                 stats["min_processing_time"] = min(stats["processing_times"])
 
             if stats["file_sizes"]:
-                stats["average_file_size"] = sum(stats["file_sizes"]) / len(stats["file_sizes"])
+                stats["average_file_size"] = sum(stats["file_sizes"]) / len(
+                    stats["file_sizes"]
+                )
                 stats["total_file_size"] = sum(stats["file_sizes"])
 
             stats["success_rate"] = (
-                stats["completed_exports"] / (stats["completed_exports"] + stats["failed_exports"])
+                stats["completed_exports"]
+                / (stats["completed_exports"] + stats["failed_exports"])
                 if (stats["completed_exports"] + stats["failed_exports"]) > 0
                 else 0
             )
@@ -513,7 +573,9 @@ class ResearchDataExporter:
             raise ValueError("Invalid date range: start date must be before end date")
 
         if not config.quasi_identifiers:
-            config.quasi_identifiers = self._get_default_quasi_identifiers(config.data_categories)
+            config.quasi_identifiers = self._get_default_quasi_identifiers(
+                config.data_categories
+            )
 
         if not config.sensitive_attributes:
             config.sensitive_attributes = self._get_default_sensitive_attributes(
@@ -553,13 +615,19 @@ class ResearchDataExporter:
 
         return quasi_identifiers
 
-    def _get_default_sensitive_attributes(self, categories: list[DataCategory]) -> list[str]:
+    def _get_default_sensitive_attributes(
+        self, categories: list[DataCategory]
+    ) -> list[str]:
         """Get default sensitive attributes for data categories"""
         defaults = {
             DataCategory.DEMOGRAPHIC: ["name", "email", "phone", "address", "ssn"],
             DataCategory.PSYCHOLOGICAL: ["therapist_notes", "diagnosis", "medication"],
             DataCategory.BEHAVIORAL: ["personal_comments", "confidential_notes"],
-            DataCategory.ORGANIZATIONAL: ["performance_review", "salary", "termination_reason"],
+            DataCategory.ORGANIZATIONAL: [
+                "performance_review",
+                "salary",
+                "termination_reason",
+            ],
         }
 
         sensitive_attributes = []
@@ -580,7 +648,9 @@ class ResearchDataExporter:
                 record = {
                     "record_id": f"rec_{i:06d}",
                     "user_id": f"user_{i % 100:03d}",
-                    "date": (config.date_range[0] + timedelta(days=i % 365)).strftime("%Y-%m-%d"),
+                    "date": (config.date_range[0] + timedelta(days=i % 365)).strftime(
+                        "%Y-%m-%d"
+                    ),
                 }
 
                 # Add category-specific data
@@ -603,9 +673,9 @@ class ResearchDataExporter:
                                 ["Personality", "Intelligence", "Aptitude"]
                             ),
                             "score": np.random.normal(100, 15),
-                            "test_date": (config.date_range[0] + timedelta(days=i % 30)).strftime(
-                                "%Y-%m-%d"
-                            ),
+                            "test_date": (
+                                config.date_range[0] + timedelta(days=i % 30)
+                            ).strftime("%Y-%m-%d"),
                         }
                     )
 
@@ -676,13 +746,19 @@ class ResearchDataExporter:
         """Perform quality checks on exported data"""
         try:
             completeness_score = await self._calculate_completeness(anonymized_data)
-            accuracy_score = await self._calculate_accuracy(original_data, anonymized_data)
+            accuracy_score = await self._calculate_accuracy(
+                original_data, anonymized_data
+            )
             consistency_score = await self._calculate_consistency(anonymized_data)
-            anonymity_score = await self._calculate_anonymity_score(anonymized_data, config)
+            anonymity_score = await self._calculate_anonymity_score(
+                anonymized_data, config
+            )
             privacy_compliance_score = await self._calculate_privacy_compliance(
                 anonymized_data, config
             )
-            utility_score = await self._calculate_utility_score(original_data, anonymized_data)
+            utility_score = await self._calculate_utility_score(
+                original_data, anonymized_data
+            )
 
             validation_errors = await self._validate_data_quality(anonymized_data)
             quality_flags = await self._generate_quality_flags(anonymized_data, config)
@@ -718,19 +794,25 @@ class ResearchDataExporter:
             logger.error(f"Error calculating completeness: {e}")
             return 0.0
 
-    async def _calculate_accuracy(self, original: pd.DataFrame, anonymized: pd.DataFrame) -> float:
+    async def _calculate_accuracy(
+        self, original: pd.DataFrame, anonymized: pd.DataFrame
+    ) -> float:
         """Calculate data accuracy score"""
         try:
             # This is a simplified accuracy calculation
             # In production, would compare data distributions and patterns
 
             # Check if structure is preserved
-            if len(original) != len(anonymized) or len(original.columns) != len(anonymized.columns):
+            if len(original) != len(anonymized) or len(original.columns) != len(
+                anonymized.columns
+            ):
                 return 0.5  # Structural issues
 
             # Check data types preservation
             type_preservation = sum(
-                1 for col in original.columns if original[col].dtype == anonymized[col].dtype
+                1
+                for col in original.columns
+                if original[col].dtype == anonymized[col].dtype
             ) / len(original.columns)
 
             return max(0.0, type_preservation)
@@ -825,7 +907,12 @@ class ResearchDataExporter:
                         for col in data.columns
                         if any(
                             keyword in col.lower()
-                            for keyword in ["medical", "health", "diagnosis", "treatment"]
+                            for keyword in [
+                                "medical",
+                                "health",
+                                "diagnosis",
+                                "treatment",
+                            ]
                         )
                     ]
                     if len(phi_columns) > 0:
@@ -881,7 +968,9 @@ class ResearchDataExporter:
                 Q1 = data[col].quantile(0.25)
                 Q3 = data[col].quantile(0.75)
                 IQR = Q3 - Q1
-                outliers = data[(data[col] < Q1 - 1.5 * IQR) | (data[col] > Q3 + 1.5 * IQR)]
+                outliers = data[
+                    (data[col] < Q1 - 1.5 * IQR) | (data[col] > Q3 + 1.5 * IQR)
+                ]
 
                 if len(outliers) > len(data) * 0.05:  # More than 5% outliers
                     errors.append(
@@ -915,7 +1004,9 @@ class ResearchDataExporter:
             if config.anonymization_method == AnonymizationMethod.K_ANONYMITY:
                 if len(config.quasi_identifiers) < 3:
                     flags.append("few_quasi_identifiers")
-            elif config.anonymization_method == AnonymizationMethod.DIFFERENTIAL_PRIVACY:
+            elif (
+                config.anonymization_method == AnonymizationMethod.DIFFERENTIAL_PRIVACY
+            ):
                 flags.append("differential_privacy")
 
             # Compliance flags
@@ -942,18 +1033,27 @@ class ResearchDataExporter:
                 "anonymization_method": config.anonymization_method.value,
                 "quasi_identifiers": [qi.name for qi in config.quasi_identifiers],
                 "sensitive_attributes": config.sensitive_attributes,
-                "k_value": 5
-                if config.anonymization_method == AnonymizationMethod.K_ANONYMITY
-                else None,
-                "epsilon": 1.0
-                if config.anonymization_method == AnonymizationMethod.DIFFERENTIAL_PRIVACY
-                else None,
-                "l_diversity": 3
-                if config.anonymization_method == AnonymizationMethod.L_DIVERSITY
-                else None,
-                "t_closeness": 0.1
-                if config.anonymization_method == AnonymizationMethod.T_CLOSENESS
-                else None,
+                "k_value": (
+                    5
+                    if config.anonymization_method == AnonymizationMethod.K_ANONYMITY
+                    else None
+                ),
+                "epsilon": (
+                    1.0
+                    if config.anonymization_method
+                    == AnonymizationMethod.DIFFERENTIAL_PRIVACY
+                    else None
+                ),
+                "l_diversity": (
+                    3
+                    if config.anonymization_method == AnonymizationMethod.L_DIVERSITY
+                    else None
+                ),
+                "t_closeness": (
+                    0.1
+                    if config.anonymization_method == AnonymizationMethod.T_CLOSENESS
+                    else None
+                ),
                 "original_records": len(original_data),
                 "anonymized_records": len(anonymized_data),
                 "protected_columns": [],
@@ -970,12 +1070,16 @@ class ResearchDataExporter:
 
                     report["protected_columns"].append(attr)
                     report["protection_methods"][attr] = {
-                        "original_sample": list(original_values[:5])
-                        if len(original_values) > 0
-                        else [],
-                        "anonymized_sample": list(anonymized_values[:5])
-                        if len(anonymized_values) > 0
-                        else [],
+                        "original_sample": (
+                            list(original_values[:5])
+                            if len(original_values) > 0
+                            else []
+                        ),
+                        "anonymized_sample": (
+                            list(anonymized_values[:5])
+                            if len(anonymized_values) > 0
+                            else []
+                        ),
                         "protection_applied": config.anonymization_method.value,
                         "risk_mitigated": True,
                     }
@@ -1025,7 +1129,9 @@ class ResearchDataExporter:
         """Generate compliance report"""
         try:
             report = {
-                "compliance_standards": [std.value for std in config.compliance_standards],
+                "compliance_standards": [
+                    std.value for std in config.compliance_standards
+                ],
                 "compliance_checks": {},
                 "passed_checks": [],
                 "failed_checks": [],
@@ -1038,7 +1144,9 @@ class ResearchDataExporter:
             # Check compliance with each standard
             for standard in config.compliance_standards:
                 template = self.compliance_templates[standard]
-                checks = await self._check_compliance_requirements(data, standard, template)
+                checks = await self._check_compliance_requirements(
+                    data, standard, template
+                )
                 report["compliance_checks"][standard.value] = checks
 
                 if checks["compliant"]:
@@ -1047,7 +1155,9 @@ class ResearchDataExporter:
                     report["failed_checks"].append(standard.value)
 
             # Generate recommendations
-            report["recommendations"] = self._generate_compliance_recommendations(config, report)
+            report["recommendations"] = self._generate_compliance_recommendations(
+                config, report
+            )
 
             return report
 
@@ -1060,7 +1170,12 @@ class ResearchDataExporter:
     ) -> dict[str, Any]:
         """Check compliance requirements for a specific standard"""
         try:
-            checks = {"compliant": True, "checks_performed": [], "issues_found": [], "score": 1.0}
+            checks = {
+                "compliant": True,
+                "checks_performed": [],
+                "issues_found": [],
+                "score": 1.0,
+            }
 
             required_fields = template.get("required_fields", [])
             required_fields.extend(template.get("quasi_identifiers", []))
@@ -1071,9 +1186,13 @@ class ResearchDataExporter:
                 if field in data.columns:
                     # Check if field is properly anonymized
                     if self._is_field_properly_anonymized(data[field], standard):
-                        checks["checks_performed"].append(f"{field} - properly protected")
+                        checks["checks_performed"].append(
+                            f"{field} - properly protected"
+                        )
                     else:
-                        checks["issues_found"].append(f"{field} - insufficient protection")
+                        checks["issues_found"].append(
+                            f"{field} - insufficient protection"
+                        )
                         checks["compliant"] = False
                         checks["score"] -= 0.1
                 else:
@@ -1174,7 +1293,10 @@ class ResearchDataExporter:
     def _classify_data_sensitivity(self, config: ExportConfiguration) -> str:
         """Classify the sensitivity level of the data"""
         high_risk_categories = [DataCategory.DEMOGRAPHIC, DataCategory.PSYCHOLOGICAL]
-        high_risk_methods = [AnonymizationMethod.K_ANONYMITY, AnonymizationMethod.L_DIVERSITY]
+        high_risk_methods = [
+            AnonymizationMethod.K_ANONYMITY,
+            AnonymizationMethod.L_DIVERSITY,
+        ]
 
         if any(cat in high_risk_categories for cat in config.data_categories):
             if config.anonymization_method in high_risk_methods:
@@ -1183,7 +1305,9 @@ class ResearchDataExporter:
 
         return "low_risk"
 
-    def _generate_retention_guidance(self, config: ExportConfiguration) -> dict[str, Any]:
+    def _generate_retention_guidance(
+        self, config: ExportConfiguration
+    ) -> dict[str, Any]:
         """Generate data retention guidance"""
         guidance = {
             "recommended_retention_period": self._get_default_retention_period(
@@ -1203,7 +1327,12 @@ class ResearchDataExporter:
             guidance["legal_requirements"].append("HIPAA 6-year retention")
 
         if ComplianceStandard.GDPR in config.compliance_standards:
-            guidance["data_subject_rights"] = ["access", "correction", "erasure", "portability"]
+            guidance["data_subject_rights"] = [
+                "access",
+                "correction",
+                "erasure",
+                "portability",
+            ]
             guidance["lawful_basis"] = "research_consent"
 
         return guidance
@@ -1216,7 +1345,9 @@ class ResearchDataExporter:
             return "5_years"
         return "3_years"
 
-    def _get_legal_retention_requirements(self, standards: list[ComplianceStandard]) -> list[str]:
+    def _get_legal_retention_requirements(
+        self, standards: list[ComplianceStandard]
+    ) -> list[str]:
         """Get legal retention requirements for compliance standards"""
         requirements = []
 
@@ -1238,11 +1369,15 @@ class ResearchDataExporter:
 
         # Anonymization recommendations
         if config.anonymization_method == AnonymizationMethod.NONE:
-            recommendations.append("Implement anonymization (k-anonymity or differential privacy)")
+            recommendations.append(
+                "Implement anonymization (k-anonymity or differential privacy)"
+            )
 
         # Compliance standard recommendations
         if ComplianceStandard.GDPR in config.compliance_standards:
-            recommendations.append("Ensure lawful basis for processing and data subject rights")
+            recommendations.append(
+                "Ensure lawful basis for processing and data subject rights"
+            )
 
         if ComplianceStandard.HIPAA in config.compliance_standards:
             recommendations.append(
@@ -1252,7 +1387,9 @@ class ResearchDataExporter:
         # Failed checks recommendations
         for failed_check in compliance_report.get("failed_checks", []):
             if failed_check == "gdpr":
-                recommendations.append("Address GDPR compliance issues before data sharing")
+                recommendations.append(
+                    "Address GDPR compliance issues before data sharing"
+                )
             elif failed_check == "hipaa":
                 recommendations.append(
                     "Review HIPAA requirements and implement necessary safeguards"

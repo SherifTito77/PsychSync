@@ -17,15 +17,15 @@ Usage:
     python scripts/generate_tests.py --all  # Generate tests for all modules
 """
 
+import argparse
 import ast
+import inspect
 import os
 import sys
-import argparse
-import inspect
-from pathlib import Path
-from typing import Dict, List, Set, Tuple, Optional, Any
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Add project root to Python path
 project_root = Path(__file__).parent.parent

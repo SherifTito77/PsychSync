@@ -27,8 +27,7 @@ from typing import Any, Optional
 # =============================================================================
 
 CORRELATION_ID_CONTEXT: ContextVar[Optional[str]] = ContextVar(
-    'correlation_id',
-    default=None
+    "correlation_id", default=None
 )
 
 
@@ -65,11 +64,9 @@ def clear_correlation_id() -> None:
 # Structured Logging Helper
 # =============================================================================
 
+
 def log_with_context(
-    logger_instance: logging.Logger,
-    level: int,
-    message: str,
-    **extra
+    logger_instance: logging.Logger, level: int, message: str, **extra
 ) -> None:
     """
     Log a message with automatic correlation ID injection.
@@ -97,7 +94,7 @@ def log_with_context(
         )
     """
     # Automatically inject correlation ID
-    extra['correlation_id'] = get_correlation_id()
+    extra["correlation_id"] = get_correlation_id()
 
     # Log with extra context
     logger_instance.log(level, message, extra=extra)
@@ -115,7 +112,7 @@ from typing import Callable
 def log_performance(
     operation_name: str,
     warning_threshold_ms: float = 5000,
-    logger_instance: Optional[logging.Logger] = None
+    logger_instance: Optional[logging.Logger] = None,
 ):
     """
     Decorator to automatically log operation performance metrics.
@@ -240,6 +237,7 @@ def log_performance(
 
         # Return appropriate wrapper based on whether function is async
         import asyncio
+
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
         else:
@@ -252,11 +250,9 @@ def log_performance(
 # Database Operation Logging Helper
 # =============================================================================
 
+
 def log_db_operation(
-    operation: str,
-    table: str,
-    record_id: Optional[str] = None,
-    **extra_fields
+    operation: str, table: str, record_id: Optional[str] = None, **extra_fields
 ) -> Callable:
     """
     Decorator to log database CRUD operations with performance metrics.
@@ -273,10 +269,12 @@ def log_db_operation(
             # Creation logic
             pass
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
             import time
+
             start_time = time.time()
 
             try:
@@ -287,7 +285,7 @@ def log_db_operation(
 
                 # Extract record ID if result is an object with id attribute
                 result_id = record_id
-                if result_id is None and hasattr(result, 'id'):
+                if result_id is None and hasattr(result, "id"):
                     result_id = str(result.id)
 
                 # Prepare extra fields
@@ -351,4 +349,5 @@ def log_db_operation(
                 raise
 
         return async_wrapper
+
     return decorator

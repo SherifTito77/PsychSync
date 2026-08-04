@@ -31,27 +31,28 @@ from prometheus_client import Histogram
 logger = logging.getLogger(__name__)
 
 # Context variable for tracking nested queries
-query_depth: ContextVar[int] = ContextVar('query_depth', default=0)
+query_depth: ContextVar[int] = ContextVar("query_depth", default=0)
 
 
 # ==================== PROMETHEUS METRICS ====================
 
 query_duration_histogram = Histogram(
-    'db_query_duration_seconds',
-    'Database query duration in seconds',
-    ['query_name', 'slow_query'],
-    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+    "db_query_duration_seconds",
+    "Database query duration in seconds",
+    ["query_name", "slow_query"],
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0],
 )
 
 query_count_total = Histogram(
-    'db_query_count_total',
-    'Total number of database queries',
-    ['query_name'],
-    buckets=[1, 5, 10, 25, 50, 100, 250, 500, 1000]
+    "db_query_count_total",
+    "Total number of database queries",
+    ["query_name"],
+    buckets=[1, 5, 10, 25, 50, 100, 250, 500, 1000],
 )
 
 
 # ==================== QUERY STATISTICS ====================
+
 
 class QueryStatistics:
     """Track query execution statistics."""
@@ -66,19 +67,21 @@ class QueryStatistics:
         query_name: str,
         duration: float,
         is_slow: bool = False,
-        context: dict[str, Any] | None = None
+        context: dict[str, Any] | None = None,
     ) -> None:
         """Record query execution statistics."""
         self.query_counts[query_name] += 1
         self.query_durations[query_name].append(duration)
 
         if is_slow:
-            self.slow_queries.append({
-                "query_name": query_name,
-                "duration": duration,
-                "timestamp": time.time(),
-                "context": context or {},
-            })
+            self.slow_queries.append(
+                {
+                    "query_name": query_name,
+                    "duration": duration,
+                    "timestamp": time.time(),
+                    "context": context or {},
+                }
+            )
 
     def get_stats(self) -> dict[str, Any]:
         """Get current statistics."""
@@ -106,7 +109,7 @@ class QueryStatistics:
             sorted(
                 stats["top_queries"].items(),
                 key=lambda x: x[1]["total_duration"],
-                reverse=True
+                reverse=True,
             )[:10]
         )
 
@@ -119,10 +122,11 @@ query_stats = QueryStatistics()
 
 # ==================== QUERY TRACKING DECORATOR ====================
 
+
 def track_query_performance(
     query_name: str | None = None,
     slow_threshold: float = 1.0,
-    log_context: bool = False
+    log_context: bool = False,
 ) -> Callable:
     """
     Decorator to track query performance.
@@ -163,17 +167,20 @@ def track_query_performance(
 
                 # Record Prometheus metrics
                 query_duration_histogram.labels(
-                    query_name=name,
-                    slow_query=str(is_slow)
+                    query_name=name, slow_query=str(is_slow)
                 ).observe(duration)
 
                 query_count_total.labels(query_name=name).observe(1)
 
                 # Record statistics
-                context_data = {
-                    "function": func.__name__,
-                    "depth": depth,
-                } if log_context else None
+                context_data = (
+                    {
+                        "function": func.__name__,
+                        "depth": depth,
+                    }
+                    if log_context
+                    else None
+                )
 
                 query_stats.record_query(name, duration, is_slow, context_data)
 
@@ -186,12 +193,12 @@ def track_query_performance(
                             "duration_seconds": duration,
                             "threshold": slow_threshold,
                             "depth": depth,
-                        }
+                        },
                     )
                 else:
                     logger.debug(
                         f"Query {name} completed in {duration:.3f}s",
-                        extra={"query_name": name, "duration_seconds": duration}
+                        extra={"query_name": name, "duration_seconds": duration},
                     )
 
                 return result
@@ -206,6 +213,7 @@ def track_query_performance(
 
 
 # ==================== CONTEXT MANAGER ====================
+
 
 @contextlib.contextmanager
 def track_query_timing(query_name: str, slow_threshold: float = 1.0):
@@ -234,8 +242,7 @@ def track_query_timing(query_name: str, slow_threshold: float = 1.0):
 
         # Record Prometheus metrics
         query_duration_histogram.labels(
-            query_name=query_name,
-            slow_query=str(is_slow)
+            query_name=query_name, slow_query=str(is_slow)
         ).observe(duration)
 
         query_count_total.labels(query_name=query_name).observe(1)
@@ -251,7 +258,7 @@ def track_query_timing(query_name: str, slow_threshold: float = 1.0):
                     "query_name": query_name,
                     "duration_seconds": duration,
                     "threshold": slow_threshold,
-                }
+                },
             )
 
         # Restore query depth
@@ -259,6 +266,7 @@ def track_query_timing(query_name: str, slow_threshold: float = 1.0):
 
 
 # ==================== UTILITY FUNCTIONS ====================
+
 
 def get_query_statistics() -> dict[str, Any]:
     """Get current query statistics."""
@@ -286,6 +294,7 @@ def reset_statistics() -> None:
 
 
 # ==================== ENDPOINT EXAMPLES ====================
+
 
 class QueryPerformanceExamples:
     """
@@ -323,15 +332,12 @@ class QueryPerformanceExamples:
 __all__ = [
     # Decorator
     "track_query_performance",
-
     # Context manager
     "track_query_timing",
-
     # Statistics
     "get_query_statistics",
     "get_slow_queries",
     "reset_statistics",
-
     # Examples
     "QueryPerformanceExamples",
 ]

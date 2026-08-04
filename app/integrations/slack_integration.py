@@ -6,11 +6,11 @@ PRIVACY-FOCUSED: Analyzes patterns, not message content
 """
 
 import logging
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timedelta
-from dataclasses import dataclass
-from collections import defaultdict
 import re
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -474,8 +474,9 @@ class SlackAPIIntegration:
 
         Uses resilient HTTP client for improved reliability.
         """
-        from app.core.resilient_client import resilient_http_client
         from datetime import datetime, timedelta
+
+        from app.core.resilient_client import resilient_http_client
         oldest_ts = (datetime.utcnow() - timedelta(days=days)).timestamp()
 
         # TODO(human): If you want to add custom error handling for Slack-specific errors,

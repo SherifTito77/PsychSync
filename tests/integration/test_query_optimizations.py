@@ -15,26 +15,27 @@ Tests:
 6. Query performance tracking works
 """
 
-import pytest
 import asyncio
 from uuid import UUID, uuid4
-from sqlalchemy import select, func
+
+import pytest
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_async_db
+from app.core.query_performance import (
+    get_query_statistics,
+    reset_statistics,
+    track_query_performance,
+)
 from app.db.models.team import Team, TeamMember
 from app.db.models.user import User
 from app.repositories.base_repository import BaseRepository
 from app.services.cached_queries import (
+    get_team_members_count_cached,
     get_user_profile_cached,
     invalidate_user_profile_cache,
-    get_team_members_count_cached,
-)
-from app.core.query_performance import (
-    track_query_performance,
-    get_query_statistics,
-    reset_statistics,
 )
 
 
@@ -45,11 +46,15 @@ class TestCompositeIndexes:
     async def test_team_members_index_exists(self, db: AsyncSession):
         """Verify team_members composite index exists."""
         # This query should use the idx_team_members_team_user index
-        result = await db.execute(text("""
+        result = await db.execute(
+            text(
+                """
             SELECT 1 FROM pg_indexes
             WHERE tablename = 'team_members'
             AND indexname = 'idx_team_members_team_user'
-        """))
+        """
+            )
+        )
         exists = result.scalar() is not None
         assert exists, "Composite index idx_team_members_team_user not found"
 
@@ -99,8 +104,7 @@ class TestSelectiveFieldLoading:
         # Load only specific fields
         user_repo = BaseRepository(db, User)
         user_data = await user_repo.get_fields_only(
-            user_id,
-            fields=["email", "first_name"]
+            user_id, fields=["email", "first_name"]
         )
 
         assert user_data is not None
@@ -115,10 +119,7 @@ class TestSelectiveFieldLoading:
         user_repo = BaseRepository(db, User)
 
         with pytest.raises(ValueError, match="has no field"):
-            await user_repo.get_fields_only(
-                user_id,
-                fields=["id", "invalid_field"]
-            )
+            await user_repo.get_fields_only(user_id, fields=["id", "invalid_field"])
 
     async def test_get_with_relations_selective_fields(self, db: AsyncSession):
         """Test get_with_relations with selective field loading."""

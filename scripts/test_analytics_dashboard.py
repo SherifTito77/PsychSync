@@ -15,30 +15,32 @@ Author: Quality Engineering Team
 Version: 1.0 Enterprise Analytics
 """
 
-import json
-import time
 import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional
-from pathlib import Path
+import json
+import os
 import subprocess
 import sys
-import os
+import time
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
-    import pytest
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    import pandas as pd
-    import numpy as np
-    from dataclasses import dataclass, asdict
     from collections import defaultdict
-    import plotly.graph_objects as go
+    from dataclasses import asdict, dataclass
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import pandas as pd
     import plotly.express as px
+    import plotly.graph_objects as go
+    import pytest
+    import seaborn as sns
     from plotly.subplots import make_subplots
+
     HAS_PLOTTING = True
 except ImportError:
     HAS_PLOTTING = False
@@ -48,6 +50,7 @@ except ImportError:
 @dataclass
 class TestMetrics:
     """Test execution metrics data structure"""
+
     test_name: str
     test_file: str
     execution_time: float
@@ -76,39 +79,41 @@ class TestAnalyticsEngine:
     def _load_benchmarks(self) -> Dict[str, float]:
         """Load performance benchmarks from configuration"""
         return {
-            'api_response_time_ms': 200.0,
-            'database_query_ms': 100.0,
-            'file_upload_mb_per_sec': 10.0,
-            'email_send_per_sec': 50.0,
-            'payment_process_ms': 500.0,
-            'token_refresh_ms': 50.0,
+            "api_response_time_ms": 200.0,
+            "database_query_ms": 100.0,
+            "file_upload_mb_per_sec": 10.0,
+            "email_send_per_sec": 50.0,
+            "payment_process_ms": 500.0,
+            "token_refresh_ms": 50.0,
         }
 
     def _load_security_standards(self) -> Dict[str, Dict]:
         """Load security validation standards"""
         return {
-            'owasp_compliance': {
-                'injection_prevention': True,
-                'broken_authentication': True,
-                'sensitive_data_exposure': True,
-                'xml_external_entities': True,
-                'broken_access_control': True,
-                'security_misconfiguration': True,
-                'cross_site_scripting': True,
-                'insecure_deserialization': True,
-                'components_with_vulnerabilities': True,
-                'insufficient_logging': True,
+            "owasp_compliance": {
+                "injection_prevention": True,
+                "broken_authentication": True,
+                "sensitive_data_exposure": True,
+                "xml_external_entities": True,
+                "broken_access_control": True,
+                "security_misconfiguration": True,
+                "cross_site_scripting": True,
+                "insecure_deserialization": True,
+                "components_with_vulnerabilities": True,
+                "insufficient_logging": True,
             },
-            'pci_compliance': {
-                'card_data_protection': True,
-                'secure_transmission': True,
-                'strong_cryptography': True,
-                'access_control': True,
-                'network_security': True,
-            }
+            "pci_compliance": {
+                "card_data_protection": True,
+                "secure_transmission": True,
+                "strong_cryptography": True,
+                "access_control": True,
+                "network_security": True,
+            },
         }
 
-    async def run_test_suite(self, test_path: str = "tests/integration/") -> Dict[str, Any]:
+    async def run_test_suite(
+        self, test_path: str = "tests/integration/"
+    ) -> Dict[str, Any]:
         """Execute test suite and collect metrics"""
         print(f"🧪 Running test suite: {test_path}")
         start_time = time.time()
@@ -116,15 +121,19 @@ class TestAnalyticsEngine:
         try:
             # Run pytest with JSON reporting
             cmd = [
-                sys.executable, "-m", "pytest",
+                sys.executable,
+                "-m",
+                "pytest",
                 test_path,
                 "--json-report",
                 "--json-report-file=test_results.json",
                 "--tb=short",
-                "-v"
+                "-v",
             ]
 
-            result = subprocess.run(cmd, capture_output=True, text=True, cwd=self.project_root)
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, cwd=self.project_root
+            )
 
             execution_time = time.time() - start_time
 
@@ -132,50 +141,50 @@ class TestAnalyticsEngine:
             test_results = self._parse_test_results("test_results.json")
 
             return {
-                'execution_time': execution_time,
-                'exit_code': result.returncode,
-                'stdout': result.stdout,
-                'stderr': result.stderr,
-                'test_results': test_results,
-                'timestamp': datetime.now().isoformat(),
+                "execution_time": execution_time,
+                "exit_code": result.returncode,
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+                "test_results": test_results,
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
             return {
-                'execution_time': time.time() - start_time,
-                'exit_code': 1,
-                'error': str(e),
-                'timestamp': datetime.now().isoformat(),
+                "execution_time": time.time() - start_time,
+                "exit_code": 1,
+                "error": str(e),
+                "timestamp": datetime.now().isoformat(),
             }
 
     def _parse_test_results(self, results_file: str) -> Dict[str, Any]:
         """Parse pytest JSON results"""
         try:
-            with open(results_file, 'r') as f:
+            with open(results_file, "r") as f:
                 data = json.load(f)
 
-            summary = data.get('summary', {})
-            tests = data.get('tests', [])
+            summary = data.get("summary", {})
+            tests = data.get("tests", [])
 
             # Extract individual test metrics
             for test in tests:
                 metric = TestMetrics(
-                    test_name=test.get('nodeid', '').split('::')[-1],
-                    test_file=test.get('nodeid', '').split('::')[0],
-                    execution_time=test.get('duration', 0.0),
-                    status=test.get('outcome', 'unknown'),
-                    error_message=test.get('call', {}).get('longrepr', None),
+                    test_name=test.get("nodeid", "").split("::")[-1],
+                    test_file=test.get("nodeid", "").split("::")[0],
+                    execution_time=test.get("duration", 0.0),
+                    status=test.get("outcome", "unknown"),
+                    error_message=test.get("call", {}).get("longrepr", None),
                 )
                 self.test_results.append(metric)
 
             return {
-                'total_tests': summary.get('total', 0),
-                'passed': summary.get('passed', 0),
-                'failed': summary.get('failed', 0),
-                'skipped': summary.get('skipped', 0),
-                'error': summary.get('error', 0),
-                'duration': summary.get('duration', 0.0),
-                'individual_tests': tests,
+                "total_tests": summary.get("total", 0),
+                "passed": summary.get("passed", 0),
+                "failed": summary.get("failed", 0),
+                "skipped": summary.get("skipped", 0),
+                "error": summary.get("error", 0),
+                "duration": summary.get("duration", 0.0),
+                "individual_tests": tests,
             }
 
         except Exception as e:
@@ -188,16 +197,16 @@ class TestAnalyticsEngine:
 
         # Security test patterns to look for
         security_patterns = {
-            'sql_injection': ['sql', 'injection', 'malicious', 'escape'],
-            'xss_prevention': ['xss', 'sanitize', 'html', 'script'],
-            'authentication': ['auth', 'login', 'token', 'session'],
-            'authorization': ['permission', 'access', 'role', 'scope'],
-            'rate_limiting': ['rate_limit', 'throttle', 'abuse', 'ddos'],
-            'data_encryption': ['encrypt', 'hash', 'secure', 'protect'],
+            "sql_injection": ["sql", "injection", "malicious", "escape"],
+            "xss_prevention": ["xss", "sanitize", "html", "script"],
+            "authentication": ["auth", "login", "token", "session"],
+            "authorization": ["permission", "access", "role", "scope"],
+            "rate_limiting": ["rate_limit", "throttle", "abuse", "ddos"],
+            "data_encryption": ["encrypt", "hash", "secure", "protect"],
         }
 
         try:
-            with open(f"{self.project_root}/{test_file}", 'r') as f:
+            with open(f"{self.project_root}/{test_file}", "r") as f:
                 content = f.read().lower()
 
             score = 0
@@ -213,12 +222,12 @@ class TestAnalyticsEngine:
     def calculate_performance_score(self, test_metrics: TestMetrics) -> float:
         """Calculate performance score based on execution time"""
         # Score based on how close execution time is to benchmarks
-        if 'api' in test_metrics.test_file.lower():
-            benchmark = self.performance_benchmarks['api_response_time_ms'] / 1000.0
-        elif 'database' in test_metrics.test_file.lower():
-            benchmark = self.performance_benchmarks['database_query_ms'] / 1000.0
-        elif 'billing' in test_metrics.test_file.lower():
-            benchmark = self.performance_benchmarks['payment_process_ms'] / 1000.0
+        if "api" in test_metrics.test_file.lower():
+            benchmark = self.performance_benchmarks["api_response_time_ms"] / 1000.0
+        elif "database" in test_metrics.test_file.lower():
+            benchmark = self.performance_benchmarks["database_query_ms"] / 1000.0
+        elif "billing" in test_metrics.test_file.lower():
+            benchmark = self.performance_benchmarks["payment_process_ms"] / 1000.0
         else:
             benchmark = 1.0  # Default 1 second
 
@@ -232,63 +241,75 @@ class TestAnalyticsEngine:
     def generate_performance_report(self) -> Dict[str, Any]:
         """Generate comprehensive performance analytics report"""
         if not self.test_results:
-            return {'error': 'No test results available'}
+            return {"error": "No test results available"}
 
         # Performance metrics calculation
-        passed_tests = [t for t in self.test_results if t.status == 'passed']
-        failed_tests = [t for t in self.test_results if t.status == 'failed']
+        passed_tests = [t for t in self.test_results if t.status == "passed"]
+        failed_tests = [t for t in self.test_results if t.status == "failed"]
 
         execution_times = [t.execution_time for t in self.test_results]
-        performance_scores = [self.calculate_performance_score(t) for t in self.test_results]
+        performance_scores = [
+            self.calculate_performance_score(t) for t in self.test_results
+        ]
 
         report = {
-            'summary': {
-                'total_tests': len(self.test_results),
-                'passed': len(passed_tests),
-                'failed': len(failed_tests),
-                'pass_rate': len(passed_tests) / len(self.test_results) * 100 if self.test_results else 0,
-                'avg_execution_time': np.mean(execution_times) if execution_times else 0,
-                'total_execution_time': sum(execution_times),
-                'avg_performance_score': np.mean(performance_scores) if performance_scores else 0,
+            "summary": {
+                "total_tests": len(self.test_results),
+                "passed": len(passed_tests),
+                "failed": len(failed_tests),
+                "pass_rate": (
+                    len(passed_tests) / len(self.test_results) * 100
+                    if self.test_results
+                    else 0
+                ),
+                "avg_execution_time": (
+                    np.mean(execution_times) if execution_times else 0
+                ),
+                "total_execution_time": sum(execution_times),
+                "avg_performance_score": (
+                    np.mean(performance_scores) if performance_scores else 0
+                ),
             },
-            'performance_analysis': {
-                'fastest_test': min(execution_times) if execution_times else 0,
-                'slowest_test': max(execution_times) if execution_times else 0,
-                'performance_distribution': {
-                    'excellent': len([s for s in performance_scores if s >= 90]),
-                    'good': len([s for s in performance_scores if 70 <= s < 90]),
-                    'fair': len([s for s in performance_scores if 50 <= s < 70]),
-                    'poor': len([s for s in performance_scores if s < 50]),
+            "performance_analysis": {
+                "fastest_test": min(execution_times) if execution_times else 0,
+                "slowest_test": max(execution_times) if execution_times else 0,
+                "performance_distribution": {
+                    "excellent": len([s for s in performance_scores if s >= 90]),
+                    "good": len([s for s in performance_scores if 70 <= s < 90]),
+                    "fair": len([s for s in performance_scores if 50 <= s < 70]),
+                    "poor": len([s for s in performance_scores if s < 50]),
                 },
-                'performance_benchmarks': self.performance_benchmarks,
+                "performance_benchmarks": self.performance_benchmarks,
             },
-            'test_breakdown': self._analyze_test_breakdown(),
-            'recommendations': self._generate_performance_recommendations(),
+            "test_breakdown": self._analyze_test_breakdown(),
+            "recommendations": self._generate_performance_recommendations(),
         }
 
         return report
 
     def _analyze_test_breakdown(self) -> Dict[str, Any]:
         """Analyze test breakdown by category and file"""
-        breakdown = defaultdict(lambda: {'total': 0, 'passed': 0, 'failed': 0, 'avg_time': 0})
+        breakdown = defaultdict(
+            lambda: {"total": 0, "passed": 0, "failed": 0, "avg_time": 0}
+        )
 
         for test in self.test_results:
             category = self._categorize_test(test.test_file)
-            breakdown[category]['total'] += 1
-            breakdown[category]['avg_time'] += test.execution_time
+            breakdown[category]["total"] += 1
+            breakdown[category]["avg_time"] += test.execution_time
 
-            if test.status == 'passed':
-                breakdown[category]['passed'] += 1
-            elif test.status == 'failed':
-                breakdown[category]['failed'] += 1
+            if test.status == "passed":
+                breakdown[category]["passed"] += 1
+            elif test.status == "failed":
+                breakdown[category]["failed"] += 1
 
         # Calculate averages and pass rates
         for category, data in breakdown.items():
-            if data['total'] > 0:
-                data['avg_time'] = data['avg_time'] / data['total']
-                data['pass_rate'] = (data['passed'] / data['total']) * 100
+            if data["total"] > 0:
+                data["avg_time"] = data["avg_time"] / data["total"]
+                data["pass_rate"] = (data["passed"] / data["total"]) * 100
             else:
-                data['pass_rate'] = 0
+                data["pass_rate"] = 0
 
         return dict(breakdown)
 
@@ -296,22 +317,22 @@ class TestAnalyticsEngine:
         """Categorize test based on file name"""
         test_file_lower = test_file.lower()
 
-        if 'api' in test_file_lower:
-            return 'API Endpoints'
-        elif 'database' in test_file_lower or 'crud' in test_file_lower:
-            return 'Database Operations'
-        elif 'auth' in test_file_lower:
-            return 'Authentication'
-        elif 'token' in test_file_lower:
-            return 'Token Management'
-        elif 'file_upload' in test_file_lower:
-            return 'File Management'
-        elif 'billing' in test_file_lower or 'stripe' in test_file_lower:
-            return 'Payment Processing'
-        elif 'email' in test_file_lower:
-            return 'Email Services'
+        if "api" in test_file_lower:
+            return "API Endpoints"
+        elif "database" in test_file_lower or "crud" in test_file_lower:
+            return "Database Operations"
+        elif "auth" in test_file_lower:
+            return "Authentication"
+        elif "token" in test_file_lower:
+            return "Token Management"
+        elif "file_upload" in test_file_lower:
+            return "File Management"
+        elif "billing" in test_file_lower or "stripe" in test_file_lower:
+            return "Payment Processing"
+        elif "email" in test_file_lower:
+            return "Email Services"
         else:
-            return 'Other'
+            return "Other"
 
     def _generate_performance_recommendations(self) -> List[str]:
         """Generate performance improvement recommendations"""
@@ -326,14 +347,18 @@ class TestAnalyticsEngine:
                 f"⚠️  {len(slow_tests)} tests taking longer than 2 seconds. Consider optimization."
             )
 
-        avg_performance = np.mean([self.calculate_performance_score(t) for t in self.test_results])
+        avg_performance = np.mean(
+            [self.calculate_performance_score(t) for t in self.test_results]
+        )
         if avg_performance < 80:
             recommendations.append(
                 "📊 Overall performance score below 80%. Review test optimization strategies."
             )
 
-        failed_tests = [t for t in self.test_results if t.status == 'failed']
-        if len(failed_tests) > len(self.test_results) * 0.1:  # More than 10% failure rate
+        failed_tests = [t for t in self.test_results if t.status == "failed"]
+        if (
+            len(failed_tests) > len(self.test_results) * 0.1
+        ):  # More than 10% failure rate
             recommendations.append(
                 f"❌ High failure rate ({len(failed_tests)}/{len(self.test_results)}). Address failing tests."
             )
@@ -354,76 +379,113 @@ class TestAnalyticsEngine:
         pci_compliance = self._check_pci_compliance()
 
         return {
-            'security_scores': {
-                'average': np.mean(security_scores) if security_scores else 0,
-                'minimum': min(security_scores) if security_scores else 0,
-                'maximum': max(security_scores) if security_scores else 0,
-                'distribution': {
-                    'excellent': len([s for s in security_scores if s >= 90]),
-                    'good': len([s for s in security_scores if 70 <= s < 90]),
-                    'needs_improvement': len([s for s in security_scores if s < 70]),
-                }
+            "security_scores": {
+                "average": np.mean(security_scores) if security_scores else 0,
+                "minimum": min(security_scores) if security_scores else 0,
+                "maximum": max(security_scores) if security_scores else 0,
+                "distribution": {
+                    "excellent": len([s for s in security_scores if s >= 90]),
+                    "good": len([s for s in security_scores if 70 <= s < 90]),
+                    "needs_improvement": len([s for s in security_scores if s < 70]),
+                },
             },
-            'compliance_status': {
-                'owasp': owasp_compliance,
-                'pci': pci_compliance,
-                'overall_compliance': owasp_compliance['compliant'] and pci_compliance['compliant']
+            "compliance_status": {
+                "owasp": owasp_compliance,
+                "pci": pci_compliance,
+                "overall_compliance": owasp_compliance["compliant"]
+                and pci_compliance["compliant"],
             },
-            'security_recommendations': self._generate_security_recommendations(),
-            'test_coverage': {
-                'total_test_files': len(test_files),
-                'security_test_files': len([f for f in test_files if 'security' in f or 'auth' in f]),
-                'security_coverage_percentage': (len([f for f in test_files if 'security' in f or 'auth' in f]) / len(test_files) * 100) if test_files else 0,
-            }
+            "security_recommendations": self._generate_security_recommendations(),
+            "test_coverage": {
+                "total_test_files": len(test_files),
+                "security_test_files": len(
+                    [f for f in test_files if "security" in f or "auth" in f]
+                ),
+                "security_coverage_percentage": (
+                    (
+                        len([f for f in test_files if "security" in f or "auth" in f])
+                        / len(test_files)
+                        * 100
+                    )
+                    if test_files
+                    else 0
+                ),
+            },
         }
 
     def _check_owasp_compliance(self) -> Dict[str, Any]:
         """Check OWASP Top 10 compliance"""
         # Simplified compliance check - in real implementation, would analyze actual test coverage
-        security_tests = [t for t in self.test_results if any(keyword in t.test_name.lower()
-                        for keyword in ['injection', 'xss', 'auth', 'security', 'escape', 'sanitize'])]
+        security_tests = [
+            t
+            for t in self.test_results
+            if any(
+                keyword in t.test_name.lower()
+                for keyword in [
+                    "injection",
+                    "xss",
+                    "auth",
+                    "security",
+                    "escape",
+                    "sanitize",
+                ]
+            )
+        ]
 
         return {
-            'compliant': len(security_tests) >= 5,  # At least 5 security tests
-            'security_tests_found': len(security_tests),
-            'recommended_minimum': 5,
-            'coverage_areas': [
-                'sql_injection',
-                'xss_prevention',
-                'authentication_security',
-                'input_validation',
-                'rate_limiting'
-            ]
+            "compliant": len(security_tests) >= 5,  # At least 5 security tests
+            "security_tests_found": len(security_tests),
+            "recommended_minimum": 5,
+            "coverage_areas": [
+                "sql_injection",
+                "xss_prevention",
+                "authentication_security",
+                "input_validation",
+                "rate_limiting",
+            ],
         }
 
     def _check_pci_compliance(self) -> Dict[str, Any]:
         """Check PCI DSS compliance for payment processing"""
-        billing_tests = [t for t in self.test_results if 'billing' in t.test_file or 'stripe' in t.test_file]
+        billing_tests = [
+            t
+            for t in self.test_results
+            if "billing" in t.test_file or "stripe" in t.test_file
+        ]
 
         # Check for PCI-related test patterns
-        pci_patterns = ['encrypt', 'secure', 'token', 'compliance', 'audit']
-        pci_compliant_tests = [t for t in billing_tests
-                             if any(pattern in t.test_name.lower() for pattern in pci_patterns)]
+        pci_patterns = ["encrypt", "secure", "token", "compliance", "audit"]
+        pci_compliant_tests = [
+            t
+            for t in billing_tests
+            if any(pattern in t.test_name.lower() for pattern in pci_patterns)
+        ]
 
         return {
-            'compliant': len(pci_compliant_tests) >= 3,  # At least 3 PCI-related tests
-            'billing_tests_found': len(billing_tests),
-            'pci_compliant_tests': len(pci_compliant_tests),
-            'required_minimum': 3,
-            'coverage_areas': [
-                'card_data_protection',
-                'secure_transmission',
-                'access_control',
-                'cryptography',
-                'audit_logging'
-            ]
+            "compliant": len(pci_compliant_tests) >= 3,  # At least 3 PCI-related tests
+            "billing_tests_found": len(billing_tests),
+            "pci_compliant_tests": len(pci_compliant_tests),
+            "required_minimum": 3,
+            "coverage_areas": [
+                "card_data_protection",
+                "secure_transmission",
+                "access_control",
+                "cryptography",
+                "audit_logging",
+            ],
         }
 
     def _generate_security_recommendations(self) -> List[str]:
         """Generate security improvement recommendations"""
         recommendations = []
 
-        avg_security_score = np.mean([self.calculate_security_score(t.test_file) for t in self.test_results]) if self.test_results else 0
+        avg_security_score = (
+            np.mean(
+                [self.calculate_security_score(t.test_file) for t in self.test_results]
+            )
+            if self.test_results
+            else 0
+        )
 
         if avg_security_score < 80:
             recommendations.append(
@@ -431,13 +493,13 @@ class TestAnalyticsEngine:
             )
 
         owasp_compliance = self._check_owasp_compliance()
-        if not owasp_compliance['compliant']:
+        if not owasp_compliance["compliant"]:
             recommendations.append(
                 f"🛡️  OWASP compliance requires at least {owasp_compliance['recommended_minimum']} security tests. Currently have {owasp_compliance['security_tests_found']}."
             )
 
         pci_compliance = self._check_pci_compliance()
-        if not pci_compliance['compliant']:
+        if not pci_compliance["compliant"]:
             recommendations.append(
                 f"💳 PCI compliance requires at least {pci_compliance['required_minimum']} PCI-related tests. Currently have {pci_compliance['pci_compliant_tests']}."
             )
@@ -469,25 +531,31 @@ class TestAnalyticsEngine:
             return
 
         # Performance distribution
-        performance_scores = [self.calculate_performance_score(t) for t in self.test_results]
+        performance_scores = [
+            self.calculate_performance_score(t) for t in self.test_results
+        ]
 
         plt.figure(figsize=(12, 8))
 
         # Performance Score Distribution
         plt.subplot(2, 2, 1)
-        plt.hist(performance_scores, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
-        plt.title('Performance Score Distribution')
-        plt.xlabel('Performance Score')
-        plt.ylabel('Number of Tests')
+        plt.hist(
+            performance_scores, bins=20, alpha=0.7, color="skyblue", edgecolor="black"
+        )
+        plt.title("Performance Score Distribution")
+        plt.xlabel("Performance Score")
+        plt.ylabel("Number of Tests")
         plt.grid(True, alpha=0.3)
 
         # Execution Time Distribution
         plt.subplot(2, 2, 2)
         execution_times = [t.execution_time for t in self.test_results]
-        plt.hist(execution_times, bins=20, alpha=0.7, color='lightcoral', edgecolor='black')
-        plt.title('Execution Time Distribution')
-        plt.xlabel('Execution Time (seconds)')
-        plt.ylabel('Number of Tests')
+        plt.hist(
+            execution_times, bins=20, alpha=0.7, color="lightcoral", edgecolor="black"
+        )
+        plt.title("Execution Time Distribution")
+        plt.xlabel("Execution Time (seconds)")
+        plt.ylabel("Number of Tests")
         plt.grid(True, alpha=0.3)
 
         # Test Category Performance
@@ -502,10 +570,16 @@ class TestAnalyticsEngine:
         category_means = [np.mean(scores) for scores in categories.values()]
         category_names = list(categories.keys())
 
-        plt.bar(category_names, category_means, alpha=0.7, color='lightgreen', edgecolor='black')
-        plt.title('Average Performance by Category')
-        plt.xlabel('Test Category')
-        plt.ylabel('Average Performance Score')
+        plt.bar(
+            category_names,
+            category_means,
+            alpha=0.7,
+            color="lightgreen",
+            edgecolor="black",
+        )
+        plt.title("Average Performance by Category")
+        plt.xlabel("Test Category")
+        plt.ylabel("Average Performance Score")
         plt.xticks(rotation=45)
         plt.grid(True, alpha=0.3)
 
@@ -513,19 +587,27 @@ class TestAnalyticsEngine:
         plt.subplot(2, 2, 4)
         pass_rates = []
         for category in category_names:
-            category_tests = [t for t in self.test_results if self._categorize_test(t.test_file) == category]
-            passed = len([t for t in category_tests if t.status == 'passed'])
-            pass_rates.append(passed / len(category_tests) * 100 if category_tests else 0)
+            category_tests = [
+                t
+                for t in self.test_results
+                if self._categorize_test(t.test_file) == category
+            ]
+            passed = len([t for t in category_tests if t.status == "passed"])
+            pass_rates.append(
+                passed / len(category_tests) * 100 if category_tests else 0
+            )
 
-        plt.bar(category_names, pass_rates, alpha=0.7, color='gold', edgecolor='black')
-        plt.title('Pass Rate by Category')
-        plt.xlabel('Test Category')
-        plt.ylabel('Pass Rate (%)')
+        plt.bar(category_names, pass_rates, alpha=0.7, color="gold", edgecolor="black")
+        plt.title("Pass Rate by Category")
+        plt.xlabel("Test Category")
+        plt.ylabel("Pass Rate (%)")
         plt.xticks(rotation=45)
         plt.grid(True, alpha=0.3)
 
         plt.tight_layout()
-        plt.savefig(output_path / 'performance_charts.png', dpi=300, bbox_inches='tight')
+        plt.savefig(
+            output_path / "performance_charts.png", dpi=300, bbox_inches="tight"
+        )
         plt.close()
 
     def _create_security_charts(self, output_path: Path):
@@ -534,16 +616,18 @@ class TestAnalyticsEngine:
             return
 
         test_files = set(t.test_file for t in self.test_results)
-        security_scores = [self.calculate_security_score(test_file) for test_file in test_files]
+        security_scores = [
+            self.calculate_security_score(test_file) for test_file in test_files
+        ]
 
         plt.figure(figsize=(12, 6))
 
         # Security Score Distribution
         plt.subplot(1, 2, 1)
-        plt.hist(security_scores, bins=15, alpha=0.7, color='plum', edgecolor='black')
-        plt.title('Security Score Distribution')
-        plt.xlabel('Security Score')
-        plt.ylabel('Number of Test Files')
+        plt.hist(security_scores, bins=15, alpha=0.7, color="plum", edgecolor="black")
+        plt.title("Security Score Distribution")
+        plt.xlabel("Security Score")
+        plt.ylabel("Number of Test Files")
         plt.grid(True, alpha=0.3)
 
         # Security Compliance Status
@@ -551,23 +635,40 @@ class TestAnalyticsEngine:
         owasp = self._check_owasp_compliance()
         pci = self._check_pci_compliance()
 
-        compliance_data = ['OWASP Top 10', 'PCI DSS']
-        compliance_status = [1 if owasp['compliant'] else 0, 1 if pci['compliant'] else 0]
-        colors = ['green' if status == 1 else 'red' for status in compliance_status]
+        compliance_data = ["OWASP Top 10", "PCI DSS"]
+        compliance_status = [
+            1 if owasp["compliant"] else 0,
+            1 if pci["compliant"] else 0,
+        ]
+        colors = ["green" if status == 1 else "red" for status in compliance_status]
 
-        plt.bar(compliance_data, compliance_status, alpha=0.7, color=colors, edgecolor='black')
-        plt.title('Security Compliance Status')
-        plt.ylabel('Compliant (1) / Non-Compliant (0)')
+        plt.bar(
+            compliance_data,
+            compliance_status,
+            alpha=0.7,
+            color=colors,
+            edgecolor="black",
+        )
+        plt.title("Security Compliance Status")
+        plt.ylabel("Compliant (1) / Non-Compliant (0)")
         plt.ylim(0, 1.2)
         plt.grid(True, alpha=0.3)
 
         # Add compliance labels
-        for i, (compliant, status) in enumerate(zip(compliance_data, compliance_status)):
-            plt.text(i, status + 0.05, '✓ Compliant' if status else '✗ Non-Compliant',
-                    ha='center', va='bottom', fontweight='bold')
+        for i, (compliant, status) in enumerate(
+            zip(compliance_data, compliance_status)
+        ):
+            plt.text(
+                i,
+                status + 0.05,
+                "✓ Compliant" if status else "✗ Non-Compliant",
+                ha="center",
+                va="bottom",
+                fontweight="bold",
+            )
 
         plt.tight_layout()
-        plt.savefig(output_path / 'security_charts.png', dpi=300, bbox_inches='tight')
+        plt.savefig(output_path / "security_charts.png", dpi=300, bbox_inches="tight")
         plt.close()
 
     def _create_trend_analysis(self, output_path: Path):
@@ -577,18 +678,18 @@ class TestAnalyticsEngine:
         plt.figure(figsize=(10, 6))
 
         # Sample trend data (in real implementation, would load from history)
-        dates = pd.date_range(start='2024-01-01', periods=30, freq='D')
+        dates = pd.date_range(start="2024-01-01", periods=30, freq="D")
         pass_rates = np.random.uniform(85, 95, 30)  # Sample data
 
-        plt.plot(dates, pass_rates, marker='o', linewidth=2, color='blue', alpha=0.7)
-        plt.title('Test Pass Rate Trend (Last 30 Days)')
-        plt.xlabel('Date')
-        plt.ylabel('Pass Rate (%)')
+        plt.plot(dates, pass_rates, marker="o", linewidth=2, color="blue", alpha=0.7)
+        plt.title("Test Pass Rate Trend (Last 30 Days)")
+        plt.xlabel("Date")
+        plt.ylabel("Pass Rate (%)")
         plt.grid(True, alpha=0.3)
         plt.xticks(rotation=45)
 
         plt.tight_layout()
-        plt.savefig(output_path / 'trend_analysis.png', dpi=300, bbox_inches='tight')
+        plt.savefig(output_path / "trend_analysis.png", dpi=300, bbox_inches="tight")
         plt.close()
 
     def _generate_html_dashboard(self, output_file: Path):
@@ -809,16 +910,21 @@ class TestAnalyticsEngine:
 </html>
         """
 
-        with open(output_file, 'w', encoding='utf-8') as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(html_content)
 
     def _generate_test_breakdown_rows(self, breakdown: Dict[str, Any]) -> str:
         """Generate HTML table rows for test breakdown"""
         rows = []
         for category, data in breakdown.items():
-            pass_rate_class = 'status-good' if data['pass_rate'] >= 90 else 'status-warning' if data['pass_rate'] >= 70 else 'status-error'
+            pass_rate_class = (
+                "status-good"
+                if data["pass_rate"] >= 90
+                else "status-warning" if data["pass_rate"] >= 70 else "status-error"
+            )
 
-            rows.append(f"""
+            rows.append(
+                f"""
                 <tr>
                     <td style="padding: 12px; border-bottom: 1px solid #dee2e6;">{category}</td>
                     <td style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">{data['total']}</td>
@@ -829,18 +935,19 @@ class TestAnalyticsEngine:
                     </td>
                     <td style="padding: 12px; text-align: center; border-bottom: 1px solid #dee2e6;">{data['avg_time']:.3f}s</td>
                 </tr>
-            """)
-        return ''.join(rows)
+            """
+            )
+        return "".join(rows)
 
     def export_metrics_json(self, output_file: str = "test_metrics.json") -> str:
         """Export all metrics to JSON file"""
         metrics = {
-            'timestamp': datetime.now().isoformat(),
-            'performance_report': self.generate_performance_report(),
-            'security_report': self.generate_security_report(),
-            'test_results': [asdict(test) for test in self.test_results],
-            'performance_benchmarks': self.performance_benchmarks,
-            'security_standards': self.security_standards,
+            "timestamp": datetime.now().isoformat(),
+            "performance_report": self.generate_performance_report(),
+            "security_report": self.generate_security_report(),
+            "test_results": [asdict(test) for test in self.test_results],
+            "performance_benchmarks": self.performance_benchmarks,
+            "security_standards": self.security_standards,
         }
 
         # Convert datetime objects to strings for JSON serialization
@@ -850,7 +957,7 @@ class TestAnalyticsEngine:
             raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
 
         output_path = Path(output_file)
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(metrics, f, indent=2, default=datetime_converter)
 
         return str(output_path)
@@ -921,7 +1028,7 @@ async def main():
     print("🧪 Executing integration test suite...")
     test_results = await analytics.run_test_suite()
 
-    if test_results.get('exit_code', 1) == 0:
+    if test_results.get("exit_code", 1) == 0:
         print("✅ Test suite completed successfully!")
     else:
         print("⚠️  Test suite completed with some failures")
@@ -948,7 +1055,7 @@ async def main():
     # Generate executive summary
     summary = analytics.generate_executive_summary()
     summary_file = output_dir / "executive_summary.md"
-    with open(summary_file, 'w') as f:
+    with open(summary_file, "w") as f:
         f.write(summary)
     print(f"📋 Executive summary saved to: {summary_file}")
 
@@ -956,7 +1063,9 @@ async def main():
     print("\n" + "=" * 60)
     print("📊 QUICK SUMMARY")
     print("=" * 60)
-    print(summary.split("## 📊 Key Metrics")[1].split("## 🎯 Status Overview")[0].strip())
+    print(
+        summary.split("## 📊 Key Metrics")[1].split("## 🎯 Status Overview")[0].strip()
+    )
 
     print("\n🎉 Analytics dashboard generation complete!")
     print(f"📁 All reports saved to: {output_dir.absolute()}")

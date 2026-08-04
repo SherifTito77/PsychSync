@@ -9,11 +9,11 @@ Database Query Optimization and Index Management
 """
 
 import asyncio
+import time
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from functools import wraps
-import time
 from typing import Any
 
 from sqlalchemy import text
@@ -106,9 +106,11 @@ class QueryAnalyzer:
             analyzed_queries.append(
                 {
                     "query_hash": query_hash,
-                    "query_sql": queries[0].query_sql[:200] + "..."
-                    if len(queries[0].query_sql) > 200
-                    else queries[0].query_sql,
+                    "query_sql": (
+                        queries[0].query_sql[:200] + "..."
+                        if len(queries[0].query_sql) > 200
+                        else queries[0].query_sql
+                    ),
                     "avg_duration_ms": round(avg_duration, 2),
                     "max_duration_ms": round(max_duration, 2),
                     "total_executions": total_executions,
@@ -133,11 +135,14 @@ class DatabaseOptimizer:
     def __init__(self, query_analyzer: QueryAnalyzer = None):
         self.query_analyzer = query_analyzer or QueryAnalyzer()
 
-    async def analyze_table_indexes(self, db: AsyncSession, table_name: str) -> dict[str, Any]:
+    async def analyze_table_indexes(
+        self, db: AsyncSession, table_name: str
+    ) -> dict[str, Any]:
         """Analyze existing indexes on a table"""
 
         # Get current indexes
-        indexes_query = text("""
+        indexes_query = text(
+            """
             SELECT
                 indexname as index_name,
                 indexdef as index_definition,
@@ -146,13 +151,15 @@ class DatabaseOptimizer:
             FROM pg_indexes
             WHERE tablename = :table_name
             ORDER BY indexname
-        """)
+        """
+        )
 
         result = await db.execute(indexes_query, {"table_name": table_name})
         indexes = result.fetchall()
 
         # Get index usage statistics
-        usage_query = text("""
+        usage_query = text(
+            """
             SELECT
                 schemaname,
                 tablename,
@@ -163,7 +170,8 @@ class DatabaseOptimizer:
             FROM pg_stat_user_indexes
             WHERE tablename = :table_name
             ORDER BY idx_scan DESC
-        """)
+        """
+        )
 
         usage_result = await db.execute(usage_query, {"table_name": table_name})
         usage_stats = usage_result.fetchall()
@@ -190,7 +198,9 @@ class DatabaseOptimizer:
             ],
         }
 
-    async def get_table_statistics(self, db: AsyncSession, table_name: str) -> dict[str, Any]:
+    async def get_table_statistics(
+        self, db: AsyncSession, table_name: str
+    ) -> dict[str, Any]:
         """Get comprehensive table statistics"""
 
         try:
@@ -200,12 +210,14 @@ class DatabaseOptimizer:
             row_count = count_result.scalar() or 0
 
             # Table size
-            size_query = text(f"""
+            size_query = text(
+                f"""
                 SELECT
                     pg_size_pretty(pg_total_relation_size('{table_name}')) as total_size,
                     pg_size_pretty(pg_relation_size('{table_name}')) as table_size,
                     pg_size_pretty(pg_total_relation_size('{table_name}') - pg_relation_size('{table_name}')) as indexes_size
-            """)
+            """
+            )
             size_result = await db.execute(size_query)
             size_row = size_result.fetchone()
 

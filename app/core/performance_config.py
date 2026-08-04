@@ -13,11 +13,11 @@ Features:
 - Configuration change tracking
 """
 
-from datetime import datetime
-from enum import Enum
 import hashlib
 import json
 import logging
+from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -48,14 +48,24 @@ class DatabaseConfig(BaseSettings):
     """Database performance configuration"""
 
     # Connection pool settings
-    pool_size: int = Field(default=20, ge=1, le=100, description="Database connection pool size")
+    pool_size: int = Field(
+        default=20, ge=1, le=100, description="Database connection pool size"
+    )
     max_overflow: int = Field(
-        default=30, ge=0, le=100, description="Maximum number of connections beyond pool_size"
+        default=30,
+        ge=0,
+        le=100,
+        description="Maximum number of connections beyond pool_size",
     )
     pool_recycle: int = Field(
-        default=1800, ge=300, le=7200, description="Connection recycling time in seconds"
+        default=1800,
+        ge=300,
+        le=7200,
+        description="Connection recycling time in seconds",
     )
-    pool_pre_ping: bool = Field(default=True, description="Validate connections before use")
+    pool_pre_ping: bool = Field(
+        default=True, description="Validate connections before use"
+    )
     pool_timeout: int = Field(
         default=30, ge=5, le=300, description="Timeout for getting connection from pool"
     )
@@ -84,7 +94,9 @@ class CacheConfig(BaseSettings):
 
     # Redis settings
     redis_host: str = Field(default="localhost", description="Redis server host")
-    redis_port: int = Field(default=6379, ge=1, le=65535, description="Redis server port")
+    redis_port: int = Field(
+        default=6379, ge=1, le=65535, description="Redis server port"
+    )
     redis_db: int = Field(default=0, ge=0, le=15, description="Redis database number")
     redis_max_connections: int = Field(
         default=50, ge=1, le=200, description="Maximum Redis connections"
@@ -94,7 +106,9 @@ class CacheConfig(BaseSettings):
     default_ttl: int = Field(
         default=300, ge=60, le=3600, description="Default cache TTL in seconds"
     )
-    max_memory_policy: str = Field(default="allkeys-lru", description="Redis max memory policy")
+    max_memory_policy: str = Field(
+        default="allkeys-lru", description="Redis max memory policy"
+    )
     cache_prefix: str = Field(default="psychsync", description="Cache key prefix")
 
     class Config:
@@ -112,13 +126,19 @@ class FrontendConfig(BaseSettings):
     chunk_size_target_kb: int = Field(
         default=100, ge=50, le=500, description="Target chunk size in KB"
     )
-    enable_source_maps: bool = Field(default=False, description="Enable source maps in production")
+    enable_source_maps: bool = Field(
+        default=False, description="Enable source maps in production"
+    )
     minification_level: str = Field(
-        default="terser", regex="^(none|basic|terser)$", description="Minification level"
+        default="terser",
+        regex="^(none|basic|terser)$",
+        description="Minification level",
     )
 
     # Performance features
-    enable_lazy_loading: bool = Field(default=True, description="Enable lazy loading of components")
+    enable_lazy_loading: bool = Field(
+        default=True, description="Enable lazy loading of components"
+    )
     enable_virtual_scrolling: bool = Field(
         default=True, description="Enable virtual scrolling for large lists"
     )
@@ -135,17 +155,26 @@ class APIConfig(BaseSettings):
     """API performance configuration"""
 
     # Response optimization
-    enable_compression: bool = Field(default=True, description="Enable response compression")
-    compression_threshold: int = Field(
-        default=1024, ge=100, le=10240, description="Minimum response size for compression"
+    enable_compression: bool = Field(
+        default=True, description="Enable response compression"
     )
-    enable_http_caching: bool = Field(default=True, description="Enable HTTP caching headers")
+    compression_threshold: int = Field(
+        default=1024,
+        ge=100,
+        le=10240,
+        description="Minimum response size for compression",
+    )
+    enable_http_caching: bool = Field(
+        default=True, description="Enable HTTP caching headers"
+    )
     default_cache_max_age: int = Field(
         default=300, ge=60, le=86400, description="Default cache max-age in seconds"
     )
 
     # Rate limiting
-    enable_rate_limiting: bool = Field(default=True, description="Enable API rate limiting")
+    enable_rate_limiting: bool = Field(
+        default=True, description="Enable API rate limiting"
+    )
     rate_limit_requests: int = Field(
         default=100, ge=10, le=10000, description="Rate limit requests per window"
     )
@@ -162,7 +191,9 @@ class MonitoringConfig(BaseSettings):
     """Performance monitoring configuration"""
 
     # Metrics collection
-    enable_metrics: bool = Field(default=True, description="Enable performance metrics collection")
+    enable_metrics: bool = Field(
+        default=True, description="Enable performance metrics collection"
+    )
     metrics_sample_rate: float = Field(
         default=1.0, ge=0.1, le=1.0, description="Metrics sampling rate"
     )
@@ -173,13 +204,22 @@ class MonitoringConfig(BaseSettings):
     # Alerting
     enable_alerts: bool = Field(default=True, description="Enable performance alerts")
     alert_threshold_cpu: float = Field(
-        default=80.0, ge=50.0, le=100.0, description="CPU usage alert threshold percentage"
+        default=80.0,
+        ge=50.0,
+        le=100.0,
+        description="CPU usage alert threshold percentage",
     )
     alert_threshold_memory: float = Field(
-        default=85.0, ge=50.0, le=100.0, description="Memory usage alert threshold percentage"
+        default=85.0,
+        ge=50.0,
+        le=100.0,
+        description="Memory usage alert threshold percentage",
     )
     alert_threshold_response_time: int = Field(
-        default=1000, ge=100, le=10000, description="Response time alert threshold in milliseconds"
+        default=1000,
+        ge=100,
+        le=10000,
+        description="Response time alert threshold in milliseconds",
     )
 
     class Config:
@@ -229,7 +269,9 @@ class PerformanceConfig(BaseSettings):
     performance_tier: PerformanceTier = Field(
         default=PerformanceTier.STANDARD, description="Performance optimization tier"
     )
-    debug_performance: bool = Field(default=False, description="Enable performance debugging")
+    debug_performance: bool = Field(
+        default=False, description="Enable performance debugging"
+    )
 
     # Sub-configurations
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
@@ -266,21 +308,28 @@ class PerformanceConfig(BaseSettings):
         if environment == Environment.PRODUCTION:
             # Production optimizations
             if tier == PerformanceTier.AGGRESSIVE:
-                values.setdefault("database", DatabaseConfig(pool_size=50, max_overflow=75))
+                values.setdefault(
+                    "database", DatabaseConfig(pool_size=50, max_overflow=75)
+                )
                 values.setdefault("cache", CacheConfig(default_ttl=600))
                 values.setdefault(
                     "frontend",
-                    FrontendConfig(enable_source_maps=False, minification_level="terser"),
+                    FrontendConfig(
+                        enable_source_maps=False, minification_level="terser"
+                    ),
                 )
             elif tier == PerformanceTier.CONSERVATIVE:
-                values.setdefault("database", DatabaseConfig(pool_size=10, max_overflow=15))
+                values.setdefault(
+                    "database", DatabaseConfig(pool_size=10, max_overflow=15)
+                )
                 values.setdefault("cache", CacheConfig(default_ttl=1800))
 
         elif environment == Environment.DEVELOPMENT:
             # Development defaults
             values.setdefault("database", DatabaseConfig(pool_size=5, max_overflow=10))
             values.setdefault(
-                "frontend", FrontendConfig(enable_source_maps=True, debug_performance=True)
+                "frontend",
+                FrontendConfig(enable_source_maps=True, debug_performance=True),
             )
             values.setdefault("debug_performance", True)
 
@@ -293,7 +342,9 @@ class PerformanceConfig(BaseSettings):
             "performance_tier": self.performance_tier.value,
             "debug_performance": self.debug_performance,
             "config_version": self.config_version,
-            "last_updated": self.last_updated.isoformat() if self.last_updated else None,
+            "last_updated": (
+                self.last_updated.isoformat() if self.last_updated else None
+            ),
             "database": self.database.dict(),
             "cache": self.cache.dict(),
             "frontend": self.frontend.dict(),
@@ -361,14 +412,18 @@ class PerformanceConfig(BaseSettings):
 
         # Database recommendations
         if self.database.pool_size < 20 and self.environment == Environment.PRODUCTION:
-            recommendations.append("Consider increasing database pool size for production")
+            recommendations.append(
+                "Consider increasing database pool size for production"
+            )
 
         if self.database.statement_timeout > 300:
             recommendations.append("Long statement timeout may indicate slow queries")
 
         # Cache recommendations
         if self.cache.default_ttl < 300:
-            recommendations.append("Consider increasing default cache TTL for better performance")
+            recommendations.append(
+                "Consider increasing default cache TTL for better performance"
+            )
 
         # Frontend recommendations
         if self.frontend.bundle_size_target_kb > 800:
@@ -498,7 +553,9 @@ class ConfigurationManager:
         """Add callback for configuration changes"""
         self._change_callbacks.append(callback)
 
-    def _notify_config_change(self, old_config: PerformanceConfig, new_config: PerformanceConfig):
+    def _notify_config_change(
+        self, old_config: PerformanceConfig, new_config: PerformanceConfig
+    ):
         """Notify callbacks of configuration changes"""
         for callback in self._change_callbacks:
             try:
@@ -506,7 +563,9 @@ class ConfigurationManager:
             except Exception as e:
                 logger.error(f"Configuration change callback failed: {e}")
 
-    def get_environment_specific_config(self, environment: Environment) -> PerformanceConfig:
+    def get_environment_specific_config(
+        self, environment: Environment
+    ) -> PerformanceConfig:
         """Get configuration for specific environment"""
         config_data = self.config.to_dict()
         config_data["environment"] = environment.value

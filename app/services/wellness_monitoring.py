@@ -3,9 +3,9 @@ Wellness Monitoring Service
 Provides comprehensive wellness assessment and trend analysis
 """
 
+import logging
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -302,7 +302,12 @@ class WellnessMonitoringService:
 
             # Save assessment results
             assessment_result = await self._save_wellness_results(
-                user, responses, domain_scores, overall_score, wellness_level, additional_notes
+                user,
+                responses,
+                domain_scores,
+                overall_score,
+                wellness_level,
+                additional_notes,
             )
 
             # Generate AI-enhanced insights
@@ -313,7 +318,9 @@ class WellnessMonitoringService:
             return {
                 "success": True,
                 "wellness_result": {
-                    "assessment_id": assessment_result.id if assessment_result else None,
+                    "assessment_id": (
+                        assessment_result.id if assessment_result else None
+                    ),
                     "overall_score": round(overall_score, 2),
                     "wellness_level": wellness_level.value,
                     "domain_scores": {
@@ -335,9 +342,14 @@ class WellnessMonitoringService:
 
         except Exception as e:
             logger.error(f"Error processing wellness assessment: {e}")
-            return {"success": False, "error": f"Failed to process wellness assessment: {e!s}"}
+            return {
+                "success": False,
+                "error": f"Failed to process wellness assessment: {e!s}",
+            }
 
-    def _calculate_domain_scores(self, responses: dict[str, int]) -> dict[WellnessDomain, float]:
+    def _calculate_domain_scores(
+        self, responses: dict[str, int]
+    ) -> dict[WellnessDomain, float]:
         """Calculate wellness scores for each domain"""
         domain_scores = {}
 
@@ -370,7 +382,8 @@ class WellnessMonitoringService:
     ) -> float:
         """Calculate weighted overall wellness score"""
         total_weighted_score = sum(
-            score * self.domain_weights[domain] for domain, score in domain_scores.items()
+            score * self.domain_weights[domain]
+            for domain, score in domain_scores.items()
         )
         return max(0.0, min(1.0, total_weighted_score))
 
@@ -410,7 +423,9 @@ class WellnessMonitoringService:
 
         return insights
 
-    def _get_domain_description(self, domain: WellnessDomain, level: WellnessLevel) -> str:
+    def _get_domain_description(
+        self, domain: WellnessDomain, level: WellnessLevel
+    ) -> str:
         """Get description for domain and level"""
         descriptions = {
             (
@@ -456,7 +471,9 @@ class WellnessMonitoringService:
             # Add descriptions for other domains as needed
         }
 
-        return descriptions.get((domain, level), f"{domain.value.title()} wellness: {level.value}")
+        return descriptions.get(
+            (domain, level), f"{domain.value.title()} wellness: {level.value}"
+        )
 
     async def _generate_wellness_recommendations(
         self,
@@ -506,12 +523,16 @@ class WellnessMonitoringService:
         # AI-enhanced personalized recommendations
         try:
             user_history = await self._get_wellness_history(user)
-            ai_recommendations = await self.ai_service.generate_wellness_recommendations(
-                user_id=user.id,
-                domain_scores={domain.value: score for domain, score in domain_scores.items()},
-                overall_score=overall_score,
-                wellness_level=wellness_level.value,
-                historical_data=user_history,
+            ai_recommendations = (
+                await self.ai_service.generate_wellness_recommendations(
+                    user_id=user.id,
+                    domain_scores={
+                        domain.value: score for domain, score in domain_scores.items()
+                    },
+                    overall_score=overall_score,
+                    wellness_level=wellness_level.value,
+                    historical_data=user_history,
+                )
             )
 
             if ai_recommendations:
@@ -593,14 +614,18 @@ class WellnessMonitoringService:
                 }
 
             # Calculate trends
-            recent_scores = [entry.get("overall_score", 0) for entry in historical_data[-3:]]
+            recent_scores = [
+                entry.get("overall_score", 0) for entry in historical_data[-3:]
+            ]
             if len(recent_scores) >= 2:
                 trend = (
                     "improving"
                     if recent_scores[-1] > recent_scores[0]
-                    else "declining"
-                    if recent_scores[-1] < recent_scores[0]
-                    else "stable"
+                    else (
+                        "declining"
+                        if recent_scores[-1] < recent_scores[0]
+                        else "stable"
+                    )
                 )
             else:
                 trend = "stable"
@@ -631,14 +656,18 @@ class WellnessMonitoringService:
             result_data = {
                 "assessment_type": "wellness_comprehensive",
                 "responses": responses,
-                "domain_scores": {domain.value: score for domain, score in domain_scores.items()},
+                "domain_scores": {
+                    domain.value: score for domain, score in domain_scores.items()
+                },
                 "overall_score": overall_score,
                 "wellness_level": wellness_level.value,
                 "additional_notes": additional_notes,
                 "completed_at": datetime.utcnow().isoformat(),
             }
 
-            logger.info(f"Would save wellness results for user {user.id}: {result_data}")
+            logger.info(
+                f"Would save wellness results for user {user.id}: {result_data}"
+            )
             return None
 
         except Exception as e:
@@ -655,7 +684,9 @@ class WellnessMonitoringService:
         """Generate AI-enhanced wellness insights"""
         try:
             # Identify patterns and correlations
-            strongest_domains = sorted(domain_scores.items(), key=lambda x: x[1], reverse=True)[:2]
+            strongest_domains = sorted(
+                domain_scores.items(), key=lambda x: x[1], reverse=True
+            )[:2]
             weakest_domains = sorted(domain_scores.items(), key=lambda x: x[1])[:2]
 
             return {
@@ -679,7 +710,9 @@ class WellnessMonitoringService:
             logger.warning(f"Could not generate AI wellness insights: {e}")
             return {}
 
-    def _calculate_balance_score(self, domain_scores: dict[WellnessDomain, float]) -> float:
+    def _calculate_balance_score(
+        self, domain_scores: dict[WellnessDomain, float]
+    ) -> float:
         """Calculate how balanced the wellness domains are"""
         scores = list(domain_scores.values())
         if not scores:
@@ -689,20 +722,24 @@ class WellnessMonitoringService:
         variance = sum((score - mean_score) ** 2 for score in scores) / len(scores)
 
         # Lower variance = more balanced = higher balance score
-        balance_score = 1.0 - min(1.0, variance / 0.25)  # Normalize variance to 0-1 range
+        balance_score = 1.0 - min(
+            1.0, variance / 0.25
+        )  # Normalize variance to 0-1 range
         return balance_score
 
-    def _get_balance_recommendation(self, domain_scores: dict[WellnessDomain, float]) -> str:
+    def _get_balance_recommendation(
+        self, domain_scores: dict[WellnessDomain, float]
+    ) -> str:
         """Get recommendation based on wellness balance"""
         balance_score = self._calculate_balance_score(domain_scores)
 
         if balance_score > 0.8:
             return "Excellent balance across all wellness domains. Maintain this holistic approach."
         if balance_score > 0.6:
-            return "Good balance with some room for improvement in lower-scoring domains."
-        return (
-            "Focus on achieving better balance by improving your lowest-scoring wellness domains."
-        )
+            return (
+                "Good balance with some room for improvement in lower-scoring domains."
+            )
+        return "Focus on achieving better balance by improving your lowest-scoring wellness domains."
 
     async def _get_wellness_history(self, user: User) -> list[dict[str, Any]]:
         """Get user's wellness assessment history"""

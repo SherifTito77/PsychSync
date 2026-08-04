@@ -17,7 +17,6 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-
 # =============================================================================
 # Configuration
 # =============================================================================
@@ -39,13 +38,14 @@ FORBIDDEN_PATTERNS = [
 # Colors and Formatting
 # =============================================================================
 
+
 class Colors:
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    BOLD = '\033[1m'
-    END = '\033[0m'
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    BOLD = "\033[1m"
+    END = "\033[0m"
 
 
 def print_success(msg: str):
@@ -74,19 +74,22 @@ def print_header(msg: str):
 # Validation Functions
 # =============================================================================
 
+
 def check_for_hardcoded_credentials(content: str, file_path: Path) -> List[dict]:
     """Check for hardcoded credentials in documentation"""
     violations = []
-    lines = content.split('\n')
+    lines = content.split("\n")
 
     for i, line in enumerate(lines, 1):
         for pattern, description in FORBIDDEN_PATTERNS:
             if re.search(pattern, line):
-                violations.append({
-                    'line_number': i,
-                    'violation_type': description,
-                    'context': line.strip()[:80]
-                })
+                violations.append(
+                    {
+                        "line_number": i,
+                        "violation_type": description,
+                        "context": line.strip()[:80],
+                    }
+                )
 
     return violations
 
@@ -94,7 +97,7 @@ def check_for_hardcoded_credentials(content: str, file_path: Path) -> List[dict]
 def extract_code_blocks(markdown_content: str) -> List[dict]:
     """Extract all code blocks from markdown file"""
     code_blocks = []
-    lines = markdown_content.split('\n')
+    lines = markdown_content.split("\n")
 
     in_code_block = False
     current_language = ""
@@ -102,21 +105,23 @@ def extract_code_blocks(markdown_content: str) -> List[dict]:
     start_line = 0
 
     for i, line in enumerate(lines, 1):
-        if line.strip().startswith('```'):
+        if line.strip().startswith("```"):
             if not in_code_block:
                 # Start of code block
                 in_code_block = True
-                current_language = line.strip().replace('```', '').strip()
+                current_language = line.strip().replace("```", "").strip()
                 start_line = i
                 current_code = []
             else:
                 # End of code block
                 in_code_block = False
-                code_blocks.append({
-                    'language': current_language or "text",
-                    'code': '\n'.join(current_code),
-                    'line_number': start_line
-                })
+                code_blocks.append(
+                    {
+                        "language": current_language or "text",
+                        "code": "\n".join(current_code),
+                        "line_number": start_line,
+                    }
+                )
                 current_code = []
         elif in_code_block:
             current_code.append(line)
@@ -136,7 +141,7 @@ def validate_json(code: str) -> Tuple[bool, str]:
 def validate_python(code: str) -> Tuple[bool, str]:
     """Validate Python syntax"""
     try:
-        compile(code, '<string>', 'exec')
+        compile(code, "<string>", "exec")
         return True, ""
     except SyntaxError as e:
         return False, str(e)
@@ -146,13 +151,13 @@ def check_python_imports(code: str) -> List[str]:
     """Check for undefined imports in Python code"""
     undefined = []
     undefined_patterns = [
-        r'load_metrics\(',
-        r'load_system_metrics\(',
+        r"load_metrics\(",
+        r"load_system_metrics\(",
     ]
 
     for pattern in undefined_patterns:
         if re.search(pattern, code):
-            func_name = pattern.replace(r'\(', '').replace('\\', '')
+            func_name = pattern.replace(r"\(", "").replace("\\", "")
             if f"def {func_name}" not in code:
                 undefined.append(func_name)
 
@@ -162,6 +167,7 @@ def check_python_imports(code: str) -> List[str]:
 # =============================================================================
 # Test Suites
 # =============================================================================
+
 
 def test_security():
     """Test suite for security issues"""
@@ -179,7 +185,9 @@ def test_security():
         violations = check_for_hardcoded_credentials(content, ORIGINAL_DOC)
 
         if len(violations) > 0:
-            print_success(f"Found {len(violations)} security violations in original doc (expected)")
+            print_success(
+                f"Found {len(violations)} security violations in original doc (expected)"
+            )
             for v in violations[:3]:
                 print(f"    Line {v['line_number']}: {v['violation_type']}")
             passed_tests += 1
@@ -189,7 +197,9 @@ def test_security():
         print_warning("Original documentation not found")
 
     # Test 2: Corrected doc should have NO hardcoded credentials
-    print_info("\nTest 2: Checking corrected documentation for hardcoded credentials...")
+    print_info(
+        "\nTest 2: Checking corrected documentation for hardcoded credentials..."
+    )
     total_tests += 1
 
     if CORRECTED_DOC.exists():
@@ -200,7 +210,9 @@ def test_security():
             print_success("No hardcoded credentials found in corrected doc ✅")
             passed_tests += 1
         else:
-            print_error(f"Found {len(violations)} hardcoded credential(s) in corrected doc:")
+            print_error(
+                f"Found {len(violations)} hardcoded credential(s) in corrected doc:"
+            )
             for v in violations:
                 print(f"    Line {v['line_number']}: {v['violation_type']}")
     else:
@@ -225,17 +237,14 @@ def test_code_syntax():
 
     # Test JSON examples
     print_info(f"Test 1: Validating JSON examples...")
-    json_blocks = [b for b in code_blocks if b['language'].lower() in ['json', 'jsonc']]
+    json_blocks = [b for b in code_blocks if b["language"].lower() in ["json", "jsonc"]]
     total_tests += 1
 
     errors = []
     for block in json_blocks:
-        is_valid, error_msg = validate_json(block['code'])
+        is_valid, error_msg = validate_json(block["code"])
         if not is_valid:
-            errors.append({
-                'line': block['line_number'],
-                'error': error_msg
-            })
+            errors.append({"line": block["line_number"], "error": error_msg})
 
     if not errors:
         print_success(f"All {len(json_blocks)} JSON examples are valid ✅")
@@ -247,17 +256,14 @@ def test_code_syntax():
 
     # Test Python examples
     print_info(f"\nTest 2: Validating Python syntax...")
-    python_blocks = [b for b in code_blocks if b['language'].lower() == 'python']
+    python_blocks = [b for b in code_blocks if b["language"].lower() == "python"]
     total_tests += 1
 
     errors = []
     for block in python_blocks:
-        is_valid, error_msg = validate_python(block['code'])
+        is_valid, error_msg = validate_python(block["code"])
         if not is_valid:
-            errors.append({
-                'line': block['line_number'],
-                'error': error_msg
-            })
+            errors.append({"line": block["line_number"], "error": error_msg})
 
     if not errors:
         print_success(f"All {len(python_blocks)} Python examples have valid syntax ✅")
@@ -273,18 +279,19 @@ def test_code_syntax():
 
     undefined_issues = []
     for block in python_blocks:
-        undefined = check_python_imports(block['code'])
+        undefined = check_python_imports(block["code"])
         if undefined:
-            undefined_issues.append({
-                'line': block['line_number'],
-                'undefined': undefined
-            })
+            undefined_issues.append(
+                {"line": block["line_number"], "undefined": undefined}
+            )
 
     if not undefined_issues:
         print_success("No undefined functions found ✅")
         passed_tests += 1
     else:
-        print_error(f"Found {len(undefined_issues)} example(s) with undefined functions:")
+        print_error(
+            f"Found {len(undefined_issues)} example(s) with undefined functions:"
+        )
         for issue in undefined_issues[:3]:
             print(f"    Line {issue['line']}: {', '.join(issue['undefined'])}")
 
@@ -308,8 +315,8 @@ def test_documentation_completeness():
     print_info("Test 1: Checking for error response examples...")
     total_tests += 1
 
-    if 'error' in content and ('response' in content or 'handling' in content):
-        error_codes = ['401', '404', '500', '400']
+    if "error" in content and ("response" in content or "handling" in content):
+        error_codes = ["401", "404", "500", "400"]
         found_codes = sum(1 for code in error_codes if code in content)
 
         if found_codes >= 3:
@@ -324,7 +331,7 @@ def test_documentation_completeness():
     print_info("\nTest 2: Checking for rate limiting information...")
     total_tests += 1
 
-    if 'rate limit' in content:
+    if "rate limit" in content:
         print_success("Rate limiting information present ✅")
         passed_tests += 1
     else:
@@ -334,7 +341,7 @@ def test_documentation_completeness():
     print_info("\nTest 3: Checking for parameter documentation...")
     total_tests += 1
 
-    param_keywords = ['parameter', 'type', 'required', 'description']
+    param_keywords = ["parameter", "type", "required", "description"]
     found_params = sum(1 for kw in param_keywords if kw in content)
 
     if found_params >= 3:
@@ -347,8 +354,8 @@ def test_documentation_completeness():
     print_info("\nTest 4: Checking for authentication information...")
     total_tests += 1
 
-    if 'authentication' in content or 'auth' in content:
-        if 'jwt' in content or 'token' in content:
+    if "authentication" in content or "auth" in content:
+        if "jwt" in content or "token" in content:
             print_success("Authentication information present ✅")
             passed_tests += 1
         else:
@@ -414,6 +421,7 @@ def test_file_quality():
 # Main
 # =============================================================================
 
+
 def main():
     """Run all documentation tests"""
     print(f"\n{Colors.BOLD}")
@@ -453,15 +461,21 @@ def main():
     print(f"Success Rate: {success_rate:.1f}%")
 
     if success_rate >= 80:
-        print(f"\n{Colors.GREEN}{Colors.BOLD}✨ EXCELLENT! Documentation quality is high!{Colors.END}\n")
+        print(
+            f"\n{Colors.GREEN}{Colors.BOLD}✨ EXCELLENT! Documentation quality is high!{Colors.END}\n"
+        )
         return 0
     elif success_rate >= 60:
-        print(f"\n{Colors.YELLOW}{Colors.BOLD}⚠️  GOOD, but room for improvement.{Colors.END}\n")
+        print(
+            f"\n{Colors.YELLOW}{Colors.BOLD}⚠️  GOOD, but room for improvement.{Colors.END}\n"
+        )
         return 0
     else:
-        print(f"\n{Colors.RED}{Colors.BOLD}❌ NEEDS ATTENTION - Review documentation.{Colors.END}\n")
+        print(
+            f"\n{Colors.RED}{Colors.BOLD}❌ NEEDS ATTENTION - Review documentation.{Colors.END}\n"
+        )
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

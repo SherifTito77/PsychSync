@@ -20,22 +20,27 @@ Expected Results:
 
 import asyncio
 import json
-import time
+import logging
 import statistics
 import subprocess
-import requests
-from typing import Dict, List, Any, Optional
+import time
 from dataclasses import dataclass
 from pathlib import Path
-import logging
+from typing import Any, Dict, List, Optional
+
+import requests
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class PWATestResult:
     """Individual PWA test result"""
+
     test_name: str
     passed: bool
     score: float
@@ -43,9 +48,11 @@ class PWATestResult:
     details: Dict[str, Any]
     errors: List[str]
 
+
 @dataclass
 class PWAPerformanceMetrics:
     """PWA performance metrics"""
+
     first_contentful_paint: float
     largest_contentful_paint: float
     first_input_delay: float
@@ -53,6 +60,7 @@ class PWAPerformanceMetrics:
     time_to_interactive: float
     cache_hit_rate: float
     offline_response_time: float
+
 
 class PWATestSuite:
     """Comprehensive PWA testing framework"""
@@ -79,7 +87,7 @@ class PWATestSuite:
             ("Mobile Compatibility Tests", self.test_mobile_compatibility),
             ("Performance Metrics Tests", self.test_performance_metrics),
             ("Security & Privacy Tests", self.test_security_privacy),
-            ("User Experience Tests", self.test_user_experience)
+            ("User Experience Tests", self.test_user_experience),
         ]
 
         for category_name, test_function in test_categories:
@@ -88,14 +96,16 @@ class PWATestSuite:
                 await test_function()
             except Exception as e:
                 logger.error(f"❌ {category_name} failed: {e}")
-                self.results.append(PWATestResult(
-                    test_name=category_name,
-                    passed=False,
-                    score=0.0,
-                    duration=0.0,
-                    details={"error": str(e)},
-                    errors=[str(e)]
-                ))
+                self.results.append(
+                    PWATestResult(
+                        test_name=category_name,
+                        passed=False,
+                        score=0.0,
+                        duration=0.0,
+                        details={"error": str(e)},
+                        errors=[str(e)],
+                    )
+                )
 
         total_duration = time.time() - start_time
         overall_score = self.calculate_overall_score()
@@ -114,24 +124,28 @@ class PWATestSuite:
             ("Cache Storage Verification", self.test_cache_storage),
             ("Background Sync Capability", self.test_background_sync),
             ("Push Notification Support", self.test_push_notifications),
-            ("Service Worker Update Mechanism", self.test_sw_updates)
+            ("Service Worker Update Mechanism", self.test_sw_updates),
         ]
 
         for test_name, test_func in tests:
             try:
                 result = await test_func()
                 self.results.append(result)
-                logger.info(f"  {'✅' if result.passed else '❌'} {test_name}: {result.score:.1f}%")
+                logger.info(
+                    f"  {'✅' if result.passed else '❌'} {test_name}: {result.score:.1f}%"
+                )
             except Exception as e:
                 logger.error(f"  ❌ {test_name}: {e}")
-                self.results.append(PWATestResult(
-                    test_name=test_name,
-                    passed=False,
-                    score=0.0,
-                    duration=0.0,
-                    details={"error": str(e)},
-                    errors=[str(e)]
-                ))
+                self.results.append(
+                    PWATestResult(
+                        test_name=test_name,
+                        passed=False,
+                        score=0.0,
+                        duration=0.0,
+                        details={"error": str(e)},
+                        errors=[str(e)],
+                    )
+                )
 
     async def test_sw_registration(self) -> PWATestResult:
         """Test service worker registration"""
@@ -166,7 +180,7 @@ class PWATestSuite:
                 "scope": f"{self.base_url}/",
                 "active": True,
                 "installing": False,
-                "waiting": False
+                "waiting": False,
             }
 
             duration = time.time() - start_time
@@ -178,7 +192,11 @@ class PWATestSuite:
                 score=score,
                 duration=duration,
                 details=sw_status,
-                errors=[] if sw_status.get("registered") else ["Service worker not registered"]
+                errors=(
+                    []
+                    if sw_status.get("registered")
+                    else ["Service worker not registered"]
+                ),
             )
 
         except Exception as e:
@@ -188,7 +206,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_cache_storage(self) -> PWATestResult:
@@ -202,7 +220,7 @@ class PWATestSuite:
                 "api_cache": True,
                 "dynamic_cache": True,
                 "cache_versioning": True,
-                "cache_cleanup": True
+                "cache_cleanup": True,
             }
 
             passed_count = sum(1 for check in cache_checks.values() if check)
@@ -215,7 +233,7 @@ class PWATestSuite:
                 score=score,
                 duration=time.time() - start_time,
                 details=cache_checks,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
@@ -225,7 +243,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_background_sync(self) -> PWATestResult:
@@ -238,7 +256,7 @@ class PWATestSuite:
                 "sync_manager_supported": True,
                 "sync_registration": True,
                 "offline_data_storage": True,
-                "sync_on_reconnect": True
+                "sync_on_reconnect": True,
             }
 
             passed_count = sum(1 for check in sync_checks.values() if check)
@@ -251,7 +269,7 @@ class PWATestSuite:
                 score=score,
                 duration=time.time() - start_time,
                 details=sync_checks,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
@@ -261,7 +279,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_push_notifications(self) -> PWATestResult:
@@ -273,7 +291,7 @@ class PWATestSuite:
                 "permission_supported": True,
                 "subscription_possible": True,
                 "vapid_keys_configured": True,
-                "notification_display": True
+                "notification_display": True,
             }
 
             passed_count = sum(1 for check in notification_checks.values() if check)
@@ -286,7 +304,7 @@ class PWATestSuite:
                 score=score,
                 duration=time.time() - start_time,
                 details=notification_checks,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
@@ -296,7 +314,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_sw_updates(self) -> PWATestResult:
@@ -308,7 +326,7 @@ class PWATestSuite:
                 "update_detection": True,
                 "update_prompt": True,
                 "seamless_update": True,
-                "fallback_support": True
+                "fallback_support": True,
             }
 
             passed_count = sum(1 for check in update_checks.values() if check)
@@ -321,7 +339,7 @@ class PWATestSuite:
                 score=score,
                 duration=time.time() - start_time,
                 details=update_checks,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
@@ -331,7 +349,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_pwa_manifest(self):
@@ -341,24 +359,28 @@ class PWATestSuite:
             ("Manifest Validation", self.test_manifest_validation),
             ("Icon Availability", self.test_icon_availability),
             ("Installation Prompts", self.test_installation_prompts),
-            ("App Shortcuts", self.test_app_shortcuts)
+            ("App Shortcuts", self.test_app_shortcuts),
         ]
 
         for test_name, test_func in tests:
             try:
                 result = await test_func()
                 self.results.append(result)
-                logger.info(f"  {'✅' if result.passed else '❌'} {test_name}: {result.score:.1f}%")
+                logger.info(
+                    f"  {'✅' if result.passed else '❌'} {test_name}: {result.score:.1f}%"
+                )
             except Exception as e:
                 logger.error(f"  ❌ {test_name}: {e}")
-                self.results.append(PWATestResult(
-                    test_name=test_name,
-                    passed=False,
-                    score=0.0,
-                    duration=0.0,
-                    details={"error": str(e)},
-                    errors=[str(e)]
-                ))
+                self.results.append(
+                    PWATestResult(
+                        test_name=test_name,
+                        passed=False,
+                        score=0.0,
+                        duration=0.0,
+                        details={"error": str(e)},
+                        errors=[str(e)],
+                    )
+                )
 
     async def test_manifest_accessibility(self) -> PWATestResult:
         """Test manifest file accessibility"""
@@ -371,7 +393,9 @@ class PWATestSuite:
             try:
                 response = requests.get(manifest_url, timeout=5)
                 manifest_accessible = response.status_code == 200
-                manifest_valid = response.headers.get('Content-Type', '').startswith('application/json')
+                manifest_valid = response.headers.get("Content-Type", "").startswith(
+                    "application/json"
+                )
             except Exception as e:
                 manifest_accessible = False
                 manifest_valid = False
@@ -386,9 +410,9 @@ class PWATestSuite:
                 details={
                     "accessible": manifest_accessible,
                     "valid_content_type": manifest_valid,
-                    "url": manifest_url
+                    "url": manifest_url,
                 },
-                errors=[] if manifest_accessible else ["Manifest not accessible"]
+                errors=[] if manifest_accessible else ["Manifest not accessible"],
             )
 
         except Exception as e:
@@ -398,7 +422,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_manifest_validation(self) -> PWATestResult:
@@ -408,8 +432,13 @@ class PWATestSuite:
         try:
             # Expected manifest fields
             required_fields = [
-                "name", "short_name", "start_url", "display",
-                "theme_color", "background_color", "icons"
+                "name",
+                "short_name",
+                "start_url",
+                "display",
+                "theme_color",
+                "background_color",
+                "icons",
             ]
 
             # Simulate manifest validation
@@ -423,10 +452,12 @@ class PWATestSuite:
                 "icons": True,
                 "description": True,
                 "orientation": True,
-                "scope": True
+                "scope": True,
             }
 
-            required_present = sum(1 for field in required_fields if manifest_fields.get(field, False))
+            required_present = sum(
+                1 for field in required_fields if manifest_fields.get(field, False)
+            )
             total_required = len(required_fields)
             score = (required_present / total_required) * 100
 
@@ -438,9 +469,9 @@ class PWATestSuite:
                 details={
                     "required_fields": required_present,
                     "total_required": total_required,
-                    "optional_fields": len(manifest_fields) - required_present
+                    "optional_fields": len(manifest_fields) - required_present,
                 },
-                errors=[] if score >= 100 else ["Missing required manifest fields"]
+                errors=[] if score >= 100 else ["Missing required manifest fields"],
             )
 
         except Exception as e:
@@ -450,7 +481,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_icon_availability(self) -> PWATestResult:
@@ -464,11 +495,19 @@ class PWATestSuite:
 
             # Check our generated icons
             available_sizes = [192, 512, 72, 96, 128, 144, 152, 167, 180, 384]
-            available_core = [size for size in required_sizes if size in available_sizes]
-            available_optional = [size for size in optional_sizes if size in available_sizes]
+            available_core = [
+                size for size in required_sizes if size in available_sizes
+            ]
+            available_optional = [
+                size for size in optional_sizes if size in available_sizes
+            ]
 
-            missing_core = [size for size in required_sizes if size not in available_sizes]
-            missing_optional = [size for size in optional_sizes if size not in available_sizes]
+            missing_core = [
+                size for size in required_sizes if size not in available_sizes
+            ]
+            missing_optional = [
+                size for size in optional_sizes if size not in available_sizes
+            ]
 
             # Calculate score: Core icons are 70%, optional are 30%
             core_score = (len(available_core) / len(required_sizes)) * 70
@@ -477,7 +516,8 @@ class PWATestSuite:
 
             return PWATestResult(
                 test_name="Icon Availability",
-                passed=total_score >= 90.0,  # High threshold for excellent icon coverage
+                passed=total_score
+                >= 90.0,  # High threshold for excellent icon coverage
                 score=total_score,
                 duration=time.time() - start_time,
                 details={
@@ -487,9 +527,9 @@ class PWATestSuite:
                     "missing_core": missing_core,
                     "missing_optional": missing_optional,
                     "core_coverage": (len(available_core) / len(required_sizes)) * 100,
-                    "total_coverage": total_score
+                    "total_coverage": total_score,
                 },
-                errors=[f"Missing core icons: {missing_core}"] if missing_core else []
+                errors=[f"Missing core icons: {missing_core}"] if missing_core else [],
             )
 
         except Exception as e:
@@ -499,7 +539,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_installation_prompts(self) -> PWATestResult:
@@ -512,7 +552,7 @@ class PWATestSuite:
                 "before_install_prompt": True,
                 "install_button_functionality": True,
                 "platform_specific_instructions": True,
-                "install_completion_tracking": True
+                "install_completion_tracking": True,
             }
 
             passed_count = sum(1 for feature in install_features.values() if feature)
@@ -525,7 +565,7 @@ class PWATestSuite:
                 score=score,
                 duration=time.time() - start_time,
                 details=install_features,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
@@ -535,7 +575,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_app_shortcuts(self) -> PWATestResult:
@@ -548,7 +588,7 @@ class PWATestSuite:
                 "shortcuts_defined": True,
                 "valid_shortcut_structure": True,
                 "working_shortcut_urls": True,
-                "shortcut_icons": True
+                "shortcut_icons": True,
             }
 
             passed_count = sum(1 for check in shortcuts_check.values() if check)
@@ -561,7 +601,7 @@ class PWATestSuite:
                 score=score,
                 duration=time.time() - start_time,
                 details=shortcuts_check,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
@@ -571,7 +611,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_offline_capabilities(self):
@@ -581,24 +621,28 @@ class PWATestSuite:
             ("Cached Assessment Access", self.test_cached_assessment_access),
             ("Offline Form Submission", self.test_offline_form_submission),
             ("Network Status Detection", self.test_network_status_detection),
-            ("Offline Data Persistence", self.test_offline_data_persistence)
+            ("Offline Data Persistence", self.test_offline_data_persistence),
         ]
 
         for test_name, test_func in tests:
             try:
                 result = await test_func()
                 self.results.append(result)
-                logger.info(f"  {'✅' if result.passed else '❌'} {test_name}: {result.score:.1f}%")
+                logger.info(
+                    f"  {'✅' if result.passed else '❌'} {test_name}: {result.score:.1f}%"
+                )
             except Exception as e:
                 logger.error(f"  ❌ {test_name}: {e}")
-                self.results.append(PWATestResult(
-                    test_name=test_name,
-                    passed=False,
-                    score=0.0,
-                    duration=0.0,
-                    details={"error": str(e)},
-                    errors=[str(e)]
-                ))
+                self.results.append(
+                    PWATestResult(
+                        test_name=test_name,
+                        passed=False,
+                        score=0.0,
+                        duration=0.0,
+                        details={"error": str(e)},
+                        errors=[str(e)],
+                    )
+                )
 
     async def test_offline_page_access(self) -> PWATestResult:
         """Test accessing pages while offline"""
@@ -610,7 +654,7 @@ class PWATestSuite:
                 "home_page": True,
                 "assessments_page": True,
                 "dashboard_page": True,
-                "offline_fallback_page": True
+                "offline_fallback_page": True,
             }
 
             accessible_count = sum(1 for page in offline_pages.values() if page)
@@ -623,7 +667,7 @@ class PWATestSuite:
                 score=score,
                 duration=time.time() - start_time,
                 details=offline_pages,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
@@ -633,7 +677,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_cached_assessment_access(self) -> PWATestResult:
@@ -646,7 +690,7 @@ class PWATestSuite:
                 "assessment_templates": True,
                 "assessment_questions": True,
                 "user_progress": True,
-                "partial_responses": True
+                "partial_responses": True,
             }
 
             available_count = sum(1 for content in cached_content.values() if content)
@@ -659,7 +703,7 @@ class PWATestSuite:
                 score=score,
                 duration=time.time() - start_time,
                 details=cached_content,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
@@ -669,7 +713,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_offline_form_submission(self) -> PWATestResult:
@@ -682,7 +726,7 @@ class PWATestSuite:
                 "assessment_responses": True,
                 "user_preferences": True,
                 "feedback_submission": True,
-                "queue_for_sync": True
+                "queue_for_sync": True,
             }
 
             working_count = sum(1 for form in offline_forms.values() if form)
@@ -695,7 +739,7 @@ class PWATestSuite:
                 score=score,
                 duration=time.time() - start_time,
                 details=offline_forms,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
@@ -705,7 +749,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_network_status_detection(self) -> PWATestResult:
@@ -718,7 +762,7 @@ class PWATestSuite:
                 "online_offline_detection": True,
                 "connection_quality_monitoring": True,
                 "network_type_detection": True,
-                "status_indicator_updates": True
+                "status_indicator_updates": True,
             }
 
             working_count = sum(1 for feature in network_features.values() if feature)
@@ -731,7 +775,7 @@ class PWATestSuite:
                 score=score,
                 duration=time.time() - start_time,
                 details=network_features,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
@@ -741,7 +785,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_offline_data_persistence(self) -> PWATestResult:
@@ -754,10 +798,12 @@ class PWATestSuite:
                 "indexeddb_storage": True,
                 "assessment_progress_saved": True,
                 "user_preferences_persisted": True,
-                "cache_persistence_across_sessions": True
+                "cache_persistence_across_sessions": True,
             }
 
-            working_count = sum(1 for feature in persistence_features.values() if feature)
+            working_count = sum(
+                1 for feature in persistence_features.values() if feature
+            )
             total_features = len(persistence_features)
             score = (working_count / total_features) * 100
 
@@ -767,7 +813,7 @@ class PWATestSuite:
                 score=score,
                 duration=time.time() - start_time,
                 details=persistence_features,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
@@ -777,7 +823,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_cache_performance(self):
@@ -786,24 +832,28 @@ class PWATestSuite:
             ("Cache Hit Rate", self.test_cache_hit_rate),
             ("Cache Response Time", self.test_cache_response_time),
             ("Cache Storage Efficiency", self.test_cache_storage_efficiency),
-            ("Cache Invalidation", self.test_cache_invalidation)
+            ("Cache Invalidation", self.test_cache_invalidation),
         ]
 
         for test_name, test_func in tests:
             try:
                 result = await test_func()
                 self.results.append(result)
-                logger.info(f"  {'✅' if result.passed else '❌'} {test_name}: {result.score:.1f}%")
+                logger.info(
+                    f"  {'✅' if result.passed else '❌'} {test_name}: {result.score:.1f}%"
+                )
             except Exception as e:
                 logger.error(f"  ❌ {test_name}: {e}")
-                self.results.append(PWATestResult(
-                    test_name=test_name,
-                    passed=False,
-                    score=0.0,
-                    duration=0.0,
-                    details={"error": str(e)},
-                    errors=[str(e)]
-                ))
+                self.results.append(
+                    PWATestResult(
+                        test_name=test_name,
+                        passed=False,
+                        score=0.0,
+                        duration=0.0,
+                        details={"error": str(e)},
+                        errors=[str(e)],
+                    )
+                )
 
     async def test_cache_hit_rate(self) -> PWATestResult:
         """Test cache hit rate for static and dynamic content"""
@@ -813,9 +863,9 @@ class PWATestSuite:
             # Simulate cache hit rate testing
             cache_metrics = {
                 "static_content_hit_rate": 0.95,  # 95%
-                "api_content_hit_rate": 0.85,     # 85%
+                "api_content_hit_rate": 0.85,  # 85%
                 "dynamic_content_hit_rate": 0.75,  # 75%
-                "overall_hit_rate": 0.85          # 85%
+                "overall_hit_rate": 0.85,  # 85%
             }
 
             overall_score = cache_metrics["overall_hit_rate"] * 100
@@ -827,7 +877,11 @@ class PWATestSuite:
                 score=overall_score,
                 duration=time.time() - start_time,
                 details=cache_metrics,
-                errors=[] if overall_score >= (target_hit_rate * 100) else ["Cache hit rate below target"]
+                errors=(
+                    []
+                    if overall_score >= (target_hit_rate * 100)
+                    else ["Cache hit rate below target"]
+                ),
             )
 
         except Exception as e:
@@ -837,7 +891,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_cache_response_time(self) -> PWATestResult:
@@ -847,18 +901,22 @@ class PWATestSuite:
         try:
             # Simulate cache response time testing
             response_times = {
-                "cached_static_content": 50,    # ms
-                "cached_api_content": 150,      # ms
-                "network_fallback": 800,        # ms
-                "target_cached_response": 100   # ms
+                "cached_static_content": 50,  # ms
+                "cached_api_content": 150,  # ms
+                "network_fallback": 800,  # ms
+                "target_cached_response": 100,  # ms
             }
 
             # Score based on how many meet target response times
             meets_target = sum(
-                1 for key, time in response_times.items()
-                if key != "target_cached_response" and time <= response_times["target_cached_response"]
+                1
+                for key, time in response_times.items()
+                if key != "target_cached_response"
+                and time <= response_times["target_cached_response"]
             )
-            total_checks = len([k for k in response_times.keys() if k != "target_cached_response"])
+            total_checks = len(
+                [k for k in response_times.keys() if k != "target_cached_response"]
+            )
             score = (meets_target / total_checks) * 100
 
             return PWATestResult(
@@ -867,7 +925,7 @@ class PWATestSuite:
                 score=score,
                 duration=time.time() - start_time,
                 details=response_times,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
@@ -877,7 +935,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_cache_storage_efficiency(self) -> PWATestResult:
@@ -890,7 +948,7 @@ class PWATestSuite:
                 "cache_size_optimized": True,
                 "old_cache_cleanup": True,
                 "compression_enabled": True,
-                "storage_quota_management": True
+                "storage_quota_management": True,
             }
 
             efficient_count = sum(1 for metric in storage_metrics.values() if metric)
@@ -903,7 +961,7 @@ class PWATestSuite:
                 score=score,
                 duration=time.time() - start_time,
                 details=storage_metrics,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
@@ -913,7 +971,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     async def test_cache_invalidation(self) -> PWATestResult:
@@ -926,10 +984,12 @@ class PWATestSuite:
                 "version_based_invalidation": True,
                 "api_content_refresh": True,
                 "stale_content_removal": True,
-                "selective_cache_clearing": True
+                "selective_cache_clearing": True,
             }
 
-            working_count = sum(1 for feature in invalidation_features.values() if feature)
+            working_count = sum(
+                1 for feature in invalidation_features.values() if feature
+            )
             total_features = len(invalidation_features)
             score = (working_count / total_features) * 100
 
@@ -939,7 +999,7 @@ class PWATestSuite:
                 score=score,
                 duration=time.time() - start_time,
                 details=invalidation_features,
-                errors=[]
+                errors=[],
             )
 
         except Exception as e:
@@ -949,7 +1009,7 @@ class PWATestSuite:
                 score=0.0,
                 duration=time.time() - start_time,
                 details={},
-                errors=[str(e)]
+                errors=[str(e)],
             )
 
     # Placeholder methods for remaining test categories
@@ -996,12 +1056,14 @@ class PWATestSuite:
             "Service Worker Registration",
             "Offline Page Access",
             "Cache Hit Rate",
-            "Manifest Accessibility"
+            "Manifest Accessibility",
         ]
 
         critical_results = [r for r in self.results if r.test_name in critical_tests]
         if critical_results:
-            critical_score = sum(r.score for r in critical_results) / len(critical_results)
+            critical_score = sum(r.score for r in critical_results) / len(
+                critical_results
+            )
             # Weight critical tests at 60%, others at 40%
             overall_score = (critical_score * 0.6) + (average_score * 0.4)
         else:
@@ -1009,7 +1071,9 @@ class PWATestSuite:
 
         return round(overall_score, 1)
 
-    def generate_test_report(self, total_duration: float, overall_score: float) -> Dict[str, Any]:
+    def generate_test_report(
+        self, total_duration: float, overall_score: float
+    ) -> Dict[str, Any]:
         """Generate comprehensive test report"""
         passed_tests = sum(1 for result in self.results if result.passed)
         total_tests = len(self.results)
@@ -1018,7 +1082,7 @@ class PWATestSuite:
         # Group results by category
         categories = {}
         for result in self.results:
-            category = result.test_name.split(' ')[0]
+            category = result.test_name.split(" ")[0]
             if category not in categories:
                 categories[category] = []
             categories[category].append(result)
@@ -1029,20 +1093,20 @@ class PWATestSuite:
                 "total_duration": round(total_duration, 2),
                 "total_tests": total_tests,
                 "passed_tests": passed_tests,
-                "pass_rate": round(pass_rate, 1)
+                "pass_rate": round(pass_rate, 1),
             },
             "overall_score": overall_score,
             "status": {
                 "excellent": overall_score >= 90,
                 "good": overall_score >= 80,
                 "acceptable": overall_score >= 70,
-                "needs_improvement": overall_score < 70
+                "needs_improvement": overall_score < 70,
             },
             "category_scores": {
                 category: {
                     "score": round(sum(r.score for r in results) / len(results), 1),
                     "passed": sum(1 for r in results if r.passed),
-                    "total": len(results)
+                    "total": len(results),
                 }
                 for category, results in categories.items()
             },
@@ -1053,12 +1117,12 @@ class PWATestSuite:
                     "score": round(result.score, 1),
                     "duration": round(result.duration, 3),
                     "details": result.details,
-                    "errors": result.errors
+                    "errors": result.errors,
                 }
                 for result in self.results
             ],
             "recommendations": self.generate_recommendations(overall_score),
-            "next_steps": self.get_next_steps(overall_score)
+            "next_steps": self.get_next_steps(overall_score),
         }
 
     def generate_recommendations(self, overall_score: float) -> List[str]:
@@ -1066,15 +1130,21 @@ class PWATestSuite:
         recommendations = []
 
         if overall_score < 90:
-            recommendations.append("Focus on achieving 90%+ score for production deployment")
+            recommendations.append(
+                "Focus on achieving 90%+ score for production deployment"
+            )
 
         # Analyze specific test failures
         failed_tests = [r for r in self.results if not r.passed]
         for test in failed_tests:
             if "Service Worker" in test.test_name:
-                recommendations.append("Review service worker implementation and registration")
+                recommendations.append(
+                    "Review service worker implementation and registration"
+                )
             elif "Offline" in test.test_name:
-                recommendations.append("Improve offline caching and fallback mechanisms")
+                recommendations.append(
+                    "Improve offline caching and fallback mechanisms"
+                )
             elif "Cache" in test.test_name:
                 recommendations.append("Optimize caching strategy and hit rates")
             elif "Manifest" in test.test_name:
@@ -1089,28 +1159,28 @@ class PWATestSuite:
                 "✅ PWA is production-ready",
                 "🚀 Deploy to staging environment",
                 "📱 Conduct real device testing",
-                "📊 Monitor performance in production"
+                "📊 Monitor performance in production",
             ]
         elif overall_score >= 80:
             return [
                 "🔧 Address remaining test failures",
                 "📱 Test on actual mobile devices",
                 "🚀 Prepare for production deployment",
-                "📊 Set up performance monitoring"
+                "📊 Set up performance monitoring",
             ]
         elif overall_score >= 70:
             return [
                 "⚠️ Significant improvements needed",
                 "🔧 Focus on critical test failures",
                 "📱 Prioritize mobile compatibility",
-                "🚀 Delay production deployment"
+                "🚀 Delay production deployment",
             ]
         else:
             return [
                 "❌ PWA requires major improvements",
                 "🔧 Complete implementation of core features",
                 "📱 Rebuild mobile compatibility layer",
-                "🚀 Not ready for production"
+                "🚀 Not ready for production",
             ]
 
     async def save_test_results(self, report: Dict[str, Any]):
@@ -1119,11 +1189,12 @@ class PWATestSuite:
         filename = f"pwa_test_report_{timestamp}.json"
 
         try:
-            with open(filename, 'w') as f:
+            with open(filename, "w") as f:
                 json.dump(report, f, indent=2)
             logger.info(f"📊 Test report saved: {filename}")
         except Exception as e:
             logger.error(f"Failed to save test report: {e}")
+
 
 async def main():
     """Main test execution"""
@@ -1131,33 +1202,40 @@ async def main():
     report = await test_suite.run_all_tests()
 
     # Print summary
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("🚀 PSYCHSYNC PWA COMPREHENSIVE TEST RESULTS")
-    print("="*60)
+    print("=" * 60)
     print(f"Overall Score: {report['overall_score']:.1f}%")
     print(f"Pass Rate: {report['test_execution']['pass_rate']:.1f}%")
-    print(f"Tests Passed: {report['test_execution']['passed_tests']}/{report['test_execution']['total_tests']}")
+    print(
+        f"Tests Passed: {report['test_execution']['passed_tests']}/{report['test_execution']['total_tests']}"
+    )
     print(f"Duration: {report['test_execution']['total_duration']:.2f} seconds")
 
     # Status
-    status = report['status']
-    if status['excellent']:
+    status = report["status"]
+    if status["excellent"]:
         print("🎉 Status: EXCELLENT - Ready for production!")
-    elif status['good']:
+    elif status["good"]:
         print("✅ Status: GOOD - Nearly production-ready")
-    elif status['acceptable']:
+    elif status["acceptable"]:
         print("⚠️ Status: ACCEPTABLE - Needs some improvements")
     else:
         print("❌ Status: NEEDS IMPROVEMENT - Significant work required")
 
     print("\n📋 Category Scores:")
-    for category, scores in report['category_scores'].items():
-        status_icon = "✅" if scores['score'] >= 80 else "⚠️" if scores['score'] >= 60 else "❌"
-        print(f"  {status_icon} {category}: {scores['score']:.1f}% ({scores['passed']}/{scores['total']})")
+    for category, scores in report["category_scores"].items():
+        status_icon = (
+            "✅" if scores["score"] >= 80 else "⚠️" if scores["score"] >= 60 else "❌"
+        )
+        print(
+            f"  {status_icon} {category}: {scores['score']:.1f}% ({scores['passed']}/{scores['total']})"
+        )
 
     print("\n🎯 Next Steps:")
-    for step in report['next_steps']:
+    for step in report["next_steps"]:
         print(f"  {step}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

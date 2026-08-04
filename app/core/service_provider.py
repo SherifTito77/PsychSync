@@ -36,19 +36,10 @@ from app.services.assessment_scoring_strategies import (
     ScoringStrategyRegistry,
     get_scoring_strategy_registry,
 )
-from app.services.security.authorization_service import (
-    AuthorizationService,
-)
-from app.services.security.input_sanitizer_service import (
-    InputSanitizerService,
-)
-from app.services.security.password_service import (
-    PasswordService,
-)
-from app.services.security.token_service import (
-    TokenService,
-)
-
+from app.services.security.authorization_service import AuthorizationService
+from app.services.security.input_sanitizer_service import InputSanitizerService
+from app.services.security.password_service import PasswordService
+from app.services.security.token_service import TokenService
 
 # =============================================================================
 # Thread-Safe Singleton Storage

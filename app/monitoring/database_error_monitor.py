@@ -35,8 +35,8 @@ from sqlalchemy.exc import (
     OperationalError,
     ProgrammingError,
     SQLAlchemyError,
-    TimeoutError as DBTimeoutError,
 )
+from sqlalchemy.exc import TimeoutError as DBTimeoutError
 
 from app.core.config import settings
 
@@ -135,7 +135,8 @@ class DatabaseErrorMonitor:
             # Check recent error rate
             now = datetime.utcnow()
             recent_errors = [
-                e for e in self.error_history
+                e
+                for e in self.error_history
                 if datetime.fromisoformat(e["timestamp"]) > now - timedelta(minutes=1)
             ]
 
@@ -197,7 +198,8 @@ class DatabaseErrorMonitor:
         """
         cutoff = datetime.utcnow() - timedelta(minutes=minutes)
         recent_errors = [
-            e for e in self.error_history
+            e
+            for e in self.error_history
             if datetime.fromisoformat(e["timestamp"]) > cutoff
         ]
 
@@ -278,8 +280,7 @@ class DatabaseErrorMonitor:
 
 # Global monitor instance
 db_monitor = DatabaseErrorMonitor(
-    max_history=10000,
-    alert_threshold=settings.get("DB_ERROR_ALERT_THRESHOLD", 10)
+    max_history=10000, alert_threshold=settings.get("DB_ERROR_ALERT_THRESHOLD", 10)
 )
 
 
@@ -292,12 +293,18 @@ def monitor_db_errors(service: str):
         async def create_user(db, user_data):
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
             try:
                 return await func(*args, **kwargs)
-            except (IntegrityError, OperationalError, ProgrammingError, SQLAlchemyError) as e:
+            except (
+                IntegrityError,
+                OperationalError,
+                ProgrammingError,
+                SQLAlchemyError,
+            ) as e:
                 db_monitor.log_error(
                     service=service,
                     operation=func.__name__,
@@ -310,7 +317,12 @@ def monitor_db_errors(service: str):
         def sync_wrapper(*args, **kwargs):
             try:
                 return func(*args, **kwargs)
-            except (IntegrityError, OperationalError, ProgrammingError, SQLAlchemyError) as e:
+            except (
+                IntegrityError,
+                OperationalError,
+                ProgrammingError,
+                SQLAlchemyError,
+            ) as e:
                 db_monitor.log_error(
                     service=service,
                     operation=func.__name__,
@@ -399,12 +411,15 @@ async def start_database_error_monitoring(
 
 # Convenience functions for common operations
 
+
 def log_integrity_error(service: str, operation: str, error: IntegrityError, **context):
     """Log an integrity error (constraint violation)."""
     db_monitor.log_error(service, operation, error, context=context)
 
 
-def log_operational_error(service: str, operation: str, error: OperationalError, **context):
+def log_operational_error(
+    service: str, operation: str, error: OperationalError, **context
+):
     """Log an operational error (connection issue, timeout, etc.)."""
     db_monitor.log_error(service, operation, error, context=context)
 
@@ -414,6 +429,8 @@ def log_timeout_error(service: str, operation: str, error: DBTimeoutError, **con
     db_monitor.log_error(service, operation, error, context=context)
 
 
-def log_generic_db_error(service: str, operation: str, error: SQLAlchemyError, **context):
+def log_generic_db_error(
+    service: str, operation: str, error: SQLAlchemyError, **context
+):
     """Log a generic database error."""
     db_monitor.log_error(service, operation, error, context=context)

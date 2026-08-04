@@ -3,12 +3,13 @@ Async Redis Caching Layer for PsychSync
 Provides non-blocking caching utilities for improved async performance
 Expected improvement: 30-50% faster response times
 """
+
 import asyncio
-from collections.abc import Callable
-from functools import wraps
 import hashlib
 import json
 import logging
+from collections.abc import Callable
+from functools import wraps
 from typing import Any
 
 import redis.asyncio as redis
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 # Initialize async Redis client
 try:
     from redis.asyncio import Redis as AsyncRedis
+
     async_redis_client: AsyncRedis | None = AsyncRedis(
         host=getattr(settings, "REDIS_HOST", "localhost"),
         port=getattr(settings, "REDIS_PORT", 6379),
@@ -27,7 +29,7 @@ try:
         decode_responses=True,
         socket_connect_timeout=5,
         socket_timeout=5,
-        retry_on_timeout=True
+        retry_on_timeout=True,
     )
 
     async def test_redis_connection():
@@ -36,12 +38,16 @@ try:
             await async_redis_client.ping()
             logger.info("✅ Async Redis connection established")
         except Exception as e:
-            logger.warning(f"⚠️ Async Redis connection failed: {e}. Caching will be disabled.")
+            logger.warning(
+                f"⚠️ Async Redis connection failed: {e}. Caching will be disabled."
+            )
             return False
         return True
 
 except ImportError:
-    logger.warning("⚠️ redis.asyncio not available. Install redis>=4.2.0 for async caching")
+    logger.warning(
+        "⚠️ redis.asyncio not available. Install redis>=4.2.0 for async caching"
+    )
     async_redis_client = None
 
 
@@ -215,9 +221,7 @@ def async_cached(expire: int = 3600, key_prefix: str = ""):
 
             # Try to acquire lock for this cache key
             redis_client = await redis.from_url(
-                AsyncCache.redis_url,
-                encoding="utf-8",
-                decode_responses=True
+                AsyncCache.redis_url, encoding="utf-8", decode_responses=True
             )
 
             try:
@@ -226,7 +230,7 @@ def async_cached(expire: int = 3600, key_prefix: str = ""):
                     lock_key,
                     "1",
                     nx=True,  # Only set if key doesn't exist
-                    ex=10     # Lock expires after 10 seconds (prevents deadlocks)
+                    ex=10,  # Lock expires after 10 seconds (prevents deadlocks)
                 )
 
                 if lock_acquired:
@@ -273,6 +277,7 @@ def async_cached(expire: int = 3600, key_prefix: str = ""):
                 await redis_client.close()
 
         return wrapper
+
     return decorator
 
 

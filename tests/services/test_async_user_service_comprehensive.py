@@ -2,23 +2,24 @@
 """
 Comprehensive test suite for async user service
 """
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.models.user import User
+from app.schemas.user import UserCreate, UserUpdate
 from app.services.async_user_service import (
-    UserServiceError,
-    UserNotFoundError,
     UserAlreadyExistsError,
-    get_user_by_id_async,
-    get_user_by_email_async,
+    UserNotFoundError,
+    UserServiceError,
     create_user_async,
     get_all_users_async,
-    update_user_async
+    get_user_by_email_async,
+    get_user_by_id_async,
+    update_user_async,
 )
-from app.schemas.user import UserCreate, UserUpdate
-from app.db.models.user import User
 
 
 class TestAsyncUserService:
@@ -33,9 +34,7 @@ class TestAsyncUserService:
     def sample_user_data(self):
         """Sample user data for testing"""
         return UserCreate(
-            email="test@example.com",
-            password="SecurePass123!",
-            full_name="Test User"
+            email="test@example.com", password="SecurePass123!", full_name="Test User"
         )
 
     @pytest.fixture
@@ -48,7 +47,7 @@ class TestAsyncUserService:
             password_hash="$2b$12$hashedpassword",
             is_active=True,
             is_verified=False,
-            created_at=datetime.utcnow()
+            created_at=datetime.utcnow(),
         )
         return user
 
@@ -63,8 +62,11 @@ class TestAsyncUserService:
         mock_result.scalar_one_or_none.return_value = sample_user_model
         mock_db.execute.return_value = mock_result
 
-        with patch('app.services.async_user_service.user_to_dict') as mock_to_dict:
-            mock_to_dict.return_value = {"id": str(sample_user_model.id), "email": sample_user_model.email}
+        with patch("app.services.async_user_service.user_to_dict") as mock_to_dict:
+            mock_to_dict.return_value = {
+                "id": str(sample_user_model.id),
+                "email": sample_user_model.email,
+            }
 
             result = await get_user_by_id_async(mock_db, str(sample_user_model.id))
 
@@ -103,8 +105,11 @@ class TestAsyncUserService:
         mock_result.scalar_one_or_none.return_value = sample_user_model
         mock_db.execute.return_value = mock_result
 
-        with patch('app.services.async_user_service.user_to_dict') as mock_to_dict:
-            mock_to_dict.return_value = {"id": str(sample_user_model.id), "email": sample_user_model.email}
+        with patch("app.services.async_user_service.user_to_dict") as mock_to_dict:
+            mock_to_dict.return_value = {
+                "id": str(sample_user_model.id),
+                "email": sample_user_model.email,
+            }
 
             result = await get_user_by_email_async(mock_db, sample_user_model.email)
 
@@ -129,16 +134,21 @@ class TestAsyncUserService:
     @pytest.mark.asyncio
     async def test_create_user_success(self, mock_db, sample_user_data):
         """Test successful user creation"""
-        with patch('app.services.async_user_service.User') as mock_user_class, \
-             patch('app.services.async_user_service.get_password_hash') as mock_hash, \
-             patch('app.services.async_user_service.user_to_dict') as mock_to_dict:
+        with patch("app.services.async_user_service.User") as mock_user_class, patch(
+            "app.services.async_user_service.get_password_hash"
+        ) as mock_hash, patch(
+            "app.services.async_user_service.user_to_dict"
+        ) as mock_to_dict:
 
             # Setup mocks
             mock_user_instance = AsyncMock(spec=User)
             mock_user_instance.id = "550e8400-e29b-41d4-a716-446655440000"
             mock_user_class.return_value = mock_user_instance
             mock_hash.return_value = "hashed_password"
-            mock_to_dict.return_value = {"id": "550e8400-e29b-41d4-a716-446655440000", "email": sample_user_data.email}
+            mock_to_dict.return_value = {
+                "id": "550e8400-e29b-41d4-a716-446655440000",
+                "email": sample_user_data.email,
+            }
 
             # Mock the database operations
             mock_db.add = AsyncMock()
@@ -156,7 +166,9 @@ class TestAsyncUserService:
     @pytest.mark.asyncio
     async def test_create_user_duplicate_email(self, mock_db, sample_user_data):
         """Test user creation with duplicate email raises appropriate error"""
-        with patch('app.services.async_user_service.get_user_by_email_async') as mock_get_user:
+        with patch(
+            "app.services.async_user_service.get_user_by_email_async"
+        ) as mock_get_user:
             mock_get_user.return_value = {"email": sample_user_data.email}
 
             with pytest.raises(UserAlreadyExistsError, match="already exists"):
@@ -165,8 +177,9 @@ class TestAsyncUserService:
     @pytest.mark.asyncio
     async def test_create_user_database_error(self, mock_db, sample_user_data):
         """Test handling database errors during user creation"""
-        with patch('app.services.async_user_service.User') as mock_user_class, \
-             patch('app.services.async_user_service.get_password_hash'):
+        with patch("app.services.async_user_service.User") as mock_user_class, patch(
+            "app.services.async_user_service.get_password_hash"
+        ):
 
             mock_user_instance = AsyncMock(spec=User)
             mock_user_class.return_value = mock_user_instance
@@ -188,8 +201,12 @@ class TestAsyncUserService:
         mock_result.scalars.return_value.all.return_value = [sample_user_model]
         mock_db.execute.return_value = mock_result
 
-        with patch('app.services.async_user_service.users_to_dict_list') as mock_to_dict_list:
-            mock_to_dict_list.return_value = [{"id": str(sample_user_model.id), "email": sample_user_model.email}]
+        with patch(
+            "app.services.async_user_service.users_to_dict_list"
+        ) as mock_to_dict_list:
+            mock_to_dict_list.return_value = [
+                {"id": str(sample_user_model.id), "email": sample_user_model.email}
+            ]
 
             result = await get_all_users_async(mock_db, skip=0, limit=100)
 
@@ -204,7 +221,9 @@ class TestAsyncUserService:
         mock_result.scalars.return_value.all.return_value = []
         mock_db.execute.return_value = mock_result
 
-        with patch('app.services.async_user_service.users_to_dict_list') as mock_to_dict_list:
+        with patch(
+            "app.services.async_user_service.users_to_dict_list"
+        ) as mock_to_dict_list:
             mock_to_dict_list.return_value = []
 
             result = await get_all_users_async(mock_db, skip=0, limit=100)
@@ -218,7 +237,9 @@ class TestAsyncUserService:
         mock_result.scalars.return_value.all.return_value = []
         mock_db.execute.return_value = mock_result
 
-        with patch('app.services.async_user_service.users_to_dict_list') as mock_to_dict_list:
+        with patch(
+            "app.services.async_user_service.users_to_dict_list"
+        ) as mock_to_dict_list:
             mock_to_dict_list.return_value = []
 
             await get_all_users_async(mock_db, skip=10, limit=50)
@@ -227,7 +248,7 @@ class TestAsyncUserService:
             mock_db.execute.assert_called_once()
             call_args = mock_db.execute.call_args[0][0]
             # Check that the query contains offset and limit
-            assert hasattr(call_args, 'offset') or hasattr(call_args, 'limit')
+            assert hasattr(call_args, "offset") or hasattr(call_args, "limit")
 
     # =============================================================================
     # UPDATE USER TESTS
@@ -242,13 +263,18 @@ class TestAsyncUserService:
         mock_result.scalar_one_or_none.return_value = sample_user_model
         mock_db.execute.return_value = mock_result
 
-        with patch('app.services.async_user_service.user_to_dict') as mock_to_dict:
-            mock_to_dict.return_value = {"id": str(sample_user_model.id), "full_name": "Updated Name"}
+        with patch("app.services.async_user_service.user_to_dict") as mock_to_dict:
+            mock_to_dict.return_value = {
+                "id": str(sample_user_model.id),
+                "full_name": "Updated Name",
+            }
 
             mock_db.commit = AsyncMock()
             mock_db.refresh = AsyncMock()
 
-            result = await update_user_async(mock_db, str(sample_user_model.id), update_data)
+            result = await update_user_async(
+                mock_db, str(sample_user_model.id), update_data
+            )
 
             assert result is not None
             assert result["full_name"] == "Updated Name"
@@ -276,8 +302,11 @@ class TestAsyncUserService:
         mock_result.scalar_one_or_none.return_value = sample_user_model
         mock_db.execute.return_value = mock_result
 
-        with patch('app.services.async_user_service.user_to_dict') as mock_to_dict, \
-             patch('app.services.async_user_service.get_password_hash') as mock_hash:
+        with patch(
+            "app.services.async_user_service.user_to_dict"
+        ) as mock_to_dict, patch(
+            "app.services.async_user_service.get_password_hash"
+        ) as mock_hash:
 
             mock_to_dict.return_value = {"id": str(sample_user_model.id)}
             mock_hash.return_value = "new_hashed_password"
@@ -335,13 +364,14 @@ class TestAsyncUserService:
         invalid_data = UserCreate(
             email="invalid-email",
             password="123",  # Too short
-            full_name=""  # Empty name
+            full_name="",  # Empty name
         )
 
         # The service should still attempt to create the user
         # Validation should happen at the API level
-        with patch('app.services.async_user_service.User') as mock_user_class, \
-             patch('app.services.async_user_service.get_password_hash'):
+        with patch("app.services.async_user_service.User") as mock_user_class, patch(
+            "app.services.async_user_service.get_password_hash"
+        ):
 
             mock_user_instance = AsyncMock(spec=User)
             mock_user_class.return_value = mock_user_instance
@@ -369,13 +399,15 @@ class TestAsyncUserService:
         mock_result.scalar_one_or_none.return_value = sample_user_model
         mock_db.execute.return_value = mock_result
 
-        with patch('app.services.async_user_service.user_to_dict') as mock_to_dict:
+        with patch("app.services.async_user_service.user_to_dict") as mock_to_dict:
             mock_to_dict.return_value = {"id": str(sample_user_model.id)}
 
             mock_db.commit = AsyncMock()
             mock_db.refresh = AsyncMock()
 
-            result = await update_user_async(mock_db, str(sample_user_model.id), update_data)
+            result = await update_user_async(
+                mock_db, str(sample_user_model.id), update_data
+            )
 
             assert result is not None
             mock_db.commit.assert_called_once()  # Should still commit to update timestamps
@@ -395,7 +427,9 @@ class TestAsyncUserService:
         mock_result.scalars.return_value.all.return_value = mock_users
         mock_db.execute.return_value = mock_result
 
-        with patch('app.services.async_user_service.users_to_dict_list') as mock_to_dict_list:
+        with patch(
+            "app.services.async_user_service.users_to_dict_list"
+        ) as mock_to_dict_list:
             mock_to_dict_list.return_value = [{"id": f"user-{i}"} for i in range(1000)]
 
             start_time = time.time()

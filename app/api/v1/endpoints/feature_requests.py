@@ -3,18 +3,22 @@
 
 API endpoints for managing feature requests, voting, and relationships.
 """
-from datetime import datetime, date
-from typing import Optional, List, Dict, Any
 import asyncio
+from datetime import date, datetime
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import and_, desc, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, desc, and_, or_
 
-from app.api.deps import get_current_active_user, get_async_db
+from app.api.deps import get_async_db, get_current_active_user
+from app.db.models.feature_requests import (
+    FeatureRequest,
+    FeatureRequestRelation,
+    FeatureRequestVote,
+)
 from app.db.models.user import User
-from app.db.models.feature_requests import FeatureRequest, FeatureRequestVote, FeatureRequestRelation
 
 router = APIRouter()
 
@@ -23,7 +27,10 @@ router = APIRouter()
 # Helper Functions
 # ========================================================================
 
-async def _feature_request_to_response(request: FeatureRequest, db: AsyncSession) -> FeatureRequestResponse:
+
+async def _feature_request_to_response(
+    request: FeatureRequest, db: AsyncSession
+) -> FeatureRequestResponse:
     """Convert database model to response model"""
     from sqlalchemy import select
 
@@ -55,7 +62,7 @@ async def _feature_request_to_response(request: FeatureRequest, db: AsyncSession
         created_at=request.created_at.isoformat(),
         updated_at=request.updated_at.isoformat(),
         shipped_at=request.shipped_at.isoformat() if request.shipped_at else None,
-        vote_count=vote_count
+        vote_count=vote_count,
     )
 
 
@@ -85,20 +92,27 @@ async def _update_search_vector(request: FeatureRequest, db: AsyncSession):
 # Pydantic Models
 # ========================================================================
 
+
 class FeatureRequestCreate(BaseModel):
     """Request model for creating a feature request"""
-    title: str = Field(..., min_length=1, max_length=255, description="Feature request title")
+
+    title: str = Field(
+        ..., min_length=1, max_length=255, description="Feature request title"
+    )
     description: str = Field(..., min_length=1, description="Detailed description")
     theme: str = Field(..., description="Theme category (e.g., ASSESS, ANALYT)")
     subcategory: Optional[str] = Field(None, description="Theme subcategory")
     request_type: str = Field(..., description="Type: NEW, ENH, BUG, PERF, etc.")
     source_type: str = Field(..., description="Source: customer, internal, data_driven")
     source_id: Optional[str] = Field(None, description="External source ID")
-    customer_id: Optional[str] = Field(None, description="Customer user ID if from customer")
+    customer_id: Optional[str] = Field(
+        None, description="Customer user ID if from customer"
+    )
 
 
 class FeatureRequestUpdate(BaseModel):
     """Request model for updating a feature request"""
+
     status: Optional[str] = None
     priority: Optional[str] = None
     effort: Optional[str] = None
@@ -111,6 +125,7 @@ class FeatureRequestUpdate(BaseModel):
 
 class RICEScores(BaseModel):
     """RICE scoring model"""
+
     reach: Optional[float] = None
     impact: Optional[float] = None
     confidence: Optional[float] = None
@@ -120,6 +135,7 @@ class RICEScores(BaseModel):
 
 class FeatureRequestResponse(BaseModel):
     """Response model for feature request"""
+
     id: str
     title: str
     description: str
@@ -146,6 +162,7 @@ class FeatureRequestResponse(BaseModel):
 
 class FeatureRequestListResponse(BaseModel):
     """Response model for feature request list"""
+
     total: int
     requests: List[FeatureRequestResponse]
 
@@ -154,15 +171,27 @@ class FeatureRequestListResponse(BaseModel):
 # API Endpoints
 # ========================================================================
 
+
 @router.post(
     "/",
-    responses={201: {'description': 'Resource created successfully', 'content': {'application/json': {'example': {'id': 1, 'created_at': '2025-01-13T10:00:00Z'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        201: {
+            "description": "Resource created successfully",
+            "content": {
+                "application/json": {
+                    "example": {"id": 1, "created_at": "2025-01-13T10:00:00Z"}
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=FeatureRequestResponse,
 )
 async def create_feature_request(
     request: FeatureRequestCreate,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Create a new feature request.
@@ -184,7 +213,7 @@ async def create_feature_request(
         source_type=request.source_type,
         source_id=request.source_id,
         submitted_by_id=current_user.id,
-        customer_id=request.customer_id
+        customer_id=request.customer_id,
     )
 
     await loop.run_in_executor(None, lambda: db.add(feature_request))
@@ -199,7 +228,21 @@ async def create_feature_request(
 
 @router.get(
     "/",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=FeatureRequestListResponse,
 )
 async def list_feature_requests(
@@ -209,7 +252,7 @@ async def list_feature_requests(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     List feature requests with optional filters.
@@ -228,7 +271,9 @@ async def list_feature_requests(
             query = query.filter(FeatureRequest.customer_id == customer_id)
 
         # Order by RICE score (descending), then created date
-        query = query.order_by(desc(FeatureRequest.rice_score), desc(FeatureRequest.created_at))
+        query = query.order_by(
+            desc(FeatureRequest.rice_score), desc(FeatureRequest.created_at)
+        )
 
         total = query.count()
         requests = query.offset(offset).limit(limit).all()
@@ -243,21 +288,32 @@ async def list_feature_requests(
         response_item = await _feature_request_to_response(r, db)
         response_list.append(response_item)
 
-    return FeatureRequestListResponse(
-        total=total,
-        requests=response_list
-    )
+    return FeatureRequestListResponse(total=total, requests=response_list)
 
 
 @router.get(
     "/{request_id}",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=FeatureRequestResponse,
 )
 async def get_feature_request(
     request_id: str,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Get a specific feature request by ID.
@@ -267,7 +323,9 @@ async def get_feature_request(
 
     feature_request = await loop.run_in_executor(
         None,
-        lambda: db.query(FeatureRequest).filter(FeatureRequest.id == request_id).first()
+        lambda: db.query(FeatureRequest)
+        .filter(FeatureRequest.id == request_id)
+        .first(),
     )
 
     if not feature_request:
@@ -278,14 +336,28 @@ async def get_feature_request(
 
 @router.put(
     "/{request_id}",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=FeatureRequestResponse,
 )
 async def update_feature_request(
     request_id: str,
     updates: FeatureRequestUpdate,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Update a feature request (product team only).
@@ -295,7 +367,9 @@ async def update_feature_request(
 
     feature_request = await loop.run_in_executor(
         None,
-        lambda: db.query(FeatureRequest).filter(FeatureRequest.id == request_id).first()
+        lambda: db.query(FeatureRequest)
+        .filter(FeatureRequest.id == request_id)
+        .first(),
     )
 
     if not feature_request:
@@ -324,12 +398,26 @@ async def update_feature_request(
 
 @router.post(
     "/{request_id}/vote",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
 )
 async def vote_for_feature_request(
     request_id: str,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Vote for a feature request.
@@ -339,7 +427,9 @@ async def vote_for_feature_request(
 
     feature_request = await loop.run_in_executor(
         None,
-        lambda: db.query(FeatureRequest).filter(FeatureRequest.id == request_id).first()
+        lambda: db.query(FeatureRequest)
+        .filter(FeatureRequest.id == request_id)
+        .first(),
     )
 
     if not feature_request:
@@ -348,10 +438,12 @@ async def vote_for_feature_request(
     # Check if already voted
     existing_vote = await loop.run_in_executor(
         None,
-        lambda: db.query(FeatureRequestVote).filter(
+        lambda: db.query(FeatureRequestVote)
+        .filter(
             FeatureRequestVote.feature_request_id == request_id,
-            FeatureRequestVote.user_id == current_user.id
-        ).first()
+            FeatureRequestVote.user_id == current_user.id,
+        )
+        .first(),
     )
 
     if existing_vote:
@@ -359,29 +451,28 @@ async def vote_for_feature_request(
         return {"message": "Already voted", "vote_count": vote_count}
 
     # Add vote
-    vote = FeatureRequestVote(
-        feature_request_id=request_id,
-        user_id=current_user.id
-    )
+    vote = FeatureRequestVote(feature_request_id=request_id, user_id=current_user.id)
     await loop.run_in_executor(None, lambda: db.add(vote))
     await loop.run_in_executor(None, db.commit)
 
     vote_count = await _get_vote_count(request_id, db)
 
-    return {
-        "message": "Vote recorded",
-        "vote_count": vote_count
-    }
+    return {"message": "Vote recorded", "vote_count": vote_count}
 
 
 @router.delete(
     "/{request_id}/vote",
-    responses={204: {'description': 'Resource deleted successfully'}, 401: {'description': 'Unauthorized'}, 403: {'description': 'Forbidden'}, 404: {'description': 'Resource not found'}},
+    responses={
+        204: {"description": "Resource deleted successfully"},
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"},
+        404: {"description": "Resource not found"},
+    },
 )
 async def remove_vote(
     request_id: str,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Remove vote from a feature request.
@@ -391,10 +482,12 @@ async def remove_vote(
 
     vote = await loop.run_in_executor(
         None,
-        lambda: db.query(FeatureRequestVote).filter(
+        lambda: db.query(FeatureRequestVote)
+        .filter(
             FeatureRequestVote.feature_request_id == request_id,
-            FeatureRequestVote.user_id == current_user.id
-        ).first()
+            FeatureRequestVote.user_id == current_user.id,
+        )
+        .first(),
     )
 
     if vote:
@@ -406,11 +499,24 @@ async def remove_vote(
 
 @router.get(
     "/{request_id}/votes",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
 )
 async def get_feature_request_votes(
-    request_id: str,
-    db: AsyncSession = Depends(get_async_db)
+    request_id: str, db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get vote count for a feature request.
@@ -423,14 +529,28 @@ async def get_feature_request_votes(
 
 @router.put(
     "/{request_id}/rice",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=FeatureRequestResponse,
 )
 async def update_rice_scores(
     request_id: str,
     scores: RICEScores,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Update RICE scores for a feature request (product team only).
@@ -440,7 +560,9 @@ async def update_rice_scores(
 
     feature_request = await loop.run_in_executor(
         None,
-        lambda: db.query(FeatureRequest).filter(FeatureRequest.id == request_id).first()
+        lambda: db.query(FeatureRequest)
+        .filter(FeatureRequest.id == request_id)
+        .first(),
     )
 
     if not feature_request:

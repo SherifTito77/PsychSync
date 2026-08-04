@@ -8,9 +8,9 @@ This replaces 7+ duplicate SecurityMiddleware classes (~3,500 lines) with
 one unified, configurable implementation.
 """
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-import logging
 from typing import Any
 
 from fastapi import HTTPException, Request, Response
@@ -18,14 +18,14 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.middleware.security_unified.utils import (
-    get_client_ip,
-    get_client_info,
-    is_private_ip,
     detect_attack_tool,
-    is_suspicious_path,
-    is_sensitive_endpoint,
-    get_security_headers_default,
+    get_client_info,
+    get_client_ip,
     get_csp_template,
+    get_security_headers_default,
+    is_private_ip,
+    is_sensitive_endpoint,
+    is_suspicious_path,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,9 @@ class SecurityConfig:
     csrf_cookie_name: str = "csrf_token"
     csrf_header_name: str = "X-CSRF-Token"
     csrf_token_expiry: int = 3600  # 1 hour
-    csrf_safe_methods: set = field(default_factory=lambda: {"GET", "HEAD", "OPTIONS", "TRACE"})
+    csrf_safe_methods: set = field(
+        default_factory=lambda: {"GET", "HEAD", "OPTIONS", "TRACE"}
+    )
 
     # IP Blocking Configuration
     failed_login_threshold: int = 5
@@ -64,7 +66,9 @@ class SecurityConfig:
     log_suspicious_paths: bool = True
 
     # Exclusions
-    exclude_paths: set = field(default_factory=lambda: {"/health", "/metrics", "/docs", "/redoc"})
+    exclude_paths: set = field(
+        default_factory=lambda: {"/health", "/metrics", "/docs", "/redoc"}
+    )
     exclude_ips: set = field(default_factory=set)  # IPs to skip security checks
 
 
@@ -129,7 +133,9 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
 
         # 3. Attack Detection
         if self.config.attack_detection_enabled:
-            attack_result = await self._check_attack_patterns(request, client_ip, client_info)
+            attack_result = await self._check_attack_patterns(
+                request, client_ip, client_info
+            )
             if attack_result:
                 return attack_result  # Block request
 
@@ -140,7 +146,10 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
                 return block_result  # Block request
 
         # 5. CSRF Protection (for unsafe methods)
-        if self.config.csrf_protection_enabled and request.method not in self.config.csrf_safe_methods:
+        if (
+            self.config.csrf_protection_enabled
+            and request.method not in self.config.csrf_safe_methods
+        ):
             csrf_result = await self._validate_csrf(request)
             if csrf_result:
                 return csrf_result  # Block request
@@ -232,7 +241,9 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
 
         return None
 
-    async def _check_ip_block(self, client_ip: str, request: Request) -> Response | None:
+    async def _check_ip_block(
+        self, client_ip: str, request: Request
+    ) -> Response | None:
         """
         Check if IP is currently blocked.
 
@@ -353,7 +364,9 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
 
         # Additional cache control for sensitive endpoints
         if is_sensitive_endpoint(request.url.path):
-            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+            response.headers["Cache-Control"] = (
+                "no-store, no-cache, must-revalidate, private"
+            )
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
 
@@ -374,13 +387,13 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
             },
             headers={
                 "X-Blocked-By": "UnifiedSecurityMiddleware",
-                "X-Retry-After": str(self.config.ip_block_duration) if status_code == 429 else "",
+                "X-Retry-After": (
+                    str(self.config.ip_block_duration) if status_code == 429 else ""
+                ),
             },
         )
 
-    def _log_security_event(
-        self, request: Request, client_info: dict, duration: float
-    ):
+    def _log_security_event(self, request: Request, client_info: dict, duration: float):
         """Log security event for monitoring and analysis."""
         logger.debug(
             f"Request: {request.method} {request.url.path} from {client_info['ip']} ({duration:.3f}s)",

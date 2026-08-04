@@ -3,33 +3,34 @@
 API endpoints for Corporate Data Source Integration Management
 """
 
-from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
 from app.core.config import settings
 from app.db.models.user import User
-from app.schemas.corporate_data_sources import (
-    IntegrationConfig,
-    IntegrationStatus,
-    IntegrationResponse,
-    CreateIntegrationRequest,
-    UpdateIntegrationRequest,
-    SyncIntegrationRequest,
-    OrganizationIntegrations,
-    BehavioralAnalysisRequest,
-    BehavioralInsight,
-    IntegrationHealthMetrics,
-    BulkIntegrationRequest,
-    ConsentRecord,
-    IntegrationInsightsReport
-)
 from app.integrations.corporate_data_sources import (
+    INTEGRATION_PRIORITY,
     CorporateDataSourceRegistry,
     DataSourceType,
-    INTEGRATION_PRIORITY
+)
+from app.schemas.corporate_data_sources import (
+    BehavioralAnalysisRequest,
+    BehavioralInsight,
+    BulkIntegrationRequest,
+    ConsentRecord,
+    CreateIntegrationRequest,
+    IntegrationConfig,
+    IntegrationHealthMetrics,
+    IntegrationInsightsReport,
+    IntegrationResponse,
+    IntegrationStatus,
+    OrganizationIntegrations,
+    SyncIntegrationRequest,
+    UpdateIntegrationRequest,
 )
 
 router = APIRouter(prefix="/integrations/corporate", tags=["corporate-integrations"])
@@ -42,14 +43,13 @@ async def test_auth(current_user: User = Depends(get_current_user)):
         "success": True,
         "user_email": current_user.email,
         "user_id": str(current_user.id),
-        "message": "Authentication works!"
+        "message": "Authentication works!",
     }
 
 
 @router.get("/organization", response_model=OrganizationIntegrations)
 async def get_organization_integrations(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Get all integrations for the current user's organization
@@ -67,31 +67,33 @@ async def get_organization_integrations(
             last_sync=datetime.utcnow() - timedelta(hours=1),
             next_sync=datetime.utcnow() + timedelta(hours=config.sync_frequency_hours),
             records_processed=0,
-            health_score=0.95
+            health_score=0.95,
         )
 
         mock_response = IntegrationResponse(
             config=config,
             status=mock_status,
             behavioral_signals=config.behavioral_signals,
-            data_points_count=0
+            data_points_count=0,
         )
         integrations.append(mock_response)
 
     return OrganizationIntegrations(
-        organization_id=getattr(current_user, 'organization_id', None) or 1,
+        organization_id=getattr(current_user, "organization_id", None) or 1,
         integrations=integrations,
         summary={
             "total_integrations": len(integrations),
-            "active_integrations": sum(1 for i in integrations if i.status.status == "active"),
+            "active_integrations": sum(
+                1 for i in integrations if i.status.status == "active"
+            ),
             "total_data_points": sum(i.data_points_count for i in integrations),
-            "coverage_percentage": 75.0
+            "coverage_percentage": 75.0,
         },
         recommendations=[
             "Enable email metadata integration for communication pattern analysis",
             "Connect Slack or Teams for real-time team dynamics monitoring",
-            "Set up pulse surveys for direct employee feedback"
-        ]
+            "Set up pulse surveys for direct employee feedback",
+        ],
     )
 
 
@@ -104,15 +106,17 @@ async def get_available_data_sources():
 
     available = []
     for source_type, config in all_sources.items():
-        available.append({
-            "type": source_type.value,
-            "name": source_type.value.replace('_', ' ').title(),
-            "description": f"Extracts behavioral signals from {source_type.value}",
-            "category": _get_category_for_source(source_type),
-            "priority": _get_priority_for_source(source_type),
-            "requires_consent": config.requires_consent,
-            "behavioral_signals": config.behavioral_signals
-        })
+        available.append(
+            {
+                "type": source_type.value,
+                "name": source_type.value.replace("_", " ").title(),
+                "description": f"Extracts behavioral signals from {source_type.value}",
+                "category": _get_category_for_source(source_type),
+                "priority": _get_priority_for_source(source_type),
+                "requires_consent": config.requires_consent,
+                "behavioral_signals": config.behavioral_signals,
+            }
+        )
 
     return available
 
@@ -121,7 +125,7 @@ async def get_available_data_sources():
 async def get_integration_recommendations(
     organization_size: int = Query(..., description="Number of employees"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get recommended integrations based on organization size
@@ -133,11 +137,13 @@ async def get_integration_recommendations(
     # Generate reasons for each recommendation
     reasons = {}
     for source_type in recommended_types:
-        reasons[source_type] = _get_recommendation_reason(source_type, organization_size)
+        reasons[source_type] = _get_recommendation_reason(
+            source_type, organization_size
+        )
 
     return {
         "recommended": [t.value for t in recommended_types],
-        "reasons": {k.value: v for k, v in reasons.items()}
+        "reasons": {k.value: v for k, v in reasons.items()},
     }
 
 
@@ -145,7 +151,7 @@ async def get_integration_recommendations(
 async def setup_bulk_integrations(
     request: BulkIntegrationRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Setup multiple integrations at once based on organization size and preferences
@@ -158,7 +164,8 @@ async def setup_bulk_integrations(
     # Filter by privacy preference
     if request.privacy_preference == "minimal":
         filtered_types = [
-            t for t in recommended_types
+            t
+            for t in recommended_types
             if not CorporateDataSourceRegistry.get_all_sources()[t].requires_consent
         ]
     elif request.privacy_preference == "comprehensive":
@@ -178,26 +185,25 @@ async def setup_bulk_integrations(
             source_type=source_type,
             status="active" if request.auto_enable_recommended else "pending",
             records_processed=0,
-            health_score=1.0
+            health_score=1.0,
         )
-        integrations.append(IntegrationResponse(
-            config=config,
-            status=mock_status,
-            behavioral_signals=config.behavioral_signals,
-            data_points_count=0
-        ))
+        integrations.append(
+            IntegrationResponse(
+                config=config,
+                status=mock_status,
+                behavioral_signals=config.behavioral_signals,
+                data_points_count=0,
+            )
+        )
 
-    return {
-        "created": created_count,
-        "integrations": integrations
-    }
+    return {"created": created_count, "integrations": integrations}
 
 
 @router.get("/{source_type}", response_model=IntegrationResponse)
 async def get_integration(
     source_type: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Get details of a specific integration
@@ -208,7 +214,7 @@ async def get_integration(
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid source type: {source_type}"
+            detail=f"Invalid source type: {source_type}",
         )
 
     # Get config from registry
@@ -216,7 +222,7 @@ async def get_integration(
     if data_source_type not in all_sources:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Integration not found: {source_type}"
+            detail=f"Integration not found: {source_type}",
         )
 
     config = all_sources[data_source_type]
@@ -228,22 +234,24 @@ async def get_integration(
         last_sync=datetime.utcnow() - timedelta(hours=1),
         next_sync=datetime.utcnow() + timedelta(hours=config.sync_frequency_hours),
         records_processed=1000,
-        health_score=0.95
+        health_score=0.95,
     )
 
     return IntegrationResponse(
         config=config,
         status=mock_status,
         behavioral_signals=config.behavioral_signals,
-        data_points_count=1000
+        data_points_count=1000,
     )
 
 
-@router.post("", response_model=IntegrationResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "", response_model=IntegrationResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_integration(
     request: CreateIntegrationRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Create a new integration
@@ -257,7 +265,7 @@ async def create_integration(
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Unknown source type: {request.source_type}"
+            detail=f"Unknown source type: {request.source_type}",
         )
 
     # Create integration config from request
@@ -269,21 +277,21 @@ async def create_integration(
         data_retention_days=request.data_retention_days,
         requires_consent=config.requires_consent,
         api_credentials=request.api_credentials,
-        custom_settings=request.custom_settings
+        custom_settings=request.custom_settings,
     )
 
     mock_status = IntegrationStatus(
         source_type=request.source_type,
         status="pending",
         records_processed=0,
-        health_score=1.0
+        health_score=1.0,
     )
 
     return IntegrationResponse(
         config=integration_config,
         status=mock_status,
         behavioral_signals=config.behavioral_signals,
-        data_points_count=0
+        data_points_count=0,
     )
 
 
@@ -292,7 +300,7 @@ async def update_integration(
     source_type: str,
     request: UpdateIntegrationRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Update an existing integration
@@ -305,21 +313,21 @@ async def update_integration(
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Integration not found: {source_type}"
+            detail=f"Integration not found: {source_type}",
         )
 
     mock_status = IntegrationStatus(
         source_type=DataSourceType(source_type),
         status="active",
         records_processed=1000,
-        health_score=0.95
+        health_score=0.95,
     )
 
     return IntegrationResponse(
         config=config,
         status=mock_status,
         behavioral_signals=config.behavioral_signals,
-        data_points_count=1000
+        data_points_count=1000,
     )
 
 
@@ -327,7 +335,7 @@ async def update_integration(
 async def delete_integration(
     source_type: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Delete an integration
@@ -341,7 +349,7 @@ async def trigger_sync(
     source_type: str,
     options: Optional[SyncIntegrationRequest] = None,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Trigger manual sync for an integration
@@ -351,14 +359,13 @@ async def trigger_sync(
 
     return {
         "message": f"Sync initiated for {source_type}",
-        "sync_id": f"sync_{source_type}_{datetime.utcnow().timestamp()}"
+        "sync_id": f"sync_{source_type}_{datetime.utcnow().timestamp()}",
     }
 
 
 @router.get("/health", response_model=IntegrationHealthMetrics)
 async def get_health_metrics(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Get health metrics for all integrations
@@ -372,7 +379,7 @@ async def get_health_metrics(
         total_data_points=50000,
         last_24h_ingestion_count=2500,
         avg_sync_latency_minutes=15.5,
-        data_quality_score=0.92
+        data_quality_score=0.92,
     )
 
 
@@ -380,7 +387,7 @@ async def get_health_metrics(
 async def analyze_behavioral_data(
     request: BehavioralAnalysisRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Analyze behavioral data across integrations
@@ -396,35 +403,35 @@ async def analyze_behavioral_data(
             severity="high",
             title="High Overtime Detected in Engineering Team",
             description="Analysis of time tracking and calendar data reveals 40% of engineers "
-                       "are consistently working >50 hours/week with insufficient recovery time.",
+            "are consistently working >50 hours/week with insufficient recovery time.",
             affected_employees=[1, 2, 3, 4, 5],
             confidence=0.87,
             recommendations=[
                 "Implement maximum weekly hour cap",
                 "Add mandatory break reminders",
                 "Review workload distribution",
-                "Consider hiring additional resources"
+                "Consider hiring additional resources",
             ],
             data_sources=[DataSourceType.TIME_TRACKING, DataSourceType.CALENDAR_EVENTS],
-            detected_at=datetime.utcnow()
+            detected_at=datetime.utcnow(),
         ),
         BehavioralInsight(
             category="toxicity",
             severity="medium",
             title="Conflict Patterns in Marketing Team",
             description="Email metadata analysis shows increased conflict language and "
-                       "decreased collaborative communication in marketing department.",
+            "decreased collaborative communication in marketing department.",
             affected_employees=[6, 7, 8],
             confidence=0.72,
             recommendations=[
                 "Schedule team mediation session",
                 "Review management practices",
                 "Conduct anonymous pulse survey",
-                "Provide conflict resolution training"
+                "Provide conflict resolution training",
             ],
             data_sources=[DataSourceType.EMAIL_METADATA, DataSourceType.SLACK_MESSAGES],
-            detected_at=datetime.utcnow()
-        )
+            detected_at=datetime.utcnow(),
+        ),
     ]
 
     return insights
@@ -434,7 +441,7 @@ async def analyze_behavioral_data(
 async def generate_insights_report(
     date_range: Dict[str, datetime],
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Generate comprehensive insights report
@@ -448,7 +455,7 @@ async def generate_insights_report(
         report_id=f"report_{datetime.utcnow().timestamp()}",
         generated_at=datetime.utcnow(),
         date_range=date_range,
-        organization_id=getattr(current_user, 'organization_id', None) or 1,
+        organization_id=getattr(current_user, "organization_id", None) or 1,
         insights=[],  # Populate with actual insights
         health_metrics=IntegrationHealthMetrics(
             total_integrations=10,
@@ -457,27 +464,26 @@ async def generate_insights_report(
             total_data_points=50000,
             last_24h_ingestion_count=2500,
             avg_sync_latency_minutes=15.5,
-            data_quality_score=0.92
+            data_quality_score=0.92,
         ),
         summary={
             "total_insights": 15,
             "critical_insights": 2,
             "high_insights": 5,
             "medium_insights": 6,
-            "low_insights": 2
+            "low_insights": 2,
         },
         recommendations=[
             "Address burnout risk in engineering team immediately",
             "Investigate communication patterns in marketing",
-            "Consider implementing wellness program"
-        ]
+            "Consider implementing wellness program",
+        ],
     )
 
 
 @router.get("/reports/latest", response_model=IntegrationInsightsReport)
 async def get_latest_report(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """
     Get the most recent insights report
@@ -490,9 +496,9 @@ async def get_latest_report(
         generated_at=datetime.utcnow(),
         date_range={
             "start": datetime.utcnow() - timedelta(days=30),
-            "end": datetime.utcnow()
+            "end": datetime.utcnow(),
         },
-        organization_id=getattr(current_user, 'organization_id', None) or 1,
+        organization_id=getattr(current_user, "organization_id", None) or 1,
         insights=[],
         health_metrics=IntegrationHealthMetrics(
             total_integrations=10,
@@ -501,20 +507,21 @@ async def get_latest_report(
             total_data_points=50000,
             last_24h_ingestion_count=2500,
             avg_sync_latency_minutes=15.5,
-            data_quality_score=0.92
+            data_quality_score=0.92,
         ),
         summary={
             "total_insights": 15,
             "critical_insights": 2,
             "high_insights": 5,
             "medium_insights": 6,
-            "low_insights": 2
+            "low_insights": 2,
         },
-        recommendations=[]
+        recommendations=[],
     )
 
 
 # Helper functions
+
 
 def _get_category_for_source(source_type: DataSourceType) -> str:
     """Map data source type to category"""
@@ -522,21 +529,21 @@ def _get_category_for_source(source_type: DataSourceType) -> str:
         DataSourceType.EMAIL_METADATA,
         DataSourceType.SLACK_MESSAGES,
         DataSourceType.TEAMS_MESSAGES,
-        DataSourceType.ZOOM_TRANSCRIPTS
+        DataSourceType.ZOOM_TRANSCRIPTS,
     ]
 
     productivity_sources = [
         DataSourceType.CALENDAR_EVENTS,
         DataSourceType.JIRA_ACTIVITY,
         DataSourceType.GITHUB_COMMITS,
-        DataSourceType.CONFLUENCE_EDITS
+        DataSourceType.CONFLUENCE_EDITS,
     ]
 
     hr_sources = [
         DataSourceType.WORKDAY_DATA,
         DataSourceType.BAMBOO_HR,
         DataSourceType.PERFORMANCE_REVIEWS,
-        DataSourceType.TIME_TRACKING
+        DataSourceType.TIME_TRACKING,
     ]
 
     if source_type in communication_sources:
@@ -564,6 +571,6 @@ def _get_recommendation_reason(source_type: DataSourceType, org_size: int) -> st
         DataSourceType.CALENDAR_EVENTS: "Tracks meeting load and focus time",
         DataSourceType.PULSE_SURVEYS: "Direct feedback from employees",
         DataSourceType.SLACK_MESSAGES: "Real-time team dynamics monitoring",
-        DataSourceType.JIRA_ACTIVITY: "Workload and deadline stress indicators"
+        DataSourceType.JIRA_ACTIVITY: "Workload and deadline stress indicators",
     }
     return reasons.get(source_type, f"Valuable for {org_size} employee organizations")

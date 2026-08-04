@@ -13,22 +13,22 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def create_all_tables():
     """Create a new resource.
 
-Args:
-    db: Database session
-    **kwargs: Resource attributes
+    Args:
+        db: Database session
+        **kwargs: Resource attributes
 
-Returns:
-    Created resource object
+    Returns:
+        Created resource object
 
-Raises:
-    ValidationError: If input data is invalid
+    Raises:
+        ValidationError: If input data is invalid
     """
     """Create a new resource.
 
@@ -53,7 +53,9 @@ Raises:
         # ========================================
         print("🔨 Build Failure Analysis...")
 
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS build_failures (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 build_id VARCHAR(255) NOT NULL,
@@ -79,9 +81,13 @@ Raises:
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 resolved_at TIMESTAMP WITH TIME ZONE
             );
-        """))
+        """
+            )
+        )
 
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS root_cause_analyses (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 failure_id UUID NOT NULL REFERENCES build_failures(id) ON DELETE CASCADE,
@@ -93,9 +99,13 @@ Raises:
                 analysis_result TEXT NOT NULL,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
-        """))
+        """
+            )
+        )
 
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS build_patterns (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 pattern_type VARCHAR(100) NOT NULL,
@@ -108,9 +118,13 @@ Raises:
                 last_seen TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 is_resolved FLOAT NOT NULL DEFAULT 0.0
             );
-        """))
+        """
+            )
+        )
 
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS build_analysis_reports (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 report_date TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -130,7 +144,9 @@ Raises:
                 ai_insights JSONB,
                 recommendations TEXT[]
             );
-        """))
+        """
+            )
+        )
 
         # Create indexes
         for index in [
@@ -151,7 +167,9 @@ Raises:
         # ========================================
         print("💾 Caching Configuration...")
 
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS cache_entries (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 cache_key VARCHAR(500) NOT NULL UNIQUE,
@@ -166,9 +184,13 @@ Raises:
                 last_accessed TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
-        """))
+        """
+            )
+        )
 
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS cache_performance (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 cache_type VARCHAR(100) NOT NULL,
@@ -183,9 +205,13 @@ Raises:
                 eviction_count INTEGER NOT NULL,
                 measured_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
-        """))
+        """
+            )
+        )
 
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS cache_optimizations (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 cache_key VARCHAR(500) NOT NULL,
@@ -198,9 +224,13 @@ Raises:
                 is_applied FLOAT NOT NULL DEFAULT 0.0,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
-        """))
+        """
+            )
+        )
 
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS cache_configuration_reports (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 report_date TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -219,7 +249,9 @@ Raises:
                 ai_insights JSONB,
                 recommendations TEXT[]
             );
-        """))
+        """
+            )
+        )
 
         # Create indexes
         for index in [
@@ -239,7 +271,9 @@ Raises:
         # ========================================
         print("🚨 Breaking Changes Detection...")
 
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS breaking_changes (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 change_type VARCHAR(100) NOT NULL,
@@ -260,9 +294,13 @@ Raises:
                 approved_by VARCHAR(255),
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
-        """))
+        """
+            )
+        )
 
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS migration_guides (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 breaking_change_id UUID NOT NULL REFERENCES breaking_changes(id) ON DELETE CASCADE,
@@ -273,9 +311,13 @@ Raises:
                 is_automated FLOAT NOT NULL DEFAULT 0.0,
                 created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
-        """))
+        """
+            )
+        )
 
-        await session.execute(text("""
+        await session.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS breaking_change_reports (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 report_date TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -295,7 +337,9 @@ Raises:
                 ai_insights JSONB,
                 recommendations TEXT[]
             );
-        """))
+        """
+            )
+        )
 
         # Create indexes
         for index in [

@@ -8,8 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_active_user, get_current_admin_user, get_db
 from app.core.async_cache import async_cached  # ✅ ASYNC: Non-blocking cache
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 
 # --- CORRECTED IMPORTS ---
 # from app.services.Analytics_service import analytics_service as AnalyticsService
@@ -37,7 +37,9 @@ def get_assessment_analytics(
 
     # Defensive null check before accessing assessment properties
     if assessment is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found"
+        )
 
     # Check permission
     if assessment.created_by_id != current_user.id:
@@ -55,13 +57,16 @@ def get_assessment_analytics(
                 detail="You don't have permission to view these analytics",
             )
 
-    analytics = AnalyticsService.get_assessment_analytics(db, assessment_id=assessment_id)
+    analytics = AnalyticsService.get_assessment_analytics(
+        db, assessment_id=assessment_id
+    )
     return analytics
 
 
 @router.get("/users/me")
 def get_my_analytics(
-    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_active_user)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
 ) -> dict[str, Any]:
     """
         Get analytics fo
@@ -88,7 +93,8 @@ def get_user_analytics(
 
         if not user_service.is_admin(current_user):
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="You can only view your own analytics"
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view your own analytics",
             )
 
     analytics = AnalyticsService.get_user_analytics(db, user_id=user_id)
@@ -117,7 +123,8 @@ def get_team_analytics(
 
 @router.get("/system")
 def get_system_analytics(
-    db: AsyncSession = Depends(get_db), current_admin: User = Depends(get_current_admin_user)
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(get_current_admin_user),
 ) -> dict[str, Any]:
     """
     Get system-wide analytics.
@@ -145,8 +152,12 @@ class TimeSeriesRequest(BaseModel):
     """Request model for time series data."""
 
     metric: str = Field(..., description="Metric name to retrieve")
-    time_period: TimePeriod = Field(TimePeriod.LAST_30_DAYS, description="Time period for data")
-    granularity: str = Field("day", description="Data granularity: hour, day, week, month")
+    time_period: TimePeriod = Field(
+        TimePeriod.LAST_30_DAYS, description="Time period for data"
+    )
+    granularity: str = Field(
+        "day", description="Data granularity: hour, day, week, month"
+    )
 
 
 class TimeSeriesResponse(BaseModel):
@@ -171,9 +182,13 @@ class InsightsResponse(BaseModel):
 
 
 @router.get("/dashboard/overview", response_model=DashboardOverviewResponse)
-@async_cached(expire=300, key_prefix="dashboard_overview")  # ✅ ASYNC: Non-blocking cache
+@async_cached(
+    expire=300, key_prefix="dashboard_overview"
+)  # ✅ ASYNC: Non-blocking cache
 async def get_dashboard_overview(
-    time_period: TimePeriod = Query(TimePeriod.LAST_30_DAYS, description="Time period for data"),
+    time_period: TimePeriod = Query(
+        TimePeriod.LAST_30_DAYS, description="Time period for data"
+    ),
     organization_id: str | None = Query(None, description="Organization ID filter"),
     team_id: str | None = Query(None, description="Team ID filter"),
     current_user: User = Depends(get_current_active_user),

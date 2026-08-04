@@ -65,7 +65,9 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # Check if path is excluded from CSRF validation
-        logger.debug(f"CSRF Check: Path={request.url.path}, ExcludePaths={self.exclude_paths}")
+        logger.debug(
+            f"CSRF Check: Path={request.url.path}, ExcludePaths={self.exclude_paths}"
+        )
         if request.url.path in self.exclude_paths:
             logger.debug(f"CSRF: Path {request.url.path} is exempted")
             return await call_next(request)
@@ -101,14 +103,18 @@ class CSRFProtectionMiddleware(BaseHTTPMiddleware):
 
         if not token:
             logger.warning(f"CSRF token missing from {request.url.path}")
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="CSRF token missing")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="CSRF token missing"
+            )
 
         # Validate token signature and expiration
         try:
             self.serializer.loads(token, max_age=self.max_age)
         except BadSignature:
             logger.warning(f"Invalid CSRF token from {request.url.path}")
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF token")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF token"
+            )
 
     def _set_csrf_cookie(self, response: Response):
         """Set CSRF cookie in response."""
@@ -211,7 +217,9 @@ class XSSProtectionMiddleware(BaseHTTPMiddleware):
         import re
 
         # Basic tag stripping (for production, use bleach or nh3)
-        value = re.sub(r"<script[^>]*>.*?</script>", "", value, flags=re.IGNORECASE | re.DOTALL)
+        value = re.sub(
+            r"<script[^>]*>.*?</script>", "", value, flags=re.IGNORECASE | re.DOTALL
+        )
         value = re.sub(r"<[^>]+>", "", value)
         return value
 
@@ -263,7 +271,9 @@ class ContentSecurityPolicyMiddleware(BaseHTTPMiddleware):
 
         # Add CSP header
         header_name = (
-            "Content-Security-Policy-Report-Only" if self.report_only else "Content-Security-Policy"
+            "Content-Security-Policy-Report-Only"
+            if self.report_only
+            else "Content-Security-Policy"
         )
         response.headers[header_name] = csp_string
 
@@ -301,10 +311,16 @@ def sanitize_user_input(value: Any) -> Any:
         value = value.replace("\x00", "")
 
         # Strip dangerous tags
-        value = re.sub(r"<script[^>]*>.*?</script>", "", value, flags=re.IGNORECASE | re.DOTALL)
-        value = re.sub(r"<iframe[^>]*>.*?</iframe>", "", value, flags=re.IGNORECASE | re.DOTALL)
+        value = re.sub(
+            r"<script[^>]*>.*?</script>", "", value, flags=re.IGNORECASE | re.DOTALL
+        )
+        value = re.sub(
+            r"<iframe[^>]*>.*?</iframe>", "", value, flags=re.IGNORECASE | re.DOTALL
+        )
         value = re.sub(r"<embed[^>]*>", "", value, flags=re.IGNORECASE)
-        value = re.sub(r"<object[^>]*>.*?</object>", "", value, flags=re.IGNORECASE | re.DOTALL)
+        value = re.sub(
+            r"<object[^>]*>.*?</object>", "", value, flags=re.IGNORECASE | re.DOTALL
+        )
 
         return value
 
@@ -330,7 +346,9 @@ def validate_content_security_policy(response_content: str) -> bool:
     import re
 
     # Check for inline scripts (only allowed in strict mode)
-    if re.search(r"<script[^>]*>.*?</script>", response_content, re.IGNORECASE | re.DOTALL):
+    if re.search(
+        r"<script[^>]*>.*?</script>", response_content, re.IGNORECASE | re.DOTALL
+    ):
         logger.warning("Inline script detected in response")
 
     # Check for inline event handlers

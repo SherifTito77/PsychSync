@@ -26,35 +26,35 @@ Active Agents (20 total):
 20. Refactoring Target Proposer - Suggests refactoring opportunities
 """
 
-# Security agents
-from app.services.ai_agents.security_headers_agent import security_headers_agent
-from app.services.ai_agents.encryption_strategy_agent import encryption_strategy_agent
-from app.services.ai_agents.unsafe_script_agent import unsafe_script_agent
-
 # Development workflow agents
 from app.services.ai_agents.development_agents import (
     coding_style_agent,
-    performance_regression_agent,
     localization_agent,
-    slow_endpoint_agent,
-    release_notes_agent,
+    performance_regression_agent,
     permission_gap_agent,
-    uptime_monitor_agent,
+    release_notes_agent,
+    slow_endpoint_agent,
     stability_score_agent,
+    uptime_monitor_agent,
 )
+from app.services.ai_agents.encryption_strategy_agent import encryption_strategy_agent
 
 # Operations agents
 from app.services.ai_agents.operations_agents import (
-    ux_telemetry_agent,
-    environment_config_agent,
-    incident_mitigation_agent,
-    dependency_updater_agent,
-    pr_jira_mapper_agent,
-    test_coverage_agent,
     architecture_drift_agent,
     bug_environment_agent,
+    dependency_updater_agent,
+    environment_config_agent,
+    incident_mitigation_agent,
+    pr_jira_mapper_agent,
     refactoring_target_agent,
+    test_coverage_agent,
+    ux_telemetry_agent,
 )
+
+# Security agents
+from app.services.ai_agents.security_headers_agent import security_headers_agent
+from app.services.ai_agents.unsafe_script_agent import unsafe_script_agent
 
 __all__ = [
     # Security

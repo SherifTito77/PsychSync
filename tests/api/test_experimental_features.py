@@ -1,18 +1,23 @@
-from app.core.database import get_async_db
-from app.services.security import create_access_token
-from app.db.models.user import User
-from app.main import app
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-import pytest
+
+from app.core.database import get_async_db
+from app.db.models.user import User
+from app.main import app
+from app.services.security import create_access_token
+
+
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -20,12 +25,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -39,25 +45,21 @@ def create_experiment(client, auth_headers):
     Create a new A/B testing experiment.
     """
     # TODO: Implement test logic
-    response = client.post(
-        "/experiments",
-        json={},
-        params={'config': 'test_value'}
-    )
+    response = client.post("/experiments", json={}, params={"config": "test_value"})
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -65,12 +67,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -84,8 +87,13 @@ def get_experiments(client, auth_headers):
     Get list of experiments with optional filtering.
     """
     # TODO: Implement test logic
-    response = client.get("/experiments",
-        params={'status': 'test_value', 'test_type': 'test_value', 'limit': 'test_value'}
+    response = client.get(
+        "/experiments",
+        params={
+            "status": "test_value",
+            "test_type": "test_value",
+            "limit": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201]
@@ -94,16 +102,16 @@ def get_experiments(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -111,12 +119,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -133,22 +142,22 @@ def assign_user_to_experiment(client, auth_headers):
     response = client.post(
         "/experiments/{experiment_id}/assign",
         json={},
-        params={'experiment_id': 'test_value'}
+        params={"experiment_id": "test_value"},
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -156,12 +165,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -178,22 +188,26 @@ def track_experiment_event(client, auth_headers):
     response = client.post(
         "/experiments/{experiment_id}/track",
         json={},
-        params={'experiment_id': 'test_value', 'event_name': 'test_value', 'event_data': 'test_value'}
+        params={
+            "experiment_id": "test_value",
+            "event_name": "test_value",
+            "event_data": "test_value",
+        },
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -201,12 +215,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -220,8 +235,8 @@ def get_experiment_results(client, auth_headers):
     Get detailed results and analysis for a specific experiment.
     """
     # TODO: Implement test logic
-    response = client.get("/experiments/{experiment_id}/results",
-        params={'experiment_id': 'test_value'}
+    response = client.get(
+        "/experiments/{experiment_id}/results", params={"experiment_id": "test_value"}
     )
 
     assert response.status_code in [200, 201]
@@ -230,16 +245,16 @@ def get_experiment_results(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -247,12 +262,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -266,9 +282,7 @@ def get_gamification_profile(client, auth_headers):
     Get gamification profile for a user.
     """
     # TODO: Implement test logic
-    response = client.get("/gamification/profile",
-        params={'user_id': 'test_value'}
-    )
+    response = client.get("/gamification/profile", params={"user_id": "test_value"})
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -276,16 +290,16 @@ def get_gamification_profile(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -293,12 +307,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -313,24 +328,22 @@ def award_achievement(client, auth_headers):
     """
     # TODO: Implement test logic
     response = client.post(
-        "/gamification/achievements",
-        json={},
-        params={'user_id': 'test_value'}
+        "/gamification/achievements", json={}, params={"user_id": "test_value"}
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -338,12 +351,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -357,8 +371,9 @@ def get_leaderboard(client, auth_headers):
     Get gamification leaderboard.
     """
     # TODO: Implement test logic
-    response = client.get("/gamification/leaderboard",
-        params={'leaderboard_type': 'test_value', 'limit': 'test_value'}
+    response = client.get(
+        "/gamification/leaderboard",
+        params={"leaderboard_type": "test_value", "limit": "test_value"},
     )
 
     assert response.status_code in [200, 201]
@@ -367,16 +382,16 @@ def get_leaderboard(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -384,12 +399,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -406,22 +422,22 @@ def analyze_voice_response(client, auth_headers):
     response = client.post(
         "/voice/analyze",
         json={},
-        params={'audio_file': 'test_value', 'analysis_types': 'test_value'}
+        params={"audio_file": "test_value", "analysis_types": "test_value"},
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -429,12 +445,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -448,8 +465,8 @@ def get_voice_analysis_result(client, auth_headers):
     Get specific voice analysis result.
     """
     # TODO: Implement test logic
-    response = client.get("/voice/analysis/{analysis_id}",
-        params={'analysis_id': 'test_value'}
+    response = client.get(
+        "/voice/analysis/{analysis_id}", params={"analysis_id": "test_value"}
     )
 
     assert response.status_code in [200, 201]
@@ -458,16 +475,16 @@ def get_voice_analysis_result(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -475,12 +492,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -494,10 +512,7 @@ def get_voice_analysis_stats(client, auth_headers):
     Get voice analysis platform statistics.
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/voice/stats"
-
-    )
+    response = client.get("/voice/stats")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -505,16 +520,16 @@ def get_voice_analysis_stats(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -522,12 +537,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -541,10 +557,7 @@ def get_experimental_lab_dashboard(client, auth_headers):
     Get comprehensive experimental features lab dashboard.
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/dashboard"
-
-    )
+    response = client.get("/dashboard")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -552,16 +565,16 @@ def get_experimental_lab_dashboard(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -569,12 +582,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -591,22 +605,22 @@ def opt_in_experimental_features(client, auth_headers):
     response = client.post(
         "/opt-in",
         json={},
-        params={'opt_in': 'test_value', 'feature_types': 'test_value'}
+        params={"opt_in": "test_value", "feature_types": "test_value"},
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -614,12 +628,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -633,10 +648,7 @@ def get_available_experimental_features(client, auth_headers):
     Get list of available experimental features.
     """
     # TODO: Implement test logic
-    response = client.get(
-        "/available-features"
-
-    )
+    response = client.get("/available-features")
 
     assert response.status_code in [200, 201]
     # TODO: Validate response data structure
@@ -644,16 +656,16 @@ def get_available_experimental_features(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -661,12 +673,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -683,22 +696,22 @@ def submit_experimental_feature_feedback(client, auth_headers):
     response = client.post(
         "/feedback",
         json={},
-        params={'feature_type': 'test_value', 'feedback_data': 'test_value'}
+        params={"feature_type": "test_value", "feedback_data": "test_value"},
     )
 
     assert response.status_code in [200, 201, 202]
-
-
 
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -706,12 +719,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -725,8 +739,8 @@ def get_experiment_participation_analytics(client, auth_headers):
     Get analytics about experiment participation.
     """
     # TODO: Implement test logic
-    response = client.get("/analytics/experiment-participation",
-        params={'timeframe_days': 'test_value'}
+    response = client.get(
+        "/analytics/experiment-participation", params={"timeframe_days": "test_value"}
     )
 
     assert response.status_code in [200, 201]
@@ -735,16 +749,16 @@ def get_experiment_participation_analytics(client, auth_headers):
     assert isinstance(data, dict)
 
 
-
-
 @pytest.fixture
 def client():
     return TestClient(app)
+
 
 @pytest.fixture
 async def db_session():
     async for session in get_async_db():
         yield session
+
 
 @pytest.fixture
 def test_user(db_session: Session):
@@ -752,12 +766,13 @@ def test_user(db_session: Session):
         email="test@example.com",
         full_name="Test User",
         hashed_password="hashed",
-        is_active=True
+        is_active=True,
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     return user
+
 
 @pytest.fixture
 def auth_headers(test_user):
@@ -771,8 +786,8 @@ def get_gamification_engagement_analytics(client, auth_headers):
     Get analytics about gamification engagement.
     """
     # TODO: Implement test logic
-    response = client.get("/analytics/gamification-engagement",
-        params={'timeframe_days': 'test_value'}
+    response = client.get(
+        "/analytics/gamification-engagement", params={"timeframe_days": "test_value"}
     )
 
     assert response.status_code in [200, 201]

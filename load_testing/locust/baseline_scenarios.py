@@ -18,24 +18,20 @@ Usage:
         --html reports/baseline_report.html
 """
 
-from locust import HttpUser, task, between, events
 import logging
 import random
 from datetime import datetime
 
-from locust_config import (
-    LoadTestConfig,
-    get_headers,
-    test_data_manager,
-)
+from locust import HttpUser, between, events, task
+from locust_config import LoadTestConfig, get_headers, test_data_manager
 
 logger = logging.getLogger(__name__)
 
 
 # Baseline SLA Thresholds
 BASELINE_SLA = {
-    "p50": 200,   # 50th percentile: < 200ms
-    "p95": 500,   # 95th percentile: < 500ms
+    "p50": 200,  # 50th percentile: < 200ms
+    "p95": 500,  # 95th percentile: < 500ms
     "p99": 1000,  # 99th percentile: < 1000ms
     "max_error_rate": 1.0,  # Max 1% error rate
     "min_throughput": 100,  # Min 100 requests/second
@@ -362,6 +358,7 @@ class BaselineUser(HttpUser):
 
 # ==================== BASELINE VALIDATION ====================
 
+
 @events.test_stop.add_hook
 def validate_baseline_sla(environment, **kwargs):
     """
@@ -427,16 +424,22 @@ def validate_baseline_sla(environment, **kwargs):
 
     # Check error rate
     if error_rate <= BASELINE_SLA["max_error_rate"]:
-        print(f"  ✅ Error Rate: {error_rate:.2f}% <= {BASELINE_SLA['max_error_rate']}%")
+        print(
+            f"  ✅ Error Rate: {error_rate:.2f}% <= {BASELINE_SLA['max_error_rate']}%"
+        )
     else:
         print(f"  ❌ Error Rate: {error_rate:.2f}% > {BASELINE_SLA['max_error_rate']}%")
         sla_passed = False
 
     # Check throughput
     if rps >= BASELINE_SLA["min_throughput"]:
-        print(f"  ✅ Throughput: {rps:.2f} req/s >= {BASELINE_SLA['min_throughput']} req/s")
+        print(
+            f"  ✅ Throughput: {rps:.2f} req/s >= {BASELINE_SLA['min_throughput']} req/s"
+        )
     else:
-        print(f"  ❌ Throughput: {rps:.2f} req/s < {BASELINE_SLA['min_throughput']} req/s")
+        print(
+            f"  ❌ Throughput: {rps:.2f} req/s < {BASELINE_SLA['min_throughput']} req/s"
+        )
         sla_passed = False
 
     # Overall result
@@ -457,16 +460,20 @@ def validate_baseline_sla(environment, **kwargs):
 
     for i, entry in enumerate(sorted_stats, 1):
         print(f"  {i}. {entry.name}:")
-        print(f"     Avg: {entry.avg_response_time:.0f}ms, "
-              f"Min: {entry.min_response_time}ms, "
-              f"Max: {entry.max_response_time}ms, "
-              f"Count: {entry.num_requests}")
+        print(
+            f"     Avg: {entry.avg_response_time:.0f}ms, "
+            f"Min: {entry.min_response_time}ms, "
+            f"Max: {entry.max_response_time}ms, "
+            f"Count: {entry.num_requests}"
+        )
 
     print("\n" + "=" * 80 + "\n")
 
 
 @events.request.add_hook
-def log_slow_requests(request_type, name, response_time, response_length, exception, **kwargs):
+def log_slow_requests(
+    request_type, name, response_time, response_length, exception, **kwargs
+):
     """Log requests that exceed p99 threshold"""
     if exception:
         logger.error(f"Request failed: {name} - {exception}")
@@ -480,7 +487,8 @@ def log_slow_requests(request_type, name, response_time, response_length, except
 if __name__ == "__main__":
     import sys
 
-    print("""
+    print(
+        """
 ╔══════════════════════════════════════════════════════════════════════╗
 ║          BASELINE PERFORMANCE LOAD TEST - PsychSync                  ║
 ╚══════════════════════════════════════════════════════════════════════╝
@@ -511,7 +519,8 @@ Usage:
       --users 100 --spawn-rate 10 --run-time 10m \\
       --html reports/baseline_report.html
 
-    """)
+    """
+    )
 
     if len(sys.argv) > 1:
         users = int(sys.argv[1])

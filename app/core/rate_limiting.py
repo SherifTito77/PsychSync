@@ -3,11 +3,11 @@ Production-Grade Rate Limiting System
 Implements Redis-backed rate limiting with sliding window algorithm
 """
 
-from collections.abc import Callable
-from functools import wraps
 import json
 import logging
 import time
+from collections.abc import Callable
+from functools import wraps
 from typing import Any
 
 from fastapi import HTTPException, Request, status
@@ -86,11 +86,15 @@ class RedisRateLimiter:
 
         # Apply progressive penalty for violations
         if not is_allowed:
-            await self._apply_progressive_penalty(redis_key, penalty_multiplier, identifier, key)
+            await self._apply_progressive_penalty(
+                redis_key, penalty_multiplier, identifier, key
+            )
 
         # Calculate reset time
         oldest_request = await self.redis.zrange(redis_key, 0, 0, withscores=True)
-        reset_time = oldest_request[0][1] + window if oldest_request else current_time + window
+        reset_time = (
+            oldest_request[0][1] + window if oldest_request else current_time + window
+        )
 
         return {
             "allowed": is_allowed,
@@ -213,7 +217,10 @@ class RateLimitMiddleware:
         # Define rate limit policies
         self.policies = {
             "auth_login": {"limit": 5, "window": 300},  # 5 attempts per 5 minutes
-            "auth_register": {"limit": 3, "window": 300},  # 3 registrations per 5 minutes
+            "auth_register": {
+                "limit": 3,
+                "window": 300,
+            },  # 3 registrations per 5 minutes
             "auth_refresh": {"limit": 10, "window": 60},  # 10 refreshes per minute
             "api_general": {"limit": 100, "window": 60},  # 100 requests per minute
             "api_heavy": {"limit": 20, "window": 60},  # 20 heavy requests per minute
@@ -253,7 +260,10 @@ class RateLimitMiddleware:
                         (b"x-ratelimit-limit", str(result["limit"]).encode()),
                         (b"x-ratelimit-remaining", str(result["remaining"]).encode()),
                         (b"x-ratelimit-reset", str(result["reset_time"]).encode()),
-                        (b"retry-after", str(result["reset_time"] - int(time.time())).encode()),
+                        (
+                            b"retry-after",
+                            str(result["reset_time"] - int(time.time())).encode(),
+                        ),
                     ],
                 }
 
@@ -377,5 +387,7 @@ class RateLimitExceeded(HTTPException):
             headers["Retry-After"] = str(retry_after)
 
         super().__init__(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=detail, headers=headers
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=detail,
+            headers=headers,
         )

@@ -1,11 +1,11 @@
 # app/services/ab_testing_service.py
 # A/B testing framework for onboarding optimization
-from datetime import datetime, timedelta
-from enum import Enum
 import hashlib
 import json
-from typing import Any
 import uuid
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any
 
 
 class OnboardingVariant(str, Enum):
@@ -13,6 +13,7 @@ class OnboardingVariant(str, Enum):
     VALUE_FIRST = "value_first"  # New value-first approach
     HYBRID = "hybrid"  # Mix of both approaches
     PERSONALIZED = "personalized"  # AI-powered personalization
+
 
 class ABTestService:
     """
@@ -35,42 +36,58 @@ class ABTestService:
                         "id": OnboardingVariant.CONTROL,
                         "name": "Traditional Onboarding",
                         "weight": 25,  # 25% of users
-                        "features": ["email_verification_required", "full_registration_first", "complex_form"]
+                        "features": [
+                            "email_verification_required",
+                            "full_registration_first",
+                            "complex_form",
+                        ],
                     },
                     {
                         "id": OnboardingVariant.VALUE_FIRST,
                         "name": "Value-First Approach",
                         "weight": 50,  # 50% of users (primary focus)
-                        "features": ["instant_insights", "optional_email_verification", "quick_assessment"]
+                        "features": [
+                            "instant_insights",
+                            "optional_email_verification",
+                            "quick_assessment",
+                        ],
                     },
                     {
                         "id": OnboardingVariant.HYBRID,
                         "name": "Hybrid Approach",
                         "weight": 20,  # 20% of users
-                        "features": ["quick_preview", "progressive_registration", "social_login"]
+                        "features": [
+                            "quick_preview",
+                            "progressive_registration",
+                            "social_login",
+                        ],
                     },
                     {
                         "id": OnboardingVariant.PERSONALIZED,
                         "name": "AI-Personalized",
                         "weight": 5,  # 5% of users (experimental)
-                        "features": ["adaptive_flow", "personalized_insights", "smart_recommendations"]
-                    }
+                        "features": [
+                            "adaptive_flow",
+                            "personalized_insights",
+                            "smart_recommendations",
+                        ],
+                    },
                 ],
                 "target_metrics": [
                     "conversion_rate",
                     "time_to_value",
                     "drop_off_rate",
-                    "engagement_score"
+                    "engagement_score",
                 ],
                 "segments": {
                     "industry": ["tech", "healthcare", "finance", "retail", "other"],
                     "team_size": ["small", "medium", "large", "enterprise"],
-                    "role": ["manager", "hr", "lead", "member", "executive"]
+                    "role": ["manager", "hr", "lead", "member", "executive"],
                 },
                 "start_date": datetime.utcnow(),
                 "end_date": datetime.utcnow() + timedelta(days=90),
                 "sample_size": 10000,
-                "statistical_significance": 0.95
+                "statistical_significance": 0.95,
             },
             "quick_assessment_length": {
                 "name": "Quick Assessment Length Optimization",
@@ -80,25 +97,29 @@ class ABTestService:
                         "id": "two_questions",
                         "name": "2 Questions",
                         "weight": 40,
-                        "features": ["minimal_assessment", "fast_completion"]
+                        "features": ["minimal_assessment", "fast_completion"],
                     },
                     {
                         "id": "three_questions",
                         "name": "3 Questions",
                         "weight": 35,
-                        "features": ["balanced_assessment", "moderate_insights"]
+                        "features": ["balanced_assessment", "moderate_insights"],
                     },
                     {
                         "id": "five_questions",
                         "name": "5 Questions",
                         "weight": 25,
-                        "features": ["detailed_assessment", "richer_insights"]
-                    }
+                        "features": ["detailed_assessment", "richer_insights"],
+                    },
                 ],
-                "target_metrics": ["completion_rate", "insight_quality", "conversion_rate"],
+                "target_metrics": [
+                    "completion_rate",
+                    "insight_quality",
+                    "conversion_rate",
+                ],
                 "start_date": datetime.utcnow(),
-                "end_date": datetime.utcnow() + timedelta(days=30)
-            }
+                "end_date": datetime.utcnow() + timedelta(days=30),
+            },
         }
 
     def assign_variant(
@@ -106,7 +127,7 @@ class ABTestService:
         user_id: str | None = None,
         session_id: str | None = None,
         segments: dict[str, str] | None = None,
-        test_name: str = "onboarding_flow_v2"
+        test_name: str = "onboarding_flow_v2",
     ) -> dict[str, Any]:
         """
         Assign user to a test variant based on configuration and user segments.
@@ -140,7 +161,7 @@ class ABTestService:
             "features": variant["features"],
             "segments": segments or {},
             "assigned_at": datetime.utcnow(),
-            "assignment_method": "weighted_random"
+            "assignment_method": "weighted_random",
         }
 
         # Store assignment
@@ -152,7 +173,7 @@ class ABTestService:
         self,
         test: dict[str, Any],
         user_identifier: str,
-        segments: dict[str, str] | None
+        segments: dict[str, str] | None,
     ) -> dict[str, Any]:
         """Select variant based on test configuration and user segments."""
 
@@ -178,24 +199,27 @@ class ABTestService:
         return test["variants"][0]
 
     def _apply_segment_rules(
-        self,
-        test: dict[str, Any],
-        segments: dict[str, str],
-        random_value: int
+        self, test: dict[str, Any], segments: dict[str, str], random_value: int
     ) -> dict[str, Any] | None:
         """Apply segment-specific assignment rules."""
 
         # Example rule: Executives get personalized variant
         if segments.get("role") == "executive" and random_value > 80:
-            personalized_variants = [v for v in test["variants"] if "personalized" in v["id"].lower()]
+            personalized_variants = [
+                v for v in test["variants"] if "personalized" in v["id"].lower()
+            ]
             if personalized_variants:
                 return personalized_variants[0]
 
         # Example rule: Large tech companies get value-first variant
-        if (segments.get("industry") == "tech" and
-            segments.get("team_size") in ["large", "enterprise"] and
-            40 <= random_value <= 90):
-            value_first_variants = [v for v in test["variants"] if "value_first" in v["id"]]
+        if (
+            segments.get("industry") == "tech"
+            and segments.get("team_size") in ["large", "enterprise"]
+            and 40 <= random_value <= 90
+        ):
+            value_first_variants = [
+                v for v in test["variants"] if "value_first" in v["id"]
+            ]
             if value_first_variants:
                 return value_first_variants[0]
 
@@ -207,9 +231,13 @@ class ABTestService:
             "test_name": test_name,
             "variant": OnboardingVariant.VALUE_FIRST,
             "variant_name": "Value-First Approach (Default)",
-            "features": ["instant_insights", "optional_email_verification", "quick_assessment"],
+            "features": [
+                "instant_insights",
+                "optional_email_verification",
+                "quick_assessment",
+            ],
             "assigned_at": datetime.utcnow(),
-            "assignment_method": "default"
+            "assignment_method": "default",
         }
 
     def track_conversion_event(
@@ -217,7 +245,7 @@ class ABTestService:
         event_type: str,
         user_identifier: str,
         test_name: str = "onboarding_flow_v2",
-        event_data: dict[str, Any] | None = None
+        event_data: dict[str, Any] | None = None,
     ) -> None:
         """Track conversion events for A/B test analysis."""
 
@@ -234,7 +262,7 @@ class ABTestService:
             "user_identifier": user_identifier,
             "event_type": event_type,
             "timestamp": datetime.utcnow(),
-            "data": event_data or {}
+            "data": event_data or {},
         }
 
         # Log for now - in production, store in database
@@ -244,7 +272,7 @@ class ABTestService:
         self,
         feature_name: str,
         user_identifier: str | None = None,
-        test_name: str = "onboarding_flow_v2"
+        test_name: str = "onboarding_flow_v2",
     ) -> bool:
         """Check if a user should see a specific feature based on their variant assignment."""
 
@@ -262,7 +290,7 @@ class ABTestService:
         self,
         test_name: str,
         start_date: datetime | None = None,
-        end_date: datetime | None = None
+        end_date: datetime | None = None,
     ) -> dict[str, Any]:
         """Get A/B test results and statistical analysis."""
 
@@ -282,7 +310,7 @@ class ABTestService:
                     "conversion_rate": 0.40,
                     "avg_time_to_value": 15.2,  # minutes
                     "drop_off_rate": 0.60,
-                    "confidence_interval": [0.38, 0.42]
+                    "confidence_interval": [0.38, 0.42],
                 },
                 {
                     "id": OnboardingVariant.VALUE_FIRST,
@@ -292,7 +320,7 @@ class ABTestService:
                     "conversion_rate": 0.70,
                     "avg_time_to_value": 2.8,  # minutes
                     "drop_off_rate": 0.30,
-                    "confidence_interval": [0.68, 0.72]
+                    "confidence_interval": [0.68, 0.72],
                 },
                 {
                     "id": OnboardingVariant.HYBRID,
@@ -302,7 +330,7 @@ class ABTestService:
                     "conversion_rate": 0.60,
                     "avg_time_to_value": 5.5,  # minutes
                     "drop_off_rate": 0.40,
-                    "confidence_interval": [0.58, 0.62]
+                    "confidence_interval": [0.58, 0.62],
                 },
                 {
                     "id": OnboardingVariant.PERSONALIZED,
@@ -312,8 +340,8 @@ class ABTestService:
                     "conversion_rate": 0.77,
                     "avg_time_to_value": 2.1,  # minutes
                     "drop_off_rate": 0.23,
-                    "confidence_interval": [0.73, 0.81]
-                }
+                    "confidence_interval": [0.73, 0.81],
+                },
             ],
             "statistical_significance": True,
             "winner": OnboardingVariant.VALUE_FIRST,
@@ -322,23 +350,20 @@ class ABTestService:
                 "baseline": 0.40,
                 "variant": 0.70,
                 "improvement_percent": 75.0,
-                "confidence": 0.99
+                "confidence": 0.99,
             },
             "sample_size_adequacy": True,
-            "test_duration_days": 45
+            "test_duration_days": 45,
         }
 
     def get_personalized_onboarding_config(
-        self,
-        user_identifier: str,
-        user_segments: dict[str, str]
+        self, user_identifier: str, user_segments: dict[str, str]
     ) -> dict[str, Any]:
         """Get personalized onboarding configuration based on user segments and A/B tests."""
 
         # Get variant assignment
         assignment = self.assign_variant(
-            user_id=user_identifier,
-            segments=user_segments
+            user_id=user_identifier, segments=user_segments
         )
 
         # Base configuration
@@ -348,19 +373,30 @@ class ABTestService:
             "personalization": {
                 "role_specific": True,
                 "industry_specific": True,
-                "team_size_specific": True
-            }
+                "team_size_specific": True,
+            },
         }
 
         # Add role-specific customizations
         role = user_segments.get("role", "member")
         if role == "executive":
             config["skip_steps"] = ["team_creation_demo"]
-            config["enhanced_features"] = ["executive_dashboard", "organizational_insights"]
+            config["enhanced_features"] = [
+                "executive_dashboard",
+                "organizational_insights",
+            ]
         elif role == "hr":
-            config["emphasis_areas"] = ["retention_metrics", "culture_insights", "compliance_features"]
+            config["emphasis_areas"] = [
+                "retention_metrics",
+                "culture_insights",
+                "compliance_features",
+            ]
         elif role == "manager":
-            config["emphasis_areas"] = ["team_performance", "productivity_metrics", "action_items"]
+            config["emphasis_areas"] = [
+                "team_performance",
+                "productivity_metrics",
+                "action_items",
+            ]
 
         # Add industry-specific customizations
         industry = user_segments.get("industry", "general")
@@ -388,10 +424,7 @@ class ABTestService:
             return  # Don't optimize without statistical significance
 
         # Find best performing variant
-        best_variant = max(
-            results["variants"],
-            key=lambda v: v["conversion_rate"]
-        )
+        best_variant = max(results["variants"], key=lambda v: v["conversion_rate"])
 
         # Update weights to favor winning variant
         if test_name in self.active_tests:

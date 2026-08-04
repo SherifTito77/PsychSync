@@ -17,7 +17,6 @@ Usage:
     )
 """
 
-
 from app.security.logging import SecurityLogger
 from app.security.logging.detection import SecurityEventDetector
 from app.security.logging.integrity import LogIntegrityManager
@@ -32,7 +31,7 @@ def configure_security_logging(
     enable_detection: bool = True,
     siem_configs: list[SIEMConfig] | None = None,
     staging_dir: str | None = None,
-    production_dir: str | None = None
+    production_dir: str | None = None,
 ) -> SecurityLogger:
     """
     Configure and initialize security logging system.
@@ -51,26 +50,34 @@ def configure_security_logging(
     """
 
     # Initialize components
-    redactor = DataRedactor(
-        redact_email=True,
-        redact_phone=True,
-        redact_ssn=True,
-        redact_credit_card=True,
-        redact_api_keys=True,
-        redact_jwt=True,
-        redact_ip=False,  # Keep IPs for security analysis
-        redact_uuid=False,  # Keep UUIDs for tracing
-        hash_mode=False  # Set to True to hash instead of redact
-    ) if enable_redaction else None
+    redactor = (
+        DataRedactor(
+            redact_email=True,
+            redact_phone=True,
+            redact_ssn=True,
+            redact_credit_card=True,
+            redact_api_keys=True,
+            redact_jwt=True,
+            redact_ip=False,  # Keep IPs for security analysis
+            redact_uuid=False,  # Keep UUIDs for tracing
+            hash_mode=False,  # Set to True to hash instead of redact
+        )
+        if enable_redaction
+        else None
+    )
 
-    integrity_manager = LogIntegrityManager(
-        staging_dir=staging_dir or "/tmp/security_logs_staging",
-        production_dir=production_dir or "/var/log/security_logs",
-        hash_algorithm="sha256",
-        checkpoint_interval=1000,
-        enable_write_ahead=True,
-        enable_signing=False,  # Enable with signing_key_path for cryptographic signatures
-    ) if enable_integrity else None
+    integrity_manager = (
+        LogIntegrityManager(
+            staging_dir=staging_dir or "/tmp/security_logs_staging",
+            production_dir=production_dir or "/var/log/security_logs",
+            hash_algorithm="sha256",
+            checkpoint_interval=1000,
+            enable_write_ahead=True,
+            enable_signing=False,  # Enable with signing_key_path for cryptographic signatures
+        )
+        if enable_integrity
+        else None
+    )
 
     siem_streamer = SIEMStreamer() if enable_siem else None
     if siem_streamer and siem_configs:
@@ -88,16 +95,14 @@ def configure_security_logging(
         enable_redaction=enable_redaction,
         enable_integrity=enable_integrity,
         enable_siem=enable_siem,
-        enable_detection=enable_detection
+        enable_detection=enable_detection,
     )
 
     return logger
 
 
 def create_splunk_config(
-    hec_url: str,
-    hec_token: str,
-    index: str = "security_logs"
+    hec_url: str, hec_token: str, index: str = "security_logs"
 ) -> SIEMConfig:
     """Create Splunk HTTP Event Collector configuration"""
     return SIEMConfig(
@@ -109,13 +114,12 @@ def create_splunk_config(
         batch_size=100,
         batch_timeout_seconds=10,
         max_retries=3,
-        verify_ssl=True
+        verify_ssl=True,
     )
 
 
 def create_elasticsearch_config(
-    endpoint_url: str = "http://localhost:9200",
-    index: str = "security_logs"
+    endpoint_url: str = "http://localhost:9200", index: str = "security_logs"
 ) -> SIEMConfig:
     """Create Elasticsearch configuration"""
     return SIEMConfig(
@@ -126,14 +130,12 @@ def create_elasticsearch_config(
         batch_size=100,
         batch_timeout_seconds=10,
         max_retries=3,
-        verify_ssl=True
+        verify_ssl=True,
     )
 
 
 def create_azure_sentinel_config(
-    workspace_id: str,
-    shared_key: str,
-    log_type: str = "SecurityLogs"
+    workspace_id: str, shared_key: str, log_type: str = "SecurityLogs"
 ) -> SIEMConfig:
     """Create Microsoft Azure Sentinel configuration"""
     return SIEMConfig(
@@ -145,13 +147,11 @@ def create_azure_sentinel_config(
         batch_size=100,
         batch_timeout_seconds=10,
         max_retries=3,
-        verify_ssl=True
+        verify_ssl=True,
     )
 
 
-def create_datadog_config(
-    api_key: str
-) -> SIEMConfig:
+def create_datadog_config(api_key: str) -> SIEMConfig:
     """Create Datadog configuration"""
     return SIEMConfig(
         siem_type=SIEMType.DATADOG,
@@ -160,7 +160,7 @@ def create_datadog_config(
         batch_size=100,
         batch_timeout_seconds=10,
         max_retries=3,
-        verify_ssl=True
+        verify_ssl=True,
     )
 
 
@@ -168,17 +168,15 @@ def create_datadog_config(
 EXAMPLE_SPLUNK_CONFIG = create_splunk_config(
     hec_url="https://splunk.example.com:8088/services/collector/event",
     hec_token=os.getenv("SPLUNK_TOKEN"),
-    index="psychsync_security"
+    index="psychsync_security",
 )
 
 EXAMPLE_ELASTICSEARCH_CONFIG = create_elasticsearch_config(
     endpoint_url="http://elasticsearch.example.com:9200",
-    index="psychsync-security-logs"
+    index="psychsync-security-logs",
 )
 
-EXAMPLE_DATADOG_CONFIG = create_datadog_config(
-    api_key=os.getenv("DATADOG_KEY")
-)
+EXAMPLE_DATADOG_CONFIG = create_datadog_config(api_key=os.getenv("DATADOG_KEY"))
 
 
 def get_example_configuration() -> dict:
@@ -188,7 +186,6 @@ def get_example_configuration() -> dict:
         "enable_integrity": True,
         "enable_siem": True,
         "enable_detection": True,
-
         "redaction_settings": {
             "redact_email": True,
             "redact_phone": True,
@@ -198,9 +195,8 @@ def get_example_configuration() -> dict:
             "redact_jwt": True,
             "redact_ip": False,  # Keep for security analysis
             "redact_uuid": False,  # Keep for tracing
-            "hash_mode": False  # Set True to hash instead of redact
+            "hash_mode": False,  # Set True to hash instead of redact
         },
-
         "integrity_settings": {
             "staging_dir": "/var/log/security_logs_staging",
             "production_dir": "/var/log/security_logs",
@@ -208,9 +204,8 @@ def get_example_configuration() -> dict:
             "checkpoint_interval": 1000,
             "enable_write_ahead": True,
             "enable_signing": False,
-            "signing_key_path": None
+            "signing_key_path": None,
         },
-
         "siem_configs": [
             {
                 "type": "splunk",
@@ -219,7 +214,7 @@ def get_example_configuration() -> dict:
                 "api_token": os.getenv("SPLUNK_TOKEN"),
                 "index": "psychsync_security",
                 "batch_size": 100,
-                "batch_timeout_seconds": 10
+                "batch_timeout_seconds": 10,
             },
             {
                 "type": "elasticsearch",
@@ -227,17 +222,16 @@ def get_example_configuration() -> dict:
                 "endpoint_url": "http://elasticsearch.example.com:9200",
                 "index": "psychsync-security-logs",
                 "batch_size": 100,
-                "batch_timeout_seconds": 10
-            }
+                "batch_timeout_seconds": 10,
+            },
         ],
-
         "detection_settings": {
             "enable_pattern_detection": True,
             "enable_behavioral_detection": True,
             "enable_injection_detection": True,
             "enable_tool_anomaly_detection": True,
-            "event_history_hours": 24
-        }
+            "event_history_hours": 24,
+        },
     }
 
 
@@ -276,7 +270,7 @@ def configure_from_environment():
             enable_redaction=False,
             enable_integrity=False,
             enable_siem=False,
-            enable_detection=False
+            enable_detection=False,
         )
 
     # SIEM configurations
@@ -284,30 +278,40 @@ def configure_from_environment():
 
     # Splunk
     if os.getenv("SIEM_SPLUNK_ENABLED", "false").lower() == "true":
-        siem_configs.append(SIEMConfig(
-            siem_type=SIEMType.SPLUNK,
-            enabled=True,
-            endpoint_url=os.getenv("SIEM_SPLUNK_URL", "https://localhost:8088/services/collector/event"),
-            api_token=os.getenv("SIEM_SPLUNK_TOKEN", ""),
-            index=os.getenv("SIEM_SPLUNK_INDEX", "security_logs")
-        ))
+        siem_configs.append(
+            SIEMConfig(
+                siem_type=SIEMType.SPLUNK,
+                enabled=True,
+                endpoint_url=os.getenv(
+                    "SIEM_SPLUNK_URL", "https://localhost:8088/services/collector/event"
+                ),
+                api_token=os.getenv("SIEM_SPLUNK_TOKEN", ""),
+                index=os.getenv("SIEM_SPLUNK_INDEX", "security_logs"),
+            )
+        )
 
     # Elasticsearch
     if os.getenv("SIEM_ELASTICSEARCH_ENABLED", "false").lower() == "true":
-        siem_configs.append(SIEMConfig(
-            siem_type=SIEMType.ELASTICSEARCH,
-            enabled=True,
-            endpoint_url=os.getenv("SIEM_ELASTICSEARCH_URL", "http://localhost:9200"),
-            index=os.getenv("SIEM_ELASTICSEARCH_INDEX", "security_logs")
-        ))
+        siem_configs.append(
+            SIEMConfig(
+                siem_type=SIEMType.ELASTICSEARCH,
+                enabled=True,
+                endpoint_url=os.getenv(
+                    "SIEM_ELASTICSEARCH_URL", "http://localhost:9200"
+                ),
+                index=os.getenv("SIEM_ELASTICSEARCH_INDEX", "security_logs"),
+            )
+        )
 
     # Datadog
     if os.getenv("SIEM_DATADOG_ENABLED", "false").lower() == "true":
-        siem_configs.append(SIEMConfig(
-            siem_type=SIEMType.DATADOG,
-            enabled=True,
-            api_token=os.getenv("SIEM_DATADOG_API_KEY", "")
-        ))
+        siem_configs.append(
+            SIEMConfig(
+                siem_type=SIEMType.DATADOG,
+                enabled=True,
+                api_token=os.getenv("SIEM_DATADOG_API_KEY", ""),
+            )
+        )
 
     # Configure logger
     return configure_security_logging(
@@ -315,5 +319,5 @@ def configure_from_environment():
         enable_integrity=enable_integrity,
         enable_siem=enable_siem and siem_configs,
         enable_detection=True,
-        siem_configs=siem_configs if enable_siem else None
+        siem_configs=siem_configs if enable_siem else None,
     )

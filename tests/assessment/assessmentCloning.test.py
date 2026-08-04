@@ -7,22 +7,24 @@ Business Impact: Efficiency, user experience, content creation
 ROI: 6x - Accelerates assessment creation and management
 """
 
-import pytest
 import asyncio
 import json
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, patch, MagicMock
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
+
+from app.db.models.assessment import Assessment
+from app.db.models.team import Team
+from app.db.models.user import User
+from app.schemas.assessment import AssessmentCreate, AssessmentUpdate
 
 # Import assessment services and models
 from app.services.assessment_service import AssessmentService
 from app.services.template_service import TemplateService
-from app.db.models.assessment import Assessment
-from app.db.models.user import User
-from app.db.models.team import Team
-from app.schemas.assessment import AssessmentCreate, AssessmentUpdate
 
 
 class TestAssessmentCloning:
@@ -557,8 +559,8 @@ class TestAssessmentCloning:
 
     def test_concurrent_cloning_performance(self):
         """Test performance of concurrent cloning operations"""
-        import time
         import threading
+        import time
 
         # Create template
         template_id = self._create_assessment_template({

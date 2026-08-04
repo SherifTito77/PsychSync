@@ -5,10 +5,10 @@ Comprehensive analysis system including video recording, transcription, facial e
 and voice sentiment analysis using cutting-edge AI technologies.
 """
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-import logging
 from typing import Any
 
 import cv2
@@ -16,11 +16,7 @@ import librosa
 import numpy as np
 import speech_recognition as sr
 from sqlalchemy.orm import Session
-from transformers import (
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    pipeline,
-)
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +191,9 @@ class VoiceVideoAnalysisEngine:
                     "tokenizer": emotion_tokenizer,
                     "model": emotion_model,
                     "pipeline": pipeline(
-                        "text-classification", model=emotion_model, tokenizer=emotion_tokenizer
+                        "text-classification",
+                        model=emotion_model,
+                        tokenizer=emotion_tokenizer,
                     ),
                 },
                 "audio_emotion": "custom_audio_emotion_model_v2",
@@ -259,7 +257,9 @@ class VoiceVideoAnalysisEngine:
             analysis_id = f"analysis_{user_id}_{datetime.utcnow().timestamp()}"
 
             # Save video file
-            video_path = await self._save_video_file(video_data, analysis_id, config.format)
+            video_path = await self._save_video_file(
+                video_data, analysis_id, config.format
+            )
 
             # Extract audio from video
             audio_path = await self._extract_audio_from_video(video_path)
@@ -273,11 +273,18 @@ class VoiceVideoAnalysisEngine:
             facial_analysis = await self._analyze_facial_expressions(video_path)
 
             # Perform voice sentiment analysis
-            voice_sentiment = await self._analyze_voice_sentiment(audio_path) if audio_path else []
+            voice_sentiment = (
+                await self._analyze_voice_sentiment(audio_path) if audio_path else []
+            )
 
             # Generate comprehensive analysis
             comprehensive_result = await self._generate_comprehensive_analysis(
-                analysis_id, user_id, video_path, transcription, facial_analysis, voice_sentiment
+                analysis_id,
+                user_id,
+                video_path,
+                transcription,
+                facial_analysis,
+                voice_sentiment,
             )
 
             logger.info(f"Completed video analysis for user {user_id}: {analysis_id}")
@@ -312,9 +319,13 @@ class VoiceVideoAnalysisEngine:
                     audio_path, model_name, config
                 )
             elif model_name == "speechbrain":
-                transcription_result = await self._transcribe_with_speechbrain(audio_path, config)
+                transcription_result = await self._transcribe_with_speechbrain(
+                    audio_path, config
+                )
             else:
-                transcription_result = await self._transcribe_with_sphinx(audio_path, config)
+                transcription_result = await self._transcribe_with_sphinx(
+                    audio_path, config
+                )
 
             processing_time = (datetime.utcnow() - start_time).total_seconds()
 
@@ -333,7 +344,9 @@ class VoiceVideoAnalysisEngine:
             logger.error(f"Error transcribing audio: {e}")
             raise
 
-    async def analyze_facial_expressions(self, video_path: str) -> list[FacialAnalysisResult]:
+    async def analyze_facial_expressions(
+        self, video_path: str
+    ) -> list[FacialAnalysisResult]:
         """Analyze facial expressions from video"""
         try:
             results = []
@@ -378,7 +391,9 @@ class VoiceVideoAnalysisEngine:
             logger.error(f"Error analyzing facial expressions: {e}")
             return []
 
-    async def analyze_voice_sentiment(self, audio_path: str) -> list[VoiceSentimentResult]:
+    async def analyze_voice_sentiment(
+        self, audio_path: str
+    ) -> list[VoiceSentimentResult]:
         """Analyze voice sentiment and emotion from audio"""
         try:
             results = []
@@ -443,7 +458,11 @@ class VoiceVideoAnalysisEngine:
                 "total_recordings": 15,
                 "total_duration": 1245.6,  # seconds
                 "average_confidence": 0.87,
-                "sentiment_distribution": {"positive": 0.65, "neutral": 0.25, "negative": 0.10},
+                "sentiment_distribution": {
+                    "positive": 0.65,
+                    "neutral": 0.25,
+                    "negative": 0.10,
+                },
                 "emotion_distribution": {
                     "happy": 0.45,
                     "neutral": 0.30,
@@ -477,6 +496,7 @@ class VoiceVideoAnalysisEngine:
 
         # ✅ NON-BLOCKING - async file I/O (video files can be GB in size!)
         import aiofiles
+
         async with aiofiles.open(video_path, "wb") as f:
             await f.write(video_data)
 
@@ -492,6 +512,7 @@ class VoiceVideoAnalysisEngine:
 
         # ✅ NON-BLOCKING - async file I/O
         import aiofiles
+
         async with aiofiles.open(audio_path, "wb") as f:
             await f.write(audio_data)
 
@@ -504,11 +525,10 @@ class VoiceVideoAnalysisEngine:
 
             # ✅ NON-BLOCKING - async subprocess call
             import asyncio
+
             command = f"ffmpeg -i {video_path} -vn -acodec pcm_s16le -ar 16000 -ac 1 {audio_path}"
             process = await asyncio.create_subprocess_shell(
-                command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
             )
             await process.communicate()
 
@@ -561,7 +581,9 @@ class VoiceVideoAnalysisEngine:
             with sr.AudioFile(audio_path) as source:
                 audio = self.speech_recognizer.record(source)
 
-            text = self.speech_recognizer.recognize_google(audio, language=config.language)
+            text = self.speech_recognizer.recognize_google(
+                audio, language=config.language
+            )
 
             return {
                 "text": text,
@@ -688,7 +710,9 @@ class VoiceVideoAnalysisEngine:
             logger.error(f"Error analyzing audio chunk sentiment: {e}")
             return None
 
-    def _extract_acoustic_features(self, audio_chunk: np.ndarray, sr_rate: int) -> dict[str, float]:
+    def _extract_acoustic_features(
+        self, audio_chunk: np.ndarray, sr_rate: int
+    ) -> dict[str, float]:
         """Extract acoustic features from audio"""
         try:
             features = {}
@@ -721,13 +745,17 @@ class VoiceVideoAnalysisEngine:
             features["zero_crossing_rate"] = np.mean(zcr)
 
             # Spectral centroid (brightness)
-            spectral_centroids = librosa.feature.spectral_centroid(y=audio_chunk, sr=sr_rate)
+            spectral_centroids = librosa.feature.spectral_centroid(
+                y=audio_chunk, sr=sr_rate
+            )
             features["spectral_centroid"] = np.mean(spectral_centroids)
 
             # Speech rate estimation (simplified)
             duration = len(audio_chunk) / sr_rate
             estimated_words = duration * 2.5  # Average 2.5 words per second
-            features["speech_rate"] = estimated_words / duration * 60  # words per minute
+            features["speech_rate"] = (
+                estimated_words / duration * 60
+            )  # words per minute
 
             return features
 
@@ -747,11 +775,15 @@ class VoiceVideoAnalysisEngine:
         """Generate comprehensive multimodal analysis"""
         try:
             # Calculate overall metrics
-            overall_sentiment = self._calculate_overall_sentiment(facial_analysis, voice_sentiment)
+            overall_sentiment = self._calculate_overall_sentiment(
+                facial_analysis, voice_sentiment
+            )
             overall_confidence = self._calculate_overall_confidence(
                 facial_analysis, voice_sentiment
             )
-            engagement_score = self._calculate_engagement_score(facial_analysis, voice_sentiment)
+            engagement_score = self._calculate_engagement_score(
+                facial_analysis, voice_sentiment
+            )
             authenticity_score = self._calculate_authenticity_score(
                 facial_analysis, voice_sentiment
             )
@@ -765,7 +797,9 @@ class VoiceVideoAnalysisEngine:
             )
 
             # Generate insights
-            insights = self._generate_insights(facial_analysis, voice_sentiment, transcription)
+            insights = self._generate_insights(
+                facial_analysis, voice_sentiment, transcription
+            )
 
             # Risk assessment
             risk_assessment = self._assess_risks(facial_analysis, voice_sentiment)
@@ -881,7 +915,9 @@ class VoiceVideoAnalysisEngine:
 
             # Voice engagement based on clarity and confidence
             for voice_result in voice_sentiment:
-                voice_engagement = (voice_result.confidence_score + voice_result.clarity_score) / 2
+                voice_engagement = (
+                    voice_result.confidence_score + voice_result.clarity_score
+                ) / 2
                 scores.append(voice_engagement)
 
             if not scores:
@@ -912,14 +948,22 @@ class VoiceVideoAnalysisEngine:
                 voice_sentiment = voice_sentiment[i].sentiment.value
 
                 # Check if emotion and sentiment align
-                if (face_emotion in ["happy", "neutral"] and voice_sentiment == "positive") or (
-                    face_emotion in ["sad", "angry", "fear"] and voice_sentiment == "negative"
+                if (
+                    face_emotion in ["happy", "neutral"]
+                    and voice_sentiment == "positive"
+                ) or (
+                    face_emotion in ["sad", "angry", "fear"]
+                    and voice_sentiment == "negative"
                 ):
                     consistency_scores.append(1.0)
                 else:
                     consistency_scores.append(0.5)
 
-            return sum(consistency_scores) / len(consistency_scores) if consistency_scores else 0.0
+            return (
+                sum(consistency_scores) / len(consistency_scores)
+                if consistency_scores
+                else 0.0
+            )
 
         except Exception as e:
             logger.error(f"Error calculating authenticity score: {e}")
@@ -965,7 +1009,8 @@ class VoiceVideoAnalysisEngine:
         try:
             # Facial expression recommendations
             avg_eye_contact = (
-                sum(1 for result in facial_analysis if result.eye_contact) / len(facial_analysis)
+                sum(1 for result in facial_analysis if result.eye_contact)
+                / len(facial_analysis)
                 if facial_analysis
                 else 0
             )
@@ -975,16 +1020,20 @@ class VoiceVideoAnalysisEngine:
                 )
 
             avg_attention = (
-                sum(result.attention_score for result in facial_analysis) / len(facial_analysis)
+                sum(result.attention_score for result in facial_analysis)
+                / len(facial_analysis)
                 if facial_analysis
                 else 0
             )
             if avg_attention < 0.6:
-                recommendations.append("Focus on maintaining attention during responses")
+                recommendations.append(
+                    "Focus on maintaining attention during responses"
+                )
 
             # Voice recommendations
             avg_clarity = (
-                sum(result.clarity_score for result in voice_sentiment) / len(voice_sentiment)
+                sum(result.clarity_score for result in voice_sentiment)
+                / len(voice_sentiment)
                 if voice_sentiment
                 else 0
             )
@@ -993,7 +1042,9 @@ class VoiceVideoAnalysisEngine:
                     "Speak more clearly and at a moderate pace for better clarity"
                 )
 
-            stress_count = sum(1 for result in voice_sentiment if result.stress_indicators)
+            stress_count = sum(
+                1 for result in voice_sentiment if result.stress_indicators
+            )
             if stress_count > len(voice_sentiment) * 0.3:
                 recommendations.append(
                     "Consider stress management techniques to improve vocal delivery"
@@ -1029,19 +1080,23 @@ class VoiceVideoAnalysisEngine:
 
             # Engagement insights
             if facial_analysis:
-                avg_attention = sum(result.attention_score for result in facial_analysis) / len(
-                    facial_analysis
-                )
+                avg_attention = sum(
+                    result.attention_score for result in facial_analysis
+                ) / len(facial_analysis)
                 if avg_attention > 0.8:
-                    insights.append("High engagement level detected throughout the response")
+                    insights.append(
+                        "High engagement level detected throughout the response"
+                    )
                 elif avg_attention < 0.5:
-                    insights.append("Attention appears to fluctuate during the response")
+                    insights.append(
+                        "Attention appears to fluctuate during the response"
+                    )
 
             # Voice insights
             if voice_sentiment:
-                avg_confidence = sum(result.confidence_score for result in voice_sentiment) / len(
-                    voice_sentiment
-                )
+                avg_confidence = sum(
+                    result.confidence_score for result in voice_sentiment
+                ) / len(voice_sentiment)
                 if avg_confidence > 0.8:
                     insights.append("Strong vocal confidence and clarity detected")
 
@@ -1071,7 +1126,8 @@ class VoiceVideoAnalysisEngine:
 
             # Check for low engagement
             avg_engagement = (
-                sum(result.attention_score for result in facial_analysis) / len(facial_analysis)
+                sum(result.attention_score for result in facial_analysis)
+                / len(facial_analysis)
                 if facial_analysis
                 else 0
             )

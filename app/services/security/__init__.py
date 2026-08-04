@@ -25,31 +25,8 @@ Author: Security Team
 Version: 1.0
 """
 
-# Import from service modules
-from app.services.security.password_service import (
-    PasswordService,
-    get_password_service,
-    get_password_hash,
-    verify_password,
-    validate_password,
-    generate_password_requirements,
-)
-
-from app.services.security.token_service import (
-    TokenService,
-    get_token_service,
-    create_access_token,
-    create_refresh_token,
-    create_token_pair,
-    verify_token,
-    decode_token,
-    create_password_reset_token,
-    verify_password_reset_token,
-    create_email_verification_token,
-    verify_email_verification_token,
-    generate_secure_token,
-)
-
+# Re-export core security functions for backward compatibility
+from app.core.security import get_current_active_user, get_current_user
 from app.services.security.authorization_service import (
     AuthorizationService,
     get_authorization_service,
@@ -58,21 +35,38 @@ from app.services.security.authorization_service import (
     is_team_member,
     require_permissions,
 )
-
 from app.services.security.input_sanitizer_service import (
     InputSanitizerService,
+    escape_html,
+    generate_csrf_token,
     get_input_sanitizer_service,
     sanitize_input,
-    escape_html,
-    validate_email,
-    generate_csrf_token,
     validate_csrf_token,
+    validate_email,
 )
 
-# Re-export core security functions for backward compatibility
-from app.core.security import (
-    get_current_user,
-    get_current_active_user,
+# Import from service modules
+from app.services.security.password_service import (
+    PasswordService,
+    generate_password_requirements,
+    get_password_hash,
+    get_password_service,
+    validate_password,
+    verify_password,
+)
+from app.services.security.token_service import (
+    TokenService,
+    create_access_token,
+    create_email_verification_token,
+    create_password_reset_token,
+    create_refresh_token,
+    create_token_pair,
+    decode_token,
+    generate_secure_token,
+    get_token_service,
+    verify_email_verification_token,
+    verify_password_reset_token,
+    verify_token,
 )
 
 __all__ = [

@@ -6,21 +6,22 @@ Author: PsychSync Security Team
 Version: 1.0.0
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from ai.security.uncertainty_detection import TaskCategory
 from ai.services.uncertainty_guard import (
-    UncertaintyGuard,
-    with_uncertainty_check,
     GuardedResult,
     UncertaintyExceededError,
+    UncertaintyGuard,
+    with_uncertainty_check,
 )
-from ai.security.uncertainty_detection import TaskCategory
 
 
 class TestUncertaintyGuardDecorator:
@@ -30,13 +31,11 @@ class TestUncertaintyGuardDecorator:
         """Set up test fixtures."""
         # Reset singleton for clean tests
         UncertaintyGuard._instance = None
-        self.guard = UncertaintyGuard(
-            enable_review_queue=True,
-            enable_logging=False
-        )
+        self.guard = UncertaintyGuard(enable_review_queue=True, enable_logging=False)
 
     def test_decorator_with_confident_output(self):
         """Test decorator with confident, low-uncertainty output."""
+
         @self.guard.protect(task_category=TaskCategory.GENERAL_ASSISTANCE)
         def mock_llm_call(prompt):
             return "Patient scored 18 on PHQ-9 assessment"
@@ -50,6 +49,7 @@ class TestUncertaintyGuardDecorator:
 
     def test_decorator_with_uncertain_output(self):
         """Test decorator with uncertain, high-uncertainty output."""
+
         @self.guard.protect(task_category=TaskCategory.CLINICAL_ASSESSMENT)
         def mock_llm_call(prompt):
             return "Patient definitely might have depression, et al. (2024)"
@@ -63,9 +63,9 @@ class TestUncertaintyGuardDecorator:
 
     def test_decorator_raises_on_uncertainty(self):
         """Test that decorator can raise exception on high uncertainty."""
+
         @self.guard.protect(
-            task_category=TaskCategory.CLINICAL_ASSESSMENT,
-            raise_on_uncertainty=True
+            task_category=TaskCategory.CLINICAL_ASSESSMENT, raise_on_uncertainty=True
         )
         def mock_llm_call(prompt):
             return "Patient might possibly have condition"
@@ -76,6 +76,7 @@ class TestUncertaintyGuardDecorator:
 
     def test_convenience_decorator(self):
         """Test the convenience decorator function."""
+
         @with_uncertainty_check(task_category=TaskCategory.GENERAL_ASSISTANCE)
         def generate_diagnosis(data):
             return "Diagnosis: depression"
@@ -143,8 +144,7 @@ class TestDirectOutputChecking:
         output = "Patient scored 18 on PHQ-9 assessment"
 
         result = self.guard.check_output(
-            output,
-            task_category=TaskCategory.GENERAL_ASSISTANCE
+            output, task_category=TaskCategory.GENERAL_ASSISTANCE
         )
 
         assert result.success is True
@@ -154,12 +154,10 @@ class TestDirectOutputChecking:
     def test_check_output_with_context(self):
         """Test checking output with additional context."""
         output = "The score is 42"  # Outside context range
-        context = {'max_score': 15}
+        context = {"max_score": 15}
 
         result = self.guard.check_output(
-            output,
-            task_category=TaskCategory.CLINICAL_ASSESSMENT,
-            context=context
+            output, task_category=TaskCategory.CLINICAL_ASSESSMENT, context=context
         )
 
         # Should detect knowledge gap
@@ -172,13 +170,11 @@ class TestReviewQueueIntegration:
     def setup_method(self):
         """Set up test fixtures."""
         UncertaintyGuard._instance = None
-        self.guard = UncertaintyGuard(
-            enable_review_queue=True,
-            enable_logging=False
-        )
+        self.guard = UncertaintyGuard(enable_review_queue=True, enable_logging=False)
 
     def test_queued_for_review_on_high_uncertainty(self):
         """Test that high uncertainty outputs are queued."""
+
         @self.guard.protect(task_category=TaskCategory.CLINICAL_ASSESSMENT)
         def generate_diagnosis():
             return "Patient definitely might have condition"
@@ -193,10 +189,11 @@ class TestReviewQueueIntegration:
         # Should appear in pending reviews
         pending = self.guard.get_pending_reviews()
         assert len(pending) > 0
-        assert pending[0]['ticket_id'] == result.review_ticket
+        assert pending[0]["ticket_id"] == result.review_ticket
 
     def test_not_queued_for_low_uncertainty(self):
         """Test that low uncertainty outputs are not queued."""
+
         @self.guard.protect(task_category=TaskCategory.GENERAL_ASSISTANCE)
         def generate_diagnosis():
             return "Patient shows clear signs of depression"
@@ -216,14 +213,14 @@ class TestIntegrationWithExistingServices:
         UncertaintyGuard._instance = None
         self.guard = UncertaintyGuard(enable_logging=False)
 
-    @patch('ai.services.context_assembly.ContextAssemblyService')
+    @patch("ai.services.context_assembly.ContextAssemblyService")
     def test_integration_with_context_assembly(self, mock_context_class):
         """Test integration with context assembly service."""
         # Mock the context assembly service
         mock_context = Mock()
         mock_context.assemble_context.return_value = {
-            'patient_data': 'redacted',
-            'assessment_history': 'redacted'
+            "patient_data": "redacted",
+            "assessment_history": "redacted",
         }
         mock_context_class.return_value = mock_context
 
@@ -233,8 +230,7 @@ class TestIntegrationWithExistingServices:
         ) as ctx:
             # Assemble context (PII redacted)
             context = mock_context.assemble_context(
-                user_id='123',
-                data_scope='confidential'
+                user_id="123", data_scope="confidential"
             )
             ctx.set_input(context)
 
@@ -246,12 +242,14 @@ class TestIntegrationWithExistingServices:
         assert ctx.guarded_result is not None
         assert ctx.guarded_result.uncertainty_report is not None
 
-    @patch('ai.security.spotlighting_sdk.DelimitingSpotlighting')
+    @patch("ai.security.spotlighting_sdk.DelimitingSpotlighting")
     def test_integration_with_spotlighting(self, mock_spotlighting):
         """Test integration with spotlighting for prompt injection."""
         # Mock spotlighting
         mock_result = Mock()
-        mock_result.processed_content = "「≈≈≈USER_INPUT_START≈≈≈」safe prompt「≈≈≈USER_INPUT_END≈≈≈」"
+        mock_result.processed_content = (
+            "「≈≈≈USER_INPUT_START≈≈≈」safe prompt「≈≈≈USER_INPUT_END≈≈≈」"
+        )
         mock_spotlighting().apply.return_value = mock_result
 
         # Use uncertainty guard with spotlighted input
@@ -279,6 +277,7 @@ class TestErrorHandling:
 
     def test_exception_in_wrapped_function(self):
         """Test that exceptions are handled gracefully."""
+
         @self.guard.protect(task_category=TaskCategory.GENERAL_ASSISTANCE)
         def failing_function():
             raise ValueError("LLM API error")
@@ -293,7 +292,12 @@ class TestErrorHandling:
     def test_graceful_degradation_on_detector_error(self):
         """Test graceful degradation if uncertainty detector fails."""
         # Mock detector to raise exception
-        with patch.object(self.guard.detector, 'check_uncertainty', side_effect=Exception("Detector error")):
+        with patch.object(
+            self.guard.detector,
+            "check_uncertainty",
+            side_effect=Exception("Detector error"),
+        ):
+
             @self.guard.protect(task_category=TaskCategory.GENERAL_ASSISTANCE)
             def working_function():
                 return "Valid output"
@@ -312,9 +316,10 @@ class TestAuditLogging:
         UncertaintyGuard._instance = None
         self.guard = UncertaintyGuard(enable_logging=True)
 
-    @patch('ai.services.uncertainty_guard.logger')
+    @patch("ai.services.uncertainty_guard.logger")
     def test_logging_of_guarded_call(self, mock_logger):
         """Test that guarded calls are logged."""
+
         @self.guard.protect(task_category=TaskCategory.CLINICAL_ASSESSMENT)
         def mock_function():
             return "Patient definitely might have condition"
@@ -326,9 +331,10 @@ class TestAuditLogging:
         log_calls = [str(call) for call in mock_logger.info.call_args_list]
         assert any("Guarded AI Call" in call for call in log_calls)
 
-    @patch('ai.services.uncertainty_guard.logger')
+    @patch("ai.services.uncertainty_guard.logger")
     def test_logging_includes_review_ticket(self, mock_logger):
         """Test that review tickets are included in logs."""
+
         @self.guard.protect(task_category=TaskCategory.CLINICAL_ASSESSMENT)
         def mock_function():
             return "Patient definitely might have condition, et al. (2024)"
@@ -350,6 +356,7 @@ class TestPerformance:
 
     def test_caching_works_across_calls(self):
         """Test that caching improves repeated checks."""
+
         @self.guard.protect(task_category=TaskCategory.GENERAL_ASSISTANCE)
         def mock_function():
             return "Same output every time"
@@ -360,8 +367,10 @@ class TestPerformance:
         result2 = mock_function()
 
         # Results should be consistent
-        assert result1.uncertainty_report.report_hash == \
-               result2.uncertainty_report.report_hash
+        assert (
+            result1.uncertainty_report.report_hash
+            == result2.uncertainty_report.report_hash
+        )
 
 
 # Pytest configuration

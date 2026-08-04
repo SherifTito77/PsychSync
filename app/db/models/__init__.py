@@ -95,10 +95,10 @@ except ImportError:
 try:
     from .notifications import (
         Notification,
-        NotificationTemplate,
+        NotificationAnalytics,
         NotificationCampaign,
         NotificationPreferences,
-        NotificationAnalytics,
+        NotificationTemplate,
     )
 except ImportError:
     Notification = None
@@ -131,13 +131,13 @@ except ImportError:
 
 # Import SQL audit and query performance models
 try:
-    from .sql_audit import SQLQuery, SQLVulnerability, SQLScanReport
     from .query_performance import (
-        SlowQuery,
         IndexRecommendation,
-        QueryPerformanceHistory,
         QueryOptimizationReport,
+        QueryPerformanceHistory,
+        SlowQuery,
     )
+    from .sql_audit import SQLQuery, SQLScanReport, SQLVulnerability
 except ImportError:
     SQLQuery = None
     SQLVulnerability = None
@@ -183,7 +183,7 @@ except ImportError:
 
 # Import Dead Letter Queue models
 try:
-    from .dead_letter import DeadLetterTask, DLQStatus, DLQReason
+    from .dead_letter import DeadLetterTask, DLQReason, DLQStatus
 except ImportError:
     DeadLetterTask = None
     DLQStatus = None
@@ -212,6 +212,7 @@ __all__ = [
     # Analytics models
     "Analytics",
     "AnalyticsEvent",
+    "UnifiedAnalyticsEvent",
     "Intervention",
     "InterventionParticipant",
     "PreInterventionMeasurement",

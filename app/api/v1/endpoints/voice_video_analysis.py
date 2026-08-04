@@ -4,29 +4,29 @@ Voice and Video Response Analysis API Endpoints
 Advanced multimodal analysis endpoints with transcription, facial recognition, and sentiment analysis.
 """
 
-from typing import List, Optional, Dict, Any
-
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
-
-from app.core.path_utils import sanitize_path, safe_filename
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user, get_db, get_async_db, get_current_active_user
+from app.api.deps import get_async_db, get_current_active_user, get_current_user, get_db
+from app.core.path_utils import safe_filename, sanitize_path
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
 from app.services.voice_video_analysis import (
-    VoiceVideoAnalysisEngine,
-    VideoRecordingConfig,
-    TranscriptionConfig,
     ComprehensiveAnalysisResult,
-    TranscriptionResult,
     FacialAnalysisResult,
-    VoiceSentimentResult
+    TranscriptionConfig,
+    TranscriptionResult,
+    VideoRecordingConfig,
+    VoiceSentimentResult,
+    VoiceVideoAnalysisEngine,
 )
-from pydantic import BaseModel, Field
 
 router = APIRouter()
+
 
 # Request/Response Models
 class VideoRecordingConfigRequest(BaseModel):
@@ -39,14 +39,18 @@ class VideoRecordingConfigRequest(BaseModel):
     auto_transcription: bool = Field(True, description="Automatically transcribe audio")
     real_time_analysis: bool = Field(True, description="Perform real-time analysis")
 
+
 class TranscriptionConfigRequest(BaseModel):
     language: str = Field("en-US", description="Transcription language")
-    quality: str = Field("standard", description="Transcription quality (draft, standard, high)")
+    quality: str = Field(
+        "standard", description="Transcription quality (draft, standard, high)"
+    )
     include_timestamps: bool = Field(True, description="Include word timestamps")
     include_confidence: bool = Field(True, description="Include confidence scores")
     speaker_diarization: bool = Field(False, description="Identify different speakers")
     profanity_filter: bool = Field(False, description="Filter profanity")
     custom_vocabulary: List[str] = Field([], description="Custom vocabulary words")
+
 
 class ComprehensiveAnalysisResponse(BaseModel):
     analysis_id: str
@@ -64,6 +68,7 @@ class ComprehensiveAnalysisResponse(BaseModel):
     risk_assessment: Dict[str, Any]
     created_date: str
 
+
 class TranscriptionResponse(BaseModel):
     text: str
     language: str
@@ -72,6 +77,7 @@ class TranscriptionResponse(BaseModel):
     word_timestamps: List[List[Any]]
     processing_time: float
     quality_metrics: Dict[str, Any]
+
 
 class AnalysisStatisticsResponse(BaseModel):
     total_recordings: int
@@ -82,7 +88,9 @@ class AnalysisStatisticsResponse(BaseModel):
     improvement_trends: Dict[str, float]
     last_analysis_date: str
 
+
 # API Endpoints
+
 
 @rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/record", response_model=Dict[str, Any])
@@ -90,7 +98,7 @@ async def start_video_analysis(
     video_file: UploadFile = File(..., description="Video file to analyze"),
     config: Optional[VideoRecordingConfigRequest] = None,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Process video recording with comprehensive analysis including transcription,
@@ -112,7 +120,7 @@ async def start_video_analysis(
             frame_rate=config.frame_rate if config else 30,
             include_audio=config.include_audio if config else True,
             auto_transcription=config.auto_transcription if config else True,
-            real_time_analysis=config.real_time_analysis if config else True
+            real_time_analysis=config.real_time_analysis if config else True,
         )
 
         # Initialize analysis engine
@@ -131,18 +139,19 @@ async def start_video_analysis(
             "analysis_id": result["analysis_id"],
             "message": "Video analysis completed successfully",
             "video_path": result["video_path"],
-            "duration": result["duration"]
+            "duration": result["duration"],
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/transcribe", response_model=TranscriptionResponse)
 async def transcribe_audio(
     audio_file: UploadFile = File(..., description="Audio file to transcribe"),
     config: Optional[TranscriptionConfigRequest] = None,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Transcribe audio file to text with confidence scoring and timestamps.
@@ -162,7 +171,7 @@ async def transcribe_audio(
             include_confidence=config.include_confidence if config else True,
             speaker_diarization=config.speaker_diarization if config else False,
             profanity_filter=config.profanity_filter if config else False,
-            custom_vocabulary=config.custom_vocabulary if config else []
+            custom_vocabulary=config.custom_vocabulary if config else [],
         )
 
         # Initialize analysis engine
@@ -178,17 +187,18 @@ async def transcribe_audio(
             duration=result.duration,
             word_timestamps=result.word_timestamps,
             processing_time=result.processing_time,
-            quality_metrics=result.quality_metrics
+            quality_metrics=result.quality_metrics,
         )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/analysis/{analysis_id}", response_model=ComprehensiveAnalysisResponse)
 async def get_analysis_result(
     analysis_id: str,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get comprehensive analysis results by analysis ID.
@@ -208,7 +218,7 @@ async def get_analysis_result(
                 "duration": 45.2,
                 "word_timestamps": [],
                 "processing_time": 2.3,
-                "quality_metrics": {}
+                "quality_metrics": {},
             },
             facial_analysis=[
                 {
@@ -217,7 +227,7 @@ async def get_analysis_result(
                     "emotion_confidence": 0.85,
                     "attention_score": 0.92,
                     "eye_contact": True,
-                    "engagement_indicators": ["maintains_eye_contact"]
+                    "engagement_indicators": ["maintains_eye_contact"],
                 }
             ],
             voice_sentiment=[
@@ -228,7 +238,7 @@ async def get_analysis_result(
                     "confidence_score": 0.91,
                     "speech_rate": 145,
                     "clarity_score": 0.89,
-                    "stress_indicators": []
+                    "stress_indicators": [],
                 }
             ],
             overall_sentiment="positive",
@@ -237,10 +247,7 @@ async def get_analysis_result(
             authenticity_score=0.79,
             recommendations=["Excellent performance", "Consider varying pace slightly"],
             insights=["High engagement detected", "Strong vocal confidence"],
-            risk_assessment={
-                "risk_level": "low",
-                "risk_factors": []
-            }
+            risk_assessment={"risk_level": "low", "risk_factors": []},
         )
 
         return ComprehensiveAnalysisResponse(
@@ -255,7 +262,7 @@ async def get_analysis_result(
                     "emotion_confidence": result.emotion_confidence,
                     "attention_score": result.attention_score,
                     "eye_contact": result.eye_contact,
-                    "engagement_indicators": result.engagement_indicators
+                    "engagement_indicators": result.engagement_indicators,
                 }
                 for result in mock_result.facial_analysis
             ],
@@ -267,7 +274,7 @@ async def get_analysis_result(
                     "confidence_score": result.confidence_score,
                     "speech_rate": result.speech_rate,
                     "clarity_score": result.clarity_score,
-                    "stress_indicators": result.stress_indicators
+                    "stress_indicators": result.stress_indicators,
                 }
                 for result in mock_result.voice_sentiment
             ],
@@ -278,11 +285,12 @@ async def get_analysis_result(
             recommendations=mock_result.recommendations,
             insights=mock_result.insights,
             risk_assessment=mock_result.risk_assessment,
-            created_date=datetime.utcnow().isoformat()
+            created_date=datetime.utcnow().isoformat(),
         )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/history", response_model=List[ComprehensiveAnalysisResponse])
 async def get_analysis_history(
@@ -290,7 +298,7 @@ async def get_analysis_history(
     date_from: Optional[str] = Query(None, description="Filter analyses from date"),
     date_to: Optional[str] = Query(None, description="Filter analyses to date"),
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get user's analysis history with optional date filtering.
@@ -310,7 +318,7 @@ async def get_analysis_history(
                     "duration": 45.2,
                     "word_timestamps": [],
                     "processing_time": 2.1,
-                    "quality_metrics": {}
+                    "quality_metrics": {},
                 },
                 "facial_analysis": [],
                 "voice_sentiment": [],
@@ -321,7 +329,7 @@ async def get_analysis_history(
                 "recommendations": ["Good performance"],
                 "insights": ["Clear communication"],
                 "risk_assessment": {"risk_level": "low", "risk_factors": []},
-                "created_date": "2024-01-15T10:30:00Z"
+                "created_date": "2024-01-15T10:30:00Z",
             }
         ]
 
@@ -330,11 +338,12 @@ async def get_analysis_history(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/statistics", response_model=AnalysisStatisticsResponse)
 async def get_analysis_statistics(
     timeframe_days: int = Query(30, description="Timeframe in days"),
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get comprehensive analysis statistics for a user.
@@ -350,41 +359,49 @@ async def get_analysis_statistics(
             sentiment_distribution=stats.get("sentiment_distribution", {}),
             emotion_distribution=stats.get("emotion_distribution", {}),
             improvement_trends=stats.get("improvement_trends", {}),
-            last_analysis_date=stats.get("last_analysis_date", datetime.utcnow().isoformat())
+            last_analysis_date=stats.get(
+                "last_analysis_date", datetime.utcnow().isoformat()
+            ),
         )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/transcription/history")
 async def get_transcription_history(
     limit: int = Query(50, description="Maximum number of transcriptions to return"),
-    date_from: Optional[str] = Query(None, description="Filter transcriptions from date"),
+    date_from: Optional[str] = Query(
+        None, description="Filter transcriptions from date"
+    ),
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get user's transcription history with sentiment analysis.
     """
     try:
         engine = VoiceVideoAnalysisEngine(db)
-        history = await engine.get_transcription_history(current_user.id, limit, date_from)
+        history = await engine.get_transcription_history(
+            current_user.id, limit, date_from
+        )
 
         return {
             "transcriptions": history,
             "total_count": len(history),
             "user_id": current_user.id,
-            "generated_date": datetime.utcnow().isoformat()
+            "generated_date": datetime.utcnow().isoformat(),
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/analyze/facial-expressions")
 async def analyze_facial_expressions(
     video_file: UploadFile = File(..., description="Video file for facial analysis"),
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Perform facial expression analysis on uploaded video.
@@ -398,8 +415,9 @@ async def analyze_facial_expressions(
         video_path = f"/tmp/facial_analysis/{current_user.id}_{datetime.utcnow().timestamp()}.mp4"
 
         import os
+
         os.makedirs(os.path.dirname(video_path), exist_ok=True)
-        with open(video_path, 'wb') as f:
+        with open(video_path, "wb") as f:
             f.write(video_data)
 
         # Initialize analysis engine
@@ -420,7 +438,7 @@ async def analyze_facial_expressions(
                 "attention_score": result.attention_score,
                 "facial_landmarks": result.facial_landmarks,
                 "head_pose": result.head_pose,
-                "engagement_indicators": result.engagement_indicators
+                "engagement_indicators": result.engagement_indicators,
             }
             for result in results
         ]
@@ -430,17 +448,18 @@ async def analyze_facial_expressions(
             "video_path": video_path,
             "results": response_results,
             "total_frames": len(results),
-            "processing_date": datetime.utcnow().isoformat()
+            "processing_date": datetime.utcnow().isoformat(),
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/analyze/voice-sentiment")
 async def analyze_voice_sentiment(
     audio_file: UploadFile = File(..., description="Audio file for sentiment analysis"),
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Perform voice sentiment analysis on uploaded audio.
@@ -454,8 +473,9 @@ async def analyze_voice_sentiment(
         audio_path = f"/tmp/voice_sentiment/{current_user.id}_{datetime.utcnow().timestamp()}.wav"
 
         import os
+
         os.makedirs(os.path.dirname(audio_path), exist_ok=True)
-        with open(audio_path, 'wb') as f:
+        with open(audio_path, "wb") as f:
             f.write(audio_data)
 
         # Initialize analysis engine
@@ -476,7 +496,7 @@ async def analyze_voice_sentiment(
                 "confidence_score": result.confidence_score,
                 "speech_rate": result.speech_rate,
                 "volume_level": result.volume_level,
-                "clarity_score": result.clarity_score
+                "clarity_score": result.clarity_score,
             }
             for result in results
         ]
@@ -488,7 +508,11 @@ async def analyze_voice_sentiment(
                 sentiment = result["sentiment"]
                 sentiment_counts[sentiment] = sentiment_counts.get(sentiment, 0) + 1
 
-            overall_sentiment = max(sentiment_counts, key=sentiment_counts.get) if sentiment_counts else "neutral"
+            overall_sentiment = (
+                max(sentiment_counts, key=sentiment_counts.get)
+                if sentiment_counts
+                else "neutral"
+            )
         else:
             overall_sentiment = "neutral"
 
@@ -498,16 +522,17 @@ async def analyze_voice_sentiment(
             "results": response_results,
             "overall_sentiment": overall_sentiment,
             "total_segments": len(results),
-            "processing_date": datetime.utcnow().isoformat()
+            "processing_date": datetime.utcnow().isoformat(),
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/models/status")
 async def get_analysis_models_status(
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get status of available analysis models and their capabilities.
@@ -520,61 +545,76 @@ async def get_analysis_models_status(
                     "available": True,
                     "quality": "high",
                     "languages": ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "zh"],
-                    "features": ["timestamps", "confidence_scores", "multi_language"]
+                    "features": ["timestamps", "confidence_scores", "multi_language"],
                 },
                 "whisper_base": {
                     "available": True,
                     "quality": "standard",
                     "languages": ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "zh"],
-                    "features": ["timestamps", "confidence_scores", "multi_language"]
+                    "features": ["timestamps", "confidence_scores", "multi_language"],
                 },
                 "speechbrain": {
                     "available": True,
                     "quality": "standard",
                     "languages": ["en"],
-                    "features": ["timestamps", "confidence_scores"]
-                }
+                    "features": ["timestamps", "confidence_scores"],
+                },
             },
             "emotion_models": {
                 "facial_emotion": {
                     "available": True,
-                    "supported_emotions": ["happy", "sad", "angry", "fear", "surprise", "disgust", "neutral"],
+                    "supported_emotions": [
+                        "happy",
+                        "sad",
+                        "angry",
+                        "fear",
+                        "surprise",
+                        "disgust",
+                        "neutral",
+                    ],
                     "confidence_threshold": 0.7,
-                    "features": ["real_time", "face_detection", "landmark_detection"]
+                    "features": ["real_time", "face_detection", "landmark_detection"],
                 },
                 "voice_emotion": {
                     "available": True,
-                    "supported_emotions": ["happy", "sad", "angry", "fear", "surprise", "neutral"],
+                    "supported_emotions": [
+                        "happy",
+                        "sad",
+                        "angry",
+                        "fear",
+                        "surprise",
+                        "neutral",
+                    ],
                     "confidence_threshold": 0.8,
-                    "features": ["acoustic_features", "stress_detection"]
-                }
+                    "features": ["acoustic_features", "stress_detection"],
+                },
             },
             "sentiment_models": {
                 "roberta_sentiment": {
                     "available": True,
                     "accuracy": 0.92,
                     "supported_languages": ["en"],
-                    "features": ["confidence_scores", "neutral_classification"]
+                    "features": ["confidence_scores", "neutral_classification"],
                 },
                 "distilbert_sentiment": {
                     "available": True,
                     "accuracy": 0.89,
                     "supported_languages": ["en"],
-                    "features": ["confidence_scores", "neutral_classification"]
+                    "features": ["confidence_scores", "neutral_classification"],
                 },
                 "vader_sentiment": {
                     "available": True,
                     "accuracy": 0.75,
                     "supported_languages": ["en"],
-                    "features": ["fast_processing", "sentiment_intensity"]
-                }
+                    "features": ["fast_processing", "sentiment_intensity"],
+                },
             },
             "facial_detection": {
                 "available": True,
                 "detection_method": "opencv_haarcascade",
                 "max_faces": 10,
                 "min_face_size": 30,
-                "features": ["multi_face", "face_tracking", "landmark_detection"]
+                "features": ["multi_face", "face_tracking", "landmark_detection"],
             },
             "system_info": {
                 "gpu_available": False,  # Would check actual GPU availability
@@ -582,8 +622,8 @@ async def get_analysis_models_status(
                 "supported_video_formats": ["mp4", "webm", "mov", "avi"],
                 "supported_audio_formats": ["wav", "mp3", "m4a", "flac"],
                 "processing_queue": "available",
-                "last_updated": datetime.utcnow().isoformat()
-            }
+                "last_updated": datetime.utcnow().isoformat(),
+            },
         }
 
         return models_status
@@ -591,10 +631,11 @@ async def get_analysis_models_status(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.get("/recording/config")
 async def get_recording_config(
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Get recording configuration options and capabilities.
@@ -605,18 +646,21 @@ async def get_recording_config(
                 "max_duration": 300,  # 5 minutes
                 "supported_qualities": [
                     {"value": "low", "description": "360p, 15fps - Fast processing"},
-                    {"value": "medium", "description": "720p, 30fps - Balanced quality"},
-                    {"value": "high", "description": "1080p, 30fps - Best quality"}
+                    {
+                        "value": "medium",
+                        "description": "720p, 30fps - Balanced quality",
+                    },
+                    {"value": "high", "description": "1080p, 30fps - Best quality"},
                 ],
                 "supported_formats": ["mp4", "webm"],
                 "resolutions": ["640x480", "1280x720", "1920x1080"],
-                "frame_rates": [15, 24, 30]
+                "frame_rates": [15, 24, 30],
             },
             "audio_settings": {
                 "sample_rate": 16000,  # 16kHz for speech recognition
                 "channels": 1,  # Mono for speech recognition
                 "bit_depth": 16,
-                "formats": ["wav", "mp3", "aac"]
+                "formats": ["wav", "mp3", "aac"],
             },
             "transcription_settings": {
                 "supported_languages": [
@@ -624,39 +668,58 @@ async def get_recording_config(
                     {"code": "en-GB", "name": "English (UK)"},
                     {"code": "es-ES", "name": "Spanish"},
                     {"code": "fr-FR", "name": "French"},
-                    {"code": "de-DE", "name": "German"}
+                    {"code": "de-DE", "name": "German"},
                 ],
                 "quality_levels": [
                     {"value": "draft", "description": "Fast, ~85% accuracy"},
                     {"value": "standard", "description": "Balanced, ~92% accuracy"},
-                    {"value": "high", "description": "Slow, ~97% accuracy"}
-                ]
+                    {"value": "high", "description": "Slow, ~97% accuracy"},
+                ],
             },
             "analysis_settings": {
                 "facial_analysis": {
                     "enabled": True,
                     "real_time": True,
-                    "emotions": ["happy", "sad", "angry", "fear", "surprise", "neutral"],
-                    "features": ["emotion_detection", "attention_scoring", "eye_contact"]
+                    "emotions": [
+                        "happy",
+                        "sad",
+                        "angry",
+                        "fear",
+                        "surprise",
+                        "neutral",
+                    ],
+                    "features": [
+                        "emotion_detection",
+                        "attention_scoring",
+                        "eye_contact",
+                    ],
                 },
                 "voice_sentiment": {
                     "enabled": True,
                     "real_time": True,
                     "sentiments": ["positive", "negative", "neutral"],
-                    "features": ["sentiment_analysis", "stress_detection", "confidence_scoring"]
+                    "features": [
+                        "sentiment_analysis",
+                        "stress_detection",
+                        "confidence_scoring",
+                    ],
                 },
                 "comprehensive_analysis": {
                     "enabled": True,
                     "multi_modal": True,
-                    "features": ["authenticity_scoring", "engagement_metrics", "risk_assessment"]
-                }
+                    "features": [
+                        "authenticity_scoring",
+                        "engagement_metrics",
+                        "risk_assessment",
+                    ],
+                },
             },
             "limitations": {
                 "max_file_size": 104857600,  # 100MB
                 "max_duration": 300,  # 5 minutes
                 "concurrent_analyses": 3,
-                "storage_quota": 10737418240  # 10GB per user
-            }
+                "storage_quota": 10737418240,  # 10GB per user
+            },
         }
 
         return config
@@ -664,11 +727,12 @@ async def get_recording_config(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.delete("/analysis/{analysis_id}")
 async def delete_analysis(
     analysis_id: str,
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Delete a specific analysis result.
@@ -678,11 +742,12 @@ async def delete_analysis(
         return {
             "status": "success",
             "message": f"Analysis {analysis_id} deleted successfully",
-            "deleted_date": datetime.utcnow().isoformat()
+            "deleted_date": datetime.utcnow().isoformat(),
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/export/{analysis_id}")
 async def export_analysis(
@@ -690,7 +755,7 @@ async def export_analysis(
     format: str = Query("json", description="Export format (json, csv, pdf)"),
     include_video: bool = Query(False, description="Include video file in export"),
     db: AsyncSession = Depends(get_async_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """
     Export analysis results in specified format.
@@ -703,7 +768,7 @@ async def export_analysis(
             "status": "ready",
             "download_url": f"/api/v1/voice-video/download/export_{analysis_id}.{format}",
             "file_size": 1024,  # Mock file size in bytes
-            "created_date": datetime.utcnow().isoformat()
+            "created_date": datetime.utcnow().isoformat(),
         }
 
     except Exception as e:

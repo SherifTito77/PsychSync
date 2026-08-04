@@ -12,13 +12,13 @@ import hashlib
 import logging
 
 logger = logging.getLogger(__name__)
-from dataclasses import dataclass
-from datetime import datetime
 import json
 import os
+import time
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from threading import Lock
-import time
 from typing import Any
 
 from app.security.logging.schemas import SecurityEvent, SecurityLogBatch
@@ -27,6 +27,7 @@ from app.security.logging.schemas import SecurityEvent, SecurityLogBatch
 @dataclass
 class IntegrityCheckpoint:
     """Checkpoint for periodic integrity verification"""
+
     checkpoint_id: str
     timestamp: datetime
     log_count: int
@@ -50,7 +51,7 @@ class LogIntegrityManager:
         checkpoint_interval: int = 1000,  # Create checkpoint every N logs
         enable_write_ahead: bool = True,
         enable_signing: bool = False,
-        signing_key_path: str | None = None
+        signing_key_path: str | None = None,
     ):
         self.staging_dir = Path(staging_dir)
         self.production_dir = Path(production_dir)
@@ -104,12 +105,14 @@ class LogIntegrityManager:
                                 log_count=cp["log_count"],
                                 last_hash=cp["last_hash"],
                                 merkle_root=cp.get("merkle_root"),
-                                signature=cp.get("signature")
+                                signature=cp.get("signature"),
                             )
                             for cp in checkpoints_data
                         ]
 
-                logger.info(f"Loaded integrity state: {self.log_count} logs, previous_hash={self.previous_hash[:16]}...")
+                logger.info(
+                    f"Loaded integrity state: {self.log_count} logs, previous_hash={self.previous_hash[:16]}..."
+                )
             except Exception as e:
                 logger.warning(f"Warning: Failed to load integrity state: {e}")
 
@@ -118,26 +121,34 @@ class LogIntegrityManager:
         state_file = self.production_dir / "integrity_state.json"
 
         with open(state_file, "w") as f:
-            json.dump({
-                "previous_hash": self.previous_hash,
-                "log_count": self.log_count,
-                "timestamp": datetime.utcnow().isoformat()
-            }, f, indent=2)
+            json.dump(
+                {
+                    "previous_hash": self.previous_hash,
+                    "log_count": self.log_count,
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+                f,
+                indent=2,
+            )
 
         # Save checkpoints
         checkpoint_file = self.production_dir / "checkpoints.json"
         with open(checkpoint_file, "w") as f:
-            json.dump([
-                {
-                    "checkpoint_id": cp.checkpoint_id,
-                    "timestamp": cp.timestamp.isoformat(),
-                    "log_count": cp.log_count,
-                    "last_hash": cp.last_hash,
-                    "merkle_root": cp.merkle_root,
-                    "signature": cp.signature
-                }
-                for cp in self.checkpoints
-            ], f, indent=2)
+            json.dump(
+                [
+                    {
+                        "checkpoint_id": cp.checkpoint_id,
+                        "timestamp": cp.timestamp.isoformat(),
+                        "log_count": cp.log_count,
+                        "last_hash": cp.last_hash,
+                        "merkle_root": cp.merkle_root,
+                        "signature": cp.signature,
+                    }
+                    for cp in self.checkpoints
+                ],
+                f,
+                indent=2,
+            )
 
     def _compute_hash(self, data: str) -> str:
         """Compute hash of data using configured algorithm"""
@@ -160,7 +171,7 @@ class LogIntegrityManager:
             "actor_user_id": event.actor_user_id,
             "resource_id": event.resource_id,
             "description": event.description,
-            "previous_hash": self.previous_hash
+            "previous_hash": self.previous_hash,
         }
 
         hash_string = json.dumps(hash_data, sort_keys=True)
@@ -207,7 +218,7 @@ class LogIntegrityManager:
             checkpoint_id=f"cp_{int(time.time())}",
             timestamp=datetime.utcnow(),
             log_count=self.log_count,
-            last_hash=self.previous_hash
+            last_hash=self.previous_hash,
         )
 
         self.checkpoints.append(checkpoint)
@@ -335,14 +346,16 @@ class LogIntegrityManager:
         if not batch.events:
             return self._compute_hash("")
 
-        merkle_root = self._compute_merkle_root([e.current_hash for e in batch.events if e.current_hash])
+        merkle_root = self._compute_merkle_root(
+            [e.current_hash for e in batch.events if e.current_hash]
+        )
 
         # Include batch metadata
         hash_data = {
             "batch_id": batch.batch_id,
             "timestamp": batch.batch_timestamp.isoformat(),
             "event_count": batch.event_count,
-            "merkle_root": merkle_root
+            "merkle_root": merkle_root,
         }
 
         return self._compute_hash(json.dumps(hash_data, sort_keys=True))
@@ -357,7 +370,10 @@ class LogIntegrityManager:
             return ""
 
         # Convert all to strings if needed
-        hash_strings = [h if isinstance(h, str) else h.decode() if isinstance(h, bytes) else str(h) for h in hashes]
+        hash_strings = [
+            h if isinstance(h, str) else h.decode() if isinstance(h, bytes) else str(h)
+            for h in hashes
+        ]
 
         # If odd number of hashes, duplicate last one
         if len(hash_strings) % 2 == 1:
@@ -388,10 +404,7 @@ class LogIntegrityManager:
         Returns:
             Batch with hash computed
         """
-        batch = SecurityLogBatch(
-            events=events,
-            event_count=len(events)
-        )
+        batch = SecurityLogBatch(events=events, event_count=len(events))
 
         # Compute batch hash
         batch.batch_hash = self._compute_batch_hash(batch)
@@ -425,12 +438,14 @@ class LogIntegrityManager:
             "total_logs": self.log_count,
             "current_hash": self.previous_hash,
             "checkpoints_count": len(self.checkpoints),
-            "last_checkpoint": self.checkpoints[-1].dict() if self.checkpoints else None,
+            "last_checkpoint": (
+                self.checkpoints[-1].dict() if self.checkpoints else None
+            ),
             "hash_algorithm": self.hash_algorithm,
             "write_ahead_enabled": self.enable_write_ahead,
             "signing_enabled": self.enable_signing,
             "staging_dir": str(self.staging_dir),
-            "production_dir": str(self.production_dir)
+            "production_dir": str(self.production_dir),
         }
 
     async def verify_recent_logs(self, count: int = 100) -> tuple[bool, list[str]]:

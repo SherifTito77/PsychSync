@@ -14,18 +14,18 @@ import json
 from datetime import datetime
 from uuid import uuid4
 
-from app.events.schemas import EventFactory
 from app.events.producer import KafkaEventProducer
+from app.events.schemas import EventFactory
 
 
 async def main():
     """Perform operation.
 
-Args:
-    **kwargs: Input parameters
+    Args:
+        **kwargs: Input parameters
 
-Returns:
-    Operation result
+    Returns:
+        Operation result
     """
     """Perform operation.
 
@@ -37,14 +37,13 @@ Returns:
     """
     """Publish example events to Kafka."""
 
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("KAFKA EVENT PRODUCER - PsychSync")
-    print("="*80)
+    print("=" * 80)
 
     # Create producer
     producer = KafkaEventProducer(
-        bootstrap_servers="localhost:9092",
-        client_id="psychsync-example-producer"
+        bootstrap_servers="localhost:9092", client_id="psychsync-example-producer"
     )
 
     await producer.start()
@@ -58,7 +57,7 @@ Returns:
             user_id=str(uuid4()),
             framework_code="MBTI",
             team_id=str(uuid4()),
-            tenant_id=str(uuid4())
+            tenant_id=str(uuid4()),
         ),
         EventFactory.assessment_completed(
             assessment_id=str(uuid4()),
@@ -68,9 +67,8 @@ Returns:
             max_score=100.0,
             results={"trait": "Openness", "percentile": 85},
             team_id=str(uuid4()),
-            tenant_id=str(uuid4())
+            tenant_id=str(uuid4()),
         ),
-
         # User events
         EventFactory.user_registered(
             user_id=str(uuid4()),
@@ -78,16 +76,15 @@ Returns:
             full_name="Example User",
             organization_id=str(uuid4()),
             registration_method="email",
-            tenant_id=str(uuid4())
+            tenant_id=str(uuid4()),
         ),
-
         # Team events
         EventFactory.team_created(
             team_id=str(uuid4()),
             name="Engineering Team",
             organization_id=str(uuid4()),
             created_by=str(uuid4()),
-            tenant_id=str(uuid4())
+            tenant_id=str(uuid4()),
         ),
     ]
 
@@ -96,8 +93,7 @@ Returns:
     for i, event in enumerate(events_to_publish, 1):
         try:
             metadata = await producer.publish(
-                topic=event.type.value.split('.')[0] + "-events",
-                event=event
+                topic=event.type.value.split(".")[0] + "-events", event=event
             )
 
             print(f"{i}. ✅ {event.type.value}")
@@ -116,9 +112,9 @@ Returns:
 
     # Stop producer
     await producer.stop()
-    print("="*80)
+    print("=" * 80)
     print("✅ Event publishing complete!")
-    print("="*80)
+    print("=" * 80)
     print("\nYou can now consume these events with:")
     print("  python -m app.events.example_consumer")
     print()

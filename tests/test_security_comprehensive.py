@@ -14,11 +14,12 @@ This module provides automated tests to verify all security implementations:
 Run with: pytest tests/test_security_comprehensive.py -v
 """
 
+import time
+from datetime import datetime, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
-import time
-from datetime import datetime, timedelta
 
 
 class TestHTTPOOnlyCookieAuthentication:
@@ -26,10 +27,10 @@ class TestHTTPOOnlyCookieAuthentication:
 
     def test_login_sets_httponly_cookies(self, client: TestClient):
         """Verify login sets httpOnly cookies, not localStorage tokens"""
-        response = client.post("/api/v1/auth/token-fixed", data={
-            "username": "test@example.com",
-            "password": "testpassword123"
-        })
+        response = client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "test@example.com", "password": "testpassword123"},
+        )
 
         assert response.status_code == 200
 
@@ -45,10 +46,10 @@ class TestHTTPOOnlyCookieAuthentication:
 
     def test_no_localstorage_tokens_in_response(self, client: TestClient):
         """Verify tokens are not returned in response body"""
-        response = client.post("/api/v1/auth/token-fixed", data={
-            "username": "test@example.com",
-            "password": "testpassword123"
-        })
+        response = client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "test@example.com", "password": "testpassword123"},
+        )
 
         data = response.json()
 
@@ -60,10 +61,10 @@ class TestHTTPOOnlyCookieAuthentication:
     def test_authenticated_request_sends_cookies(self, client: TestClient):
         """Verify authenticated requests work with cookies"""
         # First, login
-        login_response = client.post("/api/v1/auth/token-fixed", data={
-            "username": "test@example.com",
-            "password": "testpassword123"
-        })
+        login_response = client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "test@example.com", "password": "testpassword123"},
+        )
 
         # Extract cookies
         cookies = login_response.cookies
@@ -71,7 +72,7 @@ class TestHTTPOOnlyCookieAuthentication:
         # Make authenticated request
         response = client.get(
             "/api/v1/auth/me-fixed",
-            cookies={"access_token": cookies.get("access_token")}
+            cookies={"access_token": cookies.get("access_token")},
         )
 
         assert response.status_code == 200
@@ -87,10 +88,10 @@ class TestPasswordValidation:
         from app.core.password_validator import password_validator
 
         weak_passwords = [
-            "password",          # Too common
-            "Password1",         # Too short
-            "welcome123",        # Sequential pattern
-            "aaaaaaaa",          # Repeated characters
+            "password",  # Too common
+            "Password1",  # Too short
+            "welcome123",  # Sequential pattern
+            "aaaaaaaa",  # Repeated characters
         ]
 
         for password in weak_passwords:
@@ -103,7 +104,7 @@ class TestPasswordValidation:
         from app.core.password_validator import password_validator
 
         strong_passwords = [
-            "Tr0ub4dor&3Horse!",     # 20 chars, high entropy
+            "Tr0ub4dor&3Horse!",  # 20 chars, high entropy
             "Corr3ct!H0rse!Batt3ry!",  # Multiple special chars
             "E@u5t!on!C4l!B3f0re!Stapl3!",  # No patterns
         ]
@@ -145,9 +146,9 @@ class TestPasswordValidation:
         from app.core.password_validator import password_validator
 
         passwords_with_patterns = [
-            "abc123XYZ",     # Sequential abc, 123
-            "qwertyXYZ",     # Sequential keyboard
-            "12345678",      # Sequential numbers
+            "abc123XYZ",  # Sequential abc, 123
+            "qwertyXYZ",  # Sequential keyboard
+            "12345678",  # Sequential numbers
         ]
 
         for password in passwords_with_patterns:
@@ -159,8 +160,8 @@ class TestPasswordValidation:
         from app.core.password_validator import password_validator
 
         passwords_with_repeats = [
-            "aaaAAA123",     # Repeated 'a'
-            "111222333",     # Repeated numbers
+            "aaaAAA123",  # Repeated 'a'
+            "111222333",  # Repeated numbers
         ]
 
         for password in passwords_with_repeats:
@@ -218,17 +219,17 @@ class TestAccountLockout:
         """Test account locks after 5 failed login attempts"""
         # Make 5 failed login attempts
         for i in range(5):
-            response = await async_client.post("/api/v1/auth/token-fixed", data={
-                "username": "test@example.com",
-                "password": "wrongpassword"
-            })
+            response = await async_client.post(
+                "/api/v1/auth/token-fixed",
+                data={"username": "test@example.com", "password": "wrongpassword"},
+            )
             assert response.status_code == 401
 
         # 6th attempt should be locked
-        response = await async_client.post("/api/v1/auth/token-fixed", data={
-            "username": "test@example.com",
-            "password": "wrongpassword"
-        })
+        response = await async_client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "test@example.com", "password": "wrongpassword"},
+        )
 
         # Should be locked (423 Locked status)
         assert response.status_code in [401, 423]
@@ -242,24 +243,24 @@ class TestAccountLockout:
         """Test successful login clears failed attempt counter"""
         # Make 3 failed attempts
         for i in range(3):
-            await async_client.post("/api/v1/auth/token-fixed", data={
-                "username": "test@example.com",
-                "password": "wrongpassword"
-            })
+            await async_client.post(
+                "/api/v1/auth/token-fixed",
+                data={"username": "test@example.com", "password": "wrongpassword"},
+            )
 
         # Successful login should clear counter
-        response = await async_client.post("/api/v1/auth/token-fixed", data={
-            "username": "test@example.com",
-            "password": "correctpassword"
-        })
+        response = await async_client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "test@example.com", "password": "correctpassword"},
+        )
 
         assert response.status_code == 200
 
         # Next failed attempt should start from 1, not 4
-        response = await async_client.post("/api/v1/auth/token-fixed", data={
-            "username": "test@example.com",
-            "password": "wrongpassword"
-        })
+        response = await async_client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "test@example.com", "password": "wrongpassword"},
+        )
 
         # Should not be locked yet
         assert response.status_code == 401
@@ -272,7 +273,7 @@ class TestSQLInjectionProtection:
         """Test SQL injection in sort_by parameter is blocked"""
         response = client.get(
             "/api/v1/teams/test-team/members",
-            params={"sort_by": "created_at; DROP TABLE users;--"}
+            params={"sort_by": "created_at; DROP TABLE users;--"},
         )
 
         # Should be rejected
@@ -288,8 +289,7 @@ class TestSQLInjectionProtection:
     def test_union_select_injection_blocked(self, client: TestClient):
         """Test UNION SELECT injection is blocked"""
         response = client.get(
-            "/api/v1/teams",
-            params={"search": "test' UNION SELECT * FROM users --"}
+            "/api/v1/teams", params={"search": "test' UNION SELECT * FROM users --"}
         )
 
         # Should be rejected
@@ -302,10 +302,10 @@ class TestIDORProtection:
     def test_cross_org_user_listing_blocked(self, client: TestClient):
         """Test users cannot list other organizations' users"""
         # Login as org1 user
-        login_response = client.post("/api/v1/auth/token-fixed", data={
-            "username": "org1_user@example.com",
-            "password": "password"
-        })
+        login_response = client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "org1_user@example.com", "password": "password"},
+        )
 
         if login_response.status_code == 200:
             # Try to list all users
@@ -335,6 +335,7 @@ class TestSecureLogging:
     def test_sensitive_data_redaction_in_logs(self, caplog):
         """Test sensitive data is redacted in logs"""
         import logging
+
         from app.core.secure_logging import SensitiveDataFilter
 
         filter_instance = SensitiveDataFilter()
@@ -364,8 +365,9 @@ class TestSecureLogging:
 
     def test_json_structured_logging(self):
         """Test logs are formatted as JSON"""
-        from app.core.secure_logging import SecureFormatter
         import logging
+
+        from app.core.secure_logging import SecureFormatter
 
         formatter = SecureFormatter()
         record = logging.LogRecord(
@@ -375,13 +377,14 @@ class TestSecureLogging:
             lineno=1,
             msg="Test message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         formatted = formatter.format(record)
 
         # Should be valid JSON
         import json
+
         parsed = json.loads(formatted)
 
         assert "timestamp" in parsed
@@ -396,10 +399,10 @@ class TestCSRFProtection:
     def test_csrf_token_required_for_mutations(self, client: TestClient):
         """Test CSRF token is required for POST/PUT/DELETE"""
         # Attempt POST without CSRF token
-        response = client.post("/api/v1/users", json={
-            "email": "test@example.com",
-            "password": "password123"
-        })
+        response = client.post(
+            "/api/v1/users",
+            json={"email": "test@example.com", "password": "password123"},
+        )
 
         # Should either require auth or CSRF
         # (Implementation-specific)
@@ -413,11 +416,14 @@ class TestXSSProtection:
         """Test XSS payloads in user input are sanitized"""
         xss_payload = "<script>alert('XSS')</script>"
 
-        response = client.post("/api/v1/register", json={
-            "email": "test@example.com",
-            "password": "Password123!",
-            "full_name": xss_payload
-        })
+        response = client.post(
+            "/api/v1/register",
+            json={
+                "email": "test@example.com",
+                "password": "Password123!",
+                "full_name": xss_payload,
+            },
+        )
 
         # If successful, verify XSS was sanitized
         if response.status_code == 200:
@@ -439,7 +445,9 @@ class TestSecurityHeaders:
         headers = response.headers
 
         # Should have security headers
-        assert "X-Content-Type-Options" in headers or "x-content-type-options" in headers
+        assert (
+            "X-Content-Type-Options" in headers or "x-content-type-options" in headers
+        )
         assert "X-Frame-Options" in headers or "x-frame-options" in headers
 
 
@@ -465,8 +473,9 @@ class TestAuthenticationSecurity:
 
     def test_jwt_token_expiration(self):
         """Test JWT tokens have proper expiration"""
-        from app.services.security import create_access_token
         from datetime import datetime, timedelta
+
+        from app.services.security import create_access_token
 
         token = create_access_token(subject="test@example.com")
 
@@ -509,10 +518,9 @@ class TestInputValidation:
         ]
 
         for email in invalid_emails:
-            response = client.post("/api/v1/register", json={
-                "email": email,
-                "password": "Password123!"
-            })
+            response = client.post(
+                "/api/v1/register", json={"email": email, "password": "Password123!"}
+            )
 
             # Should reject invalid email
             assert response.status_code == 422
@@ -526,10 +534,9 @@ class TestInputValidation:
         ]
 
         for email in sql_injection_emails:
-            response = client.post("/api/v1/register", json={
-                "email": email,
-                "password": "Password123!"
-            })
+            response = client.post(
+                "/api/v1/register", json={"email": email, "password": "Password123!"}
+            )
 
             # Should be rejected (422 = Validation Error)
             assert response.status_code in [400, 422]
@@ -547,7 +554,7 @@ class TestRateLimitBypassPrevention:
             response = client.post(
                 "/api/v1/auth/token-fixed",
                 data={"username": "test@example.com", "password": "wrong"},
-                headers={"X-Forwarded-For": f"192.168.1.{i}"}
+                headers={"X-Forwarded-For": f"192.168.1.{i}"},
             )
             responses.append(response)
 
@@ -578,8 +585,9 @@ class TestSecurePasswordReset:
 
     def test_reset_token_expiration(self):
         """Test password reset tokens expire"""
-        from app.core.security import generate_reset_token
         from datetime import datetime, timedelta
+
+        from app.core.security import generate_reset_token
 
         # Generate token
         token_data = generate_reset_token(email="test@example.com")
@@ -641,7 +649,9 @@ class TestPerformanceUnderLoad:
         duration = end_time - start_time
 
         # Should complete in reasonable time (< 5 seconds)
-        assert duration < 5.0, "Rate limiting should not significantly impact performance"
+        assert (
+            duration < 5.0
+        ), "Rate limiting should not significantly impact performance"
 
 
 # Integration tests
@@ -652,17 +662,20 @@ class TestSecurityIntegration:
     async def test_complete_authentication_flow(self, async_client: AsyncClient):
         """Test complete secure authentication flow"""
         # 1. Register
-        register_response = await async_client.post("/api/v1/register", json={
-            "email": "newuser@example.com",
-            "password": "SecurePassword123!",
-            "full_name": "New User"
-        })
+        register_response = await async_client.post(
+            "/api/v1/register",
+            json={
+                "email": "newuser@example.com",
+                "password": "SecurePassword123!",
+                "full_name": "New User",
+            },
+        )
 
         # 2. Login
-        login_response = await async_client.post("/api/v1/auth/token-fixed", data={
-            "username": "newuser@example.com",
-            "password": "SecurePassword123!"
-        })
+        login_response = await async_client.post(
+            "/api/v1/auth/token-fixed",
+            data={"username": "newuser@example.com", "password": "SecurePassword123!"},
+        )
 
         assert login_response.status_code == 200
 
@@ -670,15 +683,14 @@ class TestSecurityIntegration:
         cookies = login_response.cookies
         me_response = await async_client.get(
             "/api/v1/auth/me-fixed",
-            cookies={"access_token": cookies.get("access_token")}
+            cookies={"access_token": cookies.get("access_token")},
         )
 
         assert me_response.status_code == 200
 
         # 4. Logout
         logout_response = await async_client.post(
-            "/api/v1/auth/logout",
-            cookies={"access_token": cookies.get("access_token")}
+            "/api/v1/auth/logout", cookies={"access_token": cookies.get("access_token")}
         )
 
         assert logout_response.status_code == 200

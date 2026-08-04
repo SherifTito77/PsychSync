@@ -5,8 +5,8 @@ Includes: MintHCM, Open HRMS, BambooHR, Gusto, Namely, Workday
 File: app/integrations/hris/extended_connectors.py
 """
 
-from datetime import date, datetime
 import logging
+from datetime import date, datetime
 
 import pymysql
 
@@ -206,13 +206,19 @@ class MintHCMConnector(HRISConnector):
                 record_id=str(row["record_id"]),
                 employee_id=str(row["employee_id"]),
                 date=row["date"],
-                clock_in=datetime.combine(row["date"], row["clock_in"])
-                if row.get("clock_in")
-                else None,
-                clock_out=datetime.combine(row["date"], row["clock_out"])
-                if row.get("clock_out")
-                else None,
-                hours_worked=float(row["hours_worked"]) if row.get("hours_worked") else None,
+                clock_in=(
+                    datetime.combine(row["date"], row["clock_in"])
+                    if row.get("clock_in")
+                    else None
+                ),
+                clock_out=(
+                    datetime.combine(row["date"], row["clock_out"])
+                    if row.get("clock_out")
+                    else None
+                ),
+                hours_worked=(
+                    float(row["hours_worked"]) if row.get("hours_worked") else None
+                ),
                 status=row.get("status", "present"),
             )
             records.append(record)
@@ -318,7 +324,11 @@ class MintHCMConnector(HRISConnector):
                 review_id=str(row["review_id"]),
                 employee_id=str(row["employee_id"]),
                 reviewer_id=str(row["reviewer_id"]),
-                review_date=row["review_date"].date() if row.get("review_date") else date.today(),
+                review_date=(
+                    row["review_date"].date()
+                    if row.get("review_date")
+                    else date.today()
+                ),
                 rating=float(row["rating"]) if row.get("rating") else None,
                 comments=row.get("comments"),
             )
@@ -359,10 +369,16 @@ class OpenHRMSConnector(HRISConnector):
             try:
                 import xmlrpc.client
 
-                self.common = xmlrpc.client.ServerProxy(f"{self.base_url}/xmlrpc/2/common")
-                self.models = xmlrpc.client.ServerProxy(f"{self.base_url}/xmlrpc/2/object")
+                self.common = xmlrpc.client.ServerProxy(
+                    f"{self.base_url}/xmlrpc/2/common"
+                )
+                self.models = xmlrpc.client.ServerProxy(
+                    f"{self.base_url}/xmlrpc/2/object"
+                )
 
-                self.uid = self.common.authenticate(self.database, self.username, self.password, {})
+                self.uid = self.common.authenticate(
+                    self.database, self.username, self.password, {}
+                )
 
                 if self.uid:
                     logger.info(f"Open HRMS authenticated as UID: {self.uid}")
@@ -400,7 +416,9 @@ class OpenHRMSConnector(HRISConnector):
             domain.append(("active", "=", True))
 
         if department:
-            dept_ids = self._execute("hr.department", "search", [[("name", "=", department)]])
+            dept_ids = self._execute(
+                "hr.department", "search", [[("name", "=", department)]]
+            )
             if dept_ids:
                 domain.append(("department_id", "=", dept_ids[0]))
 
@@ -421,7 +439,9 @@ class OpenHRMSConnector(HRISConnector):
             "active",
         ]
 
-        employees_data = self._execute("hr.employee", "read", [employee_ids], {"fields": fields})
+        employees_data = self._execute(
+            "hr.employee", "read", [employee_ids], {"fields": fields}
+        )
 
         employees = []
         for item in employees_data:
@@ -436,12 +456,18 @@ class OpenHRMSConnector(HRISConnector):
                 last_name=last_name,
                 email=item.get("work_email", ""),
                 phone=item.get("mobile_phone"),
-                department=item["department_id"][1] if item.get("department_id") else None,
+                department=(
+                    item["department_id"][1] if item.get("department_id") else None
+                ),
                 position=item["job_id"][1] if item.get("job_id") else None,
                 hire_date=None,
                 employment_status="active" if item.get("active") else "inactive",
                 manager_id=str(item["parent_id"][0]) if item.get("parent_id") else None,
-                location=item["work_location_id"][1] if item.get("work_location_id") else None,
+                location=(
+                    item["work_location_id"][1]
+                    if item.get("work_location_id")
+                    else None
+                ),
             )
             employees.append(emp)
 
@@ -473,7 +499,9 @@ class OpenHRMSConnector(HRISConnector):
             return []
 
         fields = ["id", "employee_id", "check_in", "check_out", "worked_hours"]
-        attendances = self._execute("hr.attendance", "read", [attendance_ids], {"fields": fields})
+        attendances = self._execute(
+            "hr.attendance", "read", [attendance_ids], {"fields": fields}
+        )
 
         records = []
         for item in attendances:
@@ -494,7 +522,9 @@ class OpenHRMSConnector(HRISConnector):
                 date=check_in.date() if check_in else start_date,
                 clock_in=check_in,
                 clock_out=check_out,
-                hours_worked=float(item["worked_hours"]) if item.get("worked_hours") else None,
+                hours_worked=(
+                    float(item["worked_hours"]) if item.get("worked_hours") else None
+                ),
                 status="present",
             )
             records.append(record)
@@ -518,7 +548,11 @@ class OpenHRMSConnector(HRISConnector):
             domain.append(("employee_id", "=", int(employee_id)))
 
         if status:
-            status_map = {"pending": "confirm", "approved": "validate", "rejected": "refuse"}
+            status_map = {
+                "pending": "confirm",
+                "approved": "validate",
+                "rejected": "refuse",
+            }
             odoo_status = status_map.get(status.lower(), "confirm")
             domain.append(("state", "=", odoo_status))
 
@@ -542,15 +576,23 @@ class OpenHRMSConnector(HRISConnector):
 
         records = []
         for item in leaves:
-            state_map = {"confirm": "pending", "validate": "approved", "refuse": "rejected"}
+            state_map = {
+                "confirm": "pending",
+                "validate": "approved",
+                "refuse": "rejected",
+            }
 
             record = LeaveRecord(
                 leave_id=str(item["id"]),
                 employee_id=str(item["employee_id"][0]),
-                leave_type=item["holiday_status_id"][1]
-                if item.get("holiday_status_id")
-                else "vacation",
-                start_date=datetime.strptime(item["request_date_from"], "%Y-%m-%d").date(),
+                leave_type=(
+                    item["holiday_status_id"][1]
+                    if item.get("holiday_status_id")
+                    else "vacation"
+                ),
+                start_date=datetime.strptime(
+                    item["request_date_from"], "%Y-%m-%d"
+                ).date(),
                 end_date=datetime.strptime(item["request_date_to"], "%Y-%m-%d").date(),
                 days_taken=float(item.get("number_of_days", 0)),
                 status=state_map.get(item.get("state", "confirm"), "pending"),

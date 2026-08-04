@@ -3,21 +3,25 @@ Token Refresh Integration Tests
 Comprehensive testing of JWT token refresh, expiration, and lifecycle management
 """
 
-import pytest
 import asyncio
 import json
 import time
 from datetime import datetime, timedelta
+
+import pytest
 from httpx import AsyncClient
 from jose import JWTError, jwt
 
+from app.db.models.refresh_token import RefreshToken
+from app.db.models.user import User
 from app.main import app
 from app.services.security import (
-create_access_token, create_refresh_token, verify_token,
-    get_token_expiration, decode_token
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    get_token_expiration,
+    verify_token,
 )
-from app.db.models.user import User
-from app.db.models.refresh_token import RefreshToken
 
 
 @pytest.mark.integration
@@ -37,7 +41,7 @@ class TestTokenRefreshFlow:
             "email": "tokenuser@example.com",
             "full_name": "Token Test User",
             "password": "SecurePassword123!",
-            "role": "user"
+            "role": "user",
         }
 
     @pytest.fixture
@@ -56,7 +60,7 @@ class TestTokenRefreshFlow:
         # Login to get tokens
         login_data = {
             "email": test_user_data["email"],
-            "password": test_user_data["password"]
+            "password": test_user_data["password"],
         }
 
         response = await client.post("/api/v1/auth/login", json=login_data)
@@ -66,16 +70,16 @@ class TestTokenRefreshFlow:
         return {
             "user": tokens["user"],
             "access_token": tokens["access_token"],
-            "refresh_token": tokens["refresh_token"]
+            "refresh_token": tokens["refresh_token"],
         }
 
     # Basic Token Refresh Tests
     @pytest.mark.asyncio
-    async def test_successful_token_refresh(self, client: AsyncClient, authenticated_user):
+    async def test_successful_token_refresh(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test successful token refresh"""
-        refresh_data = {
-            "refresh_token": authenticated_user["refresh_token"]
-        }
+        refresh_data = {"refresh_token": authenticated_user["refresh_token"]}
 
         response = await client.post("/api/v1/auth/refresh", json=refresh_data)
 
@@ -105,11 +109,11 @@ class TestTokenRefreshFlow:
         assert profile_response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_token_refresh_token_structure(self, client: AsyncClient, authenticated_user):
+    async def test_token_refresh_token_structure(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test token structure and claims"""
-        refresh_data = {
-            "refresh_token": authenticated_user["refresh_token"]
-        }
+        refresh_data = {"refresh_token": authenticated_user["refresh_token"]}
 
         response = await client.post("/api/v1/auth/refresh", json=refresh_data)
         assert response.status_code == 200
@@ -140,16 +144,16 @@ class TestTokenRefreshFlow:
         assert refresh_payload["type"] == "refresh"
 
     @pytest.mark.asyncio
-    async def test_multiple_token_refreshes(self, client: AsyncClient, authenticated_user):
+    async def test_multiple_token_refreshes(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test multiple consecutive token refreshes"""
         current_refresh_token = authenticated_user["refresh_token"]
         refresh_count = 0
 
         # Perform multiple refreshes
         for i in range(5):
-            refresh_data = {
-                "refresh_token": current_refresh_token
-            }
+            refresh_data = {"refresh_token": current_refresh_token}
 
             response = await client.post("/api/v1/auth/refresh", json=refresh_data)
             assert response.status_code == 200
@@ -160,7 +164,9 @@ class TestTokenRefreshFlow:
 
             # Verify each refresh works
             headers = {"Authorization": f"Bearer {new_access_token}"}
-            profile_response = await client.get("/api/v1/users/profile", headers=headers)
+            profile_response = await client.get(
+                "/api/v1/users/profile", headers=headers
+            )
             assert profile_response.status_code == 200
 
             # Use new refresh token for next iteration
@@ -170,11 +176,11 @@ class TestTokenRefreshFlow:
         assert refresh_count == 5
 
     @pytest.mark.asyncio
-    async def test_concurrent_token_refreshes(self, client: AsyncClient, authenticated_user):
+    async def test_concurrent_token_refreshes(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test concurrent token refresh requests"""
-        refresh_data = {
-            "refresh_token": authenticated_user["refresh_token"]
-        }
+        refresh_data = {"refresh_token": authenticated_user["refresh_token"]}
 
         # Make concurrent refresh requests
         async def refresh_token():
@@ -205,7 +211,7 @@ class TestTokenRefreshFlow:
         expired_payload = {
             "sub": str(authenticated_user["user"]["id"]),
             "exp": int((datetime.utcnow() - timedelta(hours=1)).timestamp()),
-            "type": "refresh"
+            "type": "refresh",
         }
 
         expired_token = jwt.encode(expired_payload, "secret", algorithm="HS256")
@@ -217,11 +223,11 @@ class TestTokenRefreshFlow:
         assert "expired" in data["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_refresh_token_invalidated_after_use(self, client: AsyncClient, authenticated_user):
+    async def test_refresh_token_invalidated_after_use(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test that refresh token is invalidated after use"""
-        refresh_data = {
-            "refresh_token": authenticated_user["refresh_token"]
-        }
+        refresh_data = {"refresh_token": authenticated_user["refresh_token"]}
 
         # First refresh
         response1 = await client.post("/api/v1/auth/refresh", json=refresh_data)
@@ -238,13 +244,15 @@ class TestTokenRefreshFlow:
             assert "invalid" in data["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_access_token_expiration(self, client: AsyncClient, authenticated_user):
+    async def test_access_token_expiration(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test access token expiration"""
         # Create expired access token
         expired_payload = {
             "sub": str(authenticated_user["user"]["id"]),
             "exp": int((datetime.utcnow() - timedelta(hours=1)).timestamp()),
-            "type": "access"
+            "type": "access",
         }
 
         expired_token = jwt.encode(expired_payload, "secret", algorithm="HS256")
@@ -256,17 +264,19 @@ class TestTokenRefreshFlow:
         assert "expired" in data["detail"].lower()
 
     @pytest.mark.asyncio
-    async def test_token_very_close_to_expiration(self, client: AsyncClient, authenticated_user):
+    async def test_token_very_close_to_expiration(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test token refresh when token is close to expiration"""
         # This would require creating a token that expires very soon
         # Implementation would depend on token strategy
 
     @pytest.mark.asyncio
-    async def test_token_rotation_security(self, client: AsyncClient, authenticated_user):
+    async def test_token_rotation_security(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test token rotation security"""
-        refresh_data = {
-            "refresh_token": authenticated_user["refresh_token"]
-        }
+        refresh_data = {"refresh_token": authenticated_user["refresh_token"]}
 
         response = await client.post("/api/v1/auth/refresh", json=refresh_data)
         assert response.status_code == 200
@@ -305,7 +315,9 @@ class TestTokenRefreshFlow:
             assert response.status_code in [400, 422, 401]
 
     @pytest.mark.asyncio
-    async def test_refresh_token_user_validation(self, client: AsyncClient, authenticated_user, test_user_data):
+    async def test_refresh_token_user_validation(
+        self, client: AsyncClient, authenticated_user, test_user_data
+    ):
         """Test refresh token user validation"""
         # Create refresh token for different user
         different_user_data = test_user_data.copy()
@@ -322,9 +334,7 @@ class TestTokenRefreshFlow:
     @pytest.mark.asyncio
     async def test_refresh_performance(self, client: AsyncClient, authenticated_user):
         """Test token refresh performance"""
-        refresh_data = {
-            "refresh_token": authenticated_user["refresh_token"]
-        }
+        refresh_data = {"refresh_token": authenticated_user["refresh_token"]}
 
         # Measure refresh time
         start_time = time.time()
@@ -338,9 +348,7 @@ class TestTokenRefreshFlow:
     @pytest.mark.asyncio
     async def test_refresh_load_testing(self, client: AsyncClient, authenticated_user):
         """Test token refresh under load"""
-        refresh_data = {
-            "refresh_token": authenticated_user["refresh_token"]
-        }
+        refresh_data = {"refresh_token": authenticated_user["refresh_token"]}
 
         # Make 50 concurrent refresh requests
         async def refresh_token():
@@ -374,17 +382,19 @@ class TestTokenRefreshFlow:
         pass
 
     @pytest.mark.asyncio
-    async def test_refresh_token_revocation(self, client: AsyncClient, authenticated_user):
+    async def test_refresh_token_revocation(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test refresh token revocation"""
         # Test that refresh tokens can be revoked (user logout)
-        logout_response = await client.post("/api/v1/auth/logout",
-            headers={"Authorization": f"Bearer {authenticated_user['access_token']}"})
+        logout_response = await client.post(
+            "/api/v1/auth/logout",
+            headers={"Authorization": f"Bearer {authenticated_user['access_token']}"},
+        )
 
         if logout_response.status_code == 200:
             # Try to use the refresh token after logout
-            refresh_data = {
-                "refresh_token": authenticated_user["refresh_token"]
-            }
+            refresh_data = {"refresh_token": authenticated_user["refresh_token"]}
 
             response = await client.post("/api/v1/auth/refresh", json=refresh_data)
             # Should fail if tokens are invalidated on logout
@@ -392,14 +402,16 @@ class TestTokenRefreshFlow:
 
     # Security Tests
     @pytest.mark.asyncio
-    async def test_refresh_token_hijacking_protection(self, client: AsyncClient, authenticated_user):
+    async def test_refresh_token_hijacking_protection(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test protection against refresh token hijacking"""
         # Test with tokens that have been tampered with
         original_token = authenticated_user["refresh_token"]
 
         # Tamper with token payload (decode, modify, encode)
         try:
-            parts = original_token.split('.')
+            parts = original_token.split(".")
             if len(parts) == 3:
                 header, payload, signature = parts
                 # Decode and modify payload
@@ -415,7 +427,7 @@ class TestTokenRefreshFlow:
                 payload_data["sub"] = "tampered_user_id"
                 payload_data["role"] = "admin"
 
-                tampered_payload = json.dumps(payload_data, separators=(',', ':'))
+                tampered_payload = json.dumps(payload_data, separators=(",", ":"))
                 tampered_payload = base64.urlsafe_b64encode(tampered_payload.encode())
 
                 tampered_token = f"{header}.{tampered_payload}.{signature}"
@@ -439,7 +451,7 @@ class TestTokenRefreshFlow:
             "fake_refresh_token_2",
             "fake_refresh_token_3",
             "fake_refresh_token_4",
-            "fake_refresh_token_5"
+            "fake_refresh_token_5",
         ]
 
         responses = []
@@ -456,11 +468,11 @@ class TestTokenRefreshFlow:
         assert error_count == len(fake_refresh_tokens)  # All should fail gracefully
 
     @pytest.mark.asyncio
-    async def test_refresh_token_reuse_protection(self, client: AsyncClient, authenticated_user):
+    async def test_refresh_token_reuse_protection(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test reuse protection for refresh tokens"""
-        refresh_data = {
-            "refresh_token": authenticated_user["refresh_token"]
-        }
+        refresh_data = {"refresh_token": authenticated_user["refresh_token"]}
 
         # Use refresh token once
         response1 = await client.post("/api/v1/auth/refresh", json=refresh_data)
@@ -481,7 +493,9 @@ class TestTokenRefreshFlow:
 
     # Edge Cases
     @pytest.mark.asyncio
-    async def test_refresh_token_with_additional_claims(self, client: AsyncClient, authenticated_user):
+    async def test_refresh_token_with_additional_claims(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test refresh token with additional claims"""
         # Test if system supports additional claims in refresh tokens
         # This would depend on token creation implementation
@@ -493,15 +507,17 @@ class TestTokenRefreshFlow:
         # This would depend on OAuth2/OpenID Connect implementation
 
     @pytest.mark.asyncio
-    async def test_refresh_token_with_device_fingerprint(self, client: AsyncClient, authenticated_user):
+    async def test_refresh_token_with_device_fingerprint(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test refresh token with device fingerprinting"""
         # Test refresh token validation with device fingerprinting
         refresh_data = {
             "refresh_token": authenticated_user["refresh_token"],
             "device_fingerprint": {
                 "user_agent": "Test Browser",
-                "ip_address": "127.0.0.1"
-            }
+                "ip_address": "127.0.0.1",
+            },
         }
 
         response = await client.post("/api/v1/auth/refresh", json=refresh_data)
@@ -510,13 +526,15 @@ class TestTokenRefreshFlow:
         # This depends on implementation
 
     @pytest.mark.asyncio
-    async def test_refresh_token_cleanup_after_use(self, client: AsyncClient, authenticated_user):
+    async def test_refresh_token_cleanup_after_use(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test cleanup of old refresh tokens after successful refresh"""
-        refresh_data = {
-            "refresh_token": authenticated_user["refresh_token"]
-        }
+        refresh_data = {"refresh_token": authenticated_user["refresh_token"]}
 
-        initial_refresh_response = await client.post("/api/v1/auth/refresh", json=refresh_data)
+        initial_refresh_response = await client.post(
+            "/api/v1/auth/refresh", json=refresh_data
+        )
         assert initial_refresh_response.status_code == 200
 
         # This would verify that old refresh token is marked as used
@@ -524,11 +542,11 @@ class TestTokenRefreshFlow:
         # Implementation depends on token lifecycle management
 
     @pytest.mark.asyncio
-    async def test_concurrent_same_token_refresh(self, client: AsyncClient, authenticated_user):
+    async def test_concurrent_same_token_refresh(
+        self, client: AsyncClient, authenticated_user
+    ):
         """Test concurrent use of same refresh token"""
-        refresh_data = {
-            "refresh_token": authenticated_user["refresh_token"]
-        }
+        refresh_data = {"refresh_token": authenticated_user["refresh_token"]}
 
         # Make concurrent requests with same token
         async def refresh_token():

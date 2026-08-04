@@ -3,9 +3,11 @@ Unit Tests for Slack Service
 
 Tests all Slack functionality without requiring actual Slack workspace
 """
-import pytest
-from unittest.mock import Mock, patch, AsyncMock
+
 from datetime import datetime
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 from app.services.slack_service import SlackServiceStub
 
@@ -25,8 +27,7 @@ class TestSlackServiceBasics:
     async def test_send_message_to_channel(self, slack_service):
         """Test sending message to channel"""
         response = await slack_service.send_message_to_channel(
-            channel="#general",
-            message="Test message"
+            channel="#general", message="Test message"
         )
 
         assert response["ok"] is True
@@ -43,19 +44,11 @@ class TestSlackServiceBasics:
     async def test_send_message_with_blocks(self, slack_service):
         """Test sending rich message with blocks"""
         blocks = [
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": "Hello *world*!"
-                }
-            }
+            {"type": "section", "text": {"type": "mrkdwn", "text": "Hello *world*!"}}
         ]
 
         response = await slack_service.send_message_to_channel(
-            channel="#general",
-            message="Fallback text",
-            blocks=blocks
+            channel="#general", message="Fallback text", blocks=blocks
         )
 
         assert response["ok"] is True
@@ -67,8 +60,7 @@ class TestSlackServiceBasics:
     async def test_send_direct_message(self, slack_service):
         """Test sending DM to user"""
         response = await slack_service.send_direct_message(
-            user_id="U12345",
-            message="Private message"
+            user_id="U12345", message="Private message"
         )
 
         assert response["ok"] is True
@@ -78,9 +70,7 @@ class TestSlackServiceBasics:
     async def test_thread_reply(self, slack_service):
         """Test sending message in thread"""
         response = await slack_service.send_message_to_channel(
-            channel="#general",
-            message="Thread reply",
-            thread_ts="1234567890.123456"
+            channel="#general", message="Thread reply", thread_ts="1234567890.123456"
         )
 
         assert response["ok"] is True
@@ -101,8 +91,8 @@ class TestSlackNotifications:
             data={
                 "user_name": "John Doe",
                 "assessment_type": "Burnout Assessment",
-                "score": 78
-            }
+                "score": 78,
+            },
         )
 
         assert success is True
@@ -121,8 +111,8 @@ class TestSlackNotifications:
             notification_type="wellbeing_alert",
             data={
                 "message": "Team member showing high stress",
-                "url": "https://app.psychsync.com/alerts/123"
-            }
+                "url": "https://app.psychsync.com/alerts/123",
+            },
         )
 
         assert success is True
@@ -139,8 +129,8 @@ class TestSlackNotifications:
             notification_type="report_ready",
             data={
                 "report_type": "Weekly Wellness Report",
-                "download_url": "https://app.psychsync.com/reports/download/123"
-            }
+                "download_url": "https://app.psychsync.com/reports/download/123",
+            },
         )
 
         assert success is True
@@ -155,10 +145,7 @@ class TestSlackNotifications:
         success = await slack_service.send_notification(
             team_id=1,
             notification_type="team_member_joined",
-            data={
-                "member_name": "Jane Smith",
-                "team_name": "Development Team"
-            }
+            data={"member_name": "Jane Smith", "team_name": "Development Team"},
         )
 
         assert success is True
@@ -175,10 +162,7 @@ class TestSlashCommands:
     async def test_psychsync_help_command(self, slack_service):
         """Test /psychsync help"""
         response = await slack_service.handle_slash_command(
-            command="/psychsync",
-            user_id="U12345",
-            channel_id="C12345",
-            text="help"
+            command="/psychsync", user_id="U12345", channel_id="C12345", text="help"
         )
 
         assert response["response_type"] == "ephemeral"
@@ -189,10 +173,7 @@ class TestSlashCommands:
     async def test_psychsync_status_command(self, slack_service):
         """Test /psychsync status"""
         response = await slack_service.handle_slash_command(
-            command="/psychsync",
-            user_id="U12345",
-            channel_id="C12345",
-            text="status"
+            command="/psychsync", user_id="U12345", channel_id="C12345", text="status"
         )
 
         assert response["response_type"] == "ephemeral"
@@ -203,10 +184,7 @@ class TestSlashCommands:
     async def test_psychsync_team_command(self, slack_service):
         """Test /psychsync team"""
         response = await slack_service.handle_slash_command(
-            command="/psychsync",
-            user_id="U12345",
-            channel_id="C12345",
-            text="team"
+            command="/psychsync", user_id="U12345", channel_id="C12345", text="team"
         )
 
         assert response["response_type"] == "in_channel"
@@ -217,10 +195,7 @@ class TestSlashCommands:
     async def test_checkin_command(self, slack_service):
         """Test /checkin command"""
         response = await slack_service.handle_slash_command(
-            command="/checkin",
-            user_id="U12345",
-            channel_id="C12345",
-            text=""
+            command="/checkin", user_id="U12345", channel_id="C12345", text=""
         )
 
         assert response["response_type"] == "ephemeral"
@@ -230,10 +205,7 @@ class TestSlashCommands:
     async def test_wellness_command_personal(self, slack_service):
         """Test /wellness command (personal stats)"""
         response = await slack_service.handle_slash_command(
-            command="/wellness",
-            user_id="U12345",
-            channel_id="C12345",
-            text=""
+            command="/wellness", user_id="U12345", channel_id="C12345", text=""
         )
 
         assert response["response_type"] == "ephemeral"
@@ -243,10 +215,7 @@ class TestSlashCommands:
     async def test_wellness_command_team(self, slack_service):
         """Test /wellness team command"""
         response = await slack_service.handle_slash_command(
-            command="/wellness",
-            user_id="U12345",
-            channel_id="C12345",
-            text="team"
+            command="/wellness", user_id="U12345", channel_id="C12345", text="team"
         )
 
         assert response["response_type"] == "in_channel"
@@ -256,10 +225,7 @@ class TestSlashCommands:
     async def test_assess_command(self, slack_service):
         """Test /assess command"""
         response = await slack_service.handle_slash_command(
-            command="/assess",
-            user_id="U12345",
-            channel_id="C12345",
-            text=""
+            command="/assess", user_id="U12345", channel_id="C12345", text=""
         )
 
         assert response["response_type"] == "ephemeral"
@@ -269,10 +235,7 @@ class TestSlashCommands:
     async def test_unknown_command(self, slack_service):
         """Test unknown command"""
         response = await slack_service.handle_slash_command(
-            command="/unknown",
-            user_id="U12345",
-            channel_id="C12345",
-            text=""
+            command="/unknown", user_id="U12345", channel_id="C12345", text=""
         )
 
         assert "Unknown command" in response["text"]
@@ -312,11 +275,7 @@ class TestMessageFormatting:
         await slack_service.send_notification(
             team_id=1,
             notification_type="assessment_complete",
-            data={
-                "user_name": "John",
-                "assessment_type": "Test",
-                "score": 85
-            }
+            data={"user_name": "John", "assessment_type": "Test", "score": 85},
         )
 
         sent = slack_service.get_sent_messages()
@@ -328,11 +287,7 @@ class TestMessageFormatting:
         await slack_service.send_notification(
             team_id=1,
             notification_type="assessment_complete",
-            data={
-                "user_name": "John",
-                "assessment_type": "Test",
-                "score": 65
-            }
+            data={"user_name": "John", "assessment_type": "Test", "score": 65},
         )
 
         sent = slack_service.get_sent_messages()
@@ -344,11 +299,7 @@ class TestMessageFormatting:
         await slack_service.send_notification(
             team_id=1,
             notification_type="assessment_complete",
-            data={
-                "user_name": "John",
-                "assessment_type": "Test",
-                "score": 45
-            }
+            data={"user_name": "John", "assessment_type": "Test", "score": 45},
         )
 
         sent = slack_service.get_sent_messages()
@@ -363,9 +314,7 @@ class TestErrorHandling:
         """Test handling missing notification data"""
         # Should not crash, use defaults
         success = await slack_service.send_notification(
-            team_id=1,
-            notification_type="assessment_complete",
-            data={}  # Empty data
+            team_id=1, notification_type="assessment_complete", data={}  # Empty data
         )
 
         assert success is True
@@ -378,8 +327,8 @@ class TestProductionMode:
     """Test production mode with mocked Slack SDK"""
 
     @pytest.mark.asyncio
-    @patch('app.services.slack_service.settings.SLACK_BOT_TOKEN', 'xoxb-test-token')
-    @patch('slack_sdk.WebClient')
+    @patch("app.services.slack_service.settings.SLACK_BOT_TOKEN", "xoxb-test-token")
+    @patch("slack_sdk.WebClient")
     async def test_send_message_production_mode(self, mock_client):
         """Test sending message in production mode"""
         # Mock Slack SDK response
@@ -387,7 +336,7 @@ class TestProductionMode:
         mock_instance.chat_postMessage.return_value.data = {
             "ok": True,
             "channel": "C12345",
-            "ts": "1234567890.123456"
+            "ts": "1234567890.123456",
         }
         mock_client.return_value = mock_instance
 
@@ -395,8 +344,7 @@ class TestProductionMode:
         service = SlackServiceStub(test_mode=False)
 
         response = await service.send_message_to_channel(
-            channel="#general",
-            message="Production test"
+            channel="#general", message="Production test"
         )
 
         # Verify Slack SDK was called
@@ -417,8 +365,7 @@ class TestPerformance:
 
         for i in range(100):
             await slack_service.send_message_to_channel(
-                channel="#test",
-                message=f"Message {i}"
+                channel="#test", message=f"Message {i}"
             )
 
         duration = time.time() - start

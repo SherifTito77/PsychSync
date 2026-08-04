@@ -26,69 +26,71 @@ def fix_pagination_limits(file_path: Path, dry_run: bool = False) -> dict:
     Returns:
         Dictionary with fix statistics
     """
-    changes = {
-        "file": str(file_path),
-        "fixes": [],
-        "total_reductions": 0
-    }
+    changes = {"file": str(file_path), "fixes": [], "total_reductions": 0}
 
-    with open(file_path, 'r') as f:
+    with open(file_path, "r") as f:
         content = f.read()
 
     original_content = content
 
     # Pattern 1: Fix limit=Query(..., le=1000)
-    pattern1 = r'(limit\s*:\s*int\s*=\s*Query\([^)]*le\s*=\s*)1000'
-    replacement1 = r'\g<1>100'
+    pattern1 = r"(limit\s*:\s*int\s*=\s*Query\([^)]*le\s*=\s*)1000"
+    replacement1 = r"\g<1>100"
 
     matches1 = re.finditer(pattern1, content)
     for match in matches1:
-        changes["fixes"].append({
-            "type": "limit parameter",
-            "old": "le=1000",
-            "new": "le=100",
-            "line": content[:match.start()].count('\n') + 1
-        })
+        changes["fixes"].append(
+            {
+                "type": "limit parameter",
+                "old": "le=1000",
+                "new": "le=100",
+                "line": content[: match.start()].count("\n") + 1,
+            }
+        )
         changes["total_reductions"] += 1
 
     content = re.sub(pattern1, replacement1, content)
 
     # Pattern 2: Fix Field(..., le=1000) for non-pagination fields
     # Only fix if it's clearly a batch size or similar
-    pattern2 = r'((batch_size|max_emails|parallel_analysis_samples)\s*:\s*.*Field\([^)]*le\s*=\s*)1000'
-    replacement2 = r'\g<1>200'
+    pattern2 = r"((batch_size|max_emails|parallel_analysis_samples)\s*:\s*.*Field\([^)]*le\s*=\s*)1000"
+    replacement2 = r"\g<1>200"
 
     matches2 = re.finditer(pattern2, content)
     for match in matches2:
-        changes["fixes"].append({
-            "type": "batch/field parameter",
-            "old": "le=1000",
-            "new": "le=200",
-            "line": content[:match.start()].count('\n') + 1
-        })
+        changes["fixes"].append(
+            {
+                "type": "batch/field parameter",
+                "old": "le=1000",
+                "new": "le=200",
+                "line": content[: match.start()].count("\n") + 1,
+            }
+        )
         changes["total_reductions"] += 1
 
     content = re.sub(pattern2, replacement2, content)
 
     # Pattern 3: Fix limit=Query(..., le=500)
-    pattern3 = r'(limit\s*:\s*int\s*=\s*Query\([^)]*le\s*=\s*)500'
-    replacement3 = r'\g<1>200'
+    pattern3 = r"(limit\s*:\s*int\s*=\s*Query\([^)]*le\s*=\s*)500"
+    replacement3 = r"\g<1>200"
 
     matches3 = re.finditer(pattern3, content)
     for match in matches3:
-        changes["fixes"].append({
-            "type": "limit parameter",
-            "old": "le=500",
-            "new": "le=200",
-            "line": content[:match.start()].count('\n') + 1
-        })
+        changes["fixes"].append(
+            {
+                "type": "limit parameter",
+                "old": "le=500",
+                "new": "le=200",
+                "line": content[: match.start()].count("\n") + 1,
+            }
+        )
         changes["total_reductions"] += 1
 
     content = re.sub(pattern3, replacement3, content)
 
     # Write changes if not dry run and content changed
     if not dry_run and content != original_content:
-        with open(file_path, 'w') as f:
+        with open(file_path, "w") as f:
             f.write(content)
         print(f"✅ Fixed {file_path}")
 
@@ -115,7 +117,7 @@ def scan_and_fix(endpoints_dir: Path, dry_run: bool = False) -> dict:
         "files_scanned": 0,
         "files_with_fixes": 0,
         "total_fixes": 0,
-        "fixes_by_type": {}
+        "fixes_by_type": {},
     }
 
     # Get all Python files in endpoints directory
@@ -143,15 +145,13 @@ def main():
         description="Fix pagination limits across API endpoints"
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Preview changes without modifying files"
+        "--dry-run", action="store_true", help="Preview changes without modifying files"
     )
     parser.add_argument(
         "--endpoints-dir",
         type=Path,
         default=Path("/Users/sheriftito/Downloads/psychsync/app/api/v1/endpoints"),
-        help="Directory containing endpoint files"
+        help="Directory containing endpoint files",
     )
 
     args = parser.parse_args()

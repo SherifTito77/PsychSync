@@ -10,9 +10,8 @@ Usage:
 
 import asyncio
 import logging
-from pathlib import Path
-
 import sys
+from pathlib import Path
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -32,15 +31,15 @@ logger = logging.getLogger(__name__)
 async def create_tables():
     """Create a new resource.
 
-Args:
-    db: Database session
-    **kwargs: Resource attributes
+    Args:
+        db: Database session
+        **kwargs: Resource attributes
 
-Returns:
-    Created resource object
+    Returns:
+        Created resource object
 
-Raises:
-    ValidationError: If input data is invalid
+    Raises:
+        ValidationError: If input data is invalid
     """
     """Create a new resource.
 
@@ -61,7 +60,9 @@ Raises:
 
     async with engine.begin() as conn:
         # Create code_quality_metrics table
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS code_quality_metrics (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 scan_date TIMESTAMP NOT NULL,
@@ -93,10 +94,14 @@ Raises:
                 scanner_version VARCHAR(50),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-        """))
+        """
+            )
+        )
 
         # Create code_quality_issues table
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS code_quality_issues (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 metric_id UUID NOT NULL REFERENCES code_quality_metrics(id) ON DELETE CASCADE,
@@ -120,10 +125,14 @@ Raises:
                 last_detected TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 occurrence_count INTEGER NOT NULL DEFAULT 1
             );
-        """))
+        """
+            )
+        )
 
         # Create pull_request_quality table
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS pull_request_quality (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 pr_number INTEGER NOT NULL,
@@ -163,58 +172,92 @@ Raises:
                 repository VARCHAR(100),
                 is_merged FLOAT NOT NULL DEFAULT 0.0
             );
-        """))
+        """
+            )
+        )
 
         # Create indexes
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS ix_code_quality_scan_date_module
             ON code_quality_metrics (scan_date, module_name);
-        """))
+        """
+            )
+        )
 
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS ix_code_quality_issue_metric_id
             ON code_quality_issues (metric_id);
-        """))
+        """
+            )
+        )
 
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS ix_code_quality_issue_type_severity
             ON code_quality_issues (issue_type, severity);
-        """))
+        """
+            )
+        )
 
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS ix_code_quality_status
             ON code_quality_issues (status);
-        """))
+        """
+            )
+        )
 
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS ix_pull_request_quality_score
             ON pull_request_quality (overall_score);
-        """))
+        """
+            )
+        )
 
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS ix_pull_request_risk_level
             ON pull_request_quality (risk_level);
-        """))
+        """
+            )
+        )
 
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS ix_pull_pr_number
             ON pull_request_quality (pr_number);
-        """))
+        """
+            )
+        )
 
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS ix_pull_request_author_id
             ON pull_request_quality (author_id);
-        """))
+        """
+            )
+        )
 
     logger.info("✅ Code quality monitoring tables created successfully")
 
     # Verify tables were created
-    async_session = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session() as session:
-        result = await session.execute(text("""
+        result = await session.execute(
+            text(
+                """
             SELECT table_name
             FROM information_schema.tables
             WHERE table_schema = 'public'
@@ -224,7 +267,9 @@ Raises:
                 'pull_request_quality'
             )
             ORDER BY table_name;
-        """))
+        """
+            )
+        )
 
         tables = [row[0] for row in result.fetchall()]
 

@@ -13,11 +13,11 @@ Version: 1.0
 Date: 2025-12-26
 """
 
+import json
+import logging
 from datetime import datetime
 from enum import Enum
 from functools import wraps
-import json
-import logging
 from pathlib import Path
 from typing import Any
 
@@ -229,9 +229,11 @@ class AuditLogger:
                     "severity": event.severity,
                     "user_id": event.user_id,
                     "ip_address": event.ip_address,
-                    "resource": f"{event.resource_type}:{event.resource_id}"
-                    if event.resource_type
-                    else None,
+                    "resource": (
+                        f"{event.resource_type}:{event.resource_id}"
+                        if event.resource_type
+                        else None
+                    ),
                     "status": event.status,
                     "details": event.details,
                 },
@@ -245,7 +247,10 @@ class AuditLogger:
                     logger.error(f"Backend {backend.__class__.__name__} failed: {e}")
 
             # Trigger real-time alerts for critical events
-            if event.severity in [AuditSeverity.HIGH.value, AuditSeverity.CRITICAL.value]:
+            if event.severity in [
+                AuditSeverity.HIGH.value,
+                AuditSeverity.CRITICAL.value,
+            ]:
                 await self._trigger_alert(event)
 
         except Exception as e:
@@ -393,7 +398,10 @@ class FileAuditBackend:
     """File logging backend with rotation"""
 
     def __init__(
-        self, log_dir: str = None, max_bytes: int = 100 * 1024 * 1024, backup_count: int = 10
+        self,
+        log_dir: str = None,
+        max_bytes: int = 100 * 1024 * 1024,
+        backup_count: int = 10,
     ):
         import os
 
@@ -531,7 +539,10 @@ class AuditQuery:
 
     @staticmethod
     async def query_by_user(
-        user_id: int, start_date: datetime, end_date: datetime, event_types: list[str] | None = None
+        user_id: int,
+        start_date: datetime,
+        end_date: datetime,
+        event_types: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         """Query audit logs by user"""
         from sqlalchemy import and_, select
@@ -597,13 +608,20 @@ class AuditQuery:
             conditions = [
                 AuditLog.timestamp >= start_date,
                 AuditLog.timestamp <= end_date,
-                or_(AuditLog.event_type == "authz.access_denied", AuditLog.status == "denied"),
+                or_(
+                    AuditLog.event_type == "authz.access_denied",
+                    AuditLog.status == "denied",
+                ),
             ]
 
             if user_id:
                 conditions.append(AuditLog.user_id == user_id)
 
-            query = select(AuditLog).where(and_(*conditions)).order_by(AuditLog.timestamp.desc())
+            query = (
+                select(AuditLog)
+                .where(and_(*conditions))
+                .order_by(AuditLog.timestamp.desc())
+            )
 
             result = await session.execute(query)
             return [row.to_dict() for row in result.scalars()]
@@ -618,7 +636,12 @@ audit_logger = AuditLogger()
 
 
 async def log_auth_event(
-    action: str, user_id: int | None, ip_address: str, user_agent: str, success: bool, **kwargs
+    action: str,
+    user_id: int | None,
+    ip_address: str,
+    user_agent: str,
+    success: bool,
+    **kwargs,
 ):
     """Convenience function to log authentication event"""
     await audit_logger.log_authentication(

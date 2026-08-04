@@ -5,8 +5,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Use the correct path: app.db.models
+from app.db.models import *  # Import all models
 from app.db.models import Base
-from app.db.models import * # Import all models
 
 print("Alembic can see the following tables:")
 for table_name in Base.metadata.tables.keys():

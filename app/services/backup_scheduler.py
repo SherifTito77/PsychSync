@@ -10,33 +10,34 @@ Automated Backup Scheduler
 """
 
 import asyncio
-import aiofiles
-import logging
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
-from enum import Enum
 import json
+import logging
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from enum import Enum
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
+import aiofiles
 from croniter import croniter
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.background_jobs import get_background_worker
+from app.core.path_utils import safe_filename, sanitize_path
 from app.services.database_backup_service import (
-    DatabaseBackupService,
-    BackupType,
     BackupConfig,
     BackupMetadata,
-    get_backup_service
+    BackupType,
+    DatabaseBackupService,
+    get_backup_service,
 )
-from app.core.path_utils import sanitize_path, safe_filename
-from app.core.background_jobs import get_background_worker
 
 logger = logging.getLogger(__name__)
 
 
 class ScheduleStatus(Enum):
     """Backup schedule status"""
+
     ACTIVE = "active"
     INACTIVE = "inactive"
     PAUSED = "paused"
@@ -46,6 +47,7 @@ class ScheduleStatus(Enum):
 @dataclass
 class BackupSchedule:
     """Backup schedule configuration"""
+
     schedule_id: str
     name: str
     backup_type: BackupType
@@ -176,7 +178,9 @@ class BackupScheduler:
         logger.info(f"Added backup schedule '{schedule.name}' ({schedule.schedule_id})")
         return schedule
 
-    async def update_schedule(self, schedule_id: str, updates: Dict[str, Any]) -> Optional[BackupSchedule]:
+    async def update_schedule(
+        self, schedule_id: str, updates: Dict[str, Any]
+    ) -> Optional[BackupSchedule]:
         """
         Update an existing backup schedule
 
@@ -240,7 +244,9 @@ class BackupScheduler:
         """
         return self.schedules.get(schedule_id)
 
-    async def list_schedules(self, status: Optional[ScheduleStatus] = None) -> List[BackupSchedule]:
+    async def list_schedules(
+        self, status: Optional[ScheduleStatus] = None
+    ) -> List[BackupSchedule]:
         """
         List backup schedules
 
@@ -324,10 +330,12 @@ class BackupScheduler:
             "execute_scheduled_backup",
             schedule_id=schedule_id,
             backup_type=schedule.backup_type.value,
-            config=schedule.backup_config or {}
+            config=schedule.backup_config or {},
         )
 
-        logger.info(f"Manually triggered backup schedule '{schedule.name}' ({schedule_id}) - Task: {task_id}")
+        logger.info(
+            f"Manually triggered backup schedule '{schedule.name}' ({schedule_id}) - Task: {task_id}"
+        )
         return True
 
     async def get_schedule_statistics(self) -> Dict[str, Any]:
@@ -341,13 +349,19 @@ class BackupScheduler:
 
         stats = {
             "total_schedules": len(schedules),
-            "active_schedules": len([s for s in schedules if s.status == ScheduleStatus.ACTIVE]),
-            "paused_schedules": len([s for s in schedules if s.status == ScheduleStatus.PAUSED]),
-            "error_schedules": len([s for s in schedules if s.status == ScheduleStatus.ERROR]),
+            "active_schedules": len(
+                [s for s in schedules if s.status == ScheduleStatus.ACTIVE]
+            ),
+            "paused_schedules": len(
+                [s for s in schedules if s.status == ScheduleStatus.PAUSED]
+            ),
+            "error_schedules": len(
+                [s for s in schedules if s.status == ScheduleStatus.ERROR]
+            ),
             "total_runs": sum(s.run_count for s in schedules),
             "successful_runs": sum(s.success_count for s in schedules),
             "failed_runs": sum(s.error_count for s in schedules),
-            "next_due_schedules": []
+            "next_due_schedules": [],
         }
 
         # Calculate success rate
@@ -364,10 +378,12 @@ class BackupScheduler:
                 "schedule_id": s.schedule_id,
                 "name": s.name,
                 "next_run": s.next_run.isoformat() if s.next_run else None,
-                "backup_type": s.backup_type.value
+                "backup_type": s.backup_type.value,
             }
             for s in schedules
-            if s.next_run and s.next_run <= next_24h and s.status == ScheduleStatus.ACTIVE
+            if s.next_run
+            and s.next_run <= next_24h
+            and s.status == ScheduleStatus.ACTIVE
         ]
 
         return stats
@@ -376,17 +392,17 @@ class BackupScheduler:
         """Load schedules from disk"""
         for schedule_file in self.schedules_dir.glob("*.json"):
             try:
-                with open(schedule_file, 'r') as f:
+                with open(schedule_file, "r") as f:
                     data = json.load(f)
 
                 # Convert string fields back to proper types
-                data['backup_type'] = BackupType(data['backup_type'])
-                data['created_at'] = datetime.fromisoformat(data['created_at'])
-                data['updated_at'] = datetime.fromisoformat(data['updated_at'])
-                if data.get('last_run'):
-                    data['last_run'] = datetime.fromisoformat(data['last_run'])
-                if data.get('next_run'):
-                    data['next_run'] = datetime.fromisoformat(data['next_run'])
+                data["backup_type"] = BackupType(data["backup_type"])
+                data["created_at"] = datetime.fromisoformat(data["created_at"])
+                data["updated_at"] = datetime.fromisoformat(data["updated_at"])
+                if data.get("last_run"):
+                    data["last_run"] = datetime.fromisoformat(data["last_run"])
+                if data.get("next_run"):
+                    data["next_run"] = datetime.fromisoformat(data["next_run"])
 
                 schedule = BackupSchedule(**data)
                 self.schedules[schedule.schedule_id] = schedule
@@ -403,15 +419,15 @@ class BackupScheduler:
 
         # Convert to dict and handle datetime serialization
         data = asdict(schedule)
-        data['backup_type'] = schedule.backup_type.value
-        data['created_at'] = schedule.created_at.isoformat()
-        data['updated_at'] = schedule.updated_at.isoformat()
+        data["backup_type"] = schedule.backup_type.value
+        data["created_at"] = schedule.created_at.isoformat()
+        data["updated_at"] = schedule.updated_at.isoformat()
         if schedule.last_run:
-            data['last_run'] = schedule.last_run.isoformat()
+            data["last_run"] = schedule.last_run.isoformat()
         if schedule.next_run:
-            data['next_run'] = schedule.next_run.isoformat()
+            data["next_run"] = schedule.next_run.isoformat()
 
-        with open(schedule_file, 'w') as f:
+        with open(schedule_file, "w") as f:
             json.dump(data, f, indent=2)
 
     async def save_schedules(self):
@@ -429,7 +445,8 @@ class BackupScheduler:
 
                 # Check for due schedules
                 due_schedules = [
-                    schedule for schedule in self.schedules.values()
+                    schedule
+                    for schedule in self.schedules.values()
                     if schedule.is_due()
                 ]
 
@@ -443,13 +460,17 @@ class BackupScheduler:
                                 "execute_scheduled_backup",
                                 schedule_id=schedule.schedule_id,
                                 backup_type=schedule.backup_type.value,
-                                config=schedule.backup_config or {}
+                                config=schedule.backup_config or {},
                             )
 
-                            logger.info(f"Enqueued scheduled backup '{schedule.name}' - Task: {task_id}")
+                            logger.info(
+                                f"Enqueued scheduled backup '{schedule.name}' - Task: {task_id}"
+                            )
 
                         except Exception as e:
-                            logger.error(f"Failed to enqueue scheduled backup '{schedule.name}': {str(e)}")
+                            logger.error(
+                                f"Failed to enqueue scheduled backup '{schedule.name}': {str(e)}"
+                            )
                             schedule.update_run_stats(False, str(e))
                             await self.save_schedule(schedule)
 
@@ -480,9 +501,7 @@ def get_backup_scheduler() -> BackupScheduler:
 # Task for executing scheduled backups
 @task("execute_scheduled_backup")
 async def execute_scheduled_backup_task(
-    schedule_id: str,
-    backup_type: str,
-    config: Dict[str, Any]
+    schedule_id: str, backup_type: str, config: Dict[str, Any]
 ) -> Dict[str, Any]:
     """Background task for executing scheduled backups"""
     scheduler = get_backup_scheduler()
@@ -492,7 +511,7 @@ async def execute_scheduled_backup_task(
         return {
             "success": False,
             "schedule_id": schedule_id,
-            "error": "Schedule not found"
+            "error": "Schedule not found",
         }
 
     try:
@@ -513,7 +532,7 @@ async def execute_scheduled_backup_task(
             "success": True,
             "schedule_id": schedule_id,
             "backup_id": backup_metadata.backup_id,
-            "backup_type": backup_type
+            "backup_type": backup_type,
         }
 
     except Exception as e:
@@ -523,8 +542,4 @@ async def execute_scheduled_backup_task(
         schedule.update_run_stats(False, str(e))
         await scheduler.save_schedule(schedule)
 
-        return {
-            "success": False,
-            "schedule_id": schedule_id,
-            "error": str(e)
-        }
+        return {"success": False, "schedule_id": schedule_id, "error": str(e)}

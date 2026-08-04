@@ -7,11 +7,11 @@ Version: 1.0.0
 """
 
 import asyncio
+import logging
 from collections import defaultdict, deque
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
 from typing import Any
 
 logger = logging.getLogger("app.security.monitoring")
@@ -61,7 +61,9 @@ class SecurityMonitor:
     - Metrics reporting
     """
 
-    def __init__(self, retention_hours: int = 24, alert_thresholds: dict[str, int] = None):
+    def __init__(
+        self, retention_hours: int = 24, alert_thresholds: dict[str, int] = None
+    ):
         self.retention_hours = retention_hours
         self.events: deque = deque(maxlen=10000)  # Circular buffer
         self.event_counts: dict[str, int] = defaultdict(int)
@@ -80,7 +82,10 @@ class SecurityMonitor:
 
         logger.info(
             "Security monitor initialized",
-            extra={"retention_hours": retention_hours, "alert_thresholds": self.alert_thresholds},
+            extra={
+                "retention_hours": retention_hours,
+                "alert_thresholds": self.alert_thresholds,
+            },
         )
 
     def add_alert_callback(self, callback: callable) -> None:
@@ -151,7 +156,11 @@ class SecurityMonitor:
             await self._generate_alert(
                 "repeated_violations",
                 event,
-                {"source_ip": event.source_ip, "event_count": ip_count, "time_window": "last hour"},
+                {
+                    "source_ip": event.source_ip,
+                    "event_count": ip_count,
+                    "time_window": "last hour",
+                },
             )
 
     async def _check_distributed_patterns(self, event: SecurityEvent) -> None:
@@ -159,7 +168,9 @@ class SecurityMonitor:
         # Count unique IPs with similar events in last hour
         cutoff = datetime.utcnow() - timedelta(hours=1)
         recent_events = [
-            e for e in self.events if e.timestamp > cutoff and e.event_type == event.event_type
+            e
+            for e in self.events
+            if e.timestamp > cutoff and e.event_type == event.event_type
         ]
         unique_ips = set(e.source_ip for e in recent_events)
 

@@ -6,17 +6,17 @@ API endpoints for managing A/B experiments, variant assignment, and event tracki
 import asyncio
 import hashlib
 from datetime import datetime, timedelta
-from typing import Optional, List, Any, Dict
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from sqlalchemy import and_, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, and_, desc
 
-from app.api.v1.deps import get_current_user
 from app.api.deps import get_async_db, get_current_active_user
+from app.api.v1.deps import get_current_user
+from app.db.models.ab_testing import ABConversion, ABEvent, ABExperiment, ABVariant
 from app.db.models.user import User
-from app.db.models.ab_testing import ABExperiment, ABVariant, ABEvent, ABConversion
 
 router = APIRouter()
 
@@ -25,44 +25,63 @@ router = APIRouter()
 # Pydantic Models
 # ========================================================================
 
+
 class ExperimentCreate(BaseModel):
     """Request model for creating an experiment"""
+
     name: str = Field(..., description="Unique experiment name")
     description: Optional[str] = Field(None, description="Experiment description")
-    status: str = Field("draft", description="Experiment status: draft, running, paused, completed")
-    start_date: Optional[datetime] = Field(None, description="When to start the experiment")
+    status: str = Field(
+        "draft", description="Experiment status: draft, running, paused, completed"
+    )
+    start_date: Optional[datetime] = Field(
+        None, description="When to start the experiment"
+    )
     end_date: Optional[datetime] = Field(None, description="When to end the experiment")
-    config: Optional[Dict[str, Any]] = Field(None, description="Experiment configuration")
+    config: Optional[Dict[str, Any]] = Field(
+        None, description="Experiment configuration"
+    )
 
 
 class VariantConfig(BaseModel):
     """Request model for creating a variant"""
+
     name: str = Field(..., description="Variant name (e.g., control, variant_a)")
-    traffic_split: float = Field(..., ge=0.0, le=1.0, description="Fraction of traffic (0.0-1.0)")
+    traffic_split: float = Field(
+        ..., ge=0.0, le=1.0, description="Fraction of traffic (0.0-1.0)"
+    )
     is_control: bool = Field(False, description="Whether this is the control variant")
 
 
 class ExperimentWithVariants(BaseModel):
     """Request model for creating an experiment with variants"""
+
     experiment: ExperimentCreate
     variants: List[VariantConfig]
 
 
 class AssignRequest(BaseModel):
     """Request model for variant assignment"""
+
     experiment: str = Field(..., description="Experiment name")
 
 
 class TrackRequest(BaseModel):
     """Request model for event tracking"""
+
     experiment: str = Field(..., description="Experiment name")
     variant: str = Field(..., description="Variant name")
-    event_type: str = Field(..., description="Event type (e.g., view, click, conversion)")
-    properties: Optional[Dict[str, Any]] = Field(None, description="Additional event properties")
+    event_type: str = Field(
+        ..., description="Event type (e.g., view, click, conversion)"
+    )
+    properties: Optional[Dict[str, Any]] = Field(
+        None, description="Additional event properties"
+    )
 
 
 class AssignResponse(BaseModel):
     """Response model for variant assignment"""
+
     variant: str = Field(..., description="Assigned variant name")
     status: str = Field(..., description="Assignment status")
     cached: Optional[bool] = Field(None, description="Whether result was from cache")
@@ -70,23 +89,34 @@ class AssignResponse(BaseModel):
 
 class TrackResponse(BaseModel):
     """Response model for event tracking"""
+
     status: str = Field(..., description="Tracking status")
 
 
 class VariantResult(BaseModel):
     """Result model for a single variant"""
+
     variant: str = Field(..., description="Variant name")
     assignments: int = Field(..., description="Number of users assigned")
     conversions: int = Field(..., description="Number of conversions")
     conversion_rate: float = Field(..., description="Conversion rate percentage")
-    lift_vs_control: Optional[float] = Field(None, description="Lift vs control variant")
-    p_value: Optional[float] = Field(None, description="Statistical significance p-value")
-    significant: Optional[bool] = Field(None, description="Whether result is statistically significant")
-    is_control: Optional[bool] = Field(None, description="Whether this is the control variant")
+    lift_vs_control: Optional[float] = Field(
+        None, description="Lift vs control variant"
+    )
+    p_value: Optional[float] = Field(
+        None, description="Statistical significance p-value"
+    )
+    significant: Optional[bool] = Field(
+        None, description="Whether result is statistically significant"
+    )
+    is_control: Optional[bool] = Field(
+        None, description="Whether this is the control variant"
+    )
 
 
 class ExperimentResults(BaseModel):
     """Response model for experiment results"""
+
     experiment: str = Field(..., description="Experiment name")
     status: str = Field(..., description="Experiment status")
     results: List[VariantResult] = Field(..., description="Results per variant")
@@ -96,15 +126,30 @@ class ExperimentResults(BaseModel):
 # API Endpoints
 # ========================================================================
 
+
 @router.post(
     "/assign",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=AssignResponse,
 )
 async def assign_variant(
     request: AssignRequest,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Assign user to a variant for the given experiment.
@@ -117,9 +162,9 @@ async def assign_variant(
     # Get experiment
     experiment = await loop.run_in_executor(
         None,
-        lambda: db.query(ABExperiment).filter(
-            ABExperiment.name == request.experiment
-        ).first()
+        lambda: db.query(ABExperiment)
+        .filter(ABExperiment.name == request.experiment)
+        .first(),
     )
 
     if not experiment:
@@ -127,10 +172,7 @@ async def assign_variant(
 
     # Check if experiment is running
     if experiment.status != "running":
-        return AssignResponse(
-            variant="control",
-            status=experiment.status
-        )
+        return AssignResponse(variant="control", status=experiment.status)
 
     # Check if experiment is within date range
     now = datetime.utcnow()
@@ -142,9 +184,9 @@ async def assign_variant(
     # Get variants
     variants = await loop.run_in_executor(
         None,
-        lambda: db.query(ABVariant).filter(
-            ABVariant.experiment_id == experiment.id
-        ).all()
+        lambda: db.query(ABVariant)
+        .filter(ABVariant.experiment_id == experiment.id)
+        .all(),
     )
 
     if not variants:
@@ -155,7 +197,7 @@ async def assign_variant(
     hash_value = hashlib.md5(hash_input.encode()).hexdigest()
 
     # Convert to 0-1 range
-    bucket = int(hash_value[:8], 16) / 0xffffffff
+    bucket = int(hash_value[:8], 16) / 0xFFFFFFFF
 
     # Assign based on traffic split
     cumulative = 0.0
@@ -172,27 +214,37 @@ async def assign_variant(
         user_id=current_user.id,
         experiment_id=experiment.id,
         variant_id=next(v.id for v in variants if v.name == assigned_variant),
-        event_type="assigned"
+        event_type="assigned",
     )
     await loop.run_in_executor(None, lambda: db.add(assignment_event))
     await loop.run_in_executor(None, lambda: db.commit())
 
-    return AssignResponse(
-        variant=assigned_variant,
-        status="assigned",
-        cached=False
-    )
+    return AssignResponse(variant=assigned_variant, status="assigned", cached=False)
 
 
 @router.post(
     "/track",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=TrackResponse,
 )
 async def track_event(
     request: TrackRequest,
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Track an event for an A/B test variant.
@@ -204,9 +256,9 @@ async def track_event(
     # Get experiment
     experiment = await loop.run_in_executor(
         None,
-        lambda: db.query(ABExperiment).filter(
-            ABExperiment.name == request.experiment
-        ).first()
+        lambda: db.query(ABExperiment)
+        .filter(ABExperiment.name == request.experiment)
+        .first(),
     )
 
     if not experiment:
@@ -215,10 +267,11 @@ async def track_event(
     # Get variant
     variant = await loop.run_in_executor(
         None,
-        lambda: db.query(ABVariant).filter(
-            ABVariant.experiment_id == experiment.id,
-            ABVariant.name == request.variant
-        ).first()
+        lambda: db.query(ABVariant)
+        .filter(
+            ABVariant.experiment_id == experiment.id, ABVariant.name == request.variant
+        )
+        .first(),
     )
 
     if not variant:
@@ -230,7 +283,7 @@ async def track_event(
         experiment_id=experiment.id,
         variant_id=variant.id,
         event_type=request.event_type,
-        properties=request.properties
+        properties=request.properties,
     )
 
     await loop.run_in_executor(None, lambda: db.add(event))
@@ -241,7 +294,7 @@ async def track_event(
             user_id=current_user.id,
             experiment_id=experiment.id,
             variant_id=variant.id,
-            conversion_type="primary"
+            conversion_type="primary",
         )
         await loop.run_in_executor(None, lambda: db.add(conversion))
 
@@ -252,13 +305,28 @@ async def track_event(
 
 @router.get(
     "/experiments",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
 )
-async def list_experiments(    status: Optional[str] = Query(None, description="Filter by status"),
+async def list_experiments(
+    status: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_async_db)
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     List all A/B experiments.
@@ -278,7 +346,12 @@ async def list_experiments(    status: Optional[str] = Query(None, description="
 
     # Execute experiments query
     def get_experiments():
-        return query.order_by(desc(ABExperiment.created_at)).offset(offset).limit(limit).all()
+        return (
+            query.order_by(desc(ABExperiment.created_at))
+            .offset(offset)
+            .limit(limit)
+            .all()
+        )
 
     experiments = await loop.run_in_executor(None, get_experiments)
 
@@ -295,20 +368,34 @@ async def list_experiments(    status: Optional[str] = Query(None, description="
                 "status": exp.status,
                 "start_date": exp.start_date.isoformat() if exp.start_date else None,
                 "end_date": exp.end_date.isoformat() if exp.end_date else None,
-                "created_at": exp.created_at.isoformat()
+                "created_at": exp.created_at.isoformat(),
             }
             for exp in experiments
-        ]
+        ],
     }
 
 
 @router.get(
     "/results/{experiment_name}",
-    responses={200: {'description': 'Request successful', 'content': {'application/json': {'example': {'success': True, 'message': 'Operation completed successfully'}}}}, 401: {'description': 'Unauthorized'}, 422: {'description': 'Validation error'}},
+    responses={
+        200: {
+            "description": "Request successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Operation completed successfully",
+                    }
+                }
+            },
+        },
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+    },
     response_model=ExperimentResults,
 )
-async def get_experiment_results(    experiment_name: str,
-    db: AsyncSession = Depends(get_async_db)
+async def get_experiment_results(
+    experiment_name: str, db: AsyncSession = Depends(get_async_db)
 ):
     """
     Get results for an experiment including conversion rates and statistical significance.
@@ -323,9 +410,9 @@ async def get_experiment_results(    experiment_name: str,
     # Get experiment
     experiment = await loop.run_in_executor(
         None,
-        lambda: db.query(ABExperiment).filter(
-            ABExperiment.name == experiment_name
-        ).first()
+        lambda: db.query(ABExperiment)
+        .filter(ABExperiment.name == experiment_name)
+        .first(),
     )
 
     if not experiment:
@@ -334,9 +421,9 @@ async def get_experiment_results(    experiment_name: str,
     # Get variants
     variants = await loop.run_in_executor(
         None,
-        lambda: db.query(ABVariant).filter(
-            ABVariant.experiment_id == experiment.id
-        ).all()
+        lambda: db.query(ABVariant)
+        .filter(ABVariant.experiment_id == experiment.id)
+        .all(),
     )
 
     results = []
@@ -345,21 +432,25 @@ async def get_experiment_results(    experiment_name: str,
         # Count assignments (unique users with 'assigned' event)
         assignments = await loop.run_in_executor(
             None,
-            lambda: db.query(func.count(func.distinct(ABEvent.user_id))).filter(
+            lambda: db.query(func.count(func.distinct(ABEvent.user_id)))
+            .filter(
                 ABEvent.experiment_id == experiment.id,
                 ABEvent.variant_id == variant.id,
-                ABEvent.event_type == "assigned"
-            ).scalar()
+                ABEvent.event_type == "assigned",
+            )
+            .scalar(),
         )
 
         # Count conversions (unique users with 'conversion' event)
         conversions = await loop.run_in_executor(
             None,
-            lambda: db.query(func.count(func.distinct(ABEvent.user_id))).filter(
+            lambda: db.query(func.count(func.distinct(ABEvent.user_id)))
+            .filter(
                 ABEvent.experiment_id == experiment.id,
                 ABEvent.variant_id == variant.id,
-                ABEvent.event_type == "conversion"
-            ).scalar()
+                ABEvent.event_type == "conversion",
+            )
+            .scalar(),
         )
 
         conversion_rate = (conversions / assignments * 100) if assignments > 0 else 0
@@ -369,7 +460,7 @@ async def get_experiment_results(    experiment_name: str,
             "assignments": assignments,
             "conversions": conversions,
             "conversion_rate": round(conversion_rate, 2),
-            "is_control": variant.is_control
+            "is_control": variant.is_control,
         }
 
         results.append(result)
@@ -380,22 +471,25 @@ async def get_experiment_results(    experiment_name: str,
         for result in results:
             if not result["is_control"]:
                 # Calculate lift
-                lift = ((result["conversion_rate"] - control["conversion_rate"]) /
-                       control["conversion_rate"] * 100)
+                lift = (
+                    (result["conversion_rate"] - control["conversion_rate"])
+                    / control["conversion_rate"]
+                    * 100
+                )
                 result["lift_vs_control"] = round(lift, 2)
 
                 # Calculate statistical significance (z-test)
                 p_value = _calculate_significance(
-                    control["conversions"], control["assignments"],
-                    result["conversions"], result["assignments"]
+                    control["conversions"],
+                    control["assignments"],
+                    result["conversions"],
+                    result["assignments"],
                 )
                 result["p_value"] = round(p_value, 4)
                 result["significant"] = p_value < 0.05
 
     return ExperimentResults(
-        experiment=experiment_name,
-        status=experiment.status,
-        results=results
+        experiment=experiment_name, status=experiment.status, results=results
     )
 
 
@@ -420,7 +514,7 @@ def _calculate_significance(c1: int, n1: int, c2: int, n2: int) -> float:
 
     pooled_p = (c1 + c2) / (n1 + n2) if (n1 + n2) > 0 else 0
 
-    se = math.sqrt(pooled_p * (1 - pooled_p) * (1/n1 + 1/n2)) if pooled_p > 0 else 0
+    se = math.sqrt(pooled_p * (1 - pooled_p) * (1 / n1 + 1 / n2)) if pooled_p > 0 else 0
 
     if se == 0:
         return 1.0

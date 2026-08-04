@@ -6,10 +6,10 @@ multiple comparison corrections, power analysis, and Bayesian inference
 for intervention effectiveness evaluation.
 """
 
-from dataclasses import dataclass
-from enum import Enum
 import logging
 import math
+from dataclasses import dataclass
+from enum import Enum
 
 import numpy as np
 from scipy import stats
@@ -140,7 +140,9 @@ class StatisticalSignificanceTester:
             bayesian_methods = [BayesianMethod.BAYES_FACTOR]
 
         # Primary statistical tests
-        primary_tests = await self._perform_primary_tests(pre_values, post_values, test_direction)
+        primary_tests = await self._perform_primary_tests(
+            pre_values, post_values, test_direction
+        )
 
         # Multiple comparison corrections
         corrected_results = []
@@ -153,7 +155,9 @@ class StatisticalSignificanceTester:
         # Bayesian analysis
         bayesian_results = []
         for method in bayesian_methods:
-            bayesian = await self._perform_bayesian_analysis(pre_values, post_values, method)
+            bayesian = await self._perform_bayesian_analysis(
+                pre_values, post_values, method
+            )
             if bayesian:
                 bayesian_results.append(bayesian)
 
@@ -188,7 +192,10 @@ class StatisticalSignificanceTester:
         )
 
     async def _perform_primary_tests(
-        self, pre_values: list[float], post_values: list[float], test_direction: TestDirection
+        self,
+        pre_values: list[float],
+        post_values: list[float],
+        test_direction: TestDirection,
     ) -> list[TestResult]:
         """Perform primary statistical tests"""
 
@@ -213,7 +220,9 @@ class StatisticalSignificanceTester:
             ci_lower, ci_upper = t.interval(0.95, df, loc=mean_diff, scale=sem_diff)
 
             # Effect size (Cohen's d)
-            pooled_sd = np.sqrt((np.var(pre_values, ddof=1) + np.var(post_values, ddof=1)) / 2)
+            pooled_sd = np.sqrt(
+                (np.var(pre_values, ddof=1) + np.var(post_values, ddof=1)) / 2
+            )
             cohens_d = mean_diff / pooled_sd if pooled_sd > 0 else 0
 
             t_test_result = TestResult(
@@ -323,7 +332,9 @@ class StatisticalSignificanceTester:
         return results
 
     async def _apply_multiple_comparison_correction(
-        self, test_results: list[TestResult], correction_method: MultipleComparisonCorrection
+        self,
+        test_results: list[TestResult],
+        correction_method: MultipleComparisonCorrection,
     ) -> list[CorrectedResult]:
         """Apply multiple comparison corrections to p-values"""
 
@@ -374,7 +385,9 @@ class StatisticalSignificanceTester:
 
                 # Ensure monotonicity
                 for i in range(len(corrected_p_values) - 2, -1, -1):
-                    corrected_p_values[i] = min(corrected_p_values[i], corrected_p_values[i + 1])
+                    corrected_p_values[i] = min(
+                        corrected_p_values[i], corrected_p_values[i + 1]
+                    )
 
                 # Restore original order
                 final_corrected = [0] * len(p_values)
@@ -399,7 +412,9 @@ class StatisticalSignificanceTester:
 
                 # Ensure monotonicity
                 for i in range(len(corrected_p_values) - 2, -1, -1):
-                    corrected_p_values[i] = min(corrected_p_values[i], corrected_p_values[i + 1])
+                    corrected_p_values[i] = min(
+                        corrected_p_values[i], corrected_p_values[i + 1]
+                    )
 
                 # Restore original order
                 final_corrected = [0] * len(p_values)
@@ -439,7 +454,9 @@ class StatisticalSignificanceTester:
 
         try:
             if method == BayesianMethod.BAYES_FACTOR:
-                bayes_factor = await self._calculate_bayes_factor(pre_values, post_values)
+                bayes_factor = await self._calculate_bayes_factor(
+                    pre_values, post_values
+                )
                 interpretation = self._interpret_bayes_factor(bayes_factor)
                 strength = self._classify_bayes_evidence(bayes_factor)
 
@@ -451,10 +468,14 @@ class StatisticalSignificanceTester:
                 )
 
             if method == BayesianMethod.POSTERIOR_PROBABILITY:
-                post_prob = await self._calculate_posterior_probability(pre_values, post_values)
+                post_prob = await self._calculate_posterior_probability(
+                    pre_values, post_values
+                )
                 interpretation = f"Posterior probability of effect: {post_prob:.3f}"
                 strength = (
-                    "Strong" if post_prob > 0.95 else "Moderate" if post_prob > 0.8 else "Weak"
+                    "Strong"
+                    if post_prob > 0.95
+                    else "Moderate" if post_prob > 0.8 else "Weak"
                 )
 
                 return BayesianResult(
@@ -477,10 +498,14 @@ class StatisticalSignificanceTester:
                 )
 
             if method == BayesianMethod.ROPE_ANALYSIS:
-                rope_prob = await self._calculate_rope_probability(pre_values, post_values)
+                rope_prob = await self._calculate_rope_probability(
+                    pre_values, post_values
+                )
                 interpretation = f"Probability of negligible effect: {rope_prob:.3f}"
                 strength = (
-                    "Strong" if rope_prob > 0.95 else "Moderate" if rope_prob > 0.8 else "Weak"
+                    "Strong"
+                    if rope_prob > 0.95
+                    else "Moderate" if rope_prob > 0.8 else "Weak"
                 )
 
                 return BayesianResult(
@@ -539,7 +564,9 @@ class StatisticalSignificanceTester:
         if posterior_std > 0:
             prob_positive = 1 - norm.cdf(0, loc=posterior_mean, scale=posterior_std)
         else:
-            prob_positive = 0.5 if posterior_mean == 0 else (1.0 if posterior_mean > 0 else 0.0)
+            prob_positive = (
+                0.5 if posterior_mean == 0 else (1.0 if posterior_mean > 0 else 0.0)
+            )
 
         return prob_positive
 
@@ -623,14 +650,19 @@ class StatisticalSignificanceTester:
         return (float(ci_lower), float(ci_upper))
 
     async def _perform_comprehensive_power_analysis(
-        self, pre_values: list[float], post_values: list[float], test_results: list[TestResult]
+        self,
+        pre_values: list[float],
+        post_values: list[float],
+        test_results: list[TestResult],
     ) -> PowerAnalysis:
         """Perform comprehensive power analysis"""
 
         n = len(pre_values)
         diff = np.array(post_values) - np.array(pre_values)
         mean_diff = np.mean(diff)
-        pooled_sd = np.sqrt((np.var(pre_values, ddof=1) + np.var(post_values, ddof=1)) / 2)
+        pooled_sd = np.sqrt(
+            (np.var(pre_values, ddof=1) + np.var(post_values, ddof=1)) / 2
+        )
 
         # Observed effect size
         effect_size = mean_diff / pooled_sd if pooled_sd > 0 else 0
@@ -651,18 +683,28 @@ class StatisticalSignificanceTester:
             observed_power = 0.5  # Conservative estimate
 
         # Required sample size for 80% power
-        required_n = self._calculate_required_sample_size(effect_size, self.alpha, self.power)
+        required_n = self._calculate_required_sample_size(
+            effect_size, self.alpha, self.power
+        )
 
         # Minimum detectable effect with current sample size
-        min_detectable_effect = self._calculate_minimum_detectable_effect(n, self.alpha, self.power)
+        min_detectable_effect = self._calculate_minimum_detectable_effect(
+            n, self.alpha, self.power
+        )
 
         # Power recommendation
         if observed_power >= 0.8:
-            power_recommendation = "Adequate power - study well-powered to detect effects"
+            power_recommendation = (
+                "Adequate power - study well-powered to detect effects"
+            )
         elif observed_power >= 0.6:
-            power_recommendation = "Moderate power - consider larger sample for replication"
+            power_recommendation = (
+                "Moderate power - consider larger sample for replication"
+            )
         elif observed_power >= 0.4:
-            power_recommendation = "Low power - results should be interpreted with caution"
+            power_recommendation = (
+                "Low power - results should be interpreted with caution"
+            )
         else:
             power_recommendation = "Very low power - study severely underpowered"
 
@@ -692,7 +734,9 @@ class StatisticalSignificanceTester:
 
         return math.ceil(required_n)
 
-    def _calculate_minimum_detectable_effect(self, n: int, alpha: float, power: float) -> float:
+    def _calculate_minimum_detectable_effect(
+        self, n: int, alpha: float, power: float
+    ) -> float:
         """Calculate minimum detectable effect size for given sample size"""
 
         z_alpha = norm.ppf(1 - alpha / 2)
@@ -770,12 +814,16 @@ class StatisticalSignificanceTester:
         }
 
     def _assess_overall_significance(
-        self, corrected_results: list[CorrectedResult], bayesian_results: list[BayesianResult]
+        self,
+        corrected_results: list[CorrectedResult],
+        bayesian_results: list[BayesianResult],
     ) -> bool:
         """Assess overall statistical significance across all methods"""
 
         # Check corrected frequentist results
-        significant_corrected = [result for result in corrected_results if result.is_significant]
+        significant_corrected = [
+            result for result in corrected_results if result.is_significant
+        ]
 
         # Check Bayesian results
         strong_bayesian = [
@@ -799,7 +847,9 @@ class StatisticalSignificanceTester:
         recommendations = []
 
         # Frequentist evidence
-        significant_corrected = [result for result in corrected_results if result.is_significant]
+        significant_corrected = [
+            result for result in corrected_results if result.is_significant
+        ]
 
         if significant_corrected:
             recommendations.append(
@@ -823,7 +873,9 @@ class StatisticalSignificanceTester:
                     "Bayesian analysis provides strong evidence for intervention effectiveness"
                 )
             else:
-                recommendations.append("Bayesian analysis suggests weak or inconclusive evidence")
+                recommendations.append(
+                    "Bayesian analysis suggests weak or inconclusive evidence"
+                )
 
         # Power considerations
         if power_analysis.observed_power >= 0.8:
@@ -833,15 +885,23 @@ class StatisticalSignificanceTester:
                 "Moderate statistical power - consider replication with larger sample"
             )
         else:
-            recommendations.append("Low statistical power - interpret results with caution")
+            recommendations.append(
+                "Low statistical power - interpret results with caution"
+            )
 
         # Consistency across methods
-        significant_tests = [test for test in primary_tests if test.p_value and test.p_value < 0.05]
+        significant_tests = [
+            test for test in primary_tests if test.p_value and test.p_value < 0.05
+        ]
 
         if len(significant_tests) >= len(primary_tests) / 2:
-            recommendations.append("Consistent evidence across multiple statistical tests")
+            recommendations.append(
+                "Consistent evidence across multiple statistical tests"
+            )
         else:
-            recommendations.append("Inconsistent results across different statistical methods")
+            recommendations.append(
+                "Inconsistent results across different statistical methods"
+            )
 
         return recommendations
 
@@ -863,7 +923,9 @@ class StatisticalSignificanceTester:
         for test in primary_tests:
             if test.assumptions_met:
                 violated_assumptions = [
-                    assumption for assumption, met in test.assumptions_met.items() if not met
+                    assumption
+                    for assumption, met in test.assumptions_met.items()
+                    if not met
                 ]
                 if violated_assumptions:
                     limitations.append(

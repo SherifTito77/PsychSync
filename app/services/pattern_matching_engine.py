@@ -13,12 +13,12 @@ Key Features:
 - Cross-user pattern analysis and recommendations
 """
 
+import json
+import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import json
-import logging
 from typing import Any
 
 import numpy as np
@@ -181,7 +181,8 @@ class PatternMatchingEngine:
         self.clustering_models = {
             "kmeans": KMeans(n_clusters=self.config.n_clusters, random_state=42),
             "dbscan": DBSCAN(
-                eps=self.config.clustering_eps, min_samples=self.config.min_cluster_samples
+                eps=self.config.clustering_eps,
+                min_samples=self.config.min_cluster_samples,
             ),
             "agglomerative": AgglomerativeClustering(n_clusters=self.config.n_clusters),
         }
@@ -301,7 +302,11 @@ class PatternMatchingEngine:
                 super().__init__()
                 self.embedding = nn.Embedding(vocab_size, embedding_dim)
                 self.lstm = nn.LSTM(
-                    embedding_dim, hidden_size, num_layers, batch_first=True, dropout=0.2
+                    embedding_dim,
+                    hidden_size,
+                    num_layers,
+                    batch_first=True,
+                    dropout=0.2,
                 )
                 self.fc = nn.Linear(hidden_size, vocab_size)
                 self.dropout = nn.Dropout(0.3)
@@ -332,7 +337,9 @@ class PatternMatchingEngine:
                     dim_feedforward=embedding_dim * 4,
                     dropout=0.1,
                 )
-                self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+                self.transformer = nn.TransformerEncoder(
+                    encoder_layer, num_layers=num_layers
+                )
                 self.fc = nn.Linear(embedding_dim, vocab_size)
 
             def forward(self, x):
@@ -423,7 +430,9 @@ class PatternMatchingEngine:
 
                 # Use specified algorithm or template default
                 algorithm = (
-                    matching_algorithms[0] if matching_algorithms else template.matching_algorithm
+                    matching_algorithms[0]
+                    if matching_algorithms
+                    else template.matching_algorithm
                 )
 
                 if (
@@ -462,11 +471,14 @@ class PatternMatchingEngine:
                     cache_key,
                     self.config.pattern_cache_ttl_hours * 3600,
                     json.dumps(
-                        [self._pattern_match_to_dict(m) for m in filtered_matches], default=str
+                        [self._pattern_match_to_dict(m) for m in filtered_matches],
+                        default=str,
                     ),
                 )
 
-            logger.info(f"Found {len(filtered_matches)} pattern matches for user {user_id}")
+            logger.info(
+                f"Found {len(filtered_matches)} pattern matches for user {user_id}"
+            )
             return filtered_matches
 
         except Exception as e:
@@ -496,15 +508,25 @@ class PatternMatchingEngine:
             discovered_patterns = []
 
             if pattern_category == PatternCategory.BEHAVIORAL_SEQUENCE:
-                discovered_patterns = await self._discover_sequence_patterns(data, min_support)
+                discovered_patterns = await self._discover_sequence_patterns(
+                    data, min_support
+                )
             elif pattern_category == PatternCategory.FEATURE_PATTERN:
-                discovered_patterns = await self._discover_feature_patterns(data, min_support)
+                discovered_patterns = await self._discover_feature_patterns(
+                    data, min_support
+                )
             elif pattern_category == PatternCategory.TEMPORAL_PATTERN:
-                discovered_patterns = await self._discover_temporal_patterns(data, min_support)
+                discovered_patterns = await self._discover_temporal_patterns(
+                    data, min_support
+                )
             elif pattern_category == PatternCategory.NETWORK_PATTERN:
-                discovered_patterns = await self._discover_network_patterns(data, min_support)
+                discovered_patterns = await self._discover_network_patterns(
+                    data, min_support
+                )
             else:
-                logger.warning(f"Pattern discovery not implemented for {pattern_category}")
+                logger.warning(
+                    f"Pattern discovery not implemented for {pattern_category}"
+                )
 
             return discovered_patterns
 
@@ -522,7 +544,9 @@ class PatternMatchingEngine:
             # Extract relevant data based on template
             if template.pattern_category == PatternCategory.BEHAVIORAL_SEQUENCE:
                 sequences = user_data.get("sequences", [])
-                target_sequences = template.pattern_structure.get("target_sequences", [])
+                target_sequences = template.pattern_structure.get(
+                    "target_sequences", []
+                )
 
                 for i, sequence in enumerate(sequences):
                     for target_seq in target_sequences:
@@ -533,7 +557,10 @@ class PatternMatchingEngine:
                                 user_id=user_id or "unknown",
                                 match_score=1.0,
                                 confidence=1.0,
-                                matched_data={"sequence": sequence, "target": target_seq},
+                                matched_data={
+                                    "sequence": sequence,
+                                    "target": target_seq,
+                                },
                                 match_timestamp=datetime.utcnow(),
                                 pattern_instances=[{"index": i, "sequence": sequence}],
                             )
@@ -590,7 +617,9 @@ class PatternMatchingEngine:
 
         try:
             sequences = user_data.get("sequences", [])
-            min_length = template.pattern_structure.get("sequence_length", {}).get("min", 3)
+            min_length = template.pattern_structure.get("sequence_length", {}).get(
+                "min", 3
+            )
             max_gap = template.pattern_structure.get("time_constraints", {}).get(
                 "max_gap_minutes", 30
             )
@@ -600,12 +629,16 @@ class PatternMatchingEngine:
                     continue
 
                 # Find frequent subsequences
-                frequent_patterns = self._find_frequent_subsequences(sequence, min_length, max_gap)
+                frequent_patterns = self._find_frequent_subsequences(
+                    sequence, min_length, max_gap
+                )
 
                 for pattern in frequent_patterns:
                     support = self._calculate_pattern_support(sequences, pattern)
                     if support >= template.min_support:
-                        confidence = self._calculate_sequence_confidence(sequence, pattern)
+                        confidence = self._calculate_sequence_confidence(
+                            sequence, pattern
+                        )
 
                         match = PatternMatch(
                             match_id=f"sequence_{template.template_id}_{i}_{user_id}_{hash(str(pattern))}",
@@ -618,7 +651,10 @@ class PatternMatchingEngine:
                             pattern_instances=[
                                 {"index": i, "pattern": pattern, "support": support}
                             ],
-                            similarity_metrics={"support": support, "pattern_length": len(pattern)},
+                            similarity_metrics={
+                                "support": support,
+                                "pattern_length": len(pattern),
+                            },
                         )
                         matches.append(match)
 
@@ -642,7 +678,9 @@ class PatternMatchingEngine:
             features_scaled = self.scaler.fit_transform(features)
 
             # Apply clustering
-            cluster_labels = self.clustering_models["kmeans"].fit_predict(features_scaled)
+            cluster_labels = self.clustering_models["kmeans"].fit_predict(
+                features_scaled
+            )
 
             # Find the most dominant cluster
             unique_labels, counts = np.unique(cluster_labels, return_counts=True)
@@ -717,9 +755,14 @@ class PatternMatchingEngine:
                             user_id=user_id or "unknown",
                             match_score=float(similarity),
                             confidence=float(similarity) * 0.85,
-                            matched_data={"user_text": user_doc, "template_text": template_doc},
+                            matched_data={
+                                "user_text": user_doc,
+                                "template_text": template_doc,
+                            },
                             match_timestamp=datetime.utcnow(),
-                            pattern_instances=[{"user_doc_index": i, "template_doc_index": j}],
+                            pattern_instances=[
+                                {"user_doc_index": i, "template_doc_index": j}
+                            ],
                             similarity_metrics={"cosine_similarity": float(similarity)},
                         )
                         matches.append(match)
@@ -751,7 +794,9 @@ class PatternMatchingEngine:
 
             # Time window patterns
             time_windows = template.pattern_structure.get("time_windows", [])
-            frequency_threshold = template.pattern_structure.get("frequency_threshold", 0.1)
+            frequency_threshold = template.pattern_structure.get(
+                "frequency_threshold", 0.1
+            )
 
             for window in time_windows:
                 window_events = self._filter_by_time_window(df, window)
@@ -771,7 +816,9 @@ class PatternMatchingEngine:
                                 "total_events": len(df),
                             },
                             match_timestamp=datetime.utcnow(),
-                            pattern_instances=[{"window": window, "frequency": frequency}],
+                            pattern_instances=[
+                                {"window": window, "frequency": frequency}
+                            ],
                             similarity_metrics={
                                 "frequency": frequency,
                                 "event_count": len(window_events),
@@ -808,13 +855,17 @@ class PatternMatchingEngine:
                         )
                         all_algorithm_matches.extend(algorithm_matches)
                     except Exception as e:
-                        logger.error(f"Error in hybrid algorithm {algorithm.value}: {e}")
+                        logger.error(
+                            f"Error in hybrid algorithm {algorithm.value}: {e}"
+                        )
 
             if not all_algorithm_matches:
                 return matches
 
             # Group matches by similarity and combine scores
-            combined_matches = self._combine_algorithm_matches(all_algorithm_matches, template)
+            combined_matches = self._combine_algorithm_matches(
+                all_algorithm_matches, template
+            )
 
             matches.extend(combined_matches)
 
@@ -840,7 +891,9 @@ class PatternMatchingEngine:
 
             # Use LSTM model for sequence matching
             if "lstm" in self.deep_models:
-                lstm_matches = await self._lstm_pattern_match(sequences, template, user_id)
+                lstm_matches = await self._lstm_pattern_match(
+                    sequences, template, user_id
+                )
                 matches.extend(lstm_matches)
 
             # Use Transformer model for pattern matching
@@ -888,9 +941,14 @@ class PatternMatchingEngine:
                             user_id=user_id or "unknown",
                             match_score=max_prob,
                             confidence=max_prob * 0.9,
-                            matched_data={"sequence": sequence, "predicted_confidence": max_prob},
+                            matched_data={
+                                "sequence": sequence,
+                                "predicted_confidence": max_prob,
+                            },
                             match_timestamp=datetime.utcnow(),
-                            pattern_instances=[{"sequence_index": i, "confidence": max_prob}],
+                            pattern_instances=[
+                                {"sequence_index": i, "confidence": max_prob}
+                            ],
                             similarity_metrics={"prediction_confidence": max_prob},
                         )
                         matches.append(match)
@@ -923,7 +981,9 @@ class PatternMatchingEngine:
                     output = model(input_tensor)
 
                     # Calculate attention weights for pattern importance
-                    pattern_importance = torch.mean(torch.abs(output), dim=-1).max().item()
+                    pattern_importance = (
+                        torch.mean(torch.abs(output), dim=-1).max().item()
+                    )
 
                     if pattern_importance > 0.5:  # Significant pattern
                         match = PatternMatch(
@@ -932,12 +992,17 @@ class PatternMatchingEngine:
                             user_id=user_id or "unknown",
                             match_score=pattern_importance,
                             confidence=pattern_importance * 0.85,
-                            matched_data={"sequence": sequence, "importance": pattern_importance},
+                            matched_data={
+                                "sequence": sequence,
+                                "importance": pattern_importance,
+                            },
                             match_timestamp=datetime.utcnow(),
                             pattern_instances=[
                                 {"sequence_index": i, "importance": pattern_importance}
                             ],
-                            similarity_metrics={"pattern_importance": pattern_importance},
+                            similarity_metrics={
+                                "pattern_importance": pattern_importance
+                            },
                         )
                         matches.append(match)
 
@@ -950,7 +1015,9 @@ class PatternMatchingEngine:
         """Check if two sequences match exactly."""
         return seq1 == seq2
 
-    def _calculate_preference_similarity(self, user_prefs: dict, template_prefs: dict) -> float:
+    def _calculate_preference_similarity(
+        self, user_prefs: dict, template_prefs: dict
+    ) -> float:
         """Calculate similarity between user preferences and template."""
         try:
             common_keys = set(user_prefs.keys()) & set(template_prefs.keys())
@@ -979,7 +1046,9 @@ class PatternMatchingEngine:
 
             # Generate all possible subsequences of minimum length
             for start in range(sequence_len - min_length + 1):
-                for end in range(start + min_length, min(start + min_length + 5, sequence_len + 1)):
+                for end in range(
+                    start + min_length, min(start + min_length + 5, sequence_len + 1)
+                ):
                     subsequence = sequence[start:end]
                     frequent_patterns.append(subsequence)
 
@@ -989,7 +1058,9 @@ class PatternMatchingEngine:
             logger.error(f"Error finding frequent subsequences: {e}")
             return []
 
-    def _calculate_pattern_support(self, sequences: list[list[str]], pattern: list[str]) -> float:
+    def _calculate_pattern_support(
+        self, sequences: list[list[str]], pattern: list[str]
+    ) -> float:
         """Calculate support of a pattern in a set of sequences."""
         try:
             if not sequences:
@@ -1008,7 +1079,9 @@ class PatternMatchingEngine:
         except Exception:
             return 0.0
 
-    def _calculate_sequence_confidence(self, sequence: list[str], pattern: list[str]) -> float:
+    def _calculate_sequence_confidence(
+        self, sequence: list[str], pattern: list[str]
+    ) -> float:
         """Calculate confidence score for a sequence pattern match."""
         try:
             if not pattern or not sequence:
@@ -1025,7 +1098,9 @@ class PatternMatchingEngine:
         except Exception:
             return 0.0
 
-    def _extract_features(self, user_data: dict[str, Any], template: PatternTemplate) -> np.ndarray:
+    def _extract_features(
+        self, user_data: dict[str, Any], template: PatternTemplate
+    ) -> np.ndarray:
         """Extract features for clustering."""
         try:
             # This is a simplified feature extraction
@@ -1040,11 +1115,14 @@ class PatternMatchingEngine:
                     [
                         len(events),  # Number of events
                         len(set(e["type"] for e in events)),  # Unique event types
-                        sum(e.get("duration", 0) for e in events) / len(events),  # Avg duration
+                        sum(e.get("duration", 0) for e in events)
+                        / len(events),  # Avg duration
                         len(events)
                         / max(
                             1,
-                            (events[-1]["timestamp"] - events[0]["timestamp"]).total_seconds()
+                            (
+                                events[-1]["timestamp"] - events[0]["timestamp"]
+                            ).total_seconds()
                             / 3600,
                         ),  # Events per hour
                     ]
@@ -1122,7 +1200,8 @@ class PatternMatchingEngine:
                     template_id=template.template_id,
                     user_id=group_matches[0].user_id,
                     match_score=avg_score,
-                    confidence=avg_confidence * 0.9,  # Slightly lower confidence for combined
+                    confidence=avg_confidence
+                    * 0.9,  # Slightly lower confidence for combined
                     matched_data={
                         "combined_from": len(group_matches),
                         "algorithms": [m.method.value for m in group_matches],

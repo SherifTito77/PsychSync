@@ -43,9 +43,17 @@ def test_ai_processing():
     try:
         processor = MBTIProcessor()
         result = processor.process({"type": "INTJ", "confidence": 0.9})
-        return {"success": True, "result": result, "message": "Background AI processing successful"}
+        return {
+            "success": True,
+            "result": result,
+            "message": "Background AI processing successful",
+        }
     except Exception as e:
-        return {"success": False, "error": str(e), "message": "Background AI processing failed"}
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Background AI processing failed",
+        }
 
 
 if __name__ == "__main__":

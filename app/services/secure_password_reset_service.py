@@ -13,43 +13,58 @@ Date: 2025-12-24
 """
 
 import asyncio
-from datetime import datetime, timedelta
 import secrets
+from datetime import datetime, timedelta
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session
 
-from app.core.rate_limiter_unified import SimpleRateLimiter, RateLimitStrategy
-from app.services.security import constant_time_compare, hash_string
+from app.core.rate_limiter_unified import RateLimitStrategy, SimpleRateLimiter
 from app.db.crud import users as user_crud
 from app.services.email_service import send_email
+from app.services.security import constant_time_compare, hash_string
 
 # =============================================================================
 # Request/Response Models
 # =============================================================================
 
+
 class PasswordResetRequest(BaseModel):
     """Request to initiate password reset"""
+
     email: EmailStr
 
 
 class PasswordResetVerification(BaseModel):
     """Submit verification codes during reset"""
+
     reset_token: str = Field(..., description="Reset token from email")
-    email_code: str = Field(..., min_length=6, max_length=6, description="6-digit email code")
-    sms_code: str | None = Field(None, min_length=6, max_length=6, description="6-digit SMS code (if enabled)")
-    security_answer: str | None = Field(None, description="Answer to security question (if enabled)")
+    email_code: str = Field(
+        ..., min_length=6, max_length=6, description="6-digit email code"
+    )
+    sms_code: str | None = Field(
+        None, min_length=6, max_length=6, description="6-digit SMS code (if enabled)"
+    )
+    security_answer: str | None = Field(
+        None, description="Answer to security question (if enabled)"
+    )
 
 
 class PasswordResetComplete(BaseModel):
     """Complete password reset with new password"""
-    verification_token: str = Field(..., description="Verification token after successful verification")
-    new_password: str = Field(..., min_length=8, description="New password (min 8 characters)")
+
+    verification_token: str = Field(
+        ..., description="Verification token after successful verification"
+    )
+    new_password: str = Field(
+        ..., min_length=8, description="New password (min 8 characters)"
+    )
 
 
 class PasswordResetResponse(BaseModel):
     """Response to password reset request"""
+
     message: str
     reset_token: str | None = None  # Only included if we want to allow proceeding
 
@@ -74,6 +89,7 @@ class PasswordResetToken(Base):
     - Rate limited per email
     - IP tracking for fraud detection
     """
+
     __tablename__ = "password_reset_tokens"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -82,7 +98,9 @@ class PasswordResetToken(Base):
 
     # Security: Store hash, not plaintext
     reset_token_hash = Column(String, nullable=False)
-    verification_token_hash = Column(String, nullable=True)  # Generated after verification
+    verification_token_hash = Column(
+        String, nullable=True
+    )  # Generated after verification
 
     # Verification codes (hashed)
     email_code_hash = Column(String, nullable=False)
@@ -107,6 +125,7 @@ class PasswordResetToken(Base):
 # Main Service
 # =============================================================================
 
+
 class SecurePasswordResetService:
     """
     Secure password reset service
@@ -127,7 +146,7 @@ class SecurePasswordResetService:
         request: PasswordResetRequest,
         ip_address: str,
         user_agent: str,
-        db: Session
+        db: Session,
     ) -> PasswordResetResponse:
         """
         Initiate password reset process
@@ -149,36 +168,32 @@ class SecurePasswordResetService:
         # Rate limiting: 3 requests per hour per email
         rate_limit_key = f"password_reset_{request.email}"
         if self.rate_limiter.is_rate_limited(
-            key=rate_limit_key,
-            max_requests=3,
-            window_seconds=3600
+            key=rate_limit_key, max_requests=3, window_seconds=3600
         ):
             await self._log_security_event(
                 event_type="password_reset_rate_limited",
                 email=request.email,
                 ip_address=ip_address,
-                severity="warning"
+                severity="warning",
             )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many password reset requests. Please try again later."
+                detail="Too many password reset requests. Please try again later.",
             )
 
         # Rate limiting: 10 requests per hour per IP
         ip_rate_limit_key = f"password_reset_ip_{ip_address}"
         if self.rate_limiter.is_rate_limited(
-            key=ip_rate_limit_key,
-            max_requests=10,
-            window_seconds=3600
+            key=ip_rate_limit_key, max_requests=10, window_seconds=3600
         ):
             await self._log_security_event(
                 event_type="password_reset_ip_rate_limited",
                 ip_address=ip_address,
-                severity="warning"
+                severity="warning",
             )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Too many password reset requests from your location. Please try again later."
+                detail="Too many password reset requests from your location. Please try again later.",
             )
 
         # Lookup user (ALWAYS perform lookup, even if not found - timing attack prevention)
@@ -213,7 +228,7 @@ class SecurePasswordResetService:
                 created_at=datetime.utcnow(),
                 expires_at=datetime.utcnow() + timedelta(minutes=15),
                 ip_address=ip_address,
-                user_agent=user_agent
+                user_agent=user_agent,
             )
 
             db.add(reset_record)
@@ -225,22 +240,19 @@ class SecurePasswordResetService:
                 reset_token=reset_token,
                 email_code=email_code,
                 sms_code=sms_code,
-                user_name=user.full_name
+                user_name=user.full_name,
             )
 
             # Send SMS if user has phone
             if sms_code:
-                await self._send_reset_sms(
-                    phone_number=user.phone,
-                    sms_code=sms_code
-                )
+                await self._send_reset_sms(phone_number=user.phone, sms_code=sms_code)
 
             await self._log_security_event(
                 event_type="password_reset_initiated",
                 user_id=user.id,
                 email=request.email,
                 ip_address=ip_address,
-                severity="info"
+                severity="info",
             )
 
         else:
@@ -257,14 +269,11 @@ class SecurePasswordResetService:
         # Generic response - doesn't reveal if email exists
         return PasswordResetResponse(
             message="If this email exists, a password reset link has been sent. "
-                   "Please check your email for instructions."
+            "Please check your email for instructions."
         )
 
     async def verify_reset_codes(
-        self,
-        request: PasswordResetVerification,
-        ip_address: str,
-        db: Session
+        self, request: PasswordResetVerification, ip_address: str, db: Session
     ) -> dict:
         """
         Verify password reset codes
@@ -288,10 +297,14 @@ class SecurePasswordResetService:
         reset_token_hash = hash_string(request.reset_token)
 
         # Lookup reset token
-        reset_record = db.query(PasswordResetToken).filter(
-            PasswordResetToken.reset_token_hash == reset_token_hash,
-            PasswordResetToken.is_active == True
-        ).first()
+        reset_record = (
+            db.query(PasswordResetToken)
+            .filter(
+                PasswordResetToken.reset_token_hash == reset_token_hash,
+                PasswordResetToken.is_active == True,
+            )
+            .first()
+        )
 
         if not reset_record:
             # Use constant-time comparison even for invalid tokens
@@ -300,11 +313,11 @@ class SecurePasswordResetService:
             await self._log_security_event(
                 event_type="password_reset_invalid_token",
                 ip_address=ip_address,
-                severity="warning"
+                severity="warning",
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid or expired reset token"
+                detail="Invalid or expired reset token",
             )
 
         # Check expiration
@@ -312,11 +325,11 @@ class SecurePasswordResetService:
             await self._log_security_event(
                 event_type="password_reset_expired_token",
                 user_id=reset_record.user_id,
-                severity="warning"
+                severity="warning",
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Reset token has expired"
+                detail="Reset token has expired",
             )
 
         # Check if already used
@@ -324,11 +337,11 @@ class SecurePasswordResetService:
             await self._log_security_event(
                 event_type="password_reset_already_used",
                 user_id=reset_record.user_id,
-                severity="warning"
+                severity="warning",
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Reset token has already been used"
+                detail="Reset token has already been used",
             )
 
         # Check failed attempts
@@ -339,11 +352,11 @@ class SecurePasswordResetService:
             await self._log_security_event(
                 event_type="password_reset_max_attempts",
                 user_id=reset_record.user_id,
-                severity="alert"
+                severity="alert",
             )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail="Maximum verification attempts exceeded. Please request a new reset link."
+                detail="Maximum verification attempts exceeded. Please request a new reset link.",
             )
 
         # Verify email code (constant-time comparison)
@@ -356,11 +369,11 @@ class SecurePasswordResetService:
                 event_type="password_reset_invalid_code",
                 user_id=reset_record.user_id,
                 attempt=reset_record.failed_verification_attempts,
-                severity="warning"
+                severity="warning",
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid verification code"
+                detail="Invalid verification code",
             )
 
         # Verify SMS code (if sent)
@@ -368,7 +381,7 @@ class SecurePasswordResetService:
             if not request.sms_code:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="SMS code is required for this reset"
+                    detail="SMS code is required for this reset",
                 )
 
             sms_code_hash = hash_string(request.sms_code)
@@ -379,11 +392,11 @@ class SecurePasswordResetService:
                 await self._log_security_event(
                     event_type="password_reset_invalid_sms_code",
                     user_id=reset_record.user_id,
-                    severity="warning"
+                    severity="warning",
                 )
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid SMS verification code"
+                    detail="Invalid SMS verification code",
                 )
 
         # All verifications passed - generate verification token
@@ -397,19 +410,16 @@ class SecurePasswordResetService:
         await self._log_security_event(
             event_type="password_reset_verified",
             user_id=reset_record.user_id,
-            severity="info"
+            severity="info",
         )
 
         return {
             "verification_token": verification_token,
-            "message": "Verification successful. You may now reset your password."
+            "message": "Verification successful. You may now reset your password.",
         }
 
     async def complete_password_reset(
-        self,
-        request: PasswordResetComplete,
-        ip_address: str,
-        db: Session
+        self, request: PasswordResetComplete, ip_address: str, db: Session
     ) -> dict:
         """
         Complete password reset with new password
@@ -427,29 +437,32 @@ class SecurePasswordResetService:
         verification_token_hash = hash_string(request.verification_token)
 
         # Lookup reset token
-        reset_record = db.query(PasswordResetToken).filter(
-            PasswordResetToken.verification_token_hash == verification_token_hash,
-            PasswordResetToken.is_active == True,
-            PasswordResetToken.verified_at != None  # Must be verified first
-        ).first()
+        reset_record = (
+            db.query(PasswordResetToken)
+            .filter(
+                PasswordResetToken.verification_token_hash == verification_token_hash,
+                PasswordResetToken.is_active == True,
+                PasswordResetToken.verified_at != None,  # Must be verified first
+            )
+            .first()
+        )
 
         if not reset_record:
             await self._log_security_event(
                 event_type="password_reset_invalid_verification_token",
                 ip_address=ip_address,
-                severity="warning"
+                severity="warning",
             )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid verification token"
+                detail="Invalid verification token",
             )
 
         # Get user
         user = user_crud.get_user_by_id(db, user_id=reset_record.user_id)
         if not user:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
             )
 
         # Update password
@@ -469,7 +482,7 @@ class SecurePasswordResetService:
             event_type="password_reset_completed",
             user_id=user.id,
             ip_address=ip_address,
-            severity="info"
+            severity="info",
         )
 
         # Send confirmation email
@@ -491,6 +504,7 @@ class SecurePasswordResetService:
         """Hash password with bcrypt"""
         # Implementation uses bcrypt
         from passlib.context import CryptContext
+
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
         return pwd_context.hash(password)
 
@@ -500,7 +514,7 @@ class SecurePasswordResetService:
         reset_token: str,
         email_code: str,
         sms_code: str | None,
-        user_name: str
+        user_name: str,
     ):
         """Send password reset email"""
         subject = "Password Reset Request - PsychSync"
@@ -526,11 +540,7 @@ If you didn't request this reset, please ignore this email or contact support im
 PsychSync Security Team
 """
 
-        await send_email(
-            to=email,
-            subject=subject,
-            body=body
-        )
+        await send_email(to=email, subject=subject, body=body)
 
     async def _send_reset_sms(self, phone_number: str, sms_code: str):
         """Send SMS verification code"""
@@ -558,14 +568,12 @@ PsychSync Security Team
         # Implementation marks all refresh tokens as invalid
 
     async def _log_security_event(
-        self,
-        event_type: str,
-        severity: str = "info",
-        **kwargs
+        self, event_type: str, severity: str = "info", **kwargs
     ):
         """Log security event for monitoring"""
         # SECURITY: Use logger instead of print to prevent sensitive data leakage
         import logging
+
         logger = logging.getLogger(__name__)
 
         level = getattr(logging, severity.upper(), logging.INFO)
@@ -574,8 +582,8 @@ PsychSync Security Team
             f"Security event: {event_type}",
             extra={
                 "security_event": event_type,
-                "details": str(kwargs)  # Logger will sanitize sensitive data
-            }
+                "details": str(kwargs),  # Logger will sanitize sensitive data
+            },
         )
 
 
@@ -594,9 +602,7 @@ password_reset_service = SecurePasswordResetService()
 
 @router.post("/request", response_model=PasswordResetResponse)
 async def request_password_reset(
-    request: PasswordResetRequest,
-    http_request: Request,
-    db: Session = Depends(get_db)
+    request: PasswordResetRequest, http_request: Request, db: Session = Depends(get_db)
 ):
     """
     Request password reset
@@ -610,7 +616,7 @@ async def request_password_reset(
         request=request,
         ip_address=http_request.client.host,
         user_agent=http_request.headers.get("user-agent", ""),
-        db=db
+        db=db,
     )
 
 
@@ -618,7 +624,7 @@ async def request_password_reset(
 async def verify_password_reset(
     request: PasswordResetVerification,
     http_request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     Verify password reset codes
@@ -631,17 +637,13 @@ async def verify_password_reset(
     Max 3 failed attempts.
     """
     return await password_reset_service.verify_reset_codes(
-        request=request,
-        ip_address=http_request.client.host,
-        db=db
+        request=request, ip_address=http_request.client.host, db=db
     )
 
 
 @router.post("/complete")
 async def complete_password_reset(
-    request: PasswordResetComplete,
-    http_request: Request,
-    db: Session = Depends(get_db)
+    request: PasswordResetComplete, http_request: Request, db: Session = Depends(get_db)
 ):
     """
     Complete password reset
@@ -649,7 +651,5 @@ async def complete_password_reset(
     After successful verification, sets new password.
     """
     return await password_reset_service.complete_password_reset(
-        request=request,
-        ip_address=http_request.client.host,
-        db=db
+        request=request, ip_address=http_request.client.host, db=db
     )

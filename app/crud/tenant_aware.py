@@ -8,15 +8,16 @@ Created: 2025-01-12
 Author: Architecture Team
 """
 
-from typing import Generic, TypeVar, Type, Optional, List, Dict, Any
-from uuid import UUID
-from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete, func
-from sqlalchemy.orm import DeclarativeMeta
 import logging
+from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
+from uuid import UUID
 
-from app.core.tenant_database import get_tenant_router, TenantTier
+from pydantic import BaseModel
+from sqlalchemy import delete, func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import DeclarativeMeta
+
+from app.core.tenant_database import TenantTier, get_tenant_router
 
 logger = logging.getLogger(__name__)
 
@@ -158,7 +159,9 @@ class TenantAwareCRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]
         """
         try:
             # Convert schema to dict
-            obj_in_data = obj_in.model_dump() if isinstance(obj_in, BaseModel) else obj_in
+            obj_in_data = (
+                obj_in.model_dump() if isinstance(obj_in, BaseModel) else obj_in
+            )
 
             # Inject tenant_id
             obj_in_data["tenant_id"] = tenant_id
@@ -173,7 +176,9 @@ class TenantAwareCRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]
             await db.flush()
             await db.refresh(db_obj)
 
-            logger.info(f"Created {self.model.__name__} {db_obj.id} for tenant {tenant_id}")
+            logger.info(
+                f"Created {self.model.__name__} {db_obj.id} for tenant {tenant_id}"
+            )
 
             return db_obj
 
@@ -214,7 +219,11 @@ class TenantAwareCRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]
                 )
 
             # Convert schema to dict
-            obj_in_data = obj_in.model_dump(exclude_unset=True) if isinstance(obj_in, BaseModel) else obj_in
+            obj_in_data = (
+                obj_in.model_dump(exclude_unset=True)
+                if isinstance(obj_in, BaseModel)
+                else obj_in
+            )
 
             # Update fields
             for field, value in obj_in_data.items():
@@ -224,7 +233,9 @@ class TenantAwareCRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]
             await db.flush()
             await db.refresh(db_obj)
 
-            logger.info(f"Updated {self.model.__name__} {db_obj.id} for tenant {tenant_id}")
+            logger.info(
+                f"Updated {self.model.__name__} {db_obj.id} for tenant {tenant_id}"
+            )
 
             return db_obj
 
@@ -362,7 +373,9 @@ class TenantAwareCRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]
             db_objs = []
 
             for obj_in in objs_in:
-                obj_in_data = obj_in.model_dump() if isinstance(obj_in, BaseModel) else obj_in
+                obj_in_data = (
+                    obj_in.model_dump() if isinstance(obj_in, BaseModel) else obj_in
+                )
                 obj_in_data["tenant_id"] = tenant_id
 
                 db_obj = self.model(**obj_in_data)
@@ -375,7 +388,9 @@ class TenantAwareCRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]
             for db_obj in db_objs:
                 await db.refresh(db_obj)
 
-            logger.info(f"Bulk created {len(db_objs)} {self.model.__name__} for tenant {tenant_id}")
+            logger.info(
+                f"Bulk created {len(db_objs)} {self.model.__name__} for tenant {tenant_id}"
+            )
 
             return db_objs
 
@@ -407,7 +422,9 @@ class TenantAwareCRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]
         return await self.get_multi(db, tenant_id, skip=skip, limit=limit)
 
 
-class TenantAwareCRUDWithSoftDelete(TenantAwareCRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]):
+class TenantAwareCRUDWithSoftDelete(
+    TenantAwareCRUDBase[ModelType, CreateSchemaType, UpdateSchemaType]
+):
     """
     Base CRUD class with soft delete support.
 
@@ -505,11 +522,15 @@ class TenantAwareCRUDWithSoftDelete(TenantAwareCRUDBase[ModelType, CreateSchemaT
             if hard_delete:
                 # Permanent delete
                 await db.delete(db_obj)
-                logger.info(f"Hard deleted {self.model.__name__} {id} for tenant {tenant_id}")
+                logger.info(
+                    f"Hard deleted {self.model.__name__} {id} for tenant {tenant_id}"
+                )
             else:
                 # Soft delete
                 db_obj.is_deleted = True
-                logger.info(f"Soft deleted {self.model.__name__} {id} for tenant {tenant_id}")
+                logger.info(
+                    f"Soft deleted {self.model.__name__} {id} for tenant {tenant_id}"
+                )
 
             await db.flush()
 

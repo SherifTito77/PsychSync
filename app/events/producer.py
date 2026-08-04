@@ -393,7 +393,7 @@ class KafkaEventProducer:
         jitter_percent = 0.1  # ±10% jitter
 
         # Calculate exponential backoff
-        delay = min(base_delay * (2 ** attempt), max_delay)
+        delay = min(base_delay * (2**attempt), max_delay)
 
         # Add jitter
         jitter = delay * jitter_percent
@@ -489,8 +489,11 @@ class KafkaEventProducer:
             buffer_dir.mkdir(parents=True, exist_ok=True)
 
             # Write to file
-            filename = buffer_dir / f"{event.id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
-            with open(filename, 'w') as f:
+            filename = (
+                buffer_dir
+                / f"{event.id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+            )
+            with open(filename, "w") as f:
                 json.dump(
                     {
                         "topic": topic,

@@ -18,15 +18,25 @@ Version: 1.0
 
 import asyncio
 from datetime import datetime
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
+
 import pytest
 
+from app.core.resilient_client import HTTPClientError, ResilientHTTPClient, TimeoutError
+from app.core.siem_integration import (
+    SIEMConfig,
+    SIEMEvent,
+    SIEMIntegration,
+    SIEMPlatform,
+)
 from app.services.ai_insights_service import AIInsightsService
+from app.services.database_backup_service import (
+    BackupConfig,
+    BackupType,
+    DatabaseBackupService,
+)
+from app.services.email_providers import EmailServiceManager, SendGridProvider
 from app.services.push_notification_service import PushNotificationService
-from app.core.siem_integration import SIEMIntegration, SIEMConfig, SIEMEvent, SIEMPlatform
-from app.services.database_backup_service import DatabaseBackupService, BackupConfig, BackupType
-from app.services.email_providers import SendGridProvider, EmailServiceManager
-from app.core.resilient_client import ResilientHTTPClient, HTTPClientError, TimeoutError
 
 
 class TestResilientHTTPClient:
@@ -64,6 +74,7 @@ class TestResilientHTTPClient:
         # Mock httpx to timeout
         async def mock_request(*args, **kwargs):
             from httpx import TimeoutException
+
             raise TimeoutException("Request timed out")
 
         with patch.object(client._client, "request", side_effect=mock_request):
@@ -76,9 +87,7 @@ class TestResilientHTTPClient:
         from app.core.resilience import Circuit, ErrorType
 
         circuit = Circuit(
-            failure_threshold=3,
-            recovery_timeout=60.0,
-            half_open_attempts=2
+            failure_threshold=3, recovery_timeout=60.0, half_open_attempts=2
         )
 
         # Record failures to open circuit
@@ -142,7 +151,7 @@ class TestAIInsightsService:
             # Return mock response on second attempt
             response = Mock()
             response.choices = [Mock()]
-            response.choices[0].message.content = '[]'
+            response.choices[0].message.content = "[]"
             return response
 
         with patch("openai.AsyncOpenAI") as mock_client:
@@ -175,7 +184,9 @@ class TestAIInsightsService:
 
         with patch("openai.AsyncOpenAI") as mock_client:
             mock_client.return_value.chat.completions.create = mock_openai_call
-            result = await AIInsightsService.generate_team_insights(team_data, use_cache=False)
+            result = await AIInsightsService.generate_team_insights(
+                team_data, use_cache=False
+            )
 
         # Should fallback to rule-based insights
         assert result is not None
@@ -204,7 +215,9 @@ class TestPushNotificationService:
                 response.json.return_value = {"message_id": "test-msg-id"}
             return response
 
-        with patch("app.services.push_notification_service.resilient_http_client") as mock_client:
+        with patch(
+            "app.services.push_notification_service.resilient_http_client"
+        ) as mock_client:
             mock_client.post = mock_post
 
             payload = {
@@ -251,12 +264,16 @@ class TestSIEMIntegration:
             return response
 
         with patch.object(siem._session, "post", side_effect=mock_post):
-            result = await siem._send_to_splunk([SIEMEvent(
-                event_type="test",
-                timestamp=datetime.utcnow(),
-                severity="info",
-                category="test",
-            )])
+            result = await siem._send_to_splunk(
+                [
+                    SIEMEvent(
+                        event_type="test",
+                        timestamp=datetime.utcnow(),
+                        severity="info",
+                        category="test",
+                    )
+                ]
+            )
 
         # Should have succeeded after retry
         assert result is True
@@ -287,12 +304,16 @@ class TestSIEMIntegration:
             return response
 
         with patch.object(siem._session, "post", side_effect=mock_post):
-            result = await siem._send_to_elasticsearch([SIEMEvent(
-                event_type="test",
-                timestamp=datetime.utcnow(),
-                severity="info",
-                category="test",
-            )])
+            result = await siem._send_to_elasticsearch(
+                [
+                    SIEMEvent(
+                        event_type="test",
+                        timestamp=datetime.utcnow(),
+                        severity="info",
+                        category="test",
+                    )
+                ]
+            )
 
         # Should have succeeded after retry
         assert result is True
@@ -321,12 +342,16 @@ class TestSIEMIntegration:
             return response
 
         with patch.object(siem._session, "post", side_effect=mock_post):
-            result = await siem._send_to_webhook([SIEMEvent(
-                event_type="test",
-                timestamp=datetime.utcnow(),
-                severity="info",
-                category="test",
-            )])
+            result = await siem._send_to_webhook(
+                [
+                    SIEMEvent(
+                        event_type="test",
+                        timestamp=datetime.utcnow(),
+                        severity="info",
+                        category="test",
+                    )
+                ]
+            )
 
         # Should have succeeded after retry
         assert result is True
@@ -348,10 +373,11 @@ class TestDatabaseBackupService:
 
         # Verify boto3 configuration includes retry settings
         with patch("boto3.client") as mock_boto3:
-            from botocore.config import Config
-
             # Call the upload method
             import tempfile
+
+            from botocore.config import Config
+
             with tempfile.NamedTemporaryFile(delete=False) as tmp:
                 tmp.write(b"test data")
                 tmp_path = tmp.name
@@ -363,6 +389,7 @@ class TestDatabaseBackupService:
                     pass
             finally:
                 import os
+
                 os.unlink(tmp_path)
 
     def test_multipart_upload_configured(self):
@@ -374,7 +401,7 @@ class TestDatabaseBackupService:
             multipart_threshold=8 * 1024 * 1024,
             max_concurrency=10,
             multipart_chunksize=8 * 1024 * 1024,
-            use_threads=True
+            use_threads=True,
         )
 
         assert config.multipart_threshold == 8 * 1024 * 1024
@@ -442,9 +469,13 @@ class TestEmailServiceRetry:
             mailgun_calls += 1
             return {"success": True, "message_id": "mailgun-id"}
 
-        with patch.object(manager.providers[0][1], "send_email", side_effect=mock_sendgrid), \
-             patch.object(manager.providers[1][1], "send_email", side_effect=mock_ses), \
-             patch.object(manager.providers[2][1], "send_email", side_effect=mock_mailgun):
+        with patch.object(
+            manager.providers[0][1], "send_email", side_effect=mock_sendgrid
+        ), patch.object(
+            manager.providers[1][1], "send_email", side_effect=mock_ses
+        ), patch.object(
+            manager.providers[2][1], "send_email", side_effect=mock_mailgun
+        ):
 
             result = await manager.send_email(
                 to="test@example.com",
@@ -479,11 +510,13 @@ class TestRetryConfiguration:
     def test_retry_config_environment_override(self):
         """Test that retry config can be overridden via environment variables"""
         import os
+
         original_value = os.environ.get("RETRY_MAX_ATTEMPTS")
 
         try:
             os.environ["RETRY_MAX_ATTEMPTS"] = "5"
             from app.core.config.settings import Settings
+
             settings = Settings()
 
             assert settings.RETRY_MAX_ATTEMPTS == 5

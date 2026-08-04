@@ -29,7 +29,7 @@ class TeamPersonalityService:
         "Conscientiousness",
         "Extraversion",
         "Agreeableness",
-        "Neuroticism"
+        "Neuroticism",
     ]
 
     # Dimension to JSONB field mapping
@@ -38,14 +38,12 @@ class TeamPersonalityService:
         "Conscientiousness": "conscientiousness",
         "Extraversion": "extraversion",
         "Agreeableness": "agreeableness",
-        "Neuroticism": "neuroticism"
+        "Neuroticism": "neuroticism",
     }
 
     @staticmethod
     async def get_team_composition(
-        db: AsyncSession,
-        team_id: str,
-        force_refresh: bool = False
+        db: AsyncSession, team_id: str, force_refresh: bool = False
     ) -> Optional[TeamPersonalityMap]:
         """
         Get team personality composition.
@@ -80,8 +78,7 @@ class TeamPersonalityService:
 
     @staticmethod
     async def _calculate_team_composition(
-        db: AsyncSession,
-        team_id: str
+        db: AsyncSession, team_id: str
     ) -> Optional[TeamPersonalityMap]:
         """
         Calculate team personality composition from raw assessment data.
@@ -95,9 +92,7 @@ class TeamPersonalityService:
         """
         # Get team with members
         team_result = await db.execute(
-            select(Team)
-            .options(selectinload(Team.members))
-            .filter(Team.id == team_id)
+            select(Team).options(selectinload(Team.members)).filter(Team.id == team_id)
         )
         team = team_result.scalar_one_or_none()
 
@@ -106,10 +101,9 @@ class TeamPersonalityService:
 
         # Get all assessment IDs for this team
         assessment_result = await db.execute(
-            select(Assessment.id)
-            .filter(
+            select(Assessment.id).filter(
                 Assessment.team_id == team_id,
-                Assessment.framework_code == "BIG_FIVE"  # Only Big Five assessments
+                Assessment.framework_code == "BIG_FIVE",  # Only Big Five assessments
             )
         )
         assessment_ids = [row[0] for row in assessment_result.fetchall()]
@@ -118,11 +112,14 @@ class TeamPersonalityService:
             return None
 
         # Get all scores for these assessments, grouped by dimension
-        scores_by_dimension = {dim: [] for dim in TeamPersonalityService.BIG_FIVE_DIMENSIONS}
+        scores_by_dimension = {
+            dim: [] for dim in TeamPersonalityService.BIG_FIVE_DIMENSIONS
+        }
 
         scores_result = await db.execute(
-            select(Score.dimension, Score.value)
-            .filter(Score.assessment_id.in_(assessment_ids))
+            select(Score.dimension, Score.value).filter(
+                Score.assessment_id.in_(assessment_ids)
+            )
         )
 
         for dimension, value in scores_result.fetchall():
@@ -137,16 +134,24 @@ class TeamPersonalityService:
         dimension_stats = {}
         for dimension, scores in scores_by_dimension.items():
             if scores:  # Only calculate if we have data
-                dimension_stats[dimension] = TeamPersonalityService._calculate_dimension_stats(scores)
+                dimension_stats[dimension] = (
+                    TeamPersonalityService._calculate_dimension_stats(scores)
+                )
 
         # Determine team composition type
-        composition_type = TeamPersonalityService._determine_composition_type(dimension_stats)
+        composition_type = TeamPersonalityService._determine_composition_type(
+            dimension_stats
+        )
 
         # Generate strengths and gaps
-        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(dimension_stats)
+        strengths, gaps = TeamPersonalityService._generate_strengths_and_gaps(
+            dimension_stats
+        )
 
         # Calculate compatibility and diversity scores
-        internal_compatibility = TeamPersonalityService._calculate_compatibility(dimension_stats)
+        internal_compatibility = TeamPersonalityService._calculate_compatibility(
+            dimension_stats
+        )
         diversity_score = TeamPersonalityService._calculate_diversity(dimension_stats)
 
         # Create or update TeamPersonalityMap
@@ -164,7 +169,7 @@ class TeamPersonalityService:
             personality_map = TeamPersonalityMap(
                 team_id=team_id,
                 created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow()
+                updated_at=datetime.utcnow(),
             )
             db.add(personality_map)
 
@@ -207,7 +212,7 @@ class TeamPersonalityService:
                 "min": 0.0,
                 "max": 0.0,
                 "std_dev": 0.0,
-                "distribution": [0, 0, 0, 0, 0]
+                "distribution": [0, 0, 0, 0, 0],
             }
 
         scores_array = np.array(scores)
@@ -242,7 +247,7 @@ class TeamPersonalityService:
             "min": round(min_val, 2),
             "max": round(max_val, 2),
             "std_dev": round(std_dev, 2),
-            "distribution": distribution_pct
+            "distribution": distribution_pct,
         }
 
     @staticmethod
@@ -260,10 +265,7 @@ class TeamPersonalityService:
             return "Unknown"
 
         # Get average scores for each dimension
-        averages = {
-            dim: stats.get("avg", 0)
-            for dim, stats in dimension_stats.items()
-        }
+        averages = {dim: stats.get("avg", 0) for dim, stats in dimension_stats.items()}
 
         # Determine type based on highest dimensions
         sorted_dims = sorted(averages.items(), key=lambda x: x[1], reverse=True)
@@ -304,10 +306,7 @@ class TeamPersonalityService:
             return strengths, gaps
 
         # Get average scores
-        averages = {
-            dim: stats.get("avg", 0)
-            for dim, stats in dimension_stats.items()
-        }
+        averages = {dim: stats.get("avg", 0) for dim, stats in dimension_stats.items()}
 
         # High scores = strengths
         if averages.get("Openness", 0) >= 3.5:
@@ -398,8 +397,7 @@ class TeamPersonalityService:
 
     @staticmethod
     async def compare_teams(
-        db: AsyncSession,
-        team_ids: List[str]
+        db: AsyncSession, team_ids: List[str]
     ) -> List[Dict[str, Any]]:
         """
         Compare personality composition across multiple teams.
@@ -416,18 +414,20 @@ class TeamPersonalityService:
         for team_id in team_ids:
             composition = await TeamPersonalityService.get_team_composition(db, team_id)
             if composition:
-                results.append({
-                    "team_id": str(team_id),
-                    "composition_type": composition.composition_type,
-                    "team_size": composition.team_size,
-                    "diversity_score": composition.diversity_score,
-                    "internal_compatibility": composition.internal_compatibility,
-                    "openness": composition.openness,
-                    "conscientiousness": composition.conscientiousness,
-                    "extraversion": composition.extraversion,
-                    "agreeableness": composition.agreeableness,
-                    "neuroticism": composition.neuroticism,
-                })
+                results.append(
+                    {
+                        "team_id": str(team_id),
+                        "composition_type": composition.composition_type,
+                        "team_size": composition.team_size,
+                        "diversity_score": composition.diversity_score,
+                        "internal_compatibility": composition.internal_compatibility,
+                        "openness": composition.openness,
+                        "conscientiousness": composition.conscientiousness,
+                        "extraversion": composition.extraversion,
+                        "agreeableness": composition.agreeableness,
+                        "neuroticism": composition.neuroticism,
+                    }
+                )
 
         return results
 

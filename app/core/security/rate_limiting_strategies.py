@@ -11,9 +11,11 @@ Strategy Pattern allows easy switching between implementations.
 import logging
 import time
 from abc import ABC, abstractmethod
-from typing import Optional, Dict
+from typing import Dict, Optional
+
 import redis
 from slowapi.errors import RateLimitExceeded
+
 from app.core.security.redis_connection_manager import RedisConnectionManager
 
 logger = logging.getLogger(__name__)
@@ -100,9 +102,11 @@ class RedisRateLimiter(RateLimitStrategy):
             if current > limit:
                 logger.warning(
                     f"Rate limit exceeded for {key}: {current}/{limit}",
-                    extra={"key": key, "limit": limit, "window": window}
+                    extra={"key": key, "limit": limit, "window": window},
                 )
-                raise RateLimitExceeded(f"Rate limit exceeded: {limit} requests per {window}s")
+                raise RateLimitExceeded(
+                    f"Rate limit exceeded: {limit} requests per {window}s"
+                )
 
             return True
 
@@ -112,7 +116,7 @@ class RedisRateLimiter(RateLimitStrategy):
             logger.error(
                 f"Redis connection error during rate limiting: {e!s}",
                 extra={"key": key, "limit": limit, "error_type": "ConnectionError"},
-                exc_info=True
+                exc_info=True,
             )
             # Fail open - don't block if Redis is down
             return True
@@ -120,7 +124,7 @@ class RedisRateLimiter(RateLimitStrategy):
             logger.error(
                 f"Unexpected error during rate limiting: {e!s}",
                 extra={"key": key, "limit": limit, "error_type": type(e).__name__},
-                exc_info=True
+                exc_info=True,
             )
             # Fail open for safety
             return True
@@ -187,9 +191,11 @@ class InMemoryRateLimiter(RateLimitStrategy):
         if new_count > limit:
             logger.warning(
                 f"In-memory rate limit exceeded for {key}: {new_count}/{limit}",
-                extra={"key": key, "limit": limit, "window": window}
+                extra={"key": key, "limit": limit, "window": window},
             )
-            raise RateLimitExceeded(f"Rate limit exceeded: {limit} requests per {window}s")
+            raise RateLimitExceeded(
+                f"Rate limit exceeded: {limit} requests per {window}s"
+            )
 
         self._counters[key] = (new_count, expiry)
         return True
@@ -197,8 +203,7 @@ class InMemoryRateLimiter(RateLimitStrategy):
     def _cleanup_expired(self, now: float) -> None:
         """Remove expired entries from counter"""
         expired_keys = [
-            key for key, (_, expiry) in self._counters.items()
-            if now > expiry
+            key for key, (_, expiry) in self._counters.items() if now > expiry
         ]
         for key in expired_keys:
             del self._counters[key]
@@ -216,7 +221,9 @@ class RateLimiterFactory:
     """
 
     @staticmethod
-    def create(redis_manager: RedisConnectionManager, allow_fallback: bool = True) -> RateLimitStrategy:
+    def create(
+        redis_manager: RedisConnectionManager, allow_fallback: bool = True
+    ) -> RateLimitStrategy:
         """
         Create rate limiter with automatic fallback
 

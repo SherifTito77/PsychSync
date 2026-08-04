@@ -22,7 +22,7 @@ class BareExceptChecker(ast.NodeVisitor):
         """Check file for bare except clauses. Returns True if found."""
 
         try:
-            with open(self.filename, 'r', encoding='utf-8') as f:
+            with open(self.filename, "r", encoding="utf-8") as f:
                 source = f.read()
         except Exception:
             return False  # Can't read file
@@ -40,10 +40,12 @@ class BareExceptChecker(ast.NodeVisitor):
 
         for handler in node.handlers:
             if handler.type is None:  # Bare except
-                self.errors.append({
-                    'line': handler.lineno,
-                    'col': handler.col_offset,
-                })
+                self.errors.append(
+                    {
+                        "line": handler.lineno,
+                        "col": handler.col_offset,
+                    }
+                )
 
         self.generic_visit(node)
 
@@ -64,7 +66,7 @@ def main():
         if not path.exists():
             continue
 
-        if not path.suffix == '.py':
+        if not path.suffix == ".py":
             continue
 
         checker = BareExceptChecker(str(path))
@@ -74,7 +76,9 @@ def main():
 
             for error in checker.errors:
                 print(f"❌ {path}:{error['line']}: Bare 'except:' clause found")
-                print(f"   Use 'except Exception as e:' or specific exception types instead")
+                print(
+                    f"   Use 'except Exception as e:' or specific exception types instead"
+                )
 
     if has_errors:
         print("\n💡 Bare exception handlers are dangerous because they:")
@@ -88,5 +92,5 @@ def main():
     sys.exit(0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

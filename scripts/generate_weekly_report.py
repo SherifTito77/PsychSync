@@ -11,20 +11,23 @@ Usage:
 
 import argparse
 import sys
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import create_engine, text
+
 from app.core.config import settings
 
 
 def get_index_usage_stats(engine):
     """Get index usage statistics."""
     with engine.connect() as conn:
-        result = conn.execute(text("""
+        result = conn.execute(
+            text(
+                """
             SELECT
                 indexrelname,
                 idx_scan,
@@ -40,16 +43,20 @@ def get_index_usage_stats(engine):
                 'idx_teams_org_created'
             )
             ORDER BY idx_scan DESC
-        """))
+        """
+            )
+        )
 
         stats = []
         for row in result.fetchall():
-            stats.append({
-                'name': row[0],
-                'scans': row[1],
-                'tuples_read': row[2],
-                'tuples_fetched': row[3]
-            })
+            stats.append(
+                {
+                    "name": row[0],
+                    "scans": row[1],
+                    "tuples_read": row[2],
+                    "tuples_fetched": row[3],
+                }
+            )
 
         return stats
 
@@ -57,23 +64,23 @@ def get_index_usage_stats(engine):
 def get_query_performance(engine):
     """Test query performance."""
     test_queries = {
-        'Team Count Query': """
+        "Team Count Query": """
             EXPLAIN ANALYZE
             SELECT COUNT(*) FROM team_members
             WHERE team_id = '00000000-0000-0000-0000-000000000001'::uuid
         """,
-        'User Teams Query': """
+        "User Teams Query": """
             EXPLAIN ANALYZE
             SELECT * FROM teams
             WHERE organization_id = '00000000-0000-0000-0000-000000000001'::uuid
             LIMIT 10
         """,
-        'Team Members Lookup': """
+        "Team Members Lookup": """
             EXPLAIN ANALYZE
             SELECT * FROM team_members
             WHERE team_id = '00000000-0000-0000-0000-000000000001'::uuid
             AND user_id = '00000000-0000-0000-0000-000000000001'::uuid
-        """
+        """,
     }
 
     performance = {}
@@ -81,22 +88,16 @@ def get_query_performance(engine):
     with engine.connect() as conn:
         for name, sql in test_queries.items():
             result = conn.execute(text(sql))
-            plan = '\n'.join(row[0] for row in result.fetchall())
+            plan = "\n".join(row[0] for row in result.fetchall())
 
             # Extract execution time
-            if 'Execution Time:' in plan:
-                time_str = plan.split('Execution Time:')[-1].strip().split()[0]
+            if "Execution Time:" in plan:
+                time_str = plan.split("Execution Time:")[-1].strip().split()[0]
                 try:
                     time_ms = float(time_str)
-                    performance[name] = {
-                        'time_ms': time_ms,
-                        'plan': plan
-                    }
+                    performance[name] = {"time_ms": time_ms, "plan": plan}
                 except ValueError:
-                    performance[name] = {
-                        'time_ms': None,
-                        'plan': plan
-                    }
+                    performance[name] = {"time_ms": None, "plan": plan}
 
     return performance
 
@@ -104,30 +105,36 @@ def get_query_performance(engine):
 def get_database_metrics(engine):
     """Get database performance metrics."""
     with engine.connect() as conn:
-        result = conn.execute(text("""
+        result = conn.execute(
+            text(
+                """
             SELECT
                 count(*) as total_connections,
                 count(*) FILTER (WHERE state = 'active') as active_connections,
                 count(*) FILTER (WHERE state = 'idle') as idle_connections
             FROM pg_stat_activity
             WHERE datname = current_database()
-        """))
+        """
+            )
+        )
 
         row = result.fetchone()
 
         return {
-            'total_connections': row[0],
-            'active_connections': row[1],
-            'idle_connections': row[2]
+            "total_connections": row[0],
+            "active_connections": row[1],
+            "idle_connections": row[2],
         }
 
 
 def generate_report(week_number=1):
     """Generate weekly performance report."""
-    engine = create_engine(settings.DATABASE_URL.replace('+asyncpg', ''))
+    engine = create_engine(settings.DATABASE_URL.replace("+asyncpg", ""))
 
-    report_date = datetime.now().strftime('%Y-%m-%d')
-    report_file = f"monitoring_reports/weekly_report_week_{week_number}_{report_date}.md"
+    report_date = datetime.now().strftime("%Y-%m-%d")
+    report_file = (
+        f"monitoring_reports/weekly_report_week_{week_number}_{report_date}.md"
+    )
 
     # Collect data
     print("Collecting performance data...")
@@ -165,7 +172,7 @@ This report summarizes the performance metrics for Week {week_number} of the que
 
     # Add index stats
     for stat in index_stats:
-        trend = "📈 Increasing" if stat['scans'] > 0 else "➡️ Stable"
+        trend = "📈 Increasing" if stat["scans"] > 0 else "➡️ Stable"
         report_content += f"| {stat['name']} | {stat['scans']} | {stat['tuples_read']} | {stat['tuples_fetched']} | {trend} |\n"
 
     report_content += """
@@ -174,8 +181,8 @@ This report summarizes the performance metrics for Week {week_number} of the que
 
 """
 
-    total_scans = sum(s['scans'] for s in index_stats)
-    used_indexes = sum(1 for s in index_stats if s['scans'] > 0)
+    total_scans = sum(s["scans"] for s in index_stats)
+    used_indexes = sum(1 for s in index_stats if s["scans"] > 0)
 
     report_content += f"""- **Total Index Scans:** {total_scans}
 - **Indexes Used:** {used_indexes}/6 ({used_indexes/6*100:.1f}%)
@@ -191,13 +198,13 @@ This report summarizes the performance metrics for Week {week_number} of the que
 
     # Add query performance
     baseline_times = {
-        'Team Count Query': 45.0,
-        'User Teams Query': 85.0,
-        'Team Members Lookup': 1.5
+        "Team Count Query": 45.0,
+        "User Teams Query": 85.0,
+        "Team Members Lookup": 1.5,
     }
 
     for name, perf in query_perf.items():
-        current_time = perf.get('time_ms', 0)
+        current_time = perf.get("time_ms", 0)
         baseline = baseline_times.get(name, 0)
 
         if current_time and baseline:
@@ -216,7 +223,7 @@ This report summarizes the performance metrics for Week {week_number} of the que
     # Calculate average improvement
     improvements = []
     for name, perf in query_perf.items():
-        current = perf.get('time_ms')
+        current = perf.get("time_ms")
         baseline = baseline_times.get(name)
         if current and baseline:
             improvement = ((baseline - current) / baseline) * 100
@@ -256,11 +263,13 @@ None reported this week.
     if total_scans == 0:
         report_content += "- ⚠️ **Action Required:** Indexes not being used yet. This is normal for low-traffic environments but should increase over time.\n"
 
-    unused_indexes = [s for s in index_stats if s['scans'] == 0]
+    unused_indexes = [s for s in index_stats if s["scans"] == 0]
     if unused_indexes:
         report_content += f"- ℹ️ **Info:** {len(unused_indexes)} indexes not yet used. This may increase as query patterns emerge.\n"
 
-    avg_query_time = sum(p.get('time_ms', 0) for p in query_perf.values()) / len(query_perf)
+    avg_query_time = sum(p.get("time_ms", 0) for p in query_perf.values()) / len(
+        query_perf
+    )
     if avg_query_time > 100:
         report_content += "- ⚠️ **Review:** Average query time above target. Consider reviewing query patterns.\n"
     else:
@@ -352,16 +361,16 @@ Calculate readiness based on completed items:
 
     # Write report
     Path("monitoring_reports").mkdir(exist_ok=True)
-    with open(report_file, 'w') as f:
+    with open(report_file, "w") as f:
         f.write(report_content)
 
     print(f"✅ Weekly report generated: {report_file}")
     return report_file
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Generate weekly performance report')
-    parser.add_argument('--week', type=int, default=1, help='Week number (default: 1)')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate weekly performance report")
+    parser.add_argument("--week", type=int, default=1, help="Week number (default: 1)")
     args = parser.parse_args()
 
     generate_report(args.week)

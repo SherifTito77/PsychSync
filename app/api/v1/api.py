@@ -15,12 +15,16 @@ def safe_import_endpoint(module_name: str) -> APIRouter | None:
     """Safely import an endpoint module with proper error handling"""
     try:
         logger.debug(f"Attempting to import endpoint: {module_name}")
-        module = __import__(f"app.api.v1.endpoints.{module_name}", fromlist=[module_name])
+        module = __import__(
+            f"app.api.v1.endpoints.{module_name}", fromlist=[module_name]
+        )
         router = getattr(module, "router", None)
         if router is None:
             logger.warning(f"Module {module_name} imported but no router found")
             return None
-        logger.info(f"✅ Successfully imported endpoint: {module_name} with {len(router.routes)} routes")
+        logger.info(
+            f"✅ Successfully imported endpoint: {module_name} with {len(router.routes)} routes"
+        )
         return router
     except ImportError as e:
         logger.warning(f"❌ Could not import endpoint {module_name}: {e}")
@@ -131,7 +135,9 @@ SEPARATED_SERVICE_ENDPOINTS = [
 api_router = APIRouter(prefix="/api/v1", tags=["PsychSync API v1"])
 
 
-def register_endpoints(router: APIRouter, endpoints: list[str], required: bool = True) -> None:
+def register_endpoints(
+    router: APIRouter, endpoints: list[str], required: bool = True
+) -> None:
     """Register endpoints with the main router"""
     failed_imports = []
 

@@ -13,18 +13,19 @@ Usage:
 
 from typing import Optional, Union
 from uuid import UUID
+
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_user
 from app.core.database import get_async_db
 from app.db.models.user import User
-from app.services.permission_service import permission_service, Permission
-
+from app.services.permission_service import Permission, permission_service
 
 # =============================================================================
 # Permission Dependencies
 # =============================================================================
+
 
 def require_permission(permission: str, resource_type: Optional[str] = None):
     """
@@ -60,7 +61,7 @@ def require_permission(permission: str, resource_type: Optional[str] = None):
         if not has_perm:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Permission required: {permission}"
+                detail=f"Permission required: {permission}",
             )
 
     return check_permission
@@ -95,7 +96,7 @@ def require_roles(*roles: str):
         if not any(role in user_roles for role in roles):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Required role: one of {', '.join(roles)}"
+                detail=f"Required role: one of {', '.join(roles)}",
             )
 
     return check_roles
@@ -120,7 +121,7 @@ def require_super_admin():
         if not current_user.is_superuser:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Super admin access required"
+                detail="Super admin access required",
             )
 
     return check_super_admin
@@ -158,13 +159,15 @@ def can_access_field(table_name: str, field_name: str, action: str = Permission.
         if not has_access:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Permission required to access {table_name}.{field_name}"
+                detail=f"Permission required to access {table_name}.{field_name}",
             )
 
     return check_field_access
 
 
-def filter_fields_by_permission(table_name: str, fields: list, action: str = Permission.READ):
+def filter_fields_by_permission(
+    table_name: str, fields: list, action: str = Permission.READ
+):
     """
     Dependency that filters fields based on user permissions.
 
@@ -209,6 +212,7 @@ def filter_fields_by_permission(table_name: str, fields: list, action: str = Per
 # =============================================================================
 # Owner-Based Access Control
 # =============================================================================
+
 
 def require_owner_or_permission(
     permission: str,
@@ -268,7 +272,7 @@ def require_owner_or_permission(
         if not has_perm:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Must be resource owner or have {permission} permission"
+                detail=f"Must be resource owner or have {permission} permission",
             )
 
     return check_ownership_or_permission
@@ -277,6 +281,7 @@ def require_owner_or_permission(
 # =============================================================================
 # Team-Based Access Control
 # =============================================================================
+
 
 def require_team_member_or_permission(
     permission: str,
@@ -326,7 +331,7 @@ def require_team_member_or_permission(
         if not has_perm:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Must be team member or have {permission} permission"
+                detail=f"Must be team member or have {permission} permission",
             )
 
     return check_team_membership_or_permission

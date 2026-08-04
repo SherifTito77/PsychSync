@@ -4,11 +4,11 @@ Tracks AI performance, accuracy, and system health metrics
 """
 
 import asyncio
+import logging
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
-import time
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -111,7 +111,10 @@ class AIMonitoringService:
                 "warning": 0.05,  # 5%
                 "critical": 0.10,  # 10%
             },
-            MetricType.ENGAGEMENT_PREDICTION_ACCURACY: {"warning": 0.65, "critical": 0.5},
+            MetricType.ENGAGEMENT_PREDICTION_ACCURACY: {
+                "warning": 0.65,
+                "critical": 0.5,
+            },
             MetricType.PERSONALIZATION_EFFECTIVENESS: {"warning": 0.6, "critical": 0.4},
             MetricType.MEMORY_USAGE: {
                 "warning": 0.8,  # 80% of available memory
@@ -144,7 +147,10 @@ class AIMonitoringService:
         logger.info("AI Engine monitoring stopped")
 
     async def record_metric(
-        self, metric_type: MetricType, value: float, context: dict[str, Any] | None = None
+        self,
+        metric_type: MetricType,
+        value: float,
+        context: dict[str, Any] | None = None,
     ) -> None:
         """Record a metric measurement"""
         try:
@@ -165,7 +171,9 @@ class AIMonitoringService:
 
             # Keep only recent metrics (last 24 hours)
             cutoff_time = datetime.utcnow() - timedelta(hours=24)
-            self.metrics_history = [m for m in self.metrics_history if m.timestamp > cutoff_time]
+            self.metrics_history = [
+                m for m in self.metrics_history if m.timestamp > cutoff_time
+            ]
 
             # Trigger alert if threshold breached
             if threshold_breach:
@@ -182,14 +190,18 @@ class AIMonitoringService:
 
             performance_scores = []
             for metric_type in self.thresholds.keys():
-                type_metrics = [m for m in recent_metrics if m.metric_type == metric_type]
+                type_metrics = [
+                    m for m in recent_metrics if m.metric_type == metric_type
+                ]
                 if type_metrics:
                     avg_value = sum(m.value for m in type_metrics) / len(type_metrics)
                     score = self._calculate_health_score(metric_type, avg_value)
                     performance_scores.append(score)
 
             overall_health_score = (
-                sum(performance_scores) / len(performance_scores) if performance_scores else 1.0
+                sum(performance_scores) / len(performance_scores)
+                if performance_scores
+                else 1.0
             )
 
             # Determine overall status
@@ -246,7 +258,8 @@ class AIMonitoringService:
                 if type_metrics:
                     trends[metric_type.value] = {
                         "current": type_metrics[-1].value if type_metrics else 0,
-                        "average": sum(m.value for m in type_metrics) / len(type_metrics),
+                        "average": sum(m.value for m in type_metrics)
+                        / len(type_metrics),
                         "min": min(m.value for m in type_metrics),
                         "max": max(m.value for m in type_metrics),
                         "trend": self._calculate_trend(type_metrics),
@@ -324,21 +337,29 @@ class AIMonitoringService:
             # this would interface with actual AI engine components
 
             # Processing time metric
-            processing_time = 150 + (hash(str(time.time())) % 500)  # Simulated 150-650ms
+            processing_time = 150 + (
+                hash(str(time.time())) % 500
+            )  # Simulated 150-650ms
             await self.record_metric(
-                MetricType.PROCESSING_TIME, processing_time, {"component": "ai_processor"}
+                MetricType.PROCESSING_TIME,
+                processing_time,
+                {"component": "ai_processor"},
             )
 
             # Confidence score metric
             confidence = 0.7 + (hash(str(time.time())) % 30) / 100  # Simulated 0.7-1.0
             await self.record_metric(
-                MetricType.CONFIDENCE_SCORE, confidence, {"component": "personality_analyzer"}
+                MetricType.CONFIDENCE_SCORE,
+                confidence,
+                {"component": "personality_analyzer"},
             )
 
             # Error rate metric
             error_occurred = hash(str(time.time())) % 50 == 0  # 2% chance
             error_rate = 0.02 if error_occurred else 0.0
-            await self.record_metric(MetricType.ERROR_RATE, error_rate, {"component": "ai_engine"})
+            await self.record_metric(
+                MetricType.ERROR_RATE, error_rate, {"component": "ai_engine"}
+            )
 
         except Exception as e:
             logger.error(f"Error collecting basic metrics: {e}")
@@ -354,7 +375,9 @@ class AIMonitoringService:
 
             # Throughput simulation
             throughput = 50 + (hash(str(time.time())) % 100)  # 50-150 requests/minute
-            await self.record_metric(MetricType.THROUGHPUT, throughput, {"component": "ai_api"})
+            await self.record_metric(
+                MetricType.THROUGHPUT, throughput, {"component": "ai_api"}
+            )
 
             # Cache hit rate simulation
             cache_hit_rate = 0.8 + (hash(str(time.time())) % 20) / 100  # 80-100%
@@ -479,7 +502,9 @@ class AIMonitoringService:
             logger.error(f"Error calculating health score: {e}")
             return 0.5
 
-    def _calculate_performance_metrics(self, metrics: list[AIMetric]) -> dict[str, float]:
+    def _calculate_performance_metrics(
+        self, metrics: list[AIMetric]
+    ) -> dict[str, float]:
         """Calculate overall performance metrics"""
         performance = {}
 
@@ -509,9 +534,13 @@ class AIMonitoringService:
                             "Consider optimizing AI algorithms for faster processing"
                         )
                     elif metric_type == MetricType.ACCURACY_SCORE and avg_value < 0.7:
-                        recommendations.append("Review AI model training data and parameters")
+                        recommendations.append(
+                            "Review AI model training data and parameters"
+                        )
                     elif metric_type == MetricType.ERROR_RATE and avg_value > 0.05:
-                        recommendations.append("Investigate and fix frequent AI processing errors")
+                        recommendations.append(
+                            "Investigate and fix frequent AI processing errors"
+                        )
                     elif metric_type == MetricType.MEMORY_USAGE and avg_value > 0.8:
                         recommendations.append(
                             "Optimize AI memory usage or allocate more resources"
@@ -521,9 +550,13 @@ class AIMonitoringService:
 
             # General recommendations based on health score
             if health_score < 0.6:
-                recommendations.append("System health is degraded - consider immediate attention")
+                recommendations.append(
+                    "System health is degraded - consider immediate attention"
+                )
             elif health_score < 0.8:
-                recommendations.append("Monitor system performance and consider optimizations")
+                recommendations.append(
+                    "Monitor system performance and consider optimizations"
+                )
 
             return recommendations[:5]  # Limit to top 5 recommendations
 
@@ -539,7 +572,9 @@ class AIMonitoringService:
         # Compare last 10% with previous 10%
         split_point = max(len(metrics) // 10, 2)
         recent_avg = sum(m.value for m in metrics[-split_point:]) / split_point
-        previous_avg = sum(m.value for m in metrics[-split_point * 2 : -split_point]) / split_point
+        previous_avg = (
+            sum(m.value for m in metrics[-split_point * 2 : -split_point]) / split_point
+        )
 
         if recent_avg > previous_avg * 1.05:
             return "improving"

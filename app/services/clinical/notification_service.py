@@ -6,18 +6,22 @@ Respects quiet hours and urgency thresholds.
 """
 
 import logging
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timedelta, time
-import pytz
+from datetime import datetime, time, timedelta
+from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select, and_, or_, func
+import pytz
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.notification import Notification, NotificationPreference, NotificationQueue
-from app.db.models.clinical_screening import ClinicalAlert, ClinicalScreening
-from app.db.models.user import User
-from app.db.models.organization import Organization
 from app.core.email import send_email  # Assuming email service exists
+from app.db.models.clinical_screening import ClinicalAlert, ClinicalScreening
+from app.db.models.notification import (
+    Notification,
+    NotificationPreference,
+    NotificationQueue,
+)
+from app.db.models.organization import Organization
+from app.db.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +46,7 @@ class ClinicianNotificationService:
         severity: str,
         screening_id: str,
         org_id: str,
-        alert_message: str
+        alert_message: str,
     ) -> Dict[str, Any]:
         """
         Notify eligible clinicians when a new crisis alert is created
@@ -56,14 +60,13 @@ class ClinicianNotificationService:
         # Get all potential recipients (clinicians and admins in org)
         from app.db.models.user import User as UserModel
 
-        clinicians_query = select(UserModel.id, UserModel.email, UserModel.full_name).where(
+        clinicians_query = select(
+            UserModel.id, UserModel.email, UserModel.full_name
+        ).where(
             and_(
                 UserModel.org_id == org_id,
                 UserModel.deleted_at.is_(None),
-                or_(
-                    UserModel.role == 'clinician',
-                    UserModel.role == 'admin'
-                )
+                or_(UserModel.role == "clinician", UserModel.role == "admin"),
             )
         )
         potential_recipients = (await self.db.execute(clinicians_query)).all()
@@ -83,9 +86,7 @@ class ClinicianNotificationService:
 
                 # Check if this alert type is enabled
                 should_notify = await self._should_send_notification(
-                    prefs=prefs,
-                    notification_type='crisis_alert',
-                    severity=severity
+                    prefs=prefs, notification_type="crisis_alert", severity=severity
                 )
 
                 if not should_notify:
@@ -96,17 +97,19 @@ class ClinicianNotificationService:
                 notification = await self._create_notification(
                     recipient_id=recipient.id,
                     org_id=org_id,
-                    notification_type='crisis_alert',
-                    entity_type='alert',
+                    notification_type="crisis_alert",
+                    entity_type="alert",
                     entity_id=alert_id,
                     title=f"Crisis Alert: {alert_type.replace('_', ' ').title()}",
-                    message=self._format_crisis_alert_message(alert_type, severity, alert_message),
-                    priority='urgent' if severity == 'critical' else 'high',
+                    message=self._format_crisis_alert_message(
+                        alert_type, severity, alert_message
+                    ),
+                    priority="urgent" if severity == "critical" else "high",
                     metadata={
-                        'alert_type': alert_type,
-                        'severity': severity,
-                        'screening_id': str(screening_id)
-                    }
+                        "alert_type": alert_type,
+                        "severity": severity,
+                        "screening_id": str(screening_id),
+                    },
                 )
 
                 # Send via enabled channels
@@ -114,7 +117,7 @@ class ClinicianNotificationService:
                     await self._send_email_notification(
                         notification=notification,
                         recipient_email=recipient.email,
-                        recipient_name=recipient.full_name
+                        recipient_name=recipient.full_name,
                     )
 
                 notified_count += 1
@@ -127,13 +130,11 @@ class ClinicianNotificationService:
         return {
             "notified": notified_count,
             "skipped": skipped_count,
-            "errors": error_count
+            "errors": error_count,
         }
 
     async def notify_of_pending_reviews(
-        self,
-        org_id: str,
-        hours_threshold: int = 24
+        self, org_id: str, hours_threshold: int = 24
     ) -> Dict[str, Any]:
         """
         Notify clinicians of screenings pending review beyond threshold
@@ -146,17 +147,21 @@ class ClinicianNotificationService:
         threshold_time = datetime.utcnow() - timedelta(hours=hours_threshold)
 
         # Count pending reviews per screening type
-        pending_query = select(
-            ClinicalScreening.screening_type,
-            func.count(ClinicalScreening.id).label('count')
-        ).where(
-            and_(
-                ClinicalScreening.org_id == org_id,
-                ClinicalScreening.completed_at.isnot(None),
-                ClinicalScreening.validated_by.is_(None),
-                ClinicalScreening.completed_at < threshold_time
+        pending_query = (
+            select(
+                ClinicalScreening.screening_type,
+                func.count(ClinicalScreening.id).label("count"),
             )
-        ).group_by(ClinicalScreening.screening_type)
+            .where(
+                and_(
+                    ClinicalScreening.org_id == org_id,
+                    ClinicalScreening.completed_at.isnot(None),
+                    ClinicalScreening.validated_by.is_(None),
+                    ClinicalScreening.completed_at < threshold_time,
+                )
+            )
+            .group_by(ClinicalScreening.screening_type)
+        )
 
         pending_counts = (await self.db.execute(pending_query)).all()
 
@@ -168,14 +173,13 @@ class ClinicianNotificationService:
         # Get clinicians who want pending review notifications
         from app.db.models.user import UserModel
 
-        clinicians_query = select(UserModel.id, UserModel.email, UserModel.full_name).where(
+        clinicians_query = select(
+            UserModel.id, UserModel.email, UserModel.full_name
+        ).where(
             and_(
                 UserModel.org_id == org_id,
                 UserModel.deleted_at.is_(None),
-                or_(
-                    UserModel.role == 'clinician',
-                    UserModel.role == 'admin'
-                )
+                or_(UserModel.role == "clinician", UserModel.role == "admin"),
             )
         )
         clinicians = (await self.db.execute(clinicians_query)).all()
@@ -190,44 +194,49 @@ class ClinicianNotificationService:
                     continue
 
                 # Format pending summary
-                pending_summary = "\n".join([
-                    f"- {screening_type}: {count} pending"
-                    for screening_type, count in pending_counts
-                ])
+                pending_summary = "\n".join(
+                    [
+                        f"- {screening_type}: {count} pending"
+                        for screening_type, count in pending_counts
+                    ]
+                )
 
                 notification = await self._create_notification(
                     recipient_id=clinician.id,
                     org_id=org_id,
-                    notification_type='pending_review',
-                    entity_type='screening',
+                    notification_type="pending_review",
+                    entity_type="screening",
                     entity_id=None,  # Summary notification
                     title=f"{total_pending} Screenings Pending Review",
-                    message=self._format_pending_review_message(total_pending, pending_summary, hours_threshold),
-                    priority='normal',
+                    message=self._format_pending_review_message(
+                        total_pending, pending_summary, hours_threshold
+                    ),
+                    priority="normal",
                     metadata={
-                        'pending_counts': {st: c for st, c in pending_counts},
-                        'hours_threshold': hours_threshold
-                    }
+                        "pending_counts": {st: c for st, c in pending_counts},
+                        "hours_threshold": hours_threshold,
+                    },
                 )
 
                 if prefs.email_enabled:
                     await self._send_email_notification(
                         notification=notification,
                         recipient_email=clinician.email,
-                        recipient_name=clinician.full_name
+                        recipient_name=clinician.full_name,
                     )
 
                 notified_count += 1
 
             except Exception as e:
-                logger.error(f"Error notifying clinician {clinician.id} of pending reviews: {str(e)}")
+                logger.error(
+                    f"Error notifying clinician {clinician.id} of pending reviews: {str(e)}"
+                )
 
-        return {
-            "notified": notified_count,
-            "pending_reviews": total_pending
-        }
+        return {"notified": notified_count, "pending_reviews": total_pending}
 
-    async def _get_notification_preferences(self, user_id: str) -> NotificationPreference:
+    async def _get_notification_preferences(
+        self, user_id: str
+    ) -> NotificationPreference:
         """Get user's notification preferences, create defaults if not exist"""
         prefs_query = select(NotificationPreference).where(
             NotificationPreference.user_id == user_id
@@ -245,7 +254,7 @@ class ClinicianNotificationService:
                 notify_on_high_risk=True,
                 notify_on_moderate_risk=False,
                 notify_on_pending_review=True,
-                quiet_hours_enabled=True
+                quiet_hours_enabled=True,
             )
             self.db.add(prefs)
             await self.db.flush()
@@ -253,10 +262,7 @@ class ClinicianNotificationService:
         return prefs
 
     async def _should_send_notification(
-        self,
-        prefs: NotificationPreference,
-        notification_type: str,
-        severity: str
+        self, prefs: NotificationPreference, notification_type: str, severity: str
     ) -> bool:
         """
         Determine if notification should be sent based on preferences
@@ -272,27 +278,31 @@ class ClinicianNotificationService:
 
             if is_quiet_hours:
                 # Bypass for critical alerts if preference enabled
-                is_critical = severity == 'critical' or notification_type == 'crisis_alert'
+                is_critical = (
+                    severity == "critical" or notification_type == "crisis_alert"
+                )
                 if not (is_critical and prefs.bypass_quiet_hours_for_critical):
-                    logger.debug(f"In quiet hours, skipping notification for user {prefs.user_id}")
+                    logger.debug(
+                        f"In quiet hours, skipping notification for user {prefs.user_id}"
+                    )
                     return False
 
         # Check notification type preferences
-        if notification_type == 'crisis_alert':
+        if notification_type == "crisis_alert":
             if not prefs.notify_on_crisis_alert:
                 return False
-        elif notification_type == 'high_risk':
+        elif notification_type == "high_risk":
             if not prefs.notify_on_high_risk:
                 return False
-        elif notification_type == 'moderate_risk':
+        elif notification_type == "moderate_risk":
             if not prefs.notify_on_moderate_risk:
                 return False
-        elif notification_type == 'pending_review':
+        elif notification_type == "pending_review":
             if not prefs.notify_on_pending_review:
                 return False
 
         # Check severity threshold
-        severity_levels = ['low', 'moderate', 'high', 'critical']
+        severity_levels = ["low", "moderate", "high", "critical"]
         min_level_index = severity_levels.index(prefs.min_severity_for_notification)
         current_level_index = severity_levels.index(severity)
 
@@ -335,7 +345,7 @@ class ClinicianNotificationService:
         title: str,
         message: str,
         priority: str,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> Notification:
         """Create notification record and queue entry"""
         notification = Notification(
@@ -347,9 +357,9 @@ class ClinicianNotificationService:
             title=title,
             message=message,
             priority=priority,
-            channel='email',  # Default channel
-            delivery_status='pending',
-            metadata=metadata or {}
+            channel="email",  # Default channel
+            delivery_status="pending",
+            metadata=metadata or {},
         )
 
         self.db.add(notification)
@@ -359,17 +369,14 @@ class ClinicianNotificationService:
         queue_entry = NotificationQueue(
             notification_id=notification.id,
             recipient_id=recipient_id,
-            scheduled_for=datetime.utcnow()
+            scheduled_for=datetime.utcnow(),
         )
         self.db.add(queue_entry)
 
         return notification
 
     async def _send_email_notification(
-        self,
-        notification: Notification,
-        recipient_email: str,
-        recipient_name: str
+        self, notification: Notification, recipient_email: str, recipient_name: str
     ) -> bool:
         """
         Send email notification using HTML templates
@@ -385,44 +392,48 @@ class ClinicianNotificationService:
 
             renderer = get_email_renderer()
             subject = f"[PsychSync] {notification.title}"
-            action_url = f"https://app.psychsync.io/clinical/screenings/{notification.entity_id}" if notification.entity_id else "https://app.psychsync.io/clinical"
+            action_url = (
+                f"https://app.psychsync.io/clinical/screenings/{notification.entity_id}"
+                if notification.entity_id
+                else "https://app.psychsync.io/clinical"
+            )
 
             # Render appropriate template based on notification type
-            if notification.notification_type == 'crisis_alert':
+            if notification.notification_type == "crisis_alert":
                 # Extract metadata from notification
                 metadata = notification.meta_data or {}
                 html_body = renderer.render_crisis_alert(
                     recipient_name=recipient_name,
-                    alert_type=metadata.get('alert_type', 'Unknown'),
-                    severity=metadata.get('severity', 'moderate'),
+                    alert_type=metadata.get("alert_type", "Unknown"),
+                    severity=metadata.get("severity", "moderate"),
                     alert_message=notification.message,
-                    screening_type=metadata.get('screening_type', 'Screening'),
-                    screening_date=notification.created_at.strftime('%Y-%m-%d %H:%M'),
-                    action_url=action_url
+                    screening_type=metadata.get("screening_type", "Screening"),
+                    screening_date=notification.created_at.strftime("%Y-%m-%d %H:%M"),
+                    action_url=action_url,
                 )
-            elif notification.notification_type == 'pending_review':
+            elif notification.notification_type == "pending_review":
                 # TODO(human): Implement pending_review.html template
                 metadata = notification.meta_data or {}
                 html_body = renderer.render_pending_review(
                     recipient_name=recipient_name,
-                    total_pending=metadata.get('pending_counts', {}).get('total', 0),
-                    pending_breakdown=metadata.get('pending_counts', {}),
-                    hours_threshold=metadata.get('hours_threshold', 24),
-                    action_url="https://app.psychsync.io/clinical/reviews"
+                    total_pending=metadata.get("pending_counts", {}).get("total", 0),
+                    pending_breakdown=metadata.get("pending_counts", {}),
+                    hours_threshold=metadata.get("hours_threshold", 24),
+                    action_url="https://app.psychsync.io/clinical/reviews",
                 )
-            elif notification.notification_type == 'weekly_summary':
+            elif notification.notification_type == "weekly_summary":
                 # TODO(human): Implement weekly_summary.html template
                 metadata = notification.meta_data or {}
                 html_body = renderer.render_weekly_summary(
                     recipient_name=recipient_name,
-                    week_start=metadata.get('week_start', ''),
-                    week_end=metadata.get('week_end', ''),
-                    total_screenings=metadata.get('total_screenings', 0),
-                    completion_rate=metadata.get('completion_rate', 0),
-                    crisis_count=metadata.get('crisis_count', 0),
-                    avg_response_time=metadata.get('avg_response_time', 0),
-                    top_concerns=metadata.get('top_concerns', []),
-                    action_url="https://app.psychsync.io/clinical/analytics"
+                    week_start=metadata.get("week_start", ""),
+                    week_end=metadata.get("week_end", ""),
+                    total_screenings=metadata.get("total_screenings", 0),
+                    completion_rate=metadata.get("completion_rate", 0),
+                    crisis_count=metadata.get("crisis_count", 0),
+                    avg_response_time=metadata.get("avg_response_time", 0),
+                    top_concerns=metadata.get("top_concerns", []),
+                    action_url="https://app.psychsync.io/clinical/analytics",
                 )
             else:
                 # Default fallback for other notification types
@@ -447,28 +458,27 @@ class ClinicianNotificationService:
             # )
 
             # For now, just log that we would send the email
-            logger.info(f"Email prepared for {recipient_email}: {subject} (HTML: {len(html_body)} chars)")
+            logger.info(
+                f"Email prepared for {recipient_email}: {subject} (HTML: {len(html_body)} chars)"
+            )
 
             notification.sent_at = datetime.utcnow()
-            notification.delivery_status = 'sent'
+            notification.delivery_status = "sent"
 
             return True
 
         except Exception as e:
             logger.error(f"Error sending email: {str(e)}")
-            notification.delivery_status = 'failed'
+            notification.delivery_status = "failed"
             notification.error_message = str(e)
             notification.delivery_attempts += 1
             return False
 
     def _format_crisis_alert_message(
-        self,
-        alert_type: str,
-        severity: str,
-        alert_message: str
+        self, alert_type: str, severity: str, alert_message: str
     ) -> str:
         """Format crisis alert message for readability"""
-        readable_type = alert_type.replace('_', ' ').title()
+        readable_type = alert_type.replace("_", " ").title()
         readable_severity = severity.upper()
 
         return f"""
@@ -486,10 +496,7 @@ Severity: {readable_severity}
         """.strip()
 
     def _format_pending_review_message(
-        self,
-        total_count: int,
-        pending_summary: str,
-        hours_threshold: int
+        self, total_count: int, pending_summary: str, hours_threshold: int
     ) -> str:
         """Format pending review summary message"""
         return f"""
@@ -502,7 +509,9 @@ Please log in to review these screenings at your earliest convenience.
 
 
 # Background task to process notification queue
-async def process_notification_queue(db: AsyncSession, batch_size: int = 50) -> Dict[str, int]:
+async def process_notification_queue(
+    db: AsyncSession, batch_size: int = 50
+) -> Dict[str, int]:
     """
     Process pending notifications from the queue
 
@@ -511,12 +520,16 @@ async def process_notification_queue(db: AsyncSession, batch_size: int = 50) -> 
     - Retry failed notifications up to max_retries
     - Mark as failed if max retries exceeded
     """
-    queue_query = select(NotificationQueue).where(
-        and_(
-            NotificationQueue.status == 'pending',
-            NotificationQueue.scheduled_for <= datetime.utcnow()
+    queue_query = (
+        select(NotificationQueue)
+        .where(
+            and_(
+                NotificationQueue.status == "pending",
+                NotificationQueue.scheduled_for <= datetime.utcnow(),
+            )
         )
-    ).limit(batch_size)
+        .limit(batch_size)
+    )
 
     queue_entries = (await db.execute(queue_query)).scalars().all()
 
@@ -527,7 +540,7 @@ async def process_notification_queue(db: AsyncSession, batch_size: int = 50) -> 
     for entry in queue_entries:
         try:
             # Mark as processing
-            entry.status = 'processing'
+            entry.status = "processing"
             entry.processing_started = datetime.utcnow()
             await db.flush()
 
@@ -535,17 +548,17 @@ async def process_notification_queue(db: AsyncSession, batch_size: int = 50) -> 
             notification = await db.get(Notification, entry.notification_id)
 
             if not notification:
-                entry.status = 'failed'
-                entry.last_error = 'Notification not found'
+                entry.status = "failed"
+                entry.last_error = "Notification not found"
                 failed += 1
                 continue
 
             # Send notification (already implemented in _send_email_notification)
             # This would be expanded to support multiple channels
             notification.sent_at = datetime.utcnow()
-            notification.delivery_status = 'sent'
+            notification.delivery_status = "sent"
 
-            entry.status = 'completed'
+            entry.status = "completed"
             entry.processing_completed = datetime.utcnow()
             processed += 1
 
@@ -553,20 +566,20 @@ async def process_notification_queue(db: AsyncSession, batch_size: int = 50) -> 
             entry.retry_count += 1
 
             if entry.retry_count >= entry.max_retries:
-                entry.status = 'failed'
+                entry.status = "failed"
                 entry.last_error = str(e)
                 failed += 1
             else:
-                entry.status = 'pending'
-                entry.retry_after = datetime.utcnow() + timedelta(minutes=5 ** entry.retry_count)
+                entry.status = "pending"
+                entry.retry_after = datetime.utcnow() + timedelta(
+                    minutes=5**entry.retry_count
+                )
                 retried += 1
 
-            logger.error(f"Error processing notification {entry.notification_id}: {str(e)}")
+            logger.error(
+                f"Error processing notification {entry.notification_id}: {str(e)}"
+            )
 
     await db.commit()
 
-    return {
-        "processed": processed,
-        "failed": failed,
-        "retried": retried
-    }
+    return {"processed": processed, "failed": failed, "retried": retried}

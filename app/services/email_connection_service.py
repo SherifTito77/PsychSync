@@ -58,7 +58,12 @@ class EmailConnectionService:
         """Get email connection by ID"""
         return (
             db.query(EmailConnection)
-            .filter(and_(EmailConnection.id == connection_id, EmailConnection.user_id == user_id))
+            .filter(
+                and_(
+                    EmailConnection.id == connection_id,
+                    EmailConnection.user_id == user_id,
+                )
+            )
             .first()
         )
 
@@ -110,7 +115,9 @@ class EmailConnectionService:
         db: AsyncSession, connection_id: str, user_id: str, **updates
     ) -> EmailConnection | None:
         """Update an existing email connection"""
-        connection = await EmailConnectionService.get_connection_by_id(db, user_id, connection_id)
+        connection = await EmailConnectionService.get_connection_by_id(
+            db, user_id, connection_id
+        )
         if not connection:
             return None
 
@@ -124,9 +131,13 @@ class EmailConnectionService:
         return connection
 
     @staticmethod
-    async def delete_connection(db: AsyncSession, connection_id: str, user_id: str) -> bool:
+    async def delete_connection(
+        db: AsyncSession, connection_id: str, user_id: str
+    ) -> bool:
         """Delete an email connection"""
-        connection = await EmailConnectionService.get_connection_by_id(db, user_id, connection_id)
+        connection = await EmailConnectionService.get_connection_by_id(
+            db, user_id, connection_id
+        )
         if not connection:
             return False
 
@@ -142,7 +153,10 @@ class EmailConnectionService:
         total_emails = (
             db.query(EmailMetadata)
             .filter(
-                and_(EmailMetadata.connection_id == connection_id, EmailMetadata.user_id == user_id)
+                and_(
+                    EmailMetadata.connection_id == connection_id,
+                    EmailMetadata.user_id == user_id,
+                )
             )
             .count()
         )
@@ -203,9 +217,9 @@ class EmailConnectionService:
                 # Total emails count using subquery
                 func.count(EmailMetadata.id).label("total_emails"),
                 # Recent emails count using conditional aggregation
-                func.sum(case((EmailMetadata.created_at >= recent_threshold, 1), else_=0)).label(
-                    "recent_emails"
-                ),
+                func.sum(
+                    case((EmailMetadata.created_at >= recent_threshold, 1), else_=0)
+                ).label("recent_emails"),
                 # Last sync date (max created_at)
                 func.max(EmailMetadata.created_at).label("last_sync_date"),
             )

@@ -5,18 +5,18 @@ Automated testing of critical user journeys and system dependencies
 """
 
 import asyncio
-import aiohttp
-import time
 import json
 import logging
 import sys
+import time
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
+import aiohttp
 import requests
-from prometheus_client import Counter, Histogram, Gauge, start_http_server
+from prometheus_client import Counter, Gauge, Histogram, start_http_server
 
 # Configuration
 BASE_URL = "https://api.psychsync.com"
@@ -27,15 +27,24 @@ SLACK_WEBHOOK = os.getenv("SLACK_WEBHOOK_URL")
 PAGERDUTY_KEY = os.getenv("PAGERDUTY_INTEGRATION_KEY")
 
 # Monitoring metrics
-SYNTHETIC_TESTS_TOTAL = Counter('psychsync_synthetic_tests_total', 'Total synthetic tests', ['test_name', 'status'])
-SYNTHETIC_TEST_DURATION = Histogram('psychsync_synthetic_test_duration_seconds', 'Synthetic test duration', ['test_name'])
-CRITICAL_PATH_HEALTH = Gauge('psychsync_critical_path_health', 'Critical path health score', ['path_name'])
-EXTERNAL_DEPENDENCY_HEALTH = Gauge('psychsync_external_dependency_health', 'External dependency health', ['dependency'])
+SYNTHETIC_TESTS_TOTAL = Counter(
+    "psychsync_synthetic_tests_total", "Total synthetic tests", ["test_name", "status"]
+)
+SYNTHETIC_TEST_DURATION = Histogram(
+    "psychsync_synthetic_test_duration_seconds",
+    "Synthetic test duration",
+    ["test_name"],
+)
+CRITICAL_PATH_HEALTH = Gauge(
+    "psychsync_critical_path_health", "Critical path health score", ["path_name"]
+)
+EXTERNAL_DEPENDENCY_HEALTH = Gauge(
+    "psychsync_external_dependency_health", "External dependency health", ["dependency"]
+)
 
 # Set up logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -43,6 +52,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class TestResult:
     """Test result data structure"""
+
     test_name: str
     status: str  # PASS, FAIL, WARN
     response_time: float
@@ -66,7 +76,7 @@ class SyntheticTestSuite:
         """Async context manager entry"""
         self.session = aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=30),
-            headers={'User-Agent': 'PsychSync-Synthetic-Monitoring/1.0'}
+            headers={"User-Agent": "PsychSync-Synthetic-Monitoring/1.0"},
         )
         return self
 
@@ -94,9 +104,7 @@ class SyntheticTestSuite:
             else:
                 # If test_func returns something else, assume success
                 result = TestResult(
-                    test_name=test_name,
-                    status="PASS",
-                    response_time=duration
+                    test_name=test_name, status="PASS", response_time=duration
                 )
                 self.record_metric(test_name, "PASS", duration)
 
@@ -106,7 +114,7 @@ class SyntheticTestSuite:
                 test_name=test_name,
                 status="FAIL",
                 response_time=duration,
-                error_message=str(e)
+                error_message=str(e),
             )
             self.record_metric(test_name, "FAIL", duration)
 
@@ -125,14 +133,14 @@ class SyntheticTestSuite:
                     details={
                         "status": data.get("status"),
                         "version": data.get("version"),
-                        "timestamp": data.get("timestamp")
-                    }
+                        "timestamp": data.get("timestamp"),
+                    },
                 )
             else:
                 return TestResult(
                     test_name="api_health_check",
                     status="FAIL",
-                    error_message=f"HTTP {response.status}"
+                    error_message=f"HTTP {response.status}",
                 )
 
     async def test_user_registration_flow(self) -> TestResult:
@@ -147,7 +155,7 @@ class SyntheticTestSuite:
                     return TestResult(
                         test_name="user_registration_flow",
                         status="FAIL",
-                        error_message=f"Registration endpoint inaccessible: {response.status}"
+                        error_message=f"Registration endpoint inaccessible: {response.status}",
                     )
 
             # Step 2: Test registration data validation
@@ -155,52 +163,51 @@ class SyntheticTestSuite:
                 "email": test_email,
                 "password": "testPassword123!",
                 "first_name": "Synthetic",
-                "last_name": "Test"
+                "last_name": "Test",
             }
 
             async with self.session.post(
-                f"{BASE_URL}/api/v1/auth/register",
-                json=registration_data
+                f"{BASE_URL}/api/v1/auth/register", json=registration_data
             ) as response:
                 if response.status == 201:
                     return TestResult(
                         test_name="user_registration_flow",
                         status="PASS",
-                        details={"test_email": test_email}
+                        details={"test_email": test_email},
                     )
                 elif response.status == 400:
                     # Expected validation error is acceptable
                     return TestResult(
                         test_name="user_registration_flow",
                         status="PASS",
-                        details={"validation_working": True}
+                        details={"validation_working": True},
                     )
                 else:
                     return TestResult(
                         test_name="user_registration_flow",
                         status="FAIL",
-                        error_message=f"Unexpected status: {response.status}"
+                        error_message=f"Unexpected status: {response.status}",
                     )
 
         except Exception as e:
             return TestResult(
-                test_name="user_registration_flow",
-                status="FAIL",
-                error_message=str(e)
+                test_name="user_registration_flow", status="FAIL", error_message=str(e)
             )
 
     async def test_assessment_start_flow(self) -> TestResult:
         """Test assessment initialization and question retrieval"""
         try:
             # Test available assessment templates
-            async with self.session.get(f"{BASE_URL}/api/v1/assessments/templates") as response:
+            async with self.session.get(
+                f"{BASE_URL}/api/v1/assessments/templates"
+            ) as response:
                 if response.status == 200:
                     templates = await response.json()
                     if not templates.get("templates"):
                         return TestResult(
                             test_name="assessment_start_flow",
                             status="WARN",
-                            error_message="No assessment templates available"
+                            error_message="No assessment templates available",
                         )
 
                     template_id = templates["templates"][0]["id"]
@@ -208,44 +215,41 @@ class SyntheticTestSuite:
                     # Test starting an assessment
                     start_data = {
                         "template_id": template_id,
-                        "user_id": "synthetic-test-user"
+                        "user_id": "synthetic-test-user",
                     }
 
                     async with self.session.post(
-                        f"{BASE_URL}/api/v1/assessments",
-                        json=start_data
+                        f"{BASE_URL}/api/v1/assessments", json=start_data
                     ) as response:
                         if response.status in [201, 200]:
                             return TestResult(
                                 test_name="assessment_start_flow",
                                 status="PASS",
-                                details={"template_id": template_id}
+                                details={"template_id": template_id},
                             )
                         elif response.status == 401:
                             # Expected for unauthenticated request
                             return TestResult(
                                 test_name="assessment_start_flow",
                                 status="PASS",
-                                details={"auth_required": True}
+                                details={"auth_required": True},
                             )
                         else:
                             return TestResult(
                                 test_name="assessment_start_flow",
                                 status="FAIL",
-                                error_message=f"Assessment start failed: {response.status}"
+                                error_message=f"Assessment start failed: {response.status}",
                             )
                 else:
                     return TestResult(
                         test_name="assessment_start_flow",
                         status="FAIL",
-                        error_message=f"Cannot fetch templates: {response.status}"
+                        error_message=f"Cannot fetch templates: {response.status}",
                     )
 
         except Exception as e:
             return TestResult(
-                test_name="assessment_start_flow",
-                status="FAIL",
-                error_message=str(e)
+                test_name="assessment_start_flow", status="FAIL", error_message=str(e)
             )
 
     async def test_team_creation_flow(self) -> TestResult:
@@ -254,35 +258,35 @@ class SyntheticTestSuite:
             team_data = {
                 "name": "Synthetic Test Team",
                 "description": "Team for synthetic monitoring tests",
-                "organization_id": "test-org"
+                "organization_id": "test-org",
             }
 
-            async with self.session.post(f"{BASE_URL}/api/v1/teams", json=team_data) as response:
+            async with self.session.post(
+                f"{BASE_URL}/api/v1/teams", json=team_data
+            ) as response:
                 if response.status == 401:
                     # Expected for unauthenticated request
                     return TestResult(
                         test_name="team_creation_flow",
                         status="PASS",
-                        details={"auth_required": True}
+                        details={"auth_required": True},
                     )
                 elif response.status in [201, 200]:
                     return TestResult(
                         test_name="team_creation_flow",
                         status="PASS",
-                        details={"team_creation_working": True}
+                        details={"team_creation_working": True},
                     )
                 else:
                     return TestResult(
                         test_name="team_creation_flow",
                         status="FAIL",
-                        error_message=f"Team creation failed: {response.status}"
+                        error_message=f"Team creation failed: {response.status}",
                     )
 
         except Exception as e:
             return TestResult(
-                test_name="team_creation_flow",
-                status="FAIL",
-                error_message=str(e)
+                test_name="team_creation_flow", status="FAIL", error_message=str(e)
             )
 
     async def test_frontend_loading(self) -> TestResult:
@@ -293,11 +297,7 @@ class SyntheticTestSuite:
                     content = await response.text()
 
                     # Check for critical elements
-                    critical_elements = [
-                        '<div id="root">',
-                        'react',
-                        'javascript'
-                    ]
+                    critical_elements = ['<div id="root">', "react", "javascript"]
 
                     missing_elements = []
                     for element in critical_elements:
@@ -309,26 +309,24 @@ class SyntheticTestSuite:
                             test_name="frontend_loading",
                             status="WARN",
                             error_message=f"Missing elements: {missing_elements}",
-                            details={"content_length": len(content)}
+                            details={"content_length": len(content)},
                         )
                     else:
                         return TestResult(
                             test_name="frontend_loading",
                             status="PASS",
-                            details={"content_length": len(content)}
+                            details={"content_length": len(content)},
                         )
                 else:
                     return TestResult(
                         test_name="frontend_loading",
                         status="FAIL",
-                        error_message=f"Frontend not loading: {response.status}"
+                        error_message=f"Frontend not loading: {response.status}",
                     )
 
         except Exception as e:
             return TestResult(
-                test_name="frontend_loading",
-                status="FAIL",
-                error_message=str(e)
+                test_name="frontend_loading", status="FAIL", error_message=str(e)
             )
 
     # External Dependency Tests
@@ -342,20 +340,18 @@ class SyntheticTestSuite:
                     return TestResult(
                         test_name="stripe_connectivity",
                         status="PASS",
-                        details={"stripe_reachable": True}
+                        details={"stripe_reachable": True},
                     )
                 else:
                     return TestResult(
                         test_name="stripe_connectivity",
                         status="FAIL",
-                        error_message=f"Unexpected Stripe response: {response.status}"
+                        error_message=f"Unexpected Stripe response: {response.status}",
                     )
 
         except Exception as e:
             return TestResult(
-                test_name="stripe_connectivity",
-                status="FAIL",
-                error_message=str(e)
+                test_name="stripe_connectivity", status="FAIL", error_message=str(e)
             )
 
     async def test_email_service_connectivity(self) -> TestResult:
@@ -367,65 +363,67 @@ class SyntheticTestSuite:
             test_email_data = {
                 "to": "test@psychsync.com",
                 "subject": "Synthetic Monitor Test",
-                "body": "Test email from synthetic monitoring"
+                "body": "Test email from synthetic monitoring",
             }
 
             # Replace with your actual email service endpoint
             async with self.session.post(
-                f"{BASE_URL}/api/v1/emails/test",
-                json=test_email_data,
-                timeout=10
+                f"{BASE_URL}/api/v1/emails/test", json=test_email_data, timeout=10
             ) as response:
-                if response.status in [200, 202, 401]:  # 401 acceptable if auth required
+                if response.status in [
+                    200,
+                    202,
+                    401,
+                ]:  # 401 acceptable if auth required
                     return TestResult(
                         test_name="email_service_connectivity",
                         status="PASS",
-                        details={"email_service_reachable": True}
+                        details={"email_service_reachable": True},
                     )
                 else:
                     return TestResult(
                         test_name="email_service_connectivity",
                         status="FAIL",
-                        error_message=f"Email service error: {response.status}"
+                        error_message=f"Email service error: {response.status}",
                     )
 
         except Exception as e:
             return TestResult(
                 test_name="email_service_connectivity",
                 status="FAIL",
-                error_message=str(e)
+                error_message=str(e),
             )
 
     async def test_database_connectivity(self) -> TestResult:
         """Test database connectivity via API"""
         try:
-            async with self.session.get(f"{BASE_URL}/api/v1/health/database") as response:
+            async with self.session.get(
+                f"{BASE_URL}/api/v1/health/database"
+            ) as response:
                 if response.status == 200:
                     data = await response.json()
                     if data.get("status") == "healthy":
                         return TestResult(
                             test_name="database_connectivity",
                             status="PASS",
-                            details=data
+                            details=data,
                         )
                     else:
                         return TestResult(
                             test_name="database_connectivity",
                             status="FAIL",
-                            error_message=f"Database unhealthy: {data.get('message')}"
+                            error_message=f"Database unhealthy: {data.get('message')}",
                         )
                 else:
                     return TestResult(
                         test_name="database_connectivity",
                         status="FAIL",
-                        error_message=f"Health check failed: {response.status}"
+                        error_message=f"Health check failed: {response.status}",
                     )
 
         except Exception as e:
             return TestResult(
-                test_name="database_connectivity",
-                status="FAIL",
-                error_message=str(e)
+                test_name="database_connectivity", status="FAIL", error_message=str(e)
             )
 
     async def test_redis_connectivity(self) -> TestResult:
@@ -436,28 +434,24 @@ class SyntheticTestSuite:
                     data = await response.json()
                     if data.get("status") == "healthy":
                         return TestResult(
-                            test_name="redis_connectivity",
-                            status="PASS",
-                            details=data
+                            test_name="redis_connectivity", status="PASS", details=data
                         )
                     else:
                         return TestResult(
                             test_name="redis_connectivity",
                             status="FAIL",
-                            error_message=f"Redis unhealthy: {data.get('message')}"
+                            error_message=f"Redis unhealthy: {data.get('message')}",
                         )
                 else:
                     return TestResult(
                         test_name="redis_connectivity",
                         status="FAIL",
-                        error_message=f"Cache health check failed: {response.status}"
+                        error_message=f"Cache health check failed: {response.status}",
                     )
 
         except Exception as e:
             return TestResult(
-                test_name="redis_connectivity",
-                status="FAIL",
-                error_message=str(e)
+                test_name="redis_connectivity", status="FAIL", error_message=str(e)
             )
 
     async def run_all_tests(self) -> Dict[str, Any]:
@@ -480,7 +474,9 @@ class SyntheticTestSuite:
         for test_name, test_func in tests:
             logger.info(f"Running test: {test_name}")
             result = await self.run_test(test_name, test_func)
-            logger.info(f"Test {test_name}: {result.status} ({result.response_time:.2f}s)")
+            logger.info(
+                f"Test {test_name}: {result.status} ({result.response_time:.2f}s)"
+            )
 
         # Calculate summary
         total_tests = len(self.results)
@@ -493,14 +489,29 @@ class SyntheticTestSuite:
 
         # Update critical path health metrics
         CRITICAL_PATH_HEALTH.labels(path_name="api").set(
-            1.0 if any(r.test_name == "api_health_check" and r.status == "PASS" for r in self.results) else 0.0
+            1.0
+            if any(
+                r.test_name == "api_health_check" and r.status == "PASS"
+                for r in self.results
+            )
+            else 0.0
         )
         CRITICAL_PATH_HEALTH.labels(path_name="frontend").set(
-            1.0 if any(r.test_name == "frontend_loading" and r.status == "PASS" for r in self.results) else 0.0
+            1.0
+            if any(
+                r.test_name == "frontend_loading" and r.status == "PASS"
+                for r in self.results
+            )
+            else 0.0
         )
         CRITICAL_PATH_HEALTH.labels(path_name="user_flow").set(
-            1.0 if all(r.status in ["PASS", "WARN"] for r in self.results
-                     if "registration" in r.test_name or "assessment" in r.test_name) else 0.0
+            1.0
+            if all(
+                r.status in ["PASS", "WARN"]
+                for r in self.results
+                if "registration" in r.test_name or "assessment" in r.test_name
+            )
+            else 0.0
         )
 
         # Update external dependency health metrics
@@ -530,10 +541,12 @@ class SyntheticTestSuite:
             "warned_tests": warned_tests,
             "pass_rate": pass_rate,
             "overall_status": overall_status,
-            "results": [asdict(r) for r in self.results]
+            "results": [asdict(r) for r in self.results],
         }
 
-        logger.info(f"Test suite completed: {passed_tests}/{total_tests} passed ({pass_rate:.1f}%)")
+        logger.info(
+            f"Test suite completed: {passed_tests}/{total_tests} passed ({pass_rate:.1f}%)"
+        )
         return summary
 
     def generate_report(self, summary: Dict[str, Any]) -> str:
@@ -556,7 +569,11 @@ class SyntheticTestSuite:
 
 """
         for result in summary["results"]:
-            status_emoji = "✅" if result["status"] == "PASS" else "❌" if result["status"] == "FAIL" else "⚠️"
+            status_emoji = (
+                "✅"
+                if result["status"] == "PASS"
+                else "❌" if result["status"] == "FAIL" else "⚠️"
+            )
             report += f"{status_emoji} **{result['test_name']}** - {result['status']} ({result['response_time']:.2f}s)\n"
 
             if result["error_message"]:
@@ -572,9 +589,13 @@ class SyntheticTestSuite:
     async def send_alert(self, summary: Dict[str, Any]):
         """Send alert if critical failures detected"""
         critical_failures = [
-            r for r in self.results
-            if r.status == "FAIL" and any(keyword in r.test_name.lower()
-                                         for keyword in ["health", "api", "frontend", "database"])
+            r
+            for r in self.results
+            if r.status == "FAIL"
+            and any(
+                keyword in r.test_name.lower()
+                for keyword in ["health", "api", "frontend", "database"]
+            )
         ]
 
         if not critical_failures:
@@ -595,9 +616,7 @@ class SyntheticTestSuite:
         if SLACK_WEBHOOK:
             try:
                 response = requests.post(
-                    SLACK_WEBHOOK,
-                    json={"text": message},
-                    timeout=10
+                    SLACK_WEBHOOK, json={"text": message}, timeout=10
                 )
                 if response.status_code == 200:
                     logger.info("Alert sent to Slack")
@@ -610,13 +629,17 @@ class SyntheticTestSuite:
         if PAGERDUTY_KEY and len(critical_failures) >= 2:
             try:
                 from pdpyras import EventsAPISession
+
                 pagerduty = EventsAPISession(PAGERDUTY_KEY)
                 pagerduty.trigger(
                     "PsychSync Critical Synthetic Monitoring Failure",
                     severity="critical",
                     source="synthetic-monitoring",
                     component="psychsync-platform",
-                    custom_details={"summary": summary, "critical_failures": len(critical_failures)}
+                    custom_details={
+                        "summary": summary,
+                        "critical_failures": len(critical_failures),
+                    },
                 )
                 logger.info("Alert sent to PagerDuty")
             except Exception as e:

@@ -5,16 +5,16 @@ Performance improvement: 1000% faster data access and reduced database load
 """
 
 import asyncio
-from collections import OrderedDict
-from collections.abc import Callable
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
 import hashlib
 import json
 import logging
 import pickle
 import threading
+from collections import OrderedDict
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
 from typing import Any, TypeVar
 
 import redis.asyncio as redis
@@ -122,7 +122,8 @@ class MemoryCache:
             # Check TTL
             if (
                 entry.ttl_seconds
-                and (datetime.utcnow() - entry.created_at).total_seconds() > entry.ttl_seconds
+                and (datetime.utcnow() - entry.created_at).total_seconds()
+                > entry.ttl_seconds
             ):
                 self._evict_entry(key)
                 self.stats.cache_misses += 1
@@ -141,7 +142,11 @@ class MemoryCache:
             return entry.value
 
     def set(
-        self, key: str, value: Any, ttl_seconds: int | None = None, tags: list[str] = None
+        self,
+        key: str,
+        value: Any,
+        ttl_seconds: int | None = None,
+        tags: list[str] = None,
     ) -> None:
         """
         Set value in memory cache
@@ -335,12 +340,15 @@ class IntelligentCache:
         """Get or create Redis client"""
         if self._redis_client is None:
             if self.redis_url:
-                self._redis_client = redis.from_url(self.redis_url, decode_responses=False)
+                self._redis_client = redis.from_url(
+                    self.redis_url, decode_responses=False
+                )
             else:
                 from app.core.config import settings
 
                 self._redis_client = redis.from_url(
-                    f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}", decode_responses=False
+                    f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
+                    decode_responses=False,
                 )
         return self._redis_client
 
@@ -574,13 +582,17 @@ class IntelligentCache:
                 # Warm multiple entries
                 for key_suffix, value in warm_data.items():
                     cache_key = self._generate_cache_key(key_prefix, key_suffix)
-                    await self.set(cache_key, value, ttl_seconds=self.default_ttl_seconds * 2)
+                    await self.set(
+                        cache_key, value, ttl_seconds=self.default_ttl_seconds * 2
+                    )
                     warmed_count += 1
 
             elif warm_data is not None:
                 # Warm single entry
                 cache_key = self._generate_cache_key(key_prefix)
-                await self.set(cache_key, warm_data, ttl_seconds=self.default_ttl_seconds * 2)
+                await self.set(
+                    cache_key, warm_data, ttl_seconds=self.default_ttl_seconds * 2
+                )
                 warmed_count = 1
 
             logger.info(f"Cache warmed {warmed_count} entries for prefix: {key_prefix}")
@@ -761,7 +773,9 @@ def cached(
     def decorator(func):
         async def wrapper(*args, **kwargs):
             # Generate cache key
-            cache_key = intelligent_cache._generate_cache_key(key_prefix, *args, **kwargs)
+            cache_key = intelligent_cache._generate_cache_key(
+                key_prefix, *args, **kwargs
+            )
 
             # Try to get from cache
             cached_result = await intelligent_cache.get(cache_key)

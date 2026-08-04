@@ -132,7 +132,9 @@ class MockRedisClient:
 
     def __getattr__(self, name):
         """Fallback for any other Redis methods"""
-        self.logger.warning(f"MockRedisClient: Method {name} not implemented, returning None")
+        self.logger.warning(
+            f"MockRedisClient: Method {name} not implemented, returning None"
+        )
 
         async def mock_method(*args, **kwargs):
             return None

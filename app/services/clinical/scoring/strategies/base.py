@@ -10,8 +10,9 @@ Using the Strategy Pattern allows for:
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Any
-from ..config import InstrumentConfig, SeverityLevel, RiskLevel
+from typing import Any, Dict
+
+from ..config import InstrumentConfig, RiskLevel, SeverityLevel
 
 
 @dataclass
@@ -21,6 +22,7 @@ class ScoringResult:
 
     This ensures consistent output format across all instruments.
     """
+
     total_score: float
     severity_level: str
     risk_level: str

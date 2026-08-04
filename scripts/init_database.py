@@ -11,10 +11,11 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
-from app.core.database import Base
+
 from app.core.config import settings
+from app.core.database import Base
 
 
 async def init_database():
@@ -24,7 +25,9 @@ async def init_database():
     print()
 
     # Create async engine
-    database_url = str(settings.DATABASE_URL).replace("postgresql://", "postgresql+asyncpg://")
+    database_url = str(settings.DATABASE_URL).replace(
+        "postgresql://", "postgresql+asyncpg://"
+    )
     engine = create_async_engine(database_url, echo=True)
 
     try:
@@ -38,14 +41,19 @@ async def init_database():
         # List created tables
         print("Step 2: Verifying created tables...")
         from sqlalchemy import text
+
         async with engine.connect() as conn:
-            result = await conn.execute(text("""
+            result = await conn.execute(
+                text(
+                    """
                 SELECT tablename
                 FROM pg_tables
                 WHERE schemaname = 'public'
                 AND tablename NOT LIKE 'alembic%'
                 ORDER BY tablename;
-            """))
+            """
+                )
+            )
             tables = [row[0] for row in result]
 
             print(f"✅ Created {len(tables)} tables:")
@@ -65,6 +73,7 @@ async def init_database():
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
     finally:

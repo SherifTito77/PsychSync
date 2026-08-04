@@ -1,8 +1,8 @@
 # app/api/v1/endpoints/assessments.py
 
 
-from datetime import datetime
 import logging
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -28,18 +28,15 @@ from app.core.response import create_error_response, create_success_response
 from app.db.models.assessment import Assessment
 from app.db.models.user import User
 from app.schemas.assessment import Assessment as AssessmentSchema
-from app.schemas.assessment import (
-    AssessmentCreate,
-    AssessmentUpdate,
-    AssignmentCreate,
-    QuestionCreate,
-    ResponseSubmit,
-    SectionCreate,
-)
+from app.schemas.assessment import AssessmentCreate, AssessmentUpdate
 from app.schemas.assessment import Assignment as AssignmentSchema
+from app.schemas.assessment import AssignmentCreate
 from app.schemas.assessment import Question as QuestionSchema
+from app.schemas.assessment import QuestionCreate
 from app.schemas.assessment import Response as ResponseSchema
+from app.schemas.assessment import ResponseSubmit
 from app.schemas.assessment import Section as SectionSchema
+from app.schemas.assessment import SectionCreate
 
 # ==================== SIMPLE SERVICE IMPLEMENTATIONS ====================
 
@@ -220,7 +217,9 @@ async def get_assessments(
     sort_params: SortParams = Depends(get_sort_params),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
-    search: str | None = Query(None, description="Search assessments by title or description"),
+    search: str | None = Query(
+        None, description="Search assessments by title or description"
+    ),
     category: str | None = Query(None, description="Filter by assessment category"),
     status: str | None = Query(None, description="Filter by status"),
     created_by: int | None = Query(None, description="Filter by creator ID"),
@@ -244,7 +243,8 @@ async def get_assessments(
     if search:
         filter_params["search"] = search
         query = query.where(
-            Assessment.title.ilike(f"%{search}%") | Assessment.description.ilike(f"%{search}%")
+            Assessment.title.ilike(f"%{search}%")
+            | Assessment.description.ilike(f"%{search}%")
         )
 
     if category:
@@ -260,8 +260,12 @@ async def get_assessments(
         query = query.where(Assessment.created_by_id == created_by)
 
     # Apply date filters if provided
-    created_after = Query(None, description="Filter assessments created after this date")
-    created_before = Query(None, description="Filter assessments created before this date")
+    created_after = Query(
+        None, description="Filter assessments created after this date"
+    )
+    created_before = Query(
+        None, description="Filter assessments created before this date"
+    )
 
     if created_after:
         filter_params["created_after"] = created_after
@@ -318,7 +322,8 @@ async def create_assessment(
     except Exception as e:
         logger.error(f"Assessment creation failed: {e!s}")
         return create_error_response(
-            message="Failed to create assessment. Please try again.", error_code="CREATION_FAILED"
+            message="Failed to create assessment. Please try again.",
+            error_code="CREATION_FAILED",
         )
 
 
@@ -345,12 +350,19 @@ async def list_assessments(
     """
     try:
         assessments = AssessmentService.get_user_assessments(
-            db, user_id=current_user.id, category=category, status=status, skip=skip, limit=limit
+            db,
+            user_id=current_user.id,
+            category=category,
+            status=status,
+            skip=skip,
+            limit=limit,
         )
 
         return create_success_response(
             data={
-                "assessments": [serialize_model(assessment) for assessment in assessments],
+                "assessments": [
+                    serialize_model(assessment) for assessment in assessments
+                ],
                 "total": len(assessments),
                 "skip": skip,
                 "limit": limit,
@@ -368,9 +380,12 @@ async def list_assessments(
 
 @router.get("/{assessment_id}")
 @measure_performance
-@async_cached(expire=300, key_prefix="assessment_detail")  # ✅ ASYNC: Non-blocking cache
+@async_cached(
+    expire=300, key_prefix="assessment_detail"
+)  # ✅ ASYNC: Non-blocking cache
 async def get_assessment(
-    assessment: Assessment = Depends(check_assessment_access), db: AsyncSession = Depends(get_db)
+    assessment: Assessment = Depends(check_assessment_access),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Get assessment details with sections and questions.
@@ -385,7 +400,9 @@ async def get_assessment(
         question_count = sum(len(section.questions) for section in assessment.sections)
 
         assessment_data = serialize_model(assessment)
-        assessment_data["sections"] = [serialize_model(section) for section in assessment.sections]
+        assessment_data["sections"] = [
+            serialize_model(section) for section in assessment.sections
+        ]
         assessment_data["question_count"] = question_count
 
         return create_success_response(
@@ -401,7 +418,9 @@ async def get_assessment(
 
 
 @router.put(
-    "/{assessment_id}", response_model=AssessmentSchema, dependencies=[Depends(get_current_user)]
+    "/{assessment_id}",
+    response_model=AssessmentSchema,
+    dependencies=[Depends(get_current_user)],
 )
 def update_assessment(
     assessment_in: AssessmentUpdate,
@@ -444,7 +463,8 @@ def publish_assessment(
     """
     if assessment.status.value == "active":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Assessment is already published"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Assessment is already published",
         )
 
     published_assessment = AssessmentService.publish(db, assessment=assessment)
@@ -486,7 +506,9 @@ def duplicate_assessment(
 
 
 @router.post(
-    "/{assessment_id}/sections", response_model=SectionSchema, status_code=status.HTTP_201_CREATED
+    "/{assessment_id}/sections",
+    response_model=SectionSchema,
+    status_code=status.HTTP_201_CREATED,
 )
 def add_section(
     assessment_id: int,
@@ -538,7 +560,9 @@ def add_question(
     """
     Add a new question to a section.
     """
-    question = AssessmentService.add_question(db, section_id=section_id, question_data=question_in)
+    question = AssessmentService.add_question(
+        db, section_id=section_id, question_data=question_in
+    )
     return question
 
 
@@ -581,7 +605,8 @@ def create_assignment(
     # Verify assessment is published
     if assessment.status.value != "active":
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Can only assign published assessments"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only assign published assessments",
         )
 
     assignment = AssessmentService.create_assignment(
@@ -614,7 +639,9 @@ def get_my_assignments(
 
 
 @router.post(
-    "/{assessment_id}/responses", response_model=ResponseSchema, status_code=status.HTTP_201_CREATED
+    "/{assessment_id}/responses",
+    response_model=ResponseSchema,
+    status_code=status.HTTP_201_CREATED,
 )
 def submit_response(
     assessment_id: int,
@@ -654,7 +681,9 @@ def get_assessment_responses(
     Get all responses for an assessment.
     Requires creator or team admin permission.
     """
-    responses = AssessmentService.get_assessment_responses(db, assessment_id=assessment_id)
+    responses = AssessmentService.get_assessment_responses(
+        db, assessment_id=assessment_id
+    )
     return responses
 
 
@@ -682,8 +711,14 @@ async def get_mbti_assessment_questions():
                         "question_text": "At parties, you usually:",
                         "dimension": "E-I",
                         "options": [
-                            {"text": "Talk to many people, even strangers", "value": "E"},
-                            {"text": "Talk to a few people you know well", "value": "I"},
+                            {
+                                "text": "Talk to many people, even strangers",
+                                "value": "E",
+                            },
+                            {
+                                "text": "Talk to a few people you know well",
+                                "value": "I",
+                            },
                         ],
                     },
                     {
@@ -691,8 +726,14 @@ async def get_mbti_assessment_questions():
                         "question_text": "You prefer to:",
                         "dimension": "S-N",
                         "options": [
-                            {"text": "Focus on reality and practical details", "value": "S"},
-                            {"text": "Imagine possibilities and explore ideas", "value": "N"},
+                            {
+                                "text": "Focus on reality and practical details",
+                                "value": "S",
+                            },
+                            {
+                                "text": "Imagine possibilities and explore ideas",
+                                "value": "N",
+                            },
                         ],
                     },
                     {
@@ -700,8 +741,14 @@ async def get_mbti_assessment_questions():
                         "question_text": "When making decisions, you:",
                         "dimension": "T-F",
                         "options": [
-                            {"text": "Prioritize logic and objective analysis", "value": "T"},
-                            {"text": "Consider values and impact on people", "value": "F"},
+                            {
+                                "text": "Prioritize logic and objective analysis",
+                                "value": "T",
+                            },
+                            {
+                                "text": "Consider values and impact on people",
+                                "value": "F",
+                            },
                         ],
                     },
                     {
@@ -718,7 +765,10 @@ async def get_mbti_assessment_questions():
                         "question_text": "You get energy from:",
                         "dimension": "E-I",
                         "options": [
-                            {"text": "Being with people and social activities", "value": "E"},
+                            {
+                                "text": "Being with people and social activities",
+                                "value": "E",
+                            },
                             {"text": "Quiet time and reflection", "value": "I"},
                         ],
                     },
@@ -728,7 +778,10 @@ async def get_mbti_assessment_questions():
                         "dimension": "S-N",
                         "options": [
                             {"text": "What is actual and present", "value": "S"},
-                            {"text": "What could be and future possibilities", "value": "N"},
+                            {
+                                "text": "What could be and future possibilities",
+                                "value": "N",
+                            },
                         ],
                     },
                     {
@@ -746,7 +799,10 @@ async def get_mbti_assessment_questions():
                         "dimension": "J-P",
                         "options": [
                             {"text": "Planning and organization", "value": "J"},
-                            {"text": "Adaptability and keeping options open", "value": "P"},
+                            {
+                                "text": "Adaptability and keeping options open",
+                                "value": "P",
+                            },
                         ],
                     },
                     {
@@ -754,7 +810,10 @@ async def get_mbti_assessment_questions():
                         "question_text": "You prefer to learn by:",
                         "dimension": "S-N",
                         "options": [
-                            {"text": "Hands-on experience and practical application", "value": "S"},
+                            {
+                                "text": "Hands-on experience and practical application",
+                                "value": "S",
+                            },
                             {
                                 "text": "Understanding theories and underlying principles",
                                 "value": "N",
@@ -766,7 +825,10 @@ async def get_mbti_assessment_questions():
                         "question_text": "In group discussions, you tend to:",
                         "dimension": "E-I",
                         "options": [
-                            {"text": "Speak up frequently and share ideas openly", "value": "E"},
+                            {
+                                "text": "Speak up frequently and share ideas openly",
+                                "value": "E",
+                            },
                             {
                                 "text": "Listen carefully and speak only when necessary",
                                 "value": "I",
@@ -778,8 +840,14 @@ async def get_mbti_assessment_questions():
                         "question_text": "When analyzing a problem, you focus on:",
                         "dimension": "T-F",
                         "options": [
-                            {"text": "Logical consistency and objective facts", "value": "T"},
-                            {"text": "How it affects people and relationships", "value": "F"},
+                            {
+                                "text": "Logical consistency and objective facts",
+                                "value": "T",
+                            },
+                            {
+                                "text": "How it affects people and relationships",
+                                "value": "F",
+                            },
                         ],
                     },
                     {
@@ -787,7 +855,10 @@ async def get_mbti_assessment_questions():
                         "question_text": "You prefer work that is:",
                         "dimension": "J-P",
                         "options": [
-                            {"text": "Well-organized with clear deadlines", "value": "J"},
+                            {
+                                "text": "Well-organized with clear deadlines",
+                                "value": "J",
+                            },
                             {"text": "Flexible with room for creativity", "value": "P"},
                         ],
                     },
@@ -805,8 +876,14 @@ async def get_mbti_assessment_questions():
                         "question_text": "You recharge your batteries by:",
                         "dimension": "E-I",
                         "options": [
-                            {"text": "Socializing and interacting with others", "value": "E"},
-                            {"text": "Spending time alone in quiet activities", "value": "I"},
+                            {
+                                "text": "Socializing and interacting with others",
+                                "value": "E",
+                            },
+                            {
+                                "text": "Spending time alone in quiet activities",
+                                "value": "I",
+                            },
                         ],
                     },
                     {
@@ -814,8 +891,14 @@ async def get_mbti_assessment_questions():
                         "question_text": "When giving feedback, you:",
                         "dimension": "T-F",
                         "options": [
-                            {"text": "Be direct and objective about improvements", "value": "T"},
-                            {"text": "Be encouraging and consider feelings", "value": "F"},
+                            {
+                                "text": "Be direct and objective about improvements",
+                                "value": "T",
+                            },
+                            {
+                                "text": "Be encouraging and consider feelings",
+                                "value": "F",
+                            },
                         ],
                     },
                     {
@@ -823,7 +906,10 @@ async def get_mbti_assessment_questions():
                         "question_text": "You prefer to make plans:",
                         "dimension": "J-P",
                         "options": [
-                            {"text": "Well in advance with detailed schedules", "value": "J"},
+                            {
+                                "text": "Well in advance with detailed schedules",
+                                "value": "J",
+                            },
                             {"text": "Spontaneously as situations arise", "value": "P"},
                         ],
                     },
@@ -832,8 +918,14 @@ async def get_mbti_assessment_questions():
                         "question_text": "You trust information that is:",
                         "dimension": "S-N",
                         "options": [
-                            {"text": "Concrete and proven through experience", "value": "S"},
-                            {"text": "Based on patterns and intuitive insights", "value": "N"},
+                            {
+                                "text": "Concrete and proven through experience",
+                                "value": "S",
+                            },
+                            {
+                                "text": "Based on patterns and intuitive insights",
+                                "value": "N",
+                            },
                         ],
                     },
                     {
@@ -841,7 +933,10 @@ async def get_mbti_assessment_questions():
                         "question_text": "In meetings, you prefer to:",
                         "dimension": "E-I",
                         "options": [
-                            {"text": "Actively participate and lead discussions", "value": "E"},
+                            {
+                                "text": "Actively participate and lead discussions",
+                                "value": "E",
+                            },
                             {
                                 "text": "Observe and contribute when you have something valuable",
                                 "value": "I",
@@ -893,7 +988,10 @@ async def get_mbti_assessment_questions():
                         "dimension": "E-I",
                         "options": [
                             {"text": "Lively with lots of interaction", "value": "E"},
-                            {"text": "Intimate with deep one-on-one conversations", "value": "I"},
+                            {
+                                "text": "Intimate with deep one-on-one conversations",
+                                "value": "I",
+                            },
                         ],
                     },
                     {
@@ -901,8 +999,14 @@ async def get_mbti_assessment_questions():
                         "question_text": "You make judgments based on:",
                         "dimension": "T-F",
                         "options": [
-                            {"text": "Impersonal criteria and universal principles", "value": "T"},
-                            {"text": "Personal values and impact on individuals", "value": "F"},
+                            {
+                                "text": "Impersonal criteria and universal principles",
+                                "value": "T",
+                            },
+                            {
+                                "text": "Personal values and impact on individuals",
+                                "value": "F",
+                            },
                         ],
                     },
                     {
@@ -910,7 +1014,10 @@ async def get_mbti_assessment_questions():
                         "question_text": "You approach deadlines with:",
                         "dimension": "J-P",
                         "options": [
-                            {"text": "Early completion and time to spare", "value": "J"},
+                            {
+                                "text": "Early completion and time to spare",
+                                "value": "J",
+                            },
                             {"text": "Last-minute energy under pressure", "value": "P"},
                         ],
                     },
@@ -919,8 +1026,14 @@ async def get_mbti_assessment_questions():
                         "question_text": "You're more drawn to:",
                         "dimension": "S-N",
                         "options": [
-                            {"text": "Practical skills and real-world applications", "value": "S"},
-                            {"text": "Theoretical concepts and abstract ideas", "value": "N"},
+                            {
+                                "text": "Practical skills and real-world applications",
+                                "value": "S",
+                            },
+                            {
+                                "text": "Theoretical concepts and abstract ideas",
+                                "value": "N",
+                            },
                         ],
                     },
                     {
@@ -929,7 +1042,10 @@ async def get_mbti_assessment_questions():
                         "dimension": "E-I",
                         "options": [
                             {"text": "Go out and socialize with friends", "value": "E"},
-                            {"text": "Stay home and recharge with quiet activities", "value": "I"},
+                            {
+                                "text": "Stay home and recharge with quiet activities",
+                                "value": "I",
+                            },
                         ],
                     },
                     {
@@ -937,8 +1053,14 @@ async def get_mbti_assessment_questions():
                         "question_text": "You believe rules should be:",
                         "dimension": "T-F",
                         "options": [
-                            {"text": "Applied consistently and logically", "value": "T"},
-                            {"text": "Flexible based on individual circumstances", "value": "F"},
+                            {
+                                "text": "Applied consistently and logically",
+                                "value": "T",
+                            },
+                            {
+                                "text": "Flexible based on individual circumstances",
+                                "value": "F",
+                            },
                         ],
                     },
                     {
@@ -946,7 +1068,10 @@ async def get_mbti_assessment_questions():
                         "question_text": "You prefer to finish projects:",
                         "dimension": "J-P",
                         "options": [
-                            {"text": "Completely before moving to the next", "value": "J"},
+                            {
+                                "text": "Completely before moving to the next",
+                                "value": "J",
+                            },
                             {
                                 "text": "When inspiration strikes or deadlines approach",
                                 "value": "P",
@@ -958,7 +1083,10 @@ async def get_mbti_assessment_questions():
                         "question_text": "You notice:",
                         "dimension": "S-N",
                         "options": [
-                            {"text": "Specific details and observable facts", "value": "S"},
+                            {
+                                "text": "Specific details and observable facts",
+                                "value": "S",
+                            },
                             {"text": "Underlying patterns and meanings", "value": "N"},
                         ],
                     },
@@ -967,8 +1095,14 @@ async def get_mbti_assessment_questions():
                         "question_text": "In decision-making meetings, you:",
                         "dimension": "E-I",
                         "options": [
-                            {"text": "Think out loud and process verbally", "value": "E"},
-                            {"text": "Process internally before sharing conclusions", "value": "I"},
+                            {
+                                "text": "Think out loud and process verbally",
+                                "value": "E",
+                            },
+                            {
+                                "text": "Process internally before sharing conclusions",
+                                "value": "I",
+                            },
                         ],
                     },
                 ],
@@ -1536,7 +1670,9 @@ async def get_predictive_index_assessment_questions():
         }
         return predictive_index_assessment
     except Exception as e:
-        return create_error_response(f"Failed to load Predictive Index assessment: {e!s}")
+        return create_error_response(
+            f"Failed to load Predictive Index assessment: {e!s}"
+        )
 
 
 @router.get("/assessment-questions/social-styles")
@@ -1571,10 +1707,22 @@ async def get_social_styles_assessment_questions():
                         "question_text": "In meetings, I usually",
                         "type": "single-choice",
                         "options": [
-                            {"text": "Focus on results and efficiency", "value": "Driver"},
-                            {"text": "Focus on facts and details", "value": "Analytical"},
-                            {"text": "Focus on relationships and harmony", "value": "Amiable"},
-                            {"text": "Focus on ideas and enthusiasm", "value": "Expressive"},
+                            {
+                                "text": "Focus on results and efficiency",
+                                "value": "Driver",
+                            },
+                            {
+                                "text": "Focus on facts and details",
+                                "value": "Analytical",
+                            },
+                            {
+                                "text": "Focus on relationships and harmony",
+                                "value": "Amiable",
+                            },
+                            {
+                                "text": "Focus on ideas and enthusiasm",
+                                "value": "Expressive",
+                            },
                         ],
                     },
                     {
@@ -1582,10 +1730,22 @@ async def get_social_styles_assessment_questions():
                         "question_text": "When making decisions, I prefer",
                         "type": "single-choice",
                         "options": [
-                            {"text": "Quick decisions based on logic", "value": "Driver"},
-                            {"text": "Careful analysis of all options", "value": "Analytical"},
-                            {"text": "Considering everyone's feelings", "value": "Amiable"},
-                            {"text": "Trusting my intuition and vision", "value": "Expressive"},
+                            {
+                                "text": "Quick decisions based on logic",
+                                "value": "Driver",
+                            },
+                            {
+                                "text": "Careful analysis of all options",
+                                "value": "Analytical",
+                            },
+                            {
+                                "text": "Considering everyone's feelings",
+                                "value": "Amiable",
+                            },
+                            {
+                                "text": "Trusting my intuition and vision",
+                                "value": "Expressive",
+                            },
                         ],
                     },
                     {
@@ -1596,7 +1756,10 @@ async def get_social_styles_assessment_questions():
                             {"text": "Brief and to the point", "value": "Driver"},
                             {"text": "Detailed and thorough", "value": "Analytical"},
                             {"text": "Supportive and listening", "value": "Amiable"},
-                            {"text": "Animated and storytelling", "value": "Expressive"},
+                            {
+                                "text": "Animated and storytelling",
+                                "value": "Expressive",
+                            },
                         ],
                     },
                     {
@@ -1605,9 +1768,15 @@ async def get_social_styles_assessment_questions():
                         "type": "single-choice",
                         "options": [
                             {"text": "Address it head-on", "value": "Driver"},
-                            {"text": "Analyze the situation first", "value": "Analytical"},
+                            {
+                                "text": "Analyze the situation first",
+                                "value": "Analytical",
+                            },
                             {"text": "Try to maintain harmony", "value": "Amiable"},
-                            {"text": "Express my feelings openly", "value": "Expressive"},
+                            {
+                                "text": "Express my feelings openly",
+                                "value": "Expressive",
+                            },
                         ],
                     },
                     {
@@ -1615,9 +1784,18 @@ async def get_social_styles_assessment_questions():
                         "question_text": "I prefer to work",
                         "type": "single-choice",
                         "options": [
-                            {"text": "Independently with clear goals", "value": "Driver"},
-                            {"text": "Alone with detailed instructions", "value": "Analytical"},
-                            {"text": "In a supportive team environment", "value": "Amiable"},
+                            {
+                                "text": "Independently with clear goals",
+                                "value": "Driver",
+                            },
+                            {
+                                "text": "Alone with detailed instructions",
+                                "value": "Analytical",
+                            },
+                            {
+                                "text": "In a supportive team environment",
+                                "value": "Amiable",
+                            },
                             {"text": "With people and variety", "value": "Expressive"},
                         ],
                     },
@@ -1626,10 +1804,22 @@ async def get_social_styles_assessment_questions():
                         "question_text": "When receiving feedback, I",
                         "type": "single-choice",
                         "options": [
-                            {"text": "Want it direct and actionable", "value": "Driver"},
-                            {"text": "Appreciate data and specifics", "value": "Analytical"},
-                            {"text": "Need reassurance and support", "value": "Amiable"},
-                            {"text": "Prefer positive recognition", "value": "Expressive"},
+                            {
+                                "text": "Want it direct and actionable",
+                                "value": "Driver",
+                            },
+                            {
+                                "text": "Appreciate data and specifics",
+                                "value": "Analytical",
+                            },
+                            {
+                                "text": "Need reassurance and support",
+                                "value": "Amiable",
+                            },
+                            {
+                                "text": "Prefer positive recognition",
+                                "value": "Expressive",
+                            },
                         ],
                     },
                     {
@@ -1638,9 +1828,15 @@ async def get_social_styles_assessment_questions():
                         "type": "single-choice",
                         "options": [
                             {"text": "Time-conscious and efficient", "value": "Driver"},
-                            {"text": "Plan ahead and stick to schedule", "value": "Analytical"},
+                            {
+                                "text": "Plan ahead and stick to schedule",
+                                "value": "Analytical",
+                            },
                             {"text": "Flexible and accommodating", "value": "Amiable"},
-                            {"text": "Spontaneous and energetic", "value": "Expressive"},
+                            {
+                                "text": "Spontaneous and energetic",
+                                "value": "Expressive",
+                            },
                         ],
                     },
                 ],
@@ -1687,8 +1883,14 @@ async def get_strengthsfinder_assessment_questions():
                         "question_text": "Which statement is more like you?",
                         "type": "paired-choice",
                         "options": [
-                            {"text": "I love to start new projects", "value": "Activator"},
-                            {"text": "I work hard to complete what I start", "value": "Focus"},
+                            {
+                                "text": "I love to start new projects",
+                                "value": "Activator",
+                            },
+                            {
+                                "text": "I work hard to complete what I start",
+                                "value": "Focus",
+                            },
                         ],
                     },
                     {
@@ -1696,7 +1898,10 @@ async def get_strengthsfinder_assessment_questions():
                         "question_text": "Which statement is more like you?",
                         "type": "paired-choice",
                         "options": [
-                            {"text": "I enjoy being the center of attention", "value": "Woo"},
+                            {
+                                "text": "I enjoy being the center of attention",
+                                "value": "Woo",
+                            },
                             {
                                 "text": "I prefer deep one-on-one conversations",
                                 "value": "Individualization",
@@ -1712,7 +1917,10 @@ async def get_strengthsfinder_assessment_questions():
                                 "text": "I am always looking for ways to improve",
                                 "value": "Maximizer",
                             },
-                            {"text": "I am satisfied with good enough", "value": "Consistency"},
+                            {
+                                "text": "I am satisfied with good enough",
+                                "value": "Consistency",
+                            },
                         ],
                     },
                     {
@@ -1724,7 +1932,10 @@ async def get_strengthsfinder_assessment_questions():
                                 "text": "I need to understand the 'why' before acting",
                                 "value": "Analytical",
                             },
-                            {"text": "I trust my instincts and act quickly", "value": "Activator"},
+                            {
+                                "text": "I trust my instincts and act quickly",
+                                "value": "Activator",
+                            },
                         ],
                     },
                     {
@@ -1732,7 +1943,10 @@ async def get_strengthsfinder_assessment_questions():
                         "question_text": "Which statement is more like you?",
                         "type": "paired-choice",
                         "options": [
-                            {"text": "I set ambitious goals for myself", "value": "Achiever"},
+                            {
+                                "text": "I set ambitious goals for myself",
+                                "value": "Achiever",
+                            },
                             {
                                 "text": "I go with the flow and adapt easily",
                                 "value": "Adaptability",
@@ -1759,7 +1973,10 @@ async def get_strengthsfinder_assessment_questions():
                         "question_text": "Which statement is more like you?",
                         "type": "paired-choice",
                         "options": [
-                            {"text": "I believe everyone has potential", "value": "Developer"},
+                            {
+                                "text": "I believe everyone has potential",
+                                "value": "Developer",
+                            },
                             {
                                 "text": "I recognize and celebrate others' achievements",
                                 "value": "Positivity",
@@ -1771,7 +1988,10 @@ async def get_strengthsfinder_assessment_questions():
                         "question_text": "Which statement is more like you?",
                         "type": "paired-choice",
                         "options": [
-                            {"text": "I confidently take charge of situations", "value": "Command"},
+                            {
+                                "text": "I confidently take charge of situations",
+                                "value": "Command",
+                            },
                             {
                                 "text": "I build trust through consistency",
                                 "value": "Responsibility",
@@ -1783,8 +2003,14 @@ async def get_strengthsfinder_assessment_questions():
                         "question_text": "Which statement is more like you?",
                         "type": "paired-choice",
                         "options": [
-                            {"text": "I learn for the joy of learning", "value": "Learner"},
-                            {"text": "I love to share what I've learned", "value": "Input"},
+                            {
+                                "text": "I learn for the joy of learning",
+                                "value": "Learner",
+                            },
+                            {
+                                "text": "I love to share what I've learned",
+                                "value": "Input",
+                            },
                         ],
                     },
                 ],
@@ -1792,4 +2018,6 @@ async def get_strengthsfinder_assessment_questions():
         }
         return strengthsfinder_assessment
     except Exception as e:
-        return create_error_response(f"Failed to load StrengthsFinder assessment: {e!s}")
+        return create_error_response(
+            f"Failed to load StrengthsFinder assessment: {e!s}"
+        )

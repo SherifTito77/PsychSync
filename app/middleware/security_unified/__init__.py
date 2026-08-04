@@ -26,18 +26,17 @@ Usage:
 """
 
 from app.middleware.security_unified.middleware import (
-    UnifiedSecurityMiddleware,
     SecurityConfig,
+    UnifiedSecurityMiddleware,
 )
-
 from app.middleware.security_unified.utils import (
-    get_client_ip,
-    get_client_info,
     detect_attack_tool,
-    is_suspicious_path,
-    is_sensitive_endpoint,
-    get_security_headers_default,
+    get_client_info,
+    get_client_ip,
     get_csp_template,
+    get_security_headers_default,
+    is_sensitive_endpoint,
+    is_suspicious_path,
 )
 
 __all__ = [

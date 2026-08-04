@@ -6,9 +6,10 @@ the refactored architecture.
 """
 
 import pytest
+
 from app.services.clinical.scoring.strategies.asrs_scorer import (
+    ADHDClassifier,
     ASRSScorer,
-    ADHDClassifier
 )
 
 
@@ -24,7 +25,7 @@ class TestADHDClassifier:
             # Inattention items (1-9): all 4s = 36 (above threshold of 24)
             **{i: 4 for i in range(1, 10)},
             # Hyperactivity items (10-18): all 4s = 36 (above threshold of 24)
-            **{i: 4 for i in range(10, 19)}
+            **{i: 4 for i in range(10, 19)},
         }
 
         result = classifier.classify(responses)
@@ -44,7 +45,7 @@ class TestADHDClassifier:
         # Inattention above threshold, hyperactivity below
         responses = {
             **{i: 4 for i in range(1, 10)},  # Inattention: 36
-            **{i: 1 for i in range(10, 19)}  # Hyperactivity: 9
+            **{i: 1 for i in range(10, 19)},  # Hyperactivity: 9
         }
 
         result = classifier.classify(responses)
@@ -62,7 +63,7 @@ class TestADHDClassifier:
         # Hyperactivity above threshold, inattention below
         responses = {
             **{i: 1 for i in range(1, 10)},  # Inattention: 9
-            **{i: 4 for i in range(10, 19)}  # Hyperactivity: 36
+            **{i: 4 for i in range(10, 19)},  # Hyperactivity: 36
         }
 
         result = classifier.classify(responses)
@@ -80,7 +81,7 @@ class TestADHDClassifier:
         # All scores below threshold
         responses = {
             **{i: 1 for i in range(1, 10)},  # Inattention: 9
-            **{i: 1 for i in range(10, 19)}  # Hyperactivity: 9
+            **{i: 1 for i in range(10, 19)},  # Hyperactivity: 9
         }
 
         result = classifier.classify(responses)
@@ -98,10 +99,7 @@ class TestASRSScorer:
         """Test scoring for combined ADHD"""
         scorer = ASRSScorer()
 
-        responses = {
-            **{i: 4 for i in range(1, 10)},
-            **{i: 4 for i in range(10, 19)}
-        }
+        responses = {**{i: 4 for i in range(1, 10)}, **{i: 4 for i in range(10, 19)}}
 
         result = scorer.score(responses)
 
@@ -118,10 +116,7 @@ class TestASRSScorer:
         """Test scoring for minimal symptoms"""
         scorer = ASRSScorer()
 
-        responses = {
-            **{i: 1 for i in range(1, 10)},
-            **{i: 1 for i in range(10, 19)}
-        }
+        responses = {**{i: 1 for i in range(1, 10)}, **{i: 1 for i in range(10, 19)}}
 
         result = scorer.score(responses)
 
@@ -146,7 +141,7 @@ class TestASRSScorer:
 
         responses = {
             **{i: 1 for i in range(1, 18)},
-            18: 10  # Invalid value (should be 0-4)
+            18: 10,  # Invalid value (should be 0-4)
         }
 
         with pytest.raises(ValueError, match="must be 0-4"):
@@ -159,7 +154,7 @@ class TestRecommendationEngine:
     def test_combined_adhd_recommendations(self):
         """Test recommendations for combined ADHD"""
         from app.services.clinical.scoring.recommendations.recommendation_engine import (
-            RecommendationEngine
+            RecommendationEngine,
         )
 
         engine = RecommendationEngine.for_asrs()
@@ -172,7 +167,7 @@ class TestRecommendationEngine:
     def test_minimal_symptoms_recommendations(self):
         """Test recommendations for minimal symptoms"""
         from app.services.clinical.scoring.recommendations.recommendation_engine import (
-            RecommendationEngine
+            RecommendationEngine,
         )
 
         engine = RecommendationEngine.for_asrs()

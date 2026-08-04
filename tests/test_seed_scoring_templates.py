@@ -1,15 +1,20 @@
 """Auto-generated tests for seed_scoring_templates"""
 
-import pytest
-from unittest.mock import Mock, patch
 import sys
 from pathlib import Path
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from app.seed_scoring_templates import seed_mbti_template , seed_big_five_template , seed_disc_template
+from app.seed_scoring_templates import (
+    seed_big_five_template,
+    seed_disc_template,
+    seed_mbti_template,
+)
 
 
 class TestSeed_Scoring_Templates:

@@ -20,18 +20,18 @@ Usage:
     safe_html = encode_output(user_input, "html")
 """
 
-import re
+import hashlib
 import html
+import imghdr
 import json
+import re
 import urllib.parse
-from typing import Any, Union, List, Tuple, Optional, Dict, Set
 from dataclasses import dataclass
 from enum import Enum
 from ipaddress import ip_address, ip_network
-import hashlib
-import magic
-import imghdr
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
+import magic
 
 # ============================================================================
 # Validation Result

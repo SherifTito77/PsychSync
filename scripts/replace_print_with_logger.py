@@ -11,18 +11,18 @@ from typing import List, Tuple
 
 def has_logger_import(content: str) -> bool:
     """Check if file already has logger imported"""
-    return bool(re.search(r'(import logging|from logging import|logger\s*=)', content))
+    return bool(re.search(r"(import logging|from logging import|logger\s*=)", content))
 
 
 def add_logger_import(content: str) -> str:
     """Add logging import at the top of the file"""
     # Find the first import statement
-    import_match = re.search(r'^import .+', content, re.MULTILINE)
+    import_match = re.search(r"^import .+", content, re.MULTILINE)
     if import_match:
         insert_pos = import_match.end()
         return (
             content[:insert_pos]
-            + '\nimport logging\nlogger = logging.getLogger(__name__)'
+            + "\nimport logging\nlogger = logging.getLogger(__name__)"
             + content[insert_pos:]
         )
     return content
@@ -34,7 +34,7 @@ def convert_print_to_logger(file_path: Path) -> Tuple[int, int]:
     Returns: (number of replacements, file size before)
     """
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             content = f.read()
 
         original_content = content
@@ -43,7 +43,7 @@ def convert_print_to_logger(file_path: Path) -> Tuple[int, int]:
 
         # Pattern to match print() statements
         # Handles: print("text"), print('text'), print(f"text"), print(variable)
-        print_pattern = r'print\(([^)]+)\)'
+        print_pattern = r"print\(([^)]+)\)"
 
         def replace_print(match):
             nonlocal replacements
@@ -51,17 +51,17 @@ def convert_print_to_logger(file_path: Path) -> Tuple[int, int]:
             args = match.group(1).strip()
 
             # Determine appropriate log level
-            if 'error' in args.lower() or 'exception' in args.lower():
-                return f'logger.error({args})'
-            elif 'warn' in args.lower():
-                return f'logger.warning({args})'
-            elif 'debug' in args.lower():
-                return f'logger.debug({args})'
+            if "error" in args.lower() or "exception" in args.lower():
+                return f"logger.error({args})"
+            elif "warn" in args.lower():
+                return f"logger.warning({args})"
+            elif "debug" in args.lower():
+                return f"logger.debug({args})"
             else:
-                return f'logger.info({args})'
+                return f"logger.info({args})"
 
         # Skip test files and __init__ files
-        if 'test_' in file_path.name or file_path.name == '__init__.py':
+        if "test_" in file_path.name or file_path.name == "__init__.py":
             return 0, original_size
 
         # Replace print statements
@@ -74,7 +74,7 @@ def convert_print_to_logger(file_path: Path) -> Tuple[int, int]:
                 content = add_logger_import(content)
 
             # Write back
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
             return replacements, original_size
@@ -88,7 +88,7 @@ def convert_print_to_logger(file_path: Path) -> Tuple[int, int]:
 
 def main():
     """Process all Python files in app/"""
-    app_path = Path('app')
+    app_path = Path("app")
 
     if not app_path.exists():
         print("❌ app/ directory not found")
@@ -99,8 +99,8 @@ def main():
     total_size_processed = 0
 
     # Find all Python files
-    py_files = list(app_path.rglob('*.py'))
-    py_files = [f for f in py_files if '__pycache__' not in str(f)]
+    py_files = list(app_path.rglob("*.py"))
+    py_files = [f for f in py_files if "__pycache__" not in str(f)]
 
     print(f"🔍 Processing {len(py_files)} Python files...")
     print()
@@ -128,7 +128,10 @@ def main():
         print(f"   git diff app/")
         print()
         print("   Commit with:")
-        print(f"   git add app/ && git commit -m 'refactor: replace print() with logger'")
+        print(
+            f"   git add app/ && git commit -m 'refactor: replace print() with logger'"
+        )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

@@ -3,9 +3,9 @@ GDPR Compliance API Endpoints
 Provides comprehensive endpoints for data export, deletion, consent management, and privacy policy access
 """
 
-from datetime import datetime
 import asyncio
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -14,13 +14,13 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_async_db, get_current_active_user
-from app.services.security import get_current_user
+from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
-from app.core.rate_limiter_unified import rate_limit, RateLimitStrategy
 from app.services.compliance_audit_service import AuditAction, ComplianceAuditService
 from app.services.consent_service import ConsentManagementService
 from app.services.gdpr_service import GDPRService
 from app.services.privacy_policy_service import PrivacyPolicyService
+from app.services.security import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -88,17 +88,23 @@ async def request_data_export(
 
 @router.get("/download/{filename}")
 async def download_export(
-    filename: str, current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_async_db)
+    filename: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Download exported data file"""
     try:
         # Validate filename to prevent directory traversal
         if not filename or ".." in filename or "/" in filename:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid filename")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid filename"
+            )
 
         # Check if user has permission to access this file
         if not filename.startswith(str(current_user.id)):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Access denied"
+            )
 
         file_path = Path("exports") / filename
         if not file_path.exists():
@@ -145,7 +151,10 @@ async def request_data_deletion(
             user_id=str(current_user.id),
             ip_address=request.client.host,
             user_agent=request.headers.get("user-agent"),
-            audit_metadata={"deletion_reason": deletion_reason, "soft_delete": soft_delete},
+            audit_metadata={
+                "deletion_reason": deletion_reason,
+                "soft_delete": soft_delete,
+            },
             risk_level="high",
         )
 
@@ -174,7 +183,9 @@ async def request_data_deletion(
 
 
 @router.get("/privacy-policy")
-async def get_privacy_policy(version: str | None = None, db: AsyncSession = Depends(get_async_db)):
+async def get_privacy_policy(
+    version: str | None = None, db: AsyncSession = Depends(get_async_db)
+):
     """Get current or specific privacy policy version"""
     try:
         if version:
@@ -245,7 +256,8 @@ async def update_consent(
         consents = consent_data.get("consents", [])
         if not consents:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="No consent data provided"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No consent data provided",
             )
 
         # Process consent request
@@ -264,9 +276,11 @@ async def update_consent(
         for consent_result in result["results"]:
             await audit_service.log_action(
                 db=db,
-                action=AuditAction.GDPR_CONSENT_GRANT
-                if consent_result.get("consent_type")
-                else AuditAction.GDPR_CONSENT_WITHDRAW,
+                action=(
+                    AuditAction.GDPR_CONSENT_GRANT
+                    if consent_result.get("consent_type")
+                    else AuditAction.GDPR_CONSENT_WITHDRAW
+                ),
                 resource_type="user_consent",
                 resource_id=str(current_user.id),
                 user_id=str(current_user.id),
@@ -365,18 +379,24 @@ async def get_user_audit_logs(
 
         if start_date:
             try:
-                filters["start_date"] = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+                filters["start_date"] = datetime.fromisoformat(
+                    start_date.replace("Z", "+00:00")
+                )
             except ValueError:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid start_date format"
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid start_date format",
                 ) from None
 
         if end_date:
             try:
-                filters["end_date"] = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+                filters["end_date"] = datetime.fromisoformat(
+                    end_date.replace("Z", "+00:00")
+                )
             except ValueError:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid end_date format"
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid end_date format",
                 ) from None
 
         # Search audit logs
@@ -398,7 +418,8 @@ async def get_user_audit_logs(
 
 @router.get("/data-summary")
 async def get_user_data_summary(
-    current_user: User = Depends(get_current_active_user), db: AsyncSession = Depends(get_async_db)
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Get summary of user's stored data (GDPR transparency requirement)"""
     try:
@@ -454,7 +475,8 @@ async def initiate_compliance_request(
 
         if not request_type:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Request type is required"
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Request type is required",
             )
 
         # Log the compliance request
@@ -475,9 +497,7 @@ async def initiate_compliance_request(
         )
 
         # Create compliance request record (this would typically go to a compliance system)
-        request_id = (
-            f"{request_type}_{current_user.id!s}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
-        )
+        request_id = f"{request_type}_{current_user.id!s}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
 
         return {
             "message": "Compliance request received and is being processed",

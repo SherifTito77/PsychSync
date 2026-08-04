@@ -18,15 +18,15 @@ Version: 2.0 Enterprise Security
 """
 
 import asyncio
+import logging
+import threading
+import time
 from collections import defaultdict, deque
 from collections.abc import Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import logging
-import threading
-import time
 from typing import Any
 
 import psutil
@@ -174,8 +174,12 @@ class PerformanceMonitor:
 
             # Memory usage
             memory = psutil.virtual_memory()
-            self._record_metric("system.memory.usage", memory.percent, "percent", timestamp)
-            self._record_metric("system.memory.available", memory.available, "bytes", timestamp)
+            self._record_metric(
+                "system.memory.usage", memory.percent, "percent", timestamp
+            )
+            self._record_metric(
+                "system.memory.available", memory.available, "bytes", timestamp
+            )
 
             # Disk usage
             disk = psutil.disk_usage("/")
@@ -184,14 +188,24 @@ class PerformanceMonitor:
 
             # Network I/O
             network = psutil.net_io_counters()
-            self._record_metric("system.network.bytes_sent", network.bytes_sent, "bytes", timestamp)
-            self._record_metric("system.network.bytes_recv", network.bytes_recv, "bytes", timestamp)
+            self._record_metric(
+                "system.network.bytes_sent", network.bytes_sent, "bytes", timestamp
+            )
+            self._record_metric(
+                "system.network.bytes_recv", network.bytes_recv, "bytes", timestamp
+            )
 
             # Process-specific metrics
             process = psutil.Process()
-            self._record_metric("process.memory.rss", process.memory_info().rss, "bytes", timestamp)
-            self._record_metric("process.cpu.percent", process.cpu_percent(), "percent", timestamp)
-            self._record_metric("process.num_threads", process.num_threads(), "count", timestamp)
+            self._record_metric(
+                "process.memory.rss", process.memory_info().rss, "bytes", timestamp
+            )
+            self._record_metric(
+                "process.cpu.percent", process.cpu_percent(), "percent", timestamp
+            )
+            self._record_metric(
+                "process.num_threads", process.num_threads(), "count", timestamp
+            )
 
         except Exception as e:
             perf_logger.error(f"System metrics collection error: {e}")
@@ -199,7 +213,9 @@ class PerformanceMonitor:
     def _record_metric(self, name: str, value: float, unit: str, timestamp: datetime):
         """Record a performance metric"""
         with self._lock:
-            metric = PerformanceMetric(name=name, value=value, unit=unit, timestamp=timestamp)
+            metric = PerformanceMetric(
+                name=name, value=value, unit=unit, timestamp=timestamp
+            )
             self._metrics[name].append(metric)
 
     def record_request_metric(
@@ -235,7 +251,10 @@ class PerformanceMonitor:
 
         # Record status code
         self._record_metric(
-            f"http.request.status.{method.lower()}.{status_code}", 1, "count", metric.timestamp
+            f"http.request.status.{method.lower()}.{status_code}",
+            1,
+            "count",
+            metric.timestamp,
         )
 
     @asynccontextmanager
@@ -291,19 +310,32 @@ class PerformanceMonitor:
                     p95 = response_times[int(len(response_times) * 0.95)]
                     p99 = response_times[int(len(response_times) * 0.99)]
 
-                    self._record_metric("http.response_time.p50", p50, "seconds", timestamp)
-                    self._record_metric("http.response_time.p95", p95, "seconds", timestamp)
-                    self._record_metric("http.response_time.p99", p99, "seconds", timestamp)
+                    self._record_metric(
+                        "http.response_time.p50", p50, "seconds", timestamp
+                    )
+                    self._record_metric(
+                        "http.response_time.p95", p95, "seconds", timestamp
+                    )
+                    self._record_metric(
+                        "http.response_time.p99", p99, "seconds", timestamp
+                    )
 
                     # Calculate error rate
-                    error_count = sum(1 for r in recent_requests if r.status_code >= 400)
+                    error_count = sum(
+                        1 for r in recent_requests if r.status_code >= 400
+                    )
                     error_rate = error_count / len(recent_requests)
-                    self._record_metric("http.error_rate", error_rate, "percent", timestamp)
+                    self._record_metric(
+                        "http.error_rate", error_rate, "percent", timestamp
+                    )
 
                     # Calculate request rate
                     request_rate = len(recent_requests) / 300  # requests per second
                     self._record_metric(
-                        "http.request_rate", request_rate, "requests_per_second", timestamp
+                        "http.request_rate",
+                        request_rate,
+                        "requests_per_second",
+                        timestamp,
                     )
 
             # Update hourly statistics
@@ -440,7 +472,8 @@ class PerformanceMonitor:
                 if (
                     not existing_alert.resolved
                     and existing_alert.alert_type == new_alert.alert_type
-                    and (new_alert.timestamp - existing_alert.timestamp).total_seconds() < 300
+                    and (new_alert.timestamp - existing_alert.timestamp).total_seconds()
+                    < 300
                 ):
                     return True
             return False
@@ -498,7 +531,9 @@ class PerformanceMonitor:
                         }
 
                 # Request metrics
-                recent_requests = [r for r in self._request_metrics if r.timestamp >= window_start]
+                recent_requests = [
+                    r for r in self._request_metrics if r.timestamp >= window_start
+                ]
 
                 request_stats = {}
                 if recent_requests:
@@ -509,21 +544,37 @@ class PerformanceMonitor:
                         "total_requests": len(recent_requests),
                         "avg_response_time": sum(response_times) / len(response_times),
                         "p50_response_time": response_times[len(response_times) // 2],
-                        "p95_response_time": response_times[int(len(response_times) * 0.95)],
-                        "p99_response_time": response_times[int(len(response_times) * 0.99)],
-                        "error_rate": sum(1 for r in recent_requests if r.status_code >= 400)
+                        "p95_response_time": response_times[
+                            int(len(response_times) * 0.95)
+                        ],
+                        "p99_response_time": response_times[
+                            int(len(response_times) * 0.99)
+                        ],
+                        "error_rate": sum(
+                            1 for r in recent_requests if r.status_code >= 400
+                        )
                         / len(recent_requests),
                         "status_codes": {
-                            "2xx": sum(1 for r in recent_requests if 200 <= r.status_code < 300),
-                            "3xx": sum(1 for r in recent_requests if 300 <= r.status_code < 400),
-                            "4xx": sum(1 for r in recent_requests if 400 <= r.status_code < 500),
-                            "5xx": sum(1 for r in recent_requests if 500 <= r.status_code < 600),
+                            "2xx": sum(
+                                1 for r in recent_requests if 200 <= r.status_code < 300
+                            ),
+                            "3xx": sum(
+                                1 for r in recent_requests if 300 <= r.status_code < 400
+                            ),
+                            "4xx": sum(
+                                1 for r in recent_requests if 400 <= r.status_code < 500
+                            ),
+                            "5xx": sum(
+                                1 for r in recent_requests if 500 <= r.status_code < 600
+                            ),
                         },
                     }
 
                 # Recent alerts
                 recent_alerts = [
-                    a for a in self._alerts if a.timestamp >= window_start and not a.resolved
+                    a
+                    for a in self._alerts
+                    if a.timestamp >= window_start and not a.resolved
                 ]
 
                 return {
@@ -549,7 +600,9 @@ class PerformanceMonitor:
                             for a in recent_alerts[-5:]  # Last 5 alerts
                         ],
                     },
-                    "system_status": self._get_system_status(window_metrics, request_stats),
+                    "system_status": self._get_system_status(
+                        window_metrics, request_stats
+                    ),
                 }
 
         except Exception as e:
@@ -566,12 +619,16 @@ class PerformanceMonitor:
             # Check response times
             if (
                 requests
-                and requests.get("p95_response_time", 0) > self.thresholds["response_time_p95"]
+                and requests.get("p95_response_time", 0)
+                > self.thresholds["response_time_p95"]
             ):
                 issues.append("slow_response")
 
             # Check error rate
-            if requests and requests.get("error_rate", 0) > self.thresholds["error_rate"]:
+            if (
+                requests
+                and requests.get("error_rate", 0) > self.thresholds["error_rate"]
+            ):
                 issues.append("high_error_rate")
 
             # Check system resources
@@ -581,7 +638,10 @@ class PerformanceMonitor:
             ):
                 issues.append("high_memory")
 
-            if metrics.get("system.cpu.usage", {}).get("latest", 0) > self.thresholds["cpu_usage"]:
+            if (
+                metrics.get("system.cpu.usage", {}).get("latest", 0)
+                > self.thresholds["cpu_usage"]
+            ):
                 issues.append("high_cpu")
 
             # Determine status
@@ -598,7 +658,9 @@ class PerformanceMonitor:
         except Exception:
             return PerformanceLevel.GOOD
 
-    def get_metrics_history(self, metric_name: str, hours: int = 24) -> list[dict[str, Any]]:
+    def get_metrics_history(
+        self, metric_name: str, hours: int = 24
+    ) -> list[dict[str, Any]]:
         """Get historical data for a specific metric"""
         try:
             with self._lock:

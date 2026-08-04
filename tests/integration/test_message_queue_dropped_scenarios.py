@@ -21,13 +21,13 @@ Date: February 9, 2026
 import asyncio
 import json
 import logging
-import pytest
 import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from uuid import uuid4
 
+import pytest
 import redis.asyncio as aioredis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -62,7 +62,7 @@ async def kafka_producer():
 @pytest.fixture
 async def kafka_consumer():
     """Mock Kafka consumer for testing"""
-    from app.events.consumer import KafkaEventConsumer, EventHandler
+    from app.events.consumer import EventHandler, KafkaEventConsumer
     from app.events.schemas import EventType
 
     # Create test handler
@@ -137,13 +137,17 @@ class TestFireAndForgetMessageLoss:
     Issue: app/events/producer.py:201-231
     """
 
-    async def test_send_without_confirmation_kafka_unavailable(self, kafka_producer, sample_event):
+    async def test_send_without_confirmation_kafka_unavailable(
+        self, kafka_producer, sample_event
+    ):
         """
         Test that messages are lost when Kafka is unavailable during fire-and-forget send.
 
         Expected: Message silently dropped with no error
         """
-        with patch.object(kafka_producer.producer, 'send', side_effect=Exception("Kafka unavailable")):
+        with patch.object(
+            kafka_producer.producer, "send", side_effect=Exception("Kafka unavailable")
+        ):
             # This should not raise an exception (fire-and-forget)
             try:
                 kafka_producer.send("test-topic", sample_event)
@@ -156,7 +160,9 @@ class TestFireAndForgetMessageLoss:
             except Exception as e:
                 pytest.fail(f"Fire-and-forget should not raise: {e}")
 
-        logger.warning("⚠️ SCENARIO 1 CONFIRMED: Fire-and-forget message lost when Kafka unavailable")
+        logger.warning(
+            "⚠️ SCENARIO 1 CONFIRMED: Fire-and-forget message lost when Kafka unavailable"
+        )
 
     async def test_send_serialization_failure(self, kafka_producer):
         """
@@ -176,7 +182,11 @@ class TestFireAndForgetMessageLoss:
             timestamp=datetime.utcnow().isoformat(),
         )
 
-        with patch.object(kafka_producer.producer, 'send', side_effect=TypeError("Object not serializable")):
+        with patch.object(
+            kafka_producer.producer,
+            "send",
+            side_effect=TypeError("Object not serializable"),
+        ):
             # Fire-and-forget won't catch this
             try:
                 kafka_producer.send("test-topic", bad_event)
@@ -184,7 +194,9 @@ class TestFireAndForgetMessageLoss:
             except:
                 pass  # Expected to fail silently
 
-        logger.warning("⚠️ SCENARIO 1b CONFIRMED: Serialization errors in fire-and-forget lose messages")
+        logger.warning(
+            "⚠️ SCENARIO 1b CONFIRMED: Serialization errors in fire-and-forget lose messages"
+        )
 
     async def test_send_vs_send_and_wait_comparison(self, kafka_producer, sample_event):
         """
@@ -198,11 +210,15 @@ class TestFireAndForgetMessageLoss:
         }
 
         # Test send_and_wait (safe approach)
-        with patch.object(kafka_producer.producer, 'send_and_wait', return_value=MagicMock(
-            topic="test-topic",
-            partition=0,
-            offset=123,
-        )):
+        with patch.object(
+            kafka_producer.producer,
+            "send_and_wait",
+            return_value=MagicMock(
+                topic="test-topic",
+                partition=0,
+                offset=123,
+            ),
+        ):
             try:
                 metadata = await kafka_producer.publish("test-topic", sample_event)
                 results["send_and_wait"]["sent"] = 1
@@ -212,7 +228,9 @@ class TestFireAndForgetMessageLoss:
                 results["send_and_wait"]["lost"] = 1
 
         # Test fire-and-forget (unsafe approach)
-        with patch.object(kafka_producer.producer, 'send', side_effect=Exception("Broker error")):
+        with patch.object(
+            kafka_producer.producer, "send", side_effect=Exception("Broker error")
+        ):
             try:
                 kafka_producer.send("test-topic", sample_event)
                 results["fire_and_forget"]["sent"] = 1
@@ -222,8 +240,12 @@ class TestFireAndForgetMessageLoss:
                 pass  # Fire-and-forget doesn't raise
 
         logger.info(f"Comparison results: {results}")
-        assert results["send_and_wait"]["confirmed"] == 1, "send_and_wait should confirm delivery"
-        assert results["fire_and_forget"]["lost"] == 1, "fire-and-forget loses messages on errors"
+        assert (
+            results["send_and_wait"]["confirmed"] == 1
+        ), "send_and_wait should confirm delivery"
+        assert (
+            results["fire_and_forget"]["lost"] == 1
+        ), "fire-and-forget loses messages on errors"
 
 
 # =============================================================================
@@ -247,14 +269,18 @@ class TestBatchPublishFailures:
 
         # Create 10 events
         events = [
-            ("test-topic", CloudEvent(
-                id=str(uuid4()),
-                type=EventType.ASSESSMENT_COMPLETED,
-                source="psychsync.assessment",
-                tenant_id=str(uuid4()),
-                data={"index": i},
-                timestamp=datetime.utcnow().isoformat(),
-            ), None)
+            (
+                "test-topic",
+                CloudEvent(
+                    id=str(uuid4()),
+                    type=EventType.ASSESSMENT_COMPLETED,
+                    source="psychsync.assessment",
+                    tenant_id=str(uuid4()),
+                    data={"index": i},
+                    timestamp=datetime.utcnow().isoformat(),
+                ),
+                None,
+            )
             for i in range(10)
         ]
 
@@ -268,7 +294,7 @@ class TestBatchPublishFailures:
                 raise Exception(f"Publish failed for event {publish_call_count}")
             return {"topic": topic, "partition": 0, "offset": publish_call_count}
 
-        with patch.object(kafka_producer, 'publish', side_effect=mock_publish):
+        with patch.object(kafka_producer, "publish", side_effect=mock_publish):
             results = await kafka_producer.publish_batch(events)
 
         # Check results
@@ -278,7 +304,9 @@ class TestBatchPublishFailures:
         assert successful == 7, "7 events should succeed"
         assert failed == 3, "3 events should fail (return None)"
 
-        logger.warning(f"⚠️ SCENARIO 2 CONFIRMED: Batch lost {failed} events with no retry mechanism")
+        logger.warning(
+            f"⚠️ SCENARIO 2 CONFIRMED: Batch lost {failed} events with no retry mechanism"
+        )
 
     async def test_batch_no_error_notification_to_caller(self, kafka_producer):
         """
@@ -287,14 +315,18 @@ class TestBatchPublishFailures:
         from app.events.schemas import CloudEvent, EventType
 
         events = [
-            ("test-topic", CloudEvent(
-                id=str(uuid4()),
-                type=EventType.ASSESSMENT_COMPLETED,
-                source="psychsync.assessment",
-                tenant_id=str(uuid4()),
-                data={"test": i},
-                timestamp=datetime.utcnow().isoformat(),
-            ), None)
+            (
+                "test-topic",
+                CloudEvent(
+                    id=str(uuid4()),
+                    type=EventType.ASSESSMENT_COMPLETED,
+                    source="psychsync.assessment",
+                    tenant_id=str(uuid4()),
+                    data={"test": i},
+                    timestamp=datetime.utcnow().isoformat(),
+                ),
+                None,
+            )
             for i in range(5)
         ]
 
@@ -308,7 +340,7 @@ class TestBatchPublishFailures:
                 raise Exception("Last event failed")
             return {"topic": topic, "partition": 0, "offset": call_count}
 
-        with patch.object(kafka_producer, 'publish', side_effect=mock_publish):
+        with patch.object(kafka_producer, "publish", side_effect=mock_publish):
             results = await kafka_producer.publish_batch(events)
 
         # Caller might not check for None values
@@ -318,7 +350,9 @@ class TestBatchPublishFailures:
 
         # Simulate caller not checking
         success_count = len([r for r in results if r is not None])
-        logger.warning(f"⚠️ SCENARIO 2b: Caller sees {success_count}/5 successful, may miss {5-success_count} lost events")
+        logger.warning(
+            f"⚠️ SCENARIO 2b: Caller sees {success_count}/5 successful, may miss {5-success_count} lost events"
+        )
 
 
 # =============================================================================
@@ -339,7 +373,7 @@ class TestConsumerAutoCommitIssues:
 
         This demonstrates the auto-commit issue.
         """
-        from app.events.consumer import KafkaEventConsumer, EventHandler
+        from app.events.consumer import EventHandler, KafkaEventConsumer
         from app.events.schemas import CloudEvent, EventType
 
         # Track handler calls
@@ -381,7 +415,7 @@ class TestConsumerAutoCommitIssues:
         mock_msg.value = test_event.json()
 
         # Simulate auto-commit happening before handler
-        with patch.object(consumer.consumer, 'commit') as mock_commit:
+        with patch.object(consumer.consumer, "commit") as mock_commit:
             # Auto-commit marks message as consumed
             await consumer._process_message(mock_msg)
 
@@ -392,13 +426,15 @@ class TestConsumerAutoCommitIssues:
             # With auto-commit, offset is already committed
             # Message won't be reprocessed
 
-        logger.warning("⚠️ SCENARIO 3 CONFIRMED: Message committed before handler completes, lost on handler failure")
+        logger.warning(
+            "⚠️ SCENARIO 3 CONFIRMED: Message committed before handler completes, lost on handler failure"
+        )
 
     async def test_no_manual_commit_after_processing(self):
         """
         Test that successful processing doesn't trigger manual commit when auto-commit is on.
         """
-        from app.events.consumer import KafkaEventConsumer, EventHandler
+        from app.events.consumer import EventHandler, KafkaEventConsumer
         from app.events.schemas import CloudEvent, EventType
 
         class SuccessHandler(EventHandler):
@@ -432,13 +468,15 @@ class TestConsumerAutoCommitIssues:
             nonlocal commit_called
             commit_called = True
 
-        with patch.object(consumer.consumer, 'commit', side_effect=track_commit):
+        with patch.object(consumer.consumer, "commit", side_effect=track_commit):
             await consumer._process_message(mock_msg)
 
             # With auto-commit, manual commit after processing may not happen
             # Offset commits on schedule, not on processing completion
 
-        logger.warning("⚠️ SCENARIO 3b: No manual commit after processing with auto-commit enabled")
+        logger.warning(
+            "⚠️ SCENARIO 3b: No manual commit after processing with auto-commit enabled"
+        )
 
 
 # =============================================================================
@@ -459,9 +497,10 @@ class TestAsyncDatabaseCommitBug:
 
         This simulates task failure and DLQ routing.
         """
-        from app.tasks.base_task import BaseTask
-        from app.db.models.dead_letter import DeadLetterTask, DLQStatus
         from uuid import uuid4
+
+        from app.db.models.dead_letter import DeadLetterTask, DLQStatus
+        from app.tasks.base_task import BaseTask
 
         # Create a mock task
         class MockTask(BaseTask):
@@ -498,7 +537,9 @@ class TestAsyncDatabaseCommitBug:
         # - dlq_result is returned (appears successful)
         # - But database may not have the entry (commit not awaited)
         if dlq_entry is None:
-            logger.error("🔴 CRITICAL BUG CONFIRMED: DLQ entry not persisted - commit not awaited")
+            logger.error(
+                "🔴 CRITICAL BUG CONFIRMED: DLQ entry not persisted - commit not awaited"
+            )
             assert False, "DLQ entry should be in database but commit was not awaited"
         else:
             logger.info("✅ DLQ entry found - bug may be fixed")
@@ -507,9 +548,10 @@ class TestAsyncDatabaseCommitBug:
         """
         Demonstrate the difference between awaited and non-awaited commits.
         """
+        from uuid import uuid4
+
         from app.core.database import AsyncSessionLocal
         from app.db.models.dead_letter import DeadLetterTask
-        from uuid import uuid4
 
         # Test 1: Non-awaited commit (bug)
         session1 = AsyncSessionLocal()
@@ -549,7 +591,9 @@ class TestAsyncDatabaseCommitBug:
         await session2.close()
 
         # Check if committed
-        stmt2 = select(DeadLetterTask).where(DeadLetterTask.task_id == "test-with-await")
+        stmt2 = select(DeadLetterTask).where(
+            DeadLetterTask.task_id == "test-with-await"
+        )
         async with AsyncSessionLocal() as check_session2:
             result2 = await check_session2.execute(stmt2)
             entry2 = result2.scalar_one_or_none()
@@ -576,9 +620,10 @@ class TestDLQPersistenceFailure:
         """
         Simulate database being unavailable when task fails.
         """
-        from app.tasks.base_task import BaseTask
-        from uuid import uuid4
         from unittest.mock import patch
+        from uuid import uuid4
+
+        from app.tasks.base_task import BaseTask
 
         class MockTask(BaseTask):
             def run(self, *args, **kwargs):
@@ -593,7 +638,7 @@ class TestDLQPersistenceFailure:
         task.request.delivery_info = {"routing_key": "test-queue"}
 
         # Mock database to be unavailable
-        with patch.object(task, 'db') as mock_db:
+        with patch.object(task, "db") as mock_db:
             mock_db.add.side_effect = Exception("Database connection lost")
             mock_db.commit = Mock()
 
@@ -613,15 +658,18 @@ class TestDLQPersistenceFailure:
             assert mock_db.add.called
             assert not mock_db.commit.called
 
-        logger.error("🔴 SCENARIO 5 CONFIRMED: Task completely lost when DLQ persistence fails")
+        logger.error(
+            "🔴 SCENARIO 5 CONFIRMED: Task completely lost when DLQ persistence fails"
+        )
 
     async def test_no_fallback_storage_for_dlq_failures(self):
         """
         Test that there's no fallback storage when DLQ persistence fails.
         """
-        from app.tasks.base_task import BaseTask
+        from unittest.mock import MagicMock, patch
         from uuid import uuid4
-        from unittest.mock import patch, MagicMock
+
+        from app.tasks.base_task import BaseTask
 
         class MockTask(BaseTask):
             def run(self, *args, **kwargs):
@@ -636,8 +684,9 @@ class TestDLQPersistenceFailure:
         task.request.delivery_info = {"routing_key": "test-queue"}
 
         # Mock both database and Redis
-        with patch.object(task, 'db') as mock_db, \
-             patch('app.tasks.base_task.aioredis') as mock_redis:
+        with patch.object(task, "db") as mock_db, patch(
+            "app.tasks.base_task.aioredis"
+        ) as mock_redis:
 
             # Database fails
             mock_db.add.side_effect = Exception("DB down")
@@ -661,7 +710,9 @@ class TestDLQPersistenceFailure:
             redis_called = mock_redis_client.set.called
 
             if not redis_called:
-                logger.error("🔴 SCENARIO 5b: No Redis fallback when DLQ persistence fails")
+                logger.error(
+                    "🔴 SCENARIO 5b: No Redis fallback when DLQ persistence fails"
+                )
                 assert False, "Should implement fallback storage"
             else:
                 logger.info("✅ Redis fallback implemented")
@@ -705,6 +756,7 @@ class TestBatchParseErrors:
                 msg.value = "invalid json {{{"
             else:
                 from app.events.schemas import CloudEvent
+
                 msg.value = CloudEvent(
                     id=str(uuid4()),
                     type=EventType.ASSESSMENT_COMPLETED,
@@ -723,6 +775,7 @@ class TestBatchParseErrors:
         for msg in mock_messages:
             try:
                 from app.events.schemas import CloudEvent
+
                 event = CloudEvent.parse_raw(msg.value)
                 parsed_count += 1
             except Exception as e:
@@ -732,7 +785,9 @@ class TestBatchParseErrors:
         assert parsed_count == 4, "4 messages should parse successfully"
         assert lost_count == 1, "1 message should be lost"
 
-        logger.warning("⚠️ SCENARIO 6 CONFIRMED: Malformed messages dropped without DLQ or recovery")
+        logger.warning(
+            "⚠️ SCENARIO 6 CONFIRMED: Malformed messages dropped without DLQ or recovery"
+        )
 
     async def test_batch_parse_error_no_tracking(self):
         """
@@ -747,11 +802,13 @@ class TestBatchParseErrors:
         )
 
         # Check for parse failure tracking attributes
-        has_parse_tracker = hasattr(consumer, 'parse_failures')
-        has_error_queue = hasattr(consumer, 'error_queue')
+        has_parse_tracker = hasattr(consumer, "parse_failures")
+        has_error_queue = hasattr(consumer, "error_queue")
 
         if not (has_parse_tracker or has_error_queue):
-            logger.warning("⚠️ SCENARIO 6b: No tracking of parse failures in batch consumer")
+            logger.warning(
+                "⚠️ SCENARIO 6b: No tracking of parse failures in batch consumer"
+            )
 
 
 # =============================================================================

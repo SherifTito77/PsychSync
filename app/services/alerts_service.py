@@ -4,14 +4,14 @@ Provides comprehensive alerting system that aggregates alerts from all monitorin
 """
 
 import asyncio
+import json
+import logging
+import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import json
-import logging
 from typing import Any
-import uuid
 
 from app.core.config import settings
 
@@ -182,7 +182,10 @@ class AlertsService:
                     "duration": 300,  # 5 minutes
                 },
                 severity=AlertSeverity.CRITICAL,
-                notification_channels=[NotificationChannel.EMAIL, NotificationChannel.SLACK],
+                notification_channels=[
+                    NotificationChannel.EMAIL,
+                    NotificationChannel.SLACK,
+                ],
                 throttle_window=900,  # 15 minutes
             ),
             AlertRule(
@@ -313,7 +316,10 @@ class AlertsService:
                 rule_id = await self._find_matching_rule(source, severity, details)
                 if not rule_id:
                     # No matching rule, create alert if severity is critical
-                    if severity not in [AlertSeverity.CRITICAL, AlertSeverity.EMERGENCY]:
+                    if severity not in [
+                        AlertSeverity.CRITICAL,
+                        AlertSeverity.EMERGENCY,
+                    ]:
                         return None
 
             # Create unified alert
@@ -373,7 +379,10 @@ class AlertsService:
         return (datetime.utcnow() - last_alert_time) < throttle_window
 
     async def _find_matching_rule(
-        self, source: AlertSource, severity: AlertSeverity, details: dict[str, Any] | None
+        self,
+        source: AlertSource,
+        severity: AlertSeverity,
+        details: dict[str, Any] | None,
     ) -> str | None:
         """Find matching alert rule"""
         for rule_id, rule in self.alert_rules.items():
@@ -400,7 +409,11 @@ class AlertsService:
         condition = rule.condition
 
         # Simple metric comparison
-        if "metric" in condition and "operator" in condition and "threshold" in condition:
+        if (
+            "metric" in condition
+            and "operator" in condition
+            and "threshold" in condition
+        ):
             metric_name = condition["metric"]
             if metric_name in details:
                 metric_value = details[metric_name]
@@ -466,20 +479,26 @@ class AlertsService:
 
         alert.notifications_sent = channels
 
-    def _get_recipient_for_channel(self, channel: NotificationChannel, alert: UnifiedAlert) -> str:
+    def _get_recipient_for_channel(
+        self, channel: NotificationChannel, alert: UnifiedAlert
+    ) -> str:
         """Get recipient for notification channel"""
         channel_configs = {
             NotificationChannel.EMAIL: getattr(
                 settings, "ALERT_EMAIL_RECIPIENTS", "alerts@psychsync.com"
             ),
             NotificationChannel.SLACK: getattr(settings, "SLACK_WEBHOOK_URL", ""),
-            NotificationChannel.PAGERDUTY: getattr(settings, "PAGERDUTY_SERVICE_KEY", ""),
+            NotificationChannel.PAGERDUTY: getattr(
+                settings, "PAGERDUTY_SERVICE_KEY", ""
+            ),
             NotificationChannel.WEBHOOK: getattr(settings, "ALERT_WEBHOOK_URL", ""),
         }
 
         return channel_configs.get(channel, "")
 
-    async def _send_notification(self, notification: AlertNotification, alert: UnifiedAlert):
+    async def _send_notification(
+        self, notification: AlertNotification, alert: UnifiedAlert
+    ):
         """Send individual notification"""
         try:
             if notification.channel == NotificationChannel.EMAIL:
@@ -504,9 +523,13 @@ class AlertsService:
                 await asyncio.sleep(60)  # Wait before retry
                 await self._send_notification(notification, alert)
 
-            logger.error(f"Failed to send {notification.channel.value} notification: {e!s}")
+            logger.error(
+                f"Failed to send {notification.channel.value} notification: {e!s}"
+            )
 
-    async def _send_email_notification(self, notification: AlertNotification, alert: UnifiedAlert):
+    async def _send_email_notification(
+        self, notification: AlertNotification, alert: UnifiedAlert
+    ):
         """Send email notification"""
         # Implementation would integrate with email service
         message = f"""
@@ -528,7 +551,9 @@ class AlertsService:
 
         logger.info(f"Email alert sent: {notification.recipient}")
 
-    async def _send_slack_notification(self, notification: AlertNotification, alert: UnifiedAlert):
+    async def _send_slack_notification(
+        self, notification: AlertNotification, alert: UnifiedAlert
+    ):
         """Send Slack notification"""
         if not notification.recipient:
             logger.warning("No Slack webhook URL configured")
@@ -695,10 +720,18 @@ class AlertsService:
         total_alerts = len(self.alert_history)
         active_alerts = len(self.active_alerts)
         critical_alerts = len(
-            [a for a in self.active_alerts.values() if a.severity == AlertSeverity.CRITICAL]
+            [
+                a
+                for a in self.active_alerts.values()
+                if a.severity == AlertSeverity.CRITICAL
+            ]
         )
         warning_alerts = len(
-            [a for a in self.active_alerts.values() if a.severity == AlertSeverity.WARNING]
+            [
+                a
+                for a in self.active_alerts.values()
+                if a.severity == AlertSeverity.WARNING
+            ]
         )
 
         # By source
@@ -720,9 +753,14 @@ class AlertsService:
             hour_start = hour_time.replace(minute=0, second=0, microsecond=0)
             hour_end = hour_start + timedelta(hours=1)
 
-            hour_alerts = [a for a in self.alert_history if hour_start <= a.created_at < hour_end]
+            hour_alerts = [
+                a for a in self.alert_history if hour_start <= a.created_at < hour_end
+            ]
             recent_trend.append(
-                {"hour": hour_start.strftime("%Y-%m-%d %H:00"), "count": len(hour_alerts)}
+                {
+                    "hour": hour_start.strftime("%Y-%m-%d %H:00"),
+                    "count": len(hour_alerts),
+                }
             )
 
         # Top alerts
@@ -732,12 +770,16 @@ class AlertsService:
             if alert.created_at >= cutoff_time:
                 alert_counts[alert.title] += 1
 
-        for title, count in sorted(alert_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
+        for title, count in sorted(
+            alert_counts.items(), key=lambda x: x[1], reverse=True
+        )[:10]:
             top_alerts.append({"title": title, "count": count})
 
         # Resolution metrics
         resolved_alerts = [
-            a for a in self.alert_history if a.resolved_at and a.created_at >= cutoff_time
+            a
+            for a in self.alert_history
+            if a.resolved_at and a.created_at >= cutoff_time
         ]
         resolution_rate = (
             len(resolved_alerts)
@@ -749,7 +791,9 @@ class AlertsService:
         resolution_times = []
         for alert in resolved_alerts:
             if alert.resolved_at and alert.created_at:
-                resolution_times.append((alert.resolved_at - alert.created_at).total_seconds())
+                resolution_times.append(
+                    (alert.resolved_at - alert.created_at).total_seconds()
+                )
 
         avg_resolution_time = mean(resolution_times) if resolution_times else 0
 
@@ -766,7 +810,9 @@ class AlertsService:
             average_resolution_time=avg_resolution_time,
         )
 
-    async def get_active_alerts(self, severity: AlertSeverity | None = None) -> list[UnifiedAlert]:
+    async def get_active_alerts(
+        self, severity: AlertSeverity | None = None
+    ) -> list[UnifiedAlert]:
         """Get active alerts, optionally filtered by severity"""
         alerts = list(self.active_alerts.values())
 
@@ -775,7 +821,9 @@ class AlertsService:
 
         return sorted(alerts, key=lambda x: x.created_at, reverse=True)
 
-    async def get_alert_history(self, hours: int = 24, limit: int = 100) -> list[UnifiedAlert]:
+    async def get_alert_history(
+        self, hours: int = 24, limit: int = 100
+    ) -> list[UnifiedAlert]:
         """Get alert history"""
         cutoff_time = datetime.utcnow() - timedelta(hours=hours)
         history = [a for a in self.alert_history if a.created_at >= cutoff_time]
@@ -789,11 +837,17 @@ class AlertsService:
                 for alert in list(self.active_alerts.values()):
                     if alert.status == AlertStatus.ACTIVE and alert.rule_id:
                         # Check if alert needs escalation
-                        time_active = (datetime.utcnow() - alert.created_at).total_seconds()
+                        time_active = (
+                            datetime.utcnow() - alert.created_at
+                        ).total_seconds()
 
                         # Escalate after 1 hour for critical alerts
-                        if (alert.severity == AlertSeverity.CRITICAL and time_active > 3600) or (
-                            alert.severity == AlertSeverity.WARNING and time_active > 14400
+                        if (
+                            alert.severity == AlertSeverity.CRITICAL
+                            and time_active > 3600
+                        ) or (
+                            alert.severity == AlertSeverity.WARNING
+                            and time_active > 14400
                         ):
                             await self.escalate_alert(alert.id)
 
@@ -809,7 +863,9 @@ class AlertsService:
             try:
                 # Keep 30 days of alert history
                 cutoff_time = datetime.utcnow() - timedelta(days=30)
-                self.alert_history = [a for a in self.alert_history if a.created_at >= cutoff_time]
+                self.alert_history = [
+                    a for a in self.alert_history if a.created_at >= cutoff_time
+                ]
 
                 # Clean up old notifications
                 notification_cutoff = datetime.utcnow() - timedelta(days=7)
@@ -842,7 +898,10 @@ class AlertsService:
                     if not alert.correlation_id:
                         # Look for correlation candidates
                         for other_alert in recent_alerts:
-                            if alert.id != other_alert.id and not other_alert.correlation_id:
+                            if (
+                                alert.id != other_alert.id
+                                and not other_alert.correlation_id
+                            ):
                                 if self._should_correlate(alert, other_alert):
                                     correlation_id = str(uuid.uuid4())
                                     alert.correlation_id = correlation_id
@@ -873,7 +932,9 @@ class AlertsService:
             return False
 
         # Similar title or tags
-        title_similarity = self._calculate_similarity(alert1.title.lower(), alert2.title.lower())
+        title_similarity = self._calculate_similarity(
+            alert1.title.lower(), alert2.title.lower()
+        )
         if title_similarity > 0.7:  # 70% similarity
             return True
 

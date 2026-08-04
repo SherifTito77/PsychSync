@@ -3,15 +3,15 @@
 Advanced security middleware for PsychSync API
 """
 
-from collections import defaultdict, deque
-from collections.abc import Callable
 import hashlib
 import logging
 import time
+from collections import defaultdict, deque
+from collections.abc import Callable
 
+import redis.asyncio as redis
 from fastapi import Request, status
 from fastapi.responses import JSONResponse
-import redis.asyncio as redis
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
@@ -54,17 +54,23 @@ class AdvancedRateLimiter:
                 if current_count >= limit:
                     # Get oldest timestamp for retry-after calculation
                     oldest = await self.redis_client.zrange(key, 0, 0, withscores=True)
-                    retry_after = int(oldest[0][1] + window - current_time) if oldest else window
+                    retry_after = (
+                        int(oldest[0][1] + window - current_time) if oldest else window
+                    )
 
                     return True, {
                         "limit": limit,
                         "remaining": 0,
-                        "reset": oldest[0][1] + window if oldest else current_time + window,
+                        "reset": (
+                            oldest[0][1] + window if oldest else current_time + window
+                        ),
                         "retry_after": retry_after,
                     }
 
                 # Add current request
-                await self.redis_client.zadd(key, {str(current_time): float(current_time)})
+                await self.redis_client.zadd(
+                    key, {str(current_time): float(current_time)}
+                )
                 await self.redis_client.expire(key, window)
 
                 return False, {
@@ -75,7 +81,9 @@ class AdvancedRateLimiter:
                 }
 
             except Exception as e:
-                logger.warning(f"Redis rate limiter failed, falling back to local cache: {e}")
+                logger.warning(
+                    f"Redis rate limiter failed, falling back to local cache: {e}"
+                )
 
         # Fallback to local cache
         await self._cleanup_local_cache()
@@ -89,11 +97,17 @@ class AdvancedRateLimiter:
         current_count = len(request_times)
 
         if current_count >= limit:
-            retry_after = request_times[0] + window - current_time if request_times else window
+            retry_after = (
+                request_times[0] + window - current_time if request_times else window
+            )
             return True, {
                 "limit": limit,
                 "remaining": 0,
-                "reset": request_times[0] + window if request_times else current_time + window,
+                "reset": (
+                    request_times[0] + window
+                    if request_times
+                    else current_time + window
+                ),
                 "retry_after": int(retry_after),
             }
 
@@ -150,7 +164,10 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             "default": {"limit": 100, "window": 60},  # 100 requests per minute
             "auth": {"limit": 10, "window": 60},  # 10 auth requests per minute
             "register": {"limit": 5, "window": 300},  # 5 registrations per 5 minutes
-            "password_reset": {"limit": 3, "window": 900},  # 3 password resets per 15 minutes
+            "password_reset": {
+                "limit": 3,
+                "window": 900,
+            },  # 3 password resets per 15 minutes
             "upload": {"limit": 20, "window": 60},  # 20 uploads per minute
         }
 
@@ -199,7 +216,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
             # Add rate limit headers
             if self.enable_rate_limiting:
-                response = await self._add_rate_limit_headers(response, client_ip, request)
+                response = await self._add_rate_limit_headers(
+                    response, client_ip, request
+                )
 
             return response
 
@@ -226,7 +245,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         """Check if IP is in whitelist"""
         return ip in self.whitelisted_ips
 
-    async def _check_rate_limit(self, request: Request, client_ip: str) -> Response | None:
+    async def _check_rate_limit(
+        self, request: Request, client_ip: str
+    ) -> Response | None:
         """Check if request exceeds rate limits"""
         path = request.url.path.lower()
         method = request.method.upper()
@@ -251,7 +272,10 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         # Check rate limit
         is_limited, limit_info = await self.rate_limiter.is_rate_limited(
-            key=rate_key, limit=config["limit"], window=config["window"], identifier=client_ip
+            key=rate_key,
+            limit=config["limit"],
+            window=config["window"],
+            identifier=client_ip,
         )
 
         if is_limited:
@@ -268,7 +292,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         request.state.rate_limit_info = limit_info
         return None
 
-    async def _validate_request(self, request: Request, client_ip: str) -> Response | None:
+    async def _validate_request(
+        self, request: Request, client_ip: str
+    ) -> Response | None:
         """Validate request for security threats"""
 
         # Check for suspicious headers
@@ -305,7 +331,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         return None
 
-    async def _add_security_headers(self, request: Request, response: Response) -> Response:
+    async def _add_security_headers(
+        self, request: Request, response: Response
+    ) -> Response:
         """Add comprehensive security headers"""
 
         # Content Security Policy (enhanced - allows Swagger UI CDN)
@@ -349,7 +377,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         response.headers["Server"] = "PsychSync"
 
         # Add request ID for tracking
-        response.headers["X-Request-ID"] = getattr(request.state, "request_id", "unknown")
+        response.headers["X-Request-ID"] = getattr(
+            request.state, "request_id", "unknown"
+        )
 
         return response
 
@@ -368,7 +398,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
 
         return response
 
-    async def _track_suspicious_activity(self, ip: str, activity_type: str, details: dict):
+    async def _track_suspicious_activity(
+        self, ip: str, activity_type: str, details: dict
+    ):
         """Track suspicious activity and potentially block IP"""
         if ip not in self.suspicious_ips:
             self.suspicious_ips[ip] = {"count": 0, "activities": []}
@@ -398,7 +430,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
         return JSONResponse(
             status_code=status_code,
             content=ErrorResponse(
-                message=message, error_code=error_code, data={"timestamp": int(time.time())}
+                message=message,
+                error_code=error_code,
+                data={"timestamp": int(time.time())},
             ).dict(),
         )
 
@@ -415,7 +449,9 @@ class SecurityMiddleware(BaseHTTPMiddleware):
                 error_code="RATE_LIMIT_EXCEEDED",
                 data={
                     "limit": limit_info["limit"],
-                    "reset": int(limit_info["reset"]),  # Convert to int for JSON serialization
+                    "reset": int(
+                        limit_info["reset"]
+                    ),  # Convert to int for JSON serialization
                     "retry_after": limit_info["retry_after"],
                 },
             ).dict(),

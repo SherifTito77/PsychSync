@@ -4,13 +4,13 @@ Advanced Redis caching strategies for PsychSync
 Multi-layer caching with intelligent invalidation, cache warming, and performance monitoring
 """
 
-from collections.abc import Callable
-from datetime import datetime, timedelta
-from functools import wraps
 import hashlib
 import json
 import logging
 import time
+from collections.abc import Callable
+from datetime import datetime, timedelta
+from functools import wraps
 from typing import Any
 
 from redis.asyncio import Redis
@@ -39,15 +39,21 @@ class CacheMetrics:
     def record_hit(self, key_type: str = "unknown", response_time: float = 0.0):
         self.stats["hits"] += 1
         self.stats["total_response_time"] += response_time
-        self.stats["keys_by_type"][key_type] = self.stats["keys_by_type"].get(key_type, 0) + 1
+        self.stats["keys_by_type"][key_type] = (
+            self.stats["keys_by_type"].get(key_type, 0) + 1
+        )
 
     def record_miss(self, key_type: str = "unknown"):
         self.stats["misses"] += 1
-        self.stats["keys_by_type"][key_type] = self.stats["keys_by_type"].get(key_type, 0) + 1
+        self.stats["keys_by_type"][key_type] = (
+            self.stats["keys_by_type"].get(key_type, 0) + 1
+        )
 
     def record_set(self, key_type: str = "unknown"):
         self.stats["sets"] += 1
-        self.stats["keys_by_type"][key_type] = self.stats["keys_by_type"].get(key_type, 0) + 1
+        self.stats["keys_by_type"][key_type] = (
+            self.stats["keys_by_type"].get(key_type, 0) + 1
+        )
 
     def record_delete(self):
         self.stats["deletes"] += 1
@@ -118,7 +124,9 @@ class AdvancedCache:
             await self.redis_client.close()
             logger.info("Advanced cache disconnected")
 
-    def _generate_cache_key(self, prefix: str, identifier: str, version: str = "v1") -> str:
+    def _generate_cache_key(
+        self, prefix: str, identifier: str, version: str = "v1"
+    ) -> str:
         """Generate structured cache key with versioning"""
         return f"{CacheKeys.get_user_key(identifier) if prefix == CacheKeys.USER else f'{prefix}:{identifier}'}:{version}"
 
@@ -132,7 +140,9 @@ class AdvancedCache:
             return False
         return datetime.utcnow() < datetime.fromisoformat(data["expires_at"])
 
-    async def get(self, key: str, use_fallback: bool = True, default: Any = None) -> Any | None:
+    async def get(
+        self, key: str, use_fallback: bool = True, default: Any = None
+    ) -> Any | None:
         """
         Get value from cache with multi-layer strategy (L1: Memory, L2: Redis)
         """
@@ -186,7 +196,11 @@ class AdvancedCache:
             return default
 
     async def set(
-        self, key: str, value: Any, ttl: int = CacheTTL.MEDIUM, tags: list[str] | None = None
+        self,
+        key: str,
+        value: Any,
+        ttl: int = CacheTTL.MEDIUM,
+        tags: list[str] | None = None,
     ) -> bool:
         """Set value in cache with intelligent invalidation"""
         key_type = key.split(":")[0] if ":" in key else "unknown"
@@ -274,7 +288,9 @@ class AdvancedCache:
                     if local_key in self.local_cache:
                         del self.local_cache[local_key]
 
-                logger.info(f"Invalidated {len(keys_to_delete)} cache entries for tag: {tag}")
+                logger.info(
+                    f"Invalidated {len(keys_to_delete)} cache entries for tag: {tag}"
+                )
                 return len(keys_to_delete)
 
             return 0
@@ -329,7 +345,10 @@ class AdvancedCache:
                     "redis_hit_ratio": (
                         (
                             info.get("keyspace_hits", 0)
-                            / (info.get("keyspace_hits", 0) + info.get("keyspace_misses", 1))
+                            / (
+                                info.get("keyspace_hits", 0)
+                                + info.get("keyspace_misses", 1)
+                            )
                         )
                         * 100
                     ),
@@ -391,7 +410,9 @@ def advanced_cache(
                         "error_type": type(e).__name__,
                         "timestamp": datetime.utcnow().isoformat(),
                     }
-                    await advanced_cache.set(f"{cache_key}:error", error_data, ttl=CacheTTL.SHORT)
+                    await advanced_cache.set(
+                        f"{cache_key}:error", error_data, ttl=CacheTTL.SHORT
+                    )
                 raise
 
         return wrapper
@@ -400,7 +421,11 @@ def advanced_cache(
 
 
 def _generate_cache_key_from_func(
-    func: Callable, key_prefix: str, args: tuple, kwargs: dict, use_user_context: bool = False
+    func: Callable,
+    key_prefix: str,
+    args: tuple,
+    kwargs: dict,
+    use_user_context: bool = False,
 ) -> str:
     """Generate cache key from function call"""
     # Create a hash of function parameters
@@ -513,7 +538,9 @@ async def cache_heartbeat():
                 del advanced_cache.local_cache[key]
 
             if expired_keys:
-                logger.debug(f"Cleaned up {len(expired_keys)} expired local cache entries")
+                logger.debug(
+                    f"Cleaned up {len(expired_keys)} expired local cache entries"
+                )
 
     except Exception as e:
         logger.error(f"Cache heartbeat error: {e!s}")

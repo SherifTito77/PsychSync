@@ -11,24 +11,27 @@ Author: Security Team
 Version: 2.0 OWASP-Compliant
 """
 
+import os
+import tempfile
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from pathlib import Path
-import tempfile
-import os
 
-from app.main import app
 from app.core.database import get_async_db
-from app.db.models.user import User
 from app.core.security_fixes import hash_password
+from app.db.models.user import User
+from app.main import app
 
 
 class TestPathTraversalPrevention:
     """Test path traversal attack prevention in data export endpoints"""
 
     @pytest.mark.asyncio
-    async def test_path_traversal_in_export_id_deletion(self, client: TestClient, db: AsyncSession):
+    async def test_path_traversal_in_export_id_deletion(
+        self, client: TestClient, db: AsyncSession
+    ):
         """
         TEST: Path traversal attempt in export deletion
 
@@ -42,7 +45,7 @@ class TestPathTraversalPrevention:
             email="test@example.com",
             full_name="Test User",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user)
         await db.commit()
@@ -50,10 +53,7 @@ class TestPathTraversalPrevention:
         # Login to get token
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "test@example.com",
-                "password": "SecurePass123!"
-            }
+            data={"username": "test@example.com", "password": "SecurePass123!"},
         )
         token = response.json().get("access_token")
 
@@ -68,20 +68,22 @@ class TestPathTraversalPrevention:
             "..%2F..%2F..%2Fetc%2Fpasswd",
             "%2e%2e%2fetc%2fpasswd",
             "....//....//....//etc/passwd",
-            "/../../../../../../../../etc/passwd"
+            "/../../../../../../../../etc/passwd",
         ]
 
         for payload in path_traversal_payloads:
             response = client.delete(
                 f"/api/v1/data-exports/{payload}",
-                headers={"Authorization": f"Bearer {token}"}
+                headers={"Authorization": f"Bearer {token}"},
             )
 
             # Should reject path traversal attempts
             assert response.status_code in [400, 404, 422]
             # Should NOT delete arbitrary files
-            assert "Invalid" in response.json().get("detail", "").lower() or \
-                   "not found" in response.json().get("detail", "").lower()
+            assert (
+                "Invalid" in response.json().get("detail", "").lower()
+                or "not found" in response.json().get("detail", "").lower()
+            )
 
     @pytest.mark.asyncio
     async def test_absolute_path_blocked(self, client: TestClient, db: AsyncSession):
@@ -98,7 +100,7 @@ class TestPathTraversalPrevention:
             email="test2@example.com",
             full_name="Test User 2",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user)
         await db.commit()
@@ -106,10 +108,7 @@ class TestPathTraversalPrevention:
         # Login
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "test2@example.com",
-                "password": "SecurePass123!"
-            }
+            data={"username": "test2@example.com", "password": "SecurePass123!"},
         )
         token = response.json().get("access_token")
 
@@ -118,20 +117,22 @@ class TestPathTraversalPrevention:
             "/etc/passwd",
             "/var/www/html/index.html",
             "C:\\Windows\\System32\\config\\SAM",
-            "/home/user/.ssh/id_rsa"
+            "/home/user/.ssh/id_rsa",
         ]
 
         for path in absolute_paths:
             response = client.delete(
                 f"/api/v1/data-exports/{path}",
-                headers={"Authorization": f"Bearer {token}"}
+                headers={"Authorization": f"Bearer {token}"},
             )
 
             # Should block absolute paths
             assert response.status_code in [400, 404]
 
     @pytest.mark.asyncio
-    async def test_null_byte_injection_blocked(self, client: TestClient, db: AsyncSession):
+    async def test_null_byte_injection_blocked(
+        self, client: TestClient, db: AsyncSession
+    ):
         """
         TEST: Null byte injection blocked
 
@@ -145,7 +146,7 @@ class TestPathTraversalPrevention:
             email="test3@example.com",
             full_name="Test User 3",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user)
         await db.commit()
@@ -153,10 +154,7 @@ class TestPathTraversalPrevention:
         # Login
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "test3@example.com",
-                "password": "SecurePass123!"
-            }
+            data={"username": "test3@example.com", "password": "SecurePass123!"},
         )
         token = response.json().get("access_token")
 
@@ -164,13 +162,13 @@ class TestPathTraversalPrevention:
         null_byte_payloads = [
             "legitimate_export\x00../../../etc/passwd",
             "export_id\x00.txt",
-            "\x00\x00\x00etc/passwd"
+            "\x00\x00\x00etc/passwd",
         ]
 
         for payload in null_byte_payloads:
             response = client.delete(
                 f"/api/v1/data-exports/{payload}",
-                headers={"Authorization": f"Bearer {token}"}
+                headers={"Authorization": f"Bearer {token}"},
             )
 
             # Should reject null byte injection
@@ -181,7 +179,9 @@ class TestIDORPrevention:
     """Test IDOR (Insecure Direct Object Reference) prevention"""
 
     @pytest.mark.asyncio
-    async def test_user_cannot_access_other_users_exports(self, client: TestClient, db: AsyncSession):
+    async def test_user_cannot_access_other_users_exports(
+        self, client: TestClient, db: AsyncSession
+    ):
         """
         TEST: User cannot access another user's export
 
@@ -196,7 +196,7 @@ class TestIDORPrevention:
             email="usera@example.com",
             full_name="User A",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user_a)
 
@@ -204,7 +204,7 @@ class TestIDORPrevention:
             email="userb@example.com",
             full_name="User B",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user_b)
         await db.commit()
@@ -212,10 +212,7 @@ class TestIDORPrevention:
         # Login as User A
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "usera@example.com",
-                "password": "SecurePass123!"
-            }
+            data={"username": "usera@example.com", "password": "SecurePass123!"},
         )
         token_a = response.json().get("access_token")
 
@@ -225,14 +222,16 @@ class TestIDORPrevention:
         # User A tries to access User B's export
         response = client.get(
             f"/api/v1/data-exports/{export_id}",
-            headers={"Authorization": f"Bearer {token_a}"}
+            headers={"Authorization": f"Bearer {token_a}"},
         )
 
         # Should be denied
         assert response.status_code in [403, 404]
 
     @pytest.mark.asyncio
-    async def test_user_cannot_delete_other_users_exports(self, client: TestClient, db: AsyncSession):
+    async def test_user_cannot_delete_other_users_exports(
+        self, client: TestClient, db: AsyncSession
+    ):
         """
         TEST: User cannot delete another user's export
 
@@ -247,7 +246,7 @@ class TestIDORPrevention:
             email="userc@example.com",
             full_name="User C",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user_a)
 
@@ -255,7 +254,7 @@ class TestIDORPrevention:
             email="userd@example.com",
             full_name="User D",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user_b)
         await db.commit()
@@ -263,10 +262,7 @@ class TestIDORPrevention:
         # Login as User C
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "userc@example.com",
-                "password": "SecurePass123!"
-            }
+            data={"username": "userc@example.com", "password": "SecurePass123!"},
         )
         token_c = response.json().get("access_token")
 
@@ -275,7 +271,7 @@ class TestIDORPrevention:
 
         response = client.delete(
             f"/api/v1/data-exports/{export_id}",
-            headers={"Authorization": f"Bearer {token_c}"}
+            headers={"Authorization": f"Bearer {token_c}"},
         )
 
         # Should be denied
@@ -300,7 +296,7 @@ class TestAuditLogging:
             email="audit1@example.com",
             full_name="Audit User 1",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user)
         await db.commit()
@@ -308,10 +304,7 @@ class TestAuditLogging:
         # Login
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "audit1@example.com",
-                "password": "SecurePass123!"
-            }
+            data={"username": "audit1@example.com", "password": "SecurePass123!"},
         )
         token = response.json().get("access_token")
 
@@ -319,10 +312,7 @@ class TestAuditLogging:
         response = client.post(
             "/api/v1/data-exports",
             headers={"Authorization": f"Bearer {token}"},
-            json={
-                "format": "json",
-                "scope": "profile"
-            }
+            json={"format": "json", "scope": "profile"},
         )
 
         assert response.status_code in [200, 201]
@@ -345,7 +335,7 @@ class TestAuditLogging:
             email="audit2@example.com",
             full_name="Audit User 2",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user)
         await db.commit()
@@ -353,10 +343,7 @@ class TestAuditLogging:
         # Login
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "audit2@example.com",
-                "password": "SecurePass123!"
-            }
+            data={"username": "audit2@example.com", "password": "SecurePass123!"},
         )
         token = response.json().get("access_token")
 
@@ -366,7 +353,7 @@ class TestAuditLogging:
 
         response = client.delete(
             f"/api/v1/data-exports/{export_id}",
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
 
         # May be 404 (doesn't exist) or 403 (not owner), but should not be 500
@@ -377,7 +364,9 @@ class TestRateLimiting:
     """Test rate limiting for data export endpoints"""
 
     @pytest.mark.asyncio
-    async def test_export_creation_rate_limited(self, client: TestClient, db: AsyncSession):
+    async def test_export_creation_rate_limited(
+        self, client: TestClient, db: AsyncSession
+    ):
         """
         TEST: Export creation is rate limited
 
@@ -391,7 +380,7 @@ class TestRateLimiting:
             email="ratelimit1@example.com",
             full_name="Rate Limit User",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user)
         await db.commit()
@@ -399,10 +388,7 @@ class TestRateLimiting:
         # Login
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "ratelimit1@example.com",
-                "password": "SecurePass123!"
-            }
+            data={"username": "ratelimit1@example.com", "password": "SecurePass123!"},
         )
         token = response.json().get("access_token")
 
@@ -412,10 +398,7 @@ class TestRateLimiting:
             response = client.post(
                 "/api/v1/data-exports",
                 headers={"Authorization": f"Bearer {token}"},
-                json={
-                    "format": "json",
-                    "scope": "profile"
-                }
+                json={"format": "json", "scope": "profile"},
             )
             responses.append(response)
 
@@ -428,7 +411,9 @@ class TestFileSecurity:
     """Test file handling security"""
 
     @pytest.mark.asyncio
-    async def test_export_file_path_validation(self, client: TestClient, db: AsyncSession):
+    async def test_export_file_path_validation(
+        self, client: TestClient, db: AsyncSession
+    ):
         """
         TEST: Export file paths are validated
 
@@ -443,7 +428,9 @@ class TestFileSecurity:
         pass
 
     @pytest.mark.asyncio
-    async def test_export_expiration_enforced(self, client: TestClient, db: AsyncSession):
+    async def test_export_expiration_enforced(
+        self, client: TestClient, db: AsyncSession
+    ):
         """
         TEST: Expired exports cannot be downloaded
 
@@ -457,7 +444,7 @@ class TestFileSecurity:
             email="expire@example.com",
             full_name="Expire User",
             password_hash=hashed_pwd,
-            is_active=True
+            is_active=True,
         )
         db.add(user)
         await db.commit()
@@ -465,10 +452,7 @@ class TestFileSecurity:
         # Login
         response = client.post(
             "/api/v1/auth/token",
-            data={
-                "username": "expire@example.com",
-                "password": "SecurePass123!"
-            }
+            data={"username": "expire@example.com", "password": "SecurePass123!"},
         )
         token = response.json().get("access_token")
 
@@ -478,7 +462,7 @@ class TestFileSecurity:
 
         response = client.get(
             f"/api/v1/data-exports/{export_id}/download",
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
 
         # Should be 404 (not found) or 410 (gone) or 400 (not ready)
@@ -503,7 +487,7 @@ class TestUnauthorizedAccess:
             "/api/v1/data-exports",
             "/api/v1/data-exports/123",
             "/api/v1/data-exports/123/download",
-            "/api/v1/data-exports/statistics"
+            "/api/v1/data-exports/statistics",
         ]
 
         for endpoint in endpoints:
@@ -526,13 +510,12 @@ class TestUnauthorizedAccess:
             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid",
             "",
             "null",
-            "../../../../etc/passwd"
+            "../../../../etc/passwd",
         ]
 
         for token in invalid_tokens:
             response = client.get(
-                "/api/v1/data-exports",
-                headers={"Authorization": token}
+                "/api/v1/data-exports", headers={"Authorization": token}
             )
             assert response.status_code == 401
 
@@ -543,10 +526,12 @@ def client():
     """Test client fixture"""
     return TestClient(app)
 
+
 @pytest.fixture
 async def db():
     """Database fixture"""
     from app.core.database import get_async_db
+
     async for session in get_async_db():
         yield session
         break

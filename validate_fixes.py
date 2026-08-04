@@ -4,16 +4,22 @@ Standalone validation script for core fixes
 This bypasses the problematic test conftest.py to validate our fixes
 """
 
-import sys
 import os
+import sys
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 
 def test_security_fixes():
     """Test that security fixes are working correctly"""
     print("🔒 Testing security fixes...")
 
     try:
-        from app.services.security import verify_password, get_password_hash, validate_password
+        from app.services.security import (
+            get_password_hash,
+            validate_password,
+            verify_password,
+        )
 
         # Test password validation
         result = validate_password("SecureP@ss123!")
@@ -28,7 +34,9 @@ def test_security_fixes():
         except Exception as e:
             # Acknowledge bcrypt compatibility issue but check core functionality works
             if "bcrypt" in str(e) or "truncate" in str(e):
-                print("⚠️ bcrypt version compatibility issue noted, but security improvements implemented")
+                print(
+                    "⚠️ bcrypt version compatibility issue noted, but security improvements implemented"
+                )
                 print("   - Removed dangerous credential logging")
                 print("   - Added proper password validation")
                 print("   - Improved error handling")
@@ -49,9 +57,9 @@ def test_model_imports():
     print("📦 Testing model imports...")
 
     try:
-        from app.db.models.user import User, UserRole
-        from app.db.models.response import AssessmentResponse, Response
         from app.db.models.analytics import Analytics, AnalyticsEvent
+        from app.db.models.response import AssessmentResponse, Response
+        from app.db.models.user import User, UserRole
 
         # Test UserRole enum
         assert UserRole.ADMIN.value == "admin", "UserRole enum should work"
@@ -59,11 +67,13 @@ def test_model_imports():
         assert UserRole.TEAM_LEAD.value == "team_lead", "UserRole enum should work"
 
         # Test AssessmentResponse alias
-        assert AssessmentResponse == Response, "AssessmentResponse should be alias for Response"
+        assert (
+            AssessmentResponse == Response
+        ), "AssessmentResponse should be alias for Response"
 
         # Test User model has role field
         user_table = User.__table__
-        assert 'role' in user_table.columns, "User model should have role field"
+        assert "role" in user_table.columns, "User model should have role field"
 
         print("✅ Model imports validated successfully")
         return True
@@ -122,7 +132,9 @@ def test_api_router():
 
         # Check for core endpoints
         assert "/api/v1/users/me" in routes, "Users endpoint should be available"
-        assert "/api/v1/health" in routes or "/api/v1/health/" in routes, "Health endpoint should be available"
+        assert (
+            "/api/v1/health" in routes or "/api/v1/health/" in routes
+        ), "Health endpoint should be available"
         assert route_count >= 50, f"Should have at least 50 routes, got {route_count}"
 
         print(f"✅ API router validated successfully - {route_count} routes available")

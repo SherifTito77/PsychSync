@@ -13,19 +13,19 @@ import json
 import os
 import re
 import sys
+import urllib.request
 from pathlib import Path
 from typing import List, Tuple
-import urllib.request
 from urllib.parse import urljoin
 
 
 class Colors:
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    YELLOW = '\033[93m'
-    BLUE = '\033[94m'
-    BOLD = '\033[1m'
-    END = '\033[0m'
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    BOLD = "\033[1m"
+    END = "\033[0m"
 
 
 def print_success(msg: str):
@@ -53,14 +53,14 @@ def print_header(msg: str):
 def check_todos_and_fixes(content: str, file_path: Path) -> List[dict]:
     """Check for unresolved TODOs and FIXMEs"""
     issues = []
-    lines = content.split('\n')
+    lines = content.split("\n")
 
     todo_patterns = [
-        (r'TODO:', 'TODO comment'),
-        (r'FIXME:', 'FIXME comment'),
-        (r'XXX:', 'XXX comment'),
-        (r'HACK:', 'HACK comment'),
-        (r'NOTE:', 'NOTE that requires action'),
+        (r"TODO:", "TODO comment"),
+        (r"FIXME:", "FIXME comment"),
+        (r"XXX:", "XXX comment"),
+        (r"HACK:", "HACK comment"),
+        (r"NOTE:", "NOTE that requires action"),
     ]
 
     for i, line in enumerate(lines, 1):
@@ -68,11 +68,9 @@ def check_todos_and_fixes(content: str, file_path: Path) -> List[dict]:
             if re.search(pattern, line, re.IGNORECASE):
                 # Skip if in code block
                 if not _is_in_code_block(lines[:i]):
-                    issues.append({
-                        'line': i,
-                        'type': description,
-                        'content': line.strip()[:80]
-                    })
+                    issues.append(
+                        {"line": i, "type": description, "content": line.strip()[:80]}
+                    )
 
     return issues
 
@@ -82,39 +80,37 @@ def check_dead_links(content: str, file_path: Path) -> List[dict]:
     issues = []
 
     # Extract all markdown links
-    link_pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+    link_pattern = r"\[([^\]]+)\]\(([^)]+)\)"
 
     for match in re.finditer(link_pattern, content):
         link_text = match.group(1)
         link_url = match.group(2)
 
         # Skip internal links and anchors
-        if link_url.startswith('#') or link_url.startswith('/'):
+        if link_url.startswith("#") or link_url.startswith("/"):
             continue
 
         # Skip email links
-        if link_url.startswith('mailto:'):
+        if link_url.startswith("mailto:"):
             continue
 
         # Check if link is accessible (with timeout)
         try:
-            if link_url.startswith('http'):
-                req = urllib.request.Request(link_url, method='HEAD')
-                req.add_header('User-Agent', 'Documentation-Validator/1.0')
+            if link_url.startswith("http"):
+                req = urllib.request.Request(link_url, method="HEAD")
+                req.add_header("User-Agent", "Documentation-Validator/1.0")
                 with urllib.request.urlopen(req, timeout=5) as response:
                     if response.status >= 400:
-                        issues.append({
-                            'url': link_url,
-                            'status': response.status,
-                            'text': link_text
-                        })
+                        issues.append(
+                            {
+                                "url": link_url,
+                                "status": response.status,
+                                "text": link_text,
+                            }
+                        )
         except Exception as e:
             # Don't fail on network errors, just note them
-            issues.append({
-                'url': link_url,
-                'error': str(e),
-                'text': link_text
-            })
+            issues.append({"url": link_url, "error": str(e), "text": link_text})
 
     return issues
 
@@ -122,43 +118,43 @@ def check_dead_links(content: str, file_path: Path) -> List[dict]:
 def check_heading_structure(content: str, file_path: Path) -> List[dict]:
     """Check for proper heading hierarchy"""
     issues = []
-    lines = content.split('\n')
+    lines = content.split("\n")
     headings = []
 
     # Extract all headings
     for i, line in enumerate(lines, 1):
-        if line.startswith('#'):
-            level = len(re.match(r'^#+', line).group())
-            text = line.lstrip('#').strip()
-            headings.append({
-                'line': i,
-                'level': level,
-                'text': text
-            })
+        if line.startswith("#"):
+            level = len(re.match(r"^#+", line).group())
+            text = line.lstrip("#").strip()
+            headings.append({"line": i, "level": level, "text": text})
 
     # Check hierarchy
     if len(headings) == 0:
-        return [{'error': 'No headings found'}]
+        return [{"error": "No headings found"}]
 
     # Should start with h1
-    if headings[0]['level'] != 1:
-        issues.append({
-            'line': headings[0]['line'],
-            'issue': f"First heading is h{headings[0]['level']}, should be h1",
-            'text': headings[0]['text'][:50]
-        })
+    if headings[0]["level"] != 1:
+        issues.append(
+            {
+                "line": headings[0]["line"],
+                "issue": f"First heading is h{headings[0]['level']}, should be h1",
+                "text": headings[0]["text"][:50],
+            }
+        )
 
     # Check for skipped levels (e.g., h1 -> h3)
     for i in range(1, len(headings)):
-        prev_level = headings[i-1]['level']
-        curr_level = headings[i]['level']
+        prev_level = headings[i - 1]["level"]
+        curr_level = headings[i]["level"]
 
         if curr_level > prev_level + 1:
-            issues.append({
-                'line': headings[i]['line'],
-                'issue': f"Skipped heading level: h{prev_level} → h{curr_level}",
-                'text': headings[i]['text'][:50]
-            })
+            issues.append(
+                {
+                    "line": headings[i]["line"],
+                    "issue": f"Skipped heading level: h{prev_level} → h{curr_level}",
+                    "text": headings[i]["text"][:50],
+                }
+            )
 
     return issues
 
@@ -166,13 +162,13 @@ def check_heading_structure(content: str, file_path: Path) -> List[dict]:
 def check_table_formatting(content: str, file_path: Path) -> List[dict]:
     """Check for properly formatted markdown tables"""
     issues = []
-    lines = content.split('\n')
+    lines = content.split("\n")
     in_table = False
     table_start = 0
     table_lines = []
 
     for i, line in enumerate(lines, 1):
-        if '|' in line and line.strip().startswith('|'):
+        if "|" in line and line.strip().startswith("|"):
             if not in_table:
                 in_table = True
                 table_start = i
@@ -192,26 +188,30 @@ def _validate_table(table_lines: List[Tuple[int, str]], table_start: int) -> Lis
     issues = []
 
     if len(table_lines) < 2:
-        return [{'line': table_start, 'issue': 'Table has no header row'}]
+        return [{"line": table_start, "issue": "Table has no header row"}]
 
     # Check separator row (second line)
     if len(table_lines) >= 2:
         separator = table_lines[1][1]
-        if not re.match(r'^\|[\s\-:]+\|$', separator):
-            issues.append({
-                'line': table_lines[1][0],
-                'issue': 'Table separator row malformed (should be |---|---|)',
-                'content': separator[:60]
-            })
+        if not re.match(r"^\|[\s\-:]+\|$", separator):
+            issues.append(
+                {
+                    "line": table_lines[1][0],
+                    "issue": "Table separator row malformed (should be |---|---|)",
+                    "content": separator[:60],
+                }
+            )
 
     # Check all rows have same column count
-    col_counts = [line.count('|') - 1 for _, line in table_lines]
+    col_counts = [line.count("|") - 1 for _, line in table_lines]
     if len(set(col_counts)) > 1:
-        issues.append({
-            'line': table_start,
-            'issue': f'Table has inconsistent column counts: {col_counts}',
-            'content': f'{len(table_lines)} rows with varying columns'
-        })
+        issues.append(
+            {
+                "line": table_start,
+                "issue": f"Table has inconsistent column counts: {col_counts}",
+                "content": f"{len(table_lines)} rows with varying columns",
+            }
+        )
 
     return issues
 
@@ -219,22 +219,24 @@ def _validate_table(table_lines: List[Tuple[int, str]], table_start: int) -> Lis
 def check_code_block_languages(content: str, file_path: Path) -> List[dict]:
     """Check that all code blocks have language identifiers"""
     issues = []
-    lines = content.split('\n')
+    lines = content.split("\n")
 
     for i, line in enumerate(lines, 1):
-        if line.strip().startswith('```'):
+        if line.strip().startswith("```"):
             # Closing fence
-            if line.strip() == '```':
+            if line.strip() == "```":
                 continue
 
             # Opening fence - check for language
-            lang = line.strip().replace('```', '').strip()
+            lang = line.strip().replace("```", "").strip()
             if not lang:
-                issues.append({
-                    'line': i,
-                    'issue': 'Code block missing language identifier',
-                    'context': _get_code_context(lines, i)
-                })
+                issues.append(
+                    {
+                        "line": i,
+                        "issue": "Code block missing language identifier",
+                        "context": _get_code_context(lines, i),
+                    }
+                )
 
     return issues
 
@@ -243,13 +245,13 @@ def _get_code_context(lines: List[str], line_num: int) -> str:
     """Get context around a code block"""
     start = max(0, line_num - 2)
     end = min(len(lines), line_num + 3)
-    context = '\n'.join(lines[start:end])
-    return context[:150] + '...' if len(context) > 150 else context
+    context = "\n".join(lines[start:end])
+    return context[:150] + "..." if len(context) > 150 else context
 
 
 def _is_in_code_block(lines_before: List[str]) -> bool:
     """Check if current position is inside a code block"""
-    code_block_count = sum(1 for line in lines_before if line.strip().startswith('```'))
+    code_block_count = sum(1 for line in lines_before if line.strip().startswith("```"))
     return code_block_count % 2 == 1
 
 
@@ -261,12 +263,12 @@ def run_advanced_validation(docs_dir: Path) -> dict:
     all_docs.extend(docs_dir.rglob("*.md"))
 
     results = {
-        'total_files': len(all_docs),
-        'files_with_todos': 0,
-        'files_with_heading_issues': 0,
-        'files_with_table_issues': 0,
-        'files_with_code_block_issues': 0,
-        'total_issues': 0
+        "total_files": len(all_docs),
+        "files_with_todos": 0,
+        "files_with_heading_issues": 0,
+        "files_with_table_issues": 0,
+        "files_with_code_block_issues": 0,
+        "total_issues": 0,
     }
 
     for doc_file in all_docs:
@@ -280,8 +282,8 @@ def run_advanced_validation(docs_dir: Path) -> dict:
         # Check for TODOs
         todos = check_todos_and_fixes(content, doc_file)
         if todos:
-            results['files_with_todos'] += 1
-            results['total_issues'] += len(todos)
+            results["files_with_todos"] += 1
+            results["total_issues"] += len(todos)
             print_warning(f"  Found {len(todos)} TODO(s)")
             for todo in todos[:2]:
                 print(f"    Line {todo['line']}: {todo['content']}")
@@ -289,8 +291,8 @@ def run_advanced_validation(docs_dir: Path) -> dict:
         # Check heading structure
         headings = check_heading_structure(content, doc_file)
         if headings:
-            results['files_with_heading_issues'] += 1
-            results['total_issues'] += len(headings)
+            results["files_with_heading_issues"] += 1
+            results["total_issues"] += len(headings)
             print_warning(f"  Heading issues: {len(headings)}")
             for issue in headings[:1]:
                 print(f"    Line {issue['line']}: {issue['issue']}")
@@ -298,8 +300,8 @@ def run_advanced_validation(docs_dir: Path) -> dict:
         # Check table formatting
         tables = check_table_formatting(content, doc_file)
         if tables:
-            results['files_with_table_issues'] += 1
-            results['total_issues'] += len(tables)
+            results["files_with_table_issues"] += 1
+            results["total_issues"] += len(tables)
             print_warning(f"  Table issues: {len(tables)}")
             for issue in tables[:1]:
                 print(f"    Line {issue['line']}: {issue['issue']}")
@@ -307,8 +309,8 @@ def run_advanced_validation(docs_dir: Path) -> dict:
         # Check code block languages
         code_blocks = check_code_block_languages(content, doc_file)
         if code_blocks:
-            results['files_with_code_block_issues'] += 1
-            results['total_issues'] += len(code_blocks)
+            results["files_with_code_block_issues"] += 1
+            results["total_issues"] += len(code_blocks)
             print_warning(f"  Code block issues: {len(code_blocks)}")
             for issue in code_blocks[:1]:
                 print(f"    Line {issue['line']}: {issue['issue']}")
@@ -335,7 +337,7 @@ def main():
     print(f"Files with Code Block Issues: {results['files_with_code_block_issues']}")
     print(f"\nTotal Issues Found: {results['total_issues']}")
 
-    if results['total_issues'] == 0:
+    if results["total_issues"] == 0:
         print_success("\n✨ No advanced issues found!")
         return 0
     else:
@@ -343,5 +345,5 @@ def main():
         return 0  # Don't fail, just warn
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

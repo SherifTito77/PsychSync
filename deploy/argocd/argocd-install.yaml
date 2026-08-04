@@ -962,11 +962,11 @@ metadata:
   namespace: argocd
 type: Opaque
 stringData:
-  # SSH private key
-  sshPrivateKey: |
-    -----BEGIN OPENSSH PRIVATE KEY-----
-    ... (your SSH private key) ...
-    -----END OPENSSH PRIVATE KEY-----
+  # SSH private key — replace with your actual key at deploy time
+  # Generate with: ssh-keygen -t ed25519 -C "argocd@psychsync"
+  # Then: kubectl create secret generic argocd-git-ssh-credentials \
+  #         --from-file=sshPrivateKey=/path/to/your/id_ed25519
+  sshPrivateKey: "REPLACE_WITH_BASE64_ENCODED_SSH_PRIVATE_KEY"
 
   # Known hosts
   known_hosts: |

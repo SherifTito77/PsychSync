@@ -22,42 +22,42 @@ Version: 1.0
 Last Updated: 2026-01-04
 """
 
+import argparse
+import asyncio
+import hashlib
+import json
+import logging
 import os
 import sys
-import asyncio
-import logging
-import argparse
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import List, Dict, Optional, Any
-import json
 import uuid
-import hashlib
+from datetime import datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 import boto3
-from botocore.exceptions import ClientError
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from sqlalchemy import text, create_engine, inspect
-from sqlalchemy.orm import sessionmaker, Session
+from botocore.exceptions import ClientError
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.orm import Session, sessionmaker
 
 # Import application modules
 try:
     from app.core.config import settings
-    from app.core.database import get_db, engine
-    from app.db.models.user import User
-    from app.db.models.assessment import Assessment, AssessmentResponse
-    from app.db.models.response import Response
+    from app.core.database import engine, get_db
     from app.db.models.analytics import Analytics
+    from app.db.models.assessment import Assessment, AssessmentResponse
     from app.db.models.audit_log import AuditLog
     from app.db.models.reports import GeneratedReport, ReportCache
+    from app.db.models.response import Response
+    from app.db.models.user import User
 except ImportError as e:
     print(f"Warning: Could not import application modules: {e}")
     print("Running in standalone mode with database connection only")
@@ -65,11 +65,8 @@ except ImportError as e:
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('data_retention_setup.log'),
-        logging.StreamHandler()
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.FileHandler("data_retention_setup.log"), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
@@ -89,7 +86,7 @@ RETENTION_POLICIES = [
         "anonymization_method": "k_anonymity_k=5",
         "target_storage": "s3",
         "is_active": True,
-        "schedule": "0 2 * * *"  # Daily at 2 AM UTC
+        "schedule": "0 2 * * *",  # Daily at 2 AM UTC
     },
     {
         "policy_name": "individual_responses_6months",
@@ -101,7 +98,7 @@ RETENTION_POLICIES = [
         "anonymization_method": "k_anonymity_k=5",
         "target_storage": "s3",
         "is_active": True,
-        "schedule": "0 2 * * *"
+        "schedule": "0 2 * * *",
     },
     {
         "policy_name": "analytics_3months",
@@ -112,7 +109,7 @@ RETENTION_POLICIES = [
         "anonymize_before_archive": False,
         "target_storage": "s3",
         "is_active": True,
-        "schedule": "0 3 * * *"
+        "schedule": "0 3 * * *",
     },
     {
         "policy_name": "audit_logs_3months",
@@ -124,7 +121,7 @@ RETENTION_POLICIES = [
         "anonymization_method": "user_id_hashing",
         "target_storage": "s3",
         "is_active": True,
-        "schedule": "0 3 * * 0"  # Weekly on Sunday
+        "schedule": "0 3 * * 0",  # Weekly on Sunday
     },
     {
         "policy_name": "report_cache_7days",
@@ -135,7 +132,7 @@ RETENTION_POLICIES = [
         "anonymize_before_archive": False,
         "target_storage": "delete",
         "is_active": True,
-        "schedule": "0 4 * * *"
+        "schedule": "0 4 * * *",
     },
     {
         "policy_name": "report_views_90days",
@@ -147,7 +144,7 @@ RETENTION_POLICIES = [
         "anonymization_method": "user_id_hashing",
         "target_storage": "s3",
         "is_active": True,
-        "schedule": "0 4 * * *"
+        "schedule": "0 4 * * *",
     },
     {
         "policy_name": "wellness_assessments_2years",
@@ -159,7 +156,7 @@ RETENTION_POLICIES = [
         "anonymization_method": "k_anonymity_k=10",
         "target_storage": "s3",
         "is_active": True,
-        "schedule": "0 5 * * *"
+        "schedule": "0 5 * * *",
     },
     {
         "policy_name": "team_dynamics_1year",
@@ -170,14 +167,15 @@ RETENTION_POLICIES = [
         "anonymize_before_archive": False,
         "target_storage": "s3",
         "is_active": True,
-        "schedule": "0 6 * * *"
-    }
+        "schedule": "0 6 * * *",
+    },
 ]
 
 
 # ============================================================================
 # Database Setup Functions
 # ============================================================================
+
 
 class DatabaseSetup:
     """Handle database schema and policy setup"""
@@ -274,13 +272,16 @@ class DatabaseSetup:
                 try:
                     # Check if policy exists
                     result = await session.execute(
-                        text("SELECT id FROM retention_policies WHERE policy_name = :name"),
-                        {"name": policy["policy_name"]}
+                        text(
+                            "SELECT id FROM retention_policies WHERE policy_name = :name"
+                        ),
+                        {"name": policy["policy_name"]},
                     )
 
                     if not result.fetchone():
                         await session.execute(
-                            text("""
+                            text(
+                                """
                                 INSERT INTO retention_policies
                                 (policy_name, data_type, source_table, retention_period_days,
                                  archive_after_days, anonymize_before_archive, anonymization_method,
@@ -289,15 +290,20 @@ class DatabaseSetup:
                                 (:policy_name, :data_type, :source_table, :retention_period_days,
                                  :archive_after_days, :anonymize_before_archive, :anonymization_method,
                                  :target_storage, :is_active, :schedule, NOW() + INTERVAL '1 hour')
-                            """),
-                            policy
+                            """
+                            ),
+                            policy,
                         )
                         logger.info(f"  ✓ Created policy: {policy['policy_name']}")
                     else:
-                        logger.info(f"  - Policy already exists: {policy['policy_name']}")
+                        logger.info(
+                            f"  - Policy already exists: {policy['policy_name']}"
+                        )
 
                 except Exception as e:
-                    logger.error(f"  ✗ Failed to create policy {policy['policy_name']}: {e}")
+                    logger.error(
+                        f"  ✗ Failed to create policy {policy['policy_name']}: {e}"
+                    )
 
             await session.commit()
 
@@ -310,7 +316,7 @@ class DatabaseSetup:
         async with self.engine.begin() as conn:
             # Check tables exist
             inspector = inspect(self.engine)
-            required_tables = ['retention_policies', 'archive_jobs', 'archive_catalog']
+            required_tables = ["retention_policies", "archive_jobs", "archive_catalog"]
 
             for table in required_tables:
                 if table in inspector.get_table_names():
@@ -339,17 +345,18 @@ class DatabaseSetup:
 # S3 Storage Setup
 # ============================================================================
 
+
 class S3Setup:
     """Handle S3 bucket and storage setup"""
 
     def __init__(self):
-        self.s3_client = boto3.client('s3')
-        self.kms_client = boto3.client('kms')
-        self.region = os.getenv('AWS_REGION', 'us-east-1')
+        self.s3_client = boto3.client("s3")
+        self.kms_client = boto3.client("kms")
+        self.region = os.getenv("AWS_REGION", "us-east-1")
 
         # Bucket names (override with environment variables)
-        self.archive_bucket = os.getenv('ARCHIVE_BUCKET', 'psychsync-data-archive')
-        self.frozen_bucket = os.getenv('FROZEN_BUCKET', 'psychsync-frozen-archive')
+        self.archive_bucket = os.getenv("ARCHIVE_BUCKET", "psychsync-data-archive")
+        self.frozen_bucket = os.getenv("FROZEN_BUCKET", "psychsync-frozen-archive")
 
     async def create_buckets(self):
         """Create S3 buckets for archival if they don't exist"""
@@ -361,17 +368,19 @@ class S3Setup:
                 self.s3_client.head_bucket(Bucket=bucket_name)
                 logger.info(f"  - Bucket {bucket_name} already exists")
             except ClientError as e:
-                error_code = int(e.response['Error']['Code'])
+                error_code = int(e.response["Error"]["Code"])
                 if error_code == 404:
                     # Bucket doesn't exist, create it
                     try:
-                        if self.region == 'us-east-1':
+                        if self.region == "us-east-1":
                             # us-east-1 has a different create_bucket call
                             self.s3_client.create_bucket(Bucket=bucket_name)
                         else:
                             self.s3_client.create_bucket(
                                 Bucket=bucket_name,
-                                CreateBucketConfiguration={'LocationConstraint': self.region}
+                                CreateBucketConfiguration={
+                                    "LocationConstraint": self.region
+                                },
                             )
                         logger.info(f"  ✓ Created bucket: {bucket_name}")
 
@@ -381,11 +390,13 @@ class S3Setup:
                         # Enable versioning
                         self.s3_client.put_bucket_versioning(
                             Bucket=bucket_name,
-                            VersioningConfiguration={'Status': 'Enabled'}
+                            VersioningConfiguration={"Status": "Enabled"},
                         )
 
                     except Exception as create_error:
-                        logger.error(f"  ✗ Failed to create bucket {bucket_name}: {create_error}")
+                        logger.error(
+                            f"  ✗ Failed to create bucket {bucket_name}: {create_error}"
+                        )
                         return False
                 else:
                     logger.error(f"  ✗ Error accessing bucket {bucket_name}: {e}")
@@ -397,34 +408,23 @@ class S3Setup:
     def _setup_lifecycle_policy(self, bucket_name):
         """Set up lifecycle policy for archive transitions"""
         lifecycle_config = {
-            'Rules': [
+            "Rules": [
                 {
-                    'Id': 'transition-to-glacier',
-                    'Status': 'Enabled',
-                    'Filter': {'Prefix': ''},
-                    'Transitions': [
-                        {
-                            'Days': 90,
-                            'StorageClass': 'GLACIER'
-                        },
-                        {
-                            'Days': 365,
-                            'StorageClass': 'DEEP_ARCHIVE'
-                        }
+                    "Id": "transition-to-glacier",
+                    "Status": "Enabled",
+                    "Filter": {"Prefix": ""},
+                    "Transitions": [
+                        {"Days": 90, "StorageClass": "GLACIER"},
+                        {"Days": 365, "StorageClass": "DEEP_ARCHIVE"},
                     ],
-                    'Expiration': {
-                        'Days': 2555  # 7 years
-                    },
-                    'NoncurrentVersionExpiration': {
-                        'NoncurrentDays': 30
-                    }
+                    "Expiration": {"Days": 2555},  # 7 years
+                    "NoncurrentVersionExpiration": {"NoncurrentDays": 30},
                 }
             ]
         }
 
         self.s3_client.put_bucket_lifecycle_configuration(
-            Bucket=bucket_name,
-            LifecycleConfiguration=lifecycle_config
+            Bucket=bucket_name, LifecycleConfiguration=lifecycle_config
         )
         logger.info(f"  ✓ Lifecycle policy configured for {bucket_name}")
 
@@ -432,33 +432,32 @@ class S3Setup:
         """Create KMS key for encryption if it doesn't exist"""
         logger.info("Setting up KMS encryption...")
 
-        key_alias = os.getenv('KMS_KEY_ALIAS', 'alias/psychsync-archive-key')
+        key_alias = os.getenv("KMS_KEY_ALIAS", "alias/psychsync-archive-key")
 
         try:
             # Try to get existing key
             response = self.kms_client.describe_key(KeyId=key_alias)
-            logger.info(f"  - KMS key already exists: {response['KeyMetadata']['KeyId']}")
-            return response['KeyMetadata']['KeyId']
+            logger.info(
+                f"  - KMS key already exists: {response['KeyMetadata']['KeyId']}"
+            )
+            return response["KeyMetadata"]["KeyId"]
         except ClientError:
             # Create new key
             try:
                 response = self.kms_client.create_key(
-                    Description='PsychSync data archive encryption key',
-                    KeyUsage='ENCRYPT_DECRYPT',
-                    Origin='AWS_KMS',
+                    Description="PsychSync data archive encryption key",
+                    KeyUsage="ENCRYPT_DECRYPT",
+                    Origin="AWS_KMS",
                     Tags=[
-                        {'TagKey': 'Application', 'TagValue': 'PsychSync'},
-                        {'TagKey': 'Purpose', 'TagValue': 'DataArchival'}
-                    ]
+                        {"TagKey": "Application", "TagValue": "PsychSync"},
+                        {"TagKey": "Purpose", "TagValue": "DataArchival"},
+                    ],
                 )
 
-                key_id = response['KeyMetadata']['KeyId']
+                key_id = response["KeyMetadata"]["KeyId"]
 
                 # Create alias
-                self.kms_client.create_alias(
-                    AliasName=key_alias,
-                    TargetKeyId=key_id
-                )
+                self.kms_client.create_alias(AliasName=key_alias, TargetKeyId=key_id)
 
                 logger.info(f"  ✓ Created KMS key: {key_id}")
                 return key_id
@@ -472,6 +471,7 @@ class S3Setup:
 # Retention Service
 # ============================================================================
 
+
 class RetentionService:
     """Main service for data retention operations"""
 
@@ -484,12 +484,14 @@ class RetentionService:
         async with self.Session() as session:
             # Get policy details
             result = await session.execute(
-                text("""
+                text(
+                    """
                     SELECT source_table, archive_after_days
                     FROM retention_policies
                     WHERE id = :policy_id AND is_active = TRUE
-                """),
-                {"policy_id": policy_id}
+                """
+                ),
+                {"policy_id": policy_id},
             )
             policy = result.fetchone()
 
@@ -508,10 +510,14 @@ class RetentionService:
                 LIMIT 10000
             """
 
-            result = await session.execute(text(query), {"threshold_date": threshold_date})
+            result = await session.execute(
+                text(query), {"threshold_date": threshold_date}
+            )
             records = [dict(row) for row in result.fetchall()]
 
-            logger.info(f"Found {len(records)} records for archival from {policy.source_table}")
+            logger.info(
+                f"Found {len(records)} records for archival from {policy.source_table}"
+            )
             return records
 
     async def archive_to_parquet(self, records: List[Dict], data_type: str) -> bytes:
@@ -521,13 +527,13 @@ class RetentionService:
         # Convert to Parquet
         table = pa.Table.from_pandas(df)
         buf = pa.BufferOutputStream()
-        pq.write_table(table, buf, compression='snappy')
+        pq.write_table(table, buf, compression="snappy")
 
         return buf.to_bytes()
 
     async def upload_to_s3(self, data: bytes, archive_id: str, bucket: str) -> str:
         """Upload archived data to S3"""
-        s3_client = boto3.client('s3')
+        s3_client = boto3.client("s3")
 
         # Generate object key
         now = datetime.now()
@@ -538,8 +544,8 @@ class RetentionService:
                 Bucket=bucket,
                 Key=key,
                 Body=data,
-                ServerSideEncryption='aws:kms',
-                SSEKMSKeyId=os.getenv('KMS_KEY_ALIAS', 'alias/psychsync-archive-key')
+                ServerSideEncryption="aws:kms",
+                SSEKMSKeyId=os.getenv("KMS_KEY_ALIAS", "alias/psychsync-archive-key"),
             )
 
             location = f"s3://{bucket}/{key}"
@@ -554,7 +560,8 @@ class RetentionService:
         """Update archive catalog with metadata"""
         async with self.Session() as session:
             await session.execute(
-                text("""
+                text(
+                    """
                     INSERT INTO archive_catalog
                     (archive_id, data_type, archive_location, date_range_start, date_range_end,
                      record_count, file_size_bytes, data_classification, is_anonymized,
@@ -564,8 +571,9 @@ class RetentionService:
                      :date_range_end, :record_count, :file_size_bytes, :data_classification,
                      :is_anonymized, :anonymization_method, :retention_expiration,
                      :legal_hold, :created_by)
-                """),
-                metadata
+                """
+                ),
+                metadata,
             )
             await session.commit()
 
@@ -576,7 +584,9 @@ class RetentionService:
         async with self.Session() as session:
             # Get all active policies
             result = await session.execute(
-                text("SELECT id, policy_name FROM retention_policies WHERE is_active = TRUE")
+                text(
+                    "SELECT id, policy_name FROM retention_policies WHERE is_active = TRUE"
+                )
             )
             policies = result.fetchall()
 
@@ -598,43 +608,56 @@ class RetentionService:
                         continue
 
                     # Create archive ID
-                    archive_id = f"arch_{datetime.now().strftime('%Y%m%d')}_{policy.policy_name}"
+                    archive_id = (
+                        f"arch_{datetime.now().strftime('%Y%m%d')}_{policy.policy_name}"
+                    )
 
                     # Convert to Parquet
-                    parquet_data = await self.archive_to_parquet(records, policy.policy_name)
+                    parquet_data = await self.archive_to_parquet(
+                        records, policy.policy_name
+                    )
 
                     # Upload to S3
                     location = await self.upload_to_s3(
                         parquet_data,
                         archive_id,
-                        os.getenv('ARCHIVE_BUCKET', 'psychsync-data-archive')
+                        os.getenv("ARCHIVE_BUCKET", "psychsync-data-archive"),
                     )
 
                     # Calculate metadata
-                    oldest_date = min(r.get('created_at', datetime.now()) for r in records)
-                    newest_date = max(r.get('created_at', datetime.now()) for r in records)
+                    oldest_date = min(
+                        r.get("created_at", datetime.now()) for r in records
+                    )
+                    newest_date = max(
+                        r.get("created_at", datetime.now()) for r in records
+                    )
 
                     # Update catalog
-                    await self.update_catalog({
-                        'archive_id': archive_id,
-                        'data_type': policy.policy_name,
-                        'archive_location': location,
-                        'date_range_start': oldest_date,
-                        'date_range_end': newest_date,
-                        'record_count': len(records),
-                        'file_size_bytes': len(parquet_data),
-                        'data_classification': 'moderately_sensitive',
-                        'is_anonymized': False,
-                        'anonymization_method': None,
-                        'retention_expiration': datetime.now() + timedelta(days=2555),
-                        'legal_hold': False,
-                        'created_by': 'system_archiver'
-                    })
+                    await self.update_catalog(
+                        {
+                            "archive_id": archive_id,
+                            "data_type": policy.policy_name,
+                            "archive_location": location,
+                            "date_range_start": oldest_date,
+                            "date_range_end": newest_date,
+                            "record_count": len(records),
+                            "file_size_bytes": len(parquet_data),
+                            "data_classification": "moderately_sensitive",
+                            "is_anonymized": False,
+                            "anonymization_method": None,
+                            "retention_expiration": datetime.now()
+                            + timedelta(days=2555),
+                            "legal_hold": False,
+                            "created_by": "system_archiver",
+                        }
+                    )
 
                     logger.info(f"  ✓ Archived {len(records)} records to {archive_id}")
 
                 except Exception as e:
-                    logger.error(f"  ✗ Failed to process policy {policy.policy_name}: {e}")
+                    logger.error(
+                        f"  ✗ Failed to process policy {policy.policy_name}: {e}"
+                    )
 
         logger.info("Retention process complete")
 
@@ -643,10 +666,11 @@ class RetentionService:
 # CLI Interface
 # ============================================================================
 
+
 async def main():
     """Main entry point for the script"""
     parser = argparse.ArgumentParser(
-        description='PsychSync Data Retention Setup',
+        description="PsychSync Data Retention Setup",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -664,26 +688,26 @@ Examples:
 
   # Show statistics
   python setup_data_retention.py --action stats
-        """
+        """,
     )
 
     parser.add_argument(
-        '--action',
-        choices=['init', 'validate', 'archive', 'stats', 'cleanup'],
+        "--action",
+        choices=["init", "validate", "archive", "stats", "cleanup"],
         required=True,
-        help='Action to perform'
+        help="Action to perform",
     )
 
     parser.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Perform a dry run without making changes'
+        "--dry-run",
+        action="store_true",
+        help="Perform a dry run without making changes",
     )
 
     parser.add_argument(
-        '--force',
-        action='store_true',
-        help='Force operation without confirmation prompts'
+        "--force",
+        action="store_true",
+        help="Force operation without confirmation prompts",
     )
 
     args = parser.parse_args()
@@ -697,7 +721,7 @@ Examples:
         sys.exit(1)
 
     # Execute requested action
-    if args.action == 'init':
+    if args.action == "init":
         logger.info("=== Initializing Data Retention System ===")
 
         # Database setup
@@ -717,7 +741,7 @@ Examples:
         logger.info("  3. Set up monitoring and alerting")
         logger.info("  4. Schedule archival jobs (cron/Airflow)")
 
-    elif args.action == 'validate':
+    elif args.action == "validate":
         logger.info("=== Validating Data Retention Setup ===")
 
         db_setup = DatabaseSetup(db_engine)
@@ -730,12 +754,12 @@ Examples:
             logger.error("\n✗ Validation failed")
             sys.exit(1)
 
-    elif args.action == 'archive':
+    elif args.action == "archive":
         logger.info("=== Running Data Archival ===")
 
         if not args.dry_run and not args.force:
             response = input("This will archive data to S3. Continue? (yes/no): ")
-            if response.lower() != 'yes':
+            if response.lower() != "yes":
                 logger.info("Aborted")
                 sys.exit(0)
 
@@ -744,12 +768,14 @@ Examples:
 
         logger.info("\n=== Archival Complete ===")
 
-    elif args.action == 'stats':
+    elif args.action == "stats":
         logger.info("=== Data Retention Statistics ===")
 
         async with db_engine.begin() as conn:
             # Policy stats
-            result = await conn.execute(text("""
+            result = await conn.execute(
+                text(
+                    """
                 SELECT
                     policy_name,
                     data_type,
@@ -760,14 +786,20 @@ Examples:
                     next_run_at
                 FROM retention_policies
                 ORDER BY policy_name
-            """))
+            """
+                )
+            )
 
             logger.info("\nPolicies:")
             for row in result:
-                logger.info(f"  {row.policy_name:40} | Active: {row.is_active} | Last run: {row.last_run_at}")
+                logger.info(
+                    f"  {row.policy_name:40} | Active: {row.is_active} | Last run: {row.last_run_at}"
+                )
 
             # Archive stats
-            result = await conn.execute(text("""
+            result = await conn.execute(
+                text(
+                    """
                 SELECT
                     data_type,
                     COUNT(*) as archive_count,
@@ -776,26 +808,34 @@ Examples:
                 FROM archive_catalog
                 GROUP BY data_type
                 ORDER BY total_size_gb DESC
-            """))
+            """
+                )
+            )
 
             logger.info("\nArchives:")
             for row in result:
-                logger.info(f"  {row.data_type:40} | Archives: {row.archive_count:4} | Records: {row.total_records:10} | Size: {row.total_size_gb:6.2f} GB")
+                logger.info(
+                    f"  {row.data_type:40} | Archives: {row.archive_count:4} | Records: {row.total_records:10} | Size: {row.total_size_gb:6.2f} GB"
+                )
 
             # Database size
-            result = await conn.execute(text("""
+            result = await conn.execute(
+                text(
+                    """
                 SELECT
                     pg_size_pretty(pg_database_size(current_database())) as db_size
-            """))
+            """
+                )
+            )
             db_size = result.scalar()
             logger.info(f"\nDatabase size: {db_size}")
 
-    elif args.action == 'cleanup':
+    elif args.action == "cleanup":
         logger.warning("=== Cleanup: This will remove all retention configuration ===")
 
         if not args.force:
             response = input("Are you sure? This cannot be undone! (yes/no): ")
-            if response.lower() != 'yes':
+            if response.lower() != "yes":
                 logger.info("Aborted")
                 sys.exit(0)
 
@@ -807,5 +847,5 @@ Examples:
         logger.info("✓ Cleanup complete")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     asyncio.run(main())

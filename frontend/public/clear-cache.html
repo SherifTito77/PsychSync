@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Cache & Login</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        h1 { margin-bottom: 20px; }
+        button {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+        .success { background: rgba(76, 175, 80, 0.3); }
+        .error { background: rgba(244, 67, 54, 0.3); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Clear Cache & Login</h1>
+        <p>This will clear all cached data and log you in fresh.</p>
+        <button onclick="clearAndLogin()">Clear & Login</button>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        async function clearAndLogin() {
+            const status = document.getElementById('status');
+            status.style.display = 'block';
+            status.className = '';
+            status.textContent = '⏳ Clearing cache...';
+
+            // Clear ALL storage
+            localStorage.clear();
+            sessionStorage.clear();
+
+            // Clear all cookies
+            document.cookie.split(";").forEach(c => {
+                document.cookie = c.trim().split("=")[0] +
+                    '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+            });
+
+            status.textContent = '🔐 Logging in...';
+            status.className = 'success';
+
+            // Login
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/simple-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'username=sherif.tito.77@gmail.com&password=test'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    // Store token as 'auth_token' (frontend expects this key name)
+                    localStorage.setItem('auth_token', data.access_token);
+                    localStorage.setItem('access_token', data.access_token); // Also store as access_token for compatibility
+                    localStorage.setItem('user', JSON.stringify(data.user));
+
+                    status.textContent = '✅ Success! Redirecting to sentiment analysis...';
+
+                    setTimeout(() => {
+                        window.location.href = '/sentiment-analysis';
+                    }, 1500);
+                } else {
+                    throw new Error('Login failed');
+                }
+            } catch (error) {
+                status.className = 'error';
+                status.textContent = '❌ Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

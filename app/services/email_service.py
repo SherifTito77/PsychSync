@@ -3,12 +3,12 @@ SECURE Email Service for sending notifications and communications
 Handles template rendering and email delivery with comprehensive security controls
 """
 
-from datetime import datetime
 import html
 import logging
-from pathlib import Path
 import secrets
 import time
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -24,7 +24,8 @@ logger = logging.getLogger(__name__)
 
 # Email configuration with correct field names for fastapi-mail
 conf = ConnectionConfig(
-    MAIL_USERNAME=settings.SMTP_USER or "dummy@example.com",  # Required, use dummy if None
+    MAIL_USERNAME=settings.SMTP_USER
+    or "dummy@example.com",  # Required, use dummy if None
     MAIL_PASSWORD=settings.SMTP_PASSWORD or "dummy",  # Required, use dummy if None
     MAIL_FROM=settings.EMAILS_FROM_EMAIL or "noreply@psychsync.com",
     MAIL_PORT=settings.SMTP_PORT or 587,
@@ -155,7 +156,11 @@ class EmailService:
                 sanitized[key] = self._sanitize_template_context(value)
             elif isinstance(value, list):
                 sanitized[key] = [
-                    bleach.clean(str(item), tags=[], strip=True) if isinstance(item, str) else item
+                    (
+                        bleach.clean(str(item), tags=[], strip=True)
+                        if isinstance(item, str)
+                        else item
+                    )
                     for item in value
                 ]
             else:
@@ -282,7 +287,9 @@ class EmailService:
 
             # Check template size
             if len(rendered_content) > self.max_template_size:
-                raise ValueError(f"Template content too large: {len(rendered_content)} bytes")
+                raise ValueError(
+                    f"Template content too large: {len(rendered_content)} bytes"
+                )
 
             # Log template rendering
             AuditLogger.log_security_event(
@@ -458,7 +465,9 @@ class EmailService:
 
             # CHECK EMAIL CONFIGURATION
             if not settings.SMTP_HOST or not settings.SMTP_USER:
-                logger.warning(f"Email not configured. Would send email to {email_to}: {subject}")
+                logger.warning(
+                    f"Email not configured. Would send email to {email_to}: {subject}"
+                )
                 AuditLogger.log_security_event(
                     event_type=SecurityEventType.SYSTEM_ERROR,
                     details="Email service not properly configured",
@@ -540,7 +549,9 @@ class EmailService:
             logger.error(f"Unexpected error in email sending: {e!s}")
             return False
 
-    async def send_welcome_email(self, user_email: str, user_name: str, **kwargs) -> bool:
+    async def send_welcome_email(
+        self, user_email: str, user_name: str, **kwargs
+    ) -> bool:
         """Send welcome email to new user using template"""
         try:
             html_content = self._render_template(
@@ -569,9 +580,13 @@ class EmailService:
                 "assessment_completed.html",
                 {
                     "user_name": user_name,
-                    "assessment_name": assessment_data.get("assessment_name", "Assessment"),
+                    "assessment_name": assessment_data.get(
+                        "assessment_name", "Assessment"
+                    ),
                     "personality_type": assessment_data.get("personality_type"),
-                    "personality_description": assessment_data.get("personality_description"),
+                    "personality_description": assessment_data.get(
+                        "personality_description"
+                    ),
                     "trait_scores": assessment_data.get("trait_scores", {}),
                     "strengths": assessment_data.get("strengths", []),
                     "development_areas": assessment_data.get("development_areas", []),
@@ -587,17 +602,21 @@ class EmailService:
                 },
             )
 
-            subject = (
-                f"Your {assessment_data.get('assessment_name', 'Assessment')} Results Are Ready! 📊"
-            )
+            subject = f"Your {assessment_data.get('assessment_name', 'Assessment')} Results Are Ready! 📊"
             return await self.send_email(user_email, subject, "", html_content)
 
         except Exception as e:
-            logger.error(f"Failed to send assessment completion email to {user_email}: {e!s}")
+            logger.error(
+                f"Failed to send assessment completion email to {user_email}: {e!s}"
+            )
             return False
 
     async def send_team_optimization_email(
-        self, user_email: str, user_name: str, optimization_data: dict[str, Any], **kwargs
+        self,
+        user_email: str,
+        user_name: str,
+        optimization_data: dict[str, Any],
+        **kwargs,
     ) -> bool:
         """Send email with team optimization results using template"""
         try:
@@ -605,20 +624,27 @@ class EmailService:
                 "team_optimization.html",
                 {
                     "user_name": user_name,
-                    "optimization_objective": optimization_data.get("objective", "performance"),
+                    "optimization_objective": optimization_data.get(
+                        "objective", "performance"
+                    ),
                     "overall_score": optimization_data.get("overall_score", 0.85),
                     "recommended_teams": optimization_data.get("recommended_teams", []),
                     "insights": optimization_data.get("insights", []),
                     "total_members": optimization_data.get("total_members", 0),
-                    "compatibility_pairs": optimization_data.get("compatibility_pairs", 0),
+                    "compatibility_pairs": optimization_data.get(
+                        "compatibility_pairs", 0
+                    ),
                     "unique_skills": optimization_data.get("unique_skills", 0),
                     "algorithm_runtime": optimization_data.get("algorithm_runtime", 0),
-                    "improvements_needed": optimization_data.get("improvements_needed", []),
+                    "improvements_needed": optimization_data.get(
+                        "improvements_needed", []
+                    ),
                     "dashboard_url": optimization_data.get(
                         "dashboard_url", f"{settings.FRONTEND_URL}/dashboard"
                     ),
                     "download_report_url": optimization_data.get(
-                        "download_report_url", f"{settings.FRONTEND_URL}/download-report"
+                        "download_report_url",
+                        f"{settings.FRONTEND_URL}/download-report",
                     ),
                     "consult_url": optimization_data.get(
                         "consult_url", f"{settings.FRONTEND_URL}/consult"
@@ -631,7 +657,9 @@ class EmailService:
             return await self.send_email(user_email, subject, "", html_content)
 
         except Exception as e:
-            logger.error(f"Failed to send team optimization email to {user_email}: {e!s}")
+            logger.error(
+                f"Failed to send team optimization email to {user_email}: {e!s}"
+            )
             return False
 
     async def send_billing_email(
@@ -650,7 +678,9 @@ class EmailService:
                     "transaction_id": billing_data.get("transaction_id"),
                     "invoice_id": billing_data.get("invoice_id"),
                     "failure_reason": billing_data.get("failure_reason"),
-                    "payment_method_type": billing_data.get("payment_method_type", "card"),
+                    "payment_method_type": billing_data.get(
+                        "payment_method_type", "card"
+                    ),
                     "payment_method_last4": billing_data.get("payment_method_last4"),
                     "plan_name": billing_data.get("plan_name", "Free"),
                     "plan_features": billing_data.get("plan_features", []),
@@ -696,10 +726,14 @@ class EmailService:
         """Send email verification link using embedded template"""
         if not settings.SMTP_HOST or not settings.SMTP_USER:
             # SECURITY: Use logger instead of print to prevent token leakage
-            logger.warning(f"Email not configured. Verification email not sent to {email}")
+            logger.warning(
+                f"Email not configured. Verification email not sent to {email}"
+            )
             return None
 
-        frontend_url = settings.FRONTEND_EMAIL_VERIFY_URL or "http://localhost:3000/verify-email"
+        frontend_url = (
+            settings.FRONTEND_EMAIL_VERIFY_URL or "http://localhost:3000/verify-email"
+        )
         verify_link = f"{frontend_url}?token={token}"
 
         template_content = f"""
@@ -781,7 +815,12 @@ class EmailService:
             return False
 
     async def send_team_invitation(
-        self, user_email: str, team_name: str, inviter_name: str, invite_link: str, **kwargs
+        self,
+        user_email: str,
+        team_name: str,
+        inviter_name: str,
+        invite_link: str,
+        **kwargs,
     ) -> bool:
         """Send team invitation email using template"""
         try:

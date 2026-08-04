@@ -38,7 +38,7 @@ Store the access_token from response for subsequent tests.
 
 import json
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 
 class ManualTestCases:
@@ -52,10 +52,7 @@ class ManualTestCases:
 
     def get_auth_headers(self, token: str) -> Dict[str, str]:
         """Get authentication headers"""
-        return {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
-        }
+        return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
     # =============================================================================
     # TEST CASE 1: Happy Path - Successful Assessment Creation
@@ -75,7 +72,7 @@ class ManualTestCases:
         test_name = "Test 1: Successful Assessment Creation"
         print(f"\n{'='*60}")
         print(test_name)
-        print('='*60)
+        print("=" * 60)
 
         assessment_data = {
             "title": "Team Performance Assessment Q1 2024",
@@ -97,8 +94,8 @@ class ManualTestCases:
                 "scoring_algorithm": "weighted_average",
                 "passing_score": 70,
                 "show_results_immediately": True,
-                "allow_retake_after_days": 7
-            }
+                "allow_retake_after_days": 7,
+            },
         }
 
         curl_command = f"""curl -X POST "{self.get_base_url()}/assessments/" \\
@@ -112,18 +109,23 @@ class ManualTestCases:
         print("\nExpected Response:")
         print("Status Code: 201 Created")
         print("Response Body:")
-        print(json.dumps({
-            "success": True,
-            "message": "Assessment created successfully",
-            "data": {
-                "id": "uuid-string",
-                "title": assessment_data["title"],
-                "assessment_type": assessment_data["assessment_type"],
-                "is_active": True,
-                "created_at": "timestamp",
-                "updated_at": "timestamp"
-            }
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "success": True,
+                    "message": "Assessment created successfully",
+                    "data": {
+                        "id": "uuid-string",
+                        "title": assessment_data["title"],
+                        "assessment_type": assessment_data["assessment_type"],
+                        "is_active": True,
+                        "created_at": "timestamp",
+                        "updated_at": "timestamp",
+                    },
+                },
+                indent=2,
+            )
+        )
 
     # =============================================================================
     # TEST CASE 2: Assessment with Questions and Sections
@@ -142,7 +144,7 @@ class ManualTestCases:
         test_name = "Test 2: Assessment with Questions and Sections"
         print(f"\n{'='*60}")
         print(test_name)
-        print('='*60)
+        print("=" * 60)
 
         assessment_data = {
             "title": "Comprehensive Team Skills Assessment",
@@ -170,11 +172,11 @@ class ManualTestCases:
                                 "2 - Novice",
                                 "3 - Intermediate",
                                 "4 - Advanced",
-                                "5 - Expert"
+                                "5 - Expert",
                             ],
                             "required": True,
                             "order": 1,
-                            "weight": 1.0
+                            "weight": 1.0,
                         },
                         {
                             "question_text": "Describe your experience with API development",
@@ -183,9 +185,9 @@ class ManualTestCases:
                             "order": 2,
                             "weight": 1.5,
                             "max_length": 500,
-                            "placeholder": "Describe your API development experience..."
-                        }
-                    ]
+                            "placeholder": "Describe your API development experience...",
+                        },
+                    ],
                 },
                 {
                     "title": "Communication Skills",
@@ -202,13 +204,13 @@ class ManualTestCases:
                                 "2 - Poorly",
                                 "3 - Adequately",
                                 "4 - Well",
-                                "5 - Excellently"
+                                "5 - Excellently",
                             ],
                             "required": True,
                             "order": 1,
-                            "weight": 1.0
+                            "weight": 1.0,
                         }
-                    ]
+                    ],
                 },
                 {
                     "title": "Problem Solving",
@@ -224,15 +226,15 @@ class ManualTestCases:
                             "order": 1,
                             "weight": 2.0,
                             "min_length": 200,
-                            "max_length": 1000
+                            "max_length": 1000,
                         }
-                    ]
-                }
-            ]
+                    ],
+                },
+            ],
         }
 
         print("CURL Command (truncated for readability):")
-        print(f"curl -X POST \"{self.get_base_url()}/assessments/\" \\")
+        print(f'curl -X POST "{self.get_base_url()}/assessments/" \\')
         print("  -H 'Authorization: Bearer YOUR_ACCESS_TOKEN' \\")
         print("  -H 'Content-Type: application/json' \\")
         print(f"  -d '{json.dumps(assessment_data)[:200]}...'")
@@ -263,29 +265,29 @@ class ManualTestCases:
         test_name = "Test 3: Authorization Tests"
         print(f"\n{'='*60}")
         print(test_name)
-        print('='*60)
+        print("=" * 60)
 
         # Subtest 3.1: No Authentication
         print("\n3.1: Test without authentication")
-        print("curl -X POST \"http://localhost:8000/api/v1/assessments/\" \\")
+        print('curl -X POST "http://localhost:8000/api/v1/assessments/" \\')
         print("  -H 'Content-Type: application/json' \\")
-        print("  -d '{\"title\":\"Unauthorized Test\"}'")
+        print('  -d \'{"title":"Unauthorized Test"}\'')
         print("Expected: 401 Unauthorized")
 
         # Subtest 3.2: Regular User
         print("\n3.2: Test with regular user token")
-        print("curl -X POST \"http://localhost:8000/api/v1/assessments/\" \\")
+        print('curl -X POST "http://localhost:8000/api/v1/assessments/" \\')
         print("  -H 'Authorization: Bearer REGULAR_USER_TOKEN' \\")
         print("  -H 'Content-Type: application/json' \\")
-        print("  -d '{\"title\":\"Regular User Test\"}'")
+        print('  -d \'{"title":"Regular User Test"}\'')
         print("Expected: 403 Forbidden")
 
         # Subtest 3.3: Team Lead
         print("\n3.3: Test with team lead token")
-        print("curl -X POST \"http://localhost:8000/api/v1/assessments/\" \\")
+        print('curl -X POST "http://localhost:8000/api/v1/assessments/" \\')
         print("  -H 'Authorization: Bearer TEAM_LEAD_TOKEN' \\")
         print("  -H 'Content-Type: application/json' \\")
-        print("  -d '{\"title\":\"Team Lead Test\"}'")
+        print('  -d \'{"title":"Team Lead Test"}\'')
         print("Expected: 201 Created (or 403 if team restrictions apply)")
 
     # =============================================================================
@@ -307,23 +309,32 @@ class ManualTestCases:
         test_name = "Test 4: Data Validation Tests"
         print(f"\n{'='*60}")
         print(test_name)
-        print('='*60)
+        print("=" * 60)
 
         validation_test_cases = [
             {
                 "name": "Empty Title",
                 "data": {"title": "", "description": "Test", "assessment_type": "test"},
-                "expected_status": 422
+                "expected_status": 422,
             },
             {
                 "name": "Invalid Assessment Type",
-                "data": {"title": "Test", "description": "Test", "assessment_type": "invalid_type"},
-                "expected_status": 422
+                "data": {
+                    "title": "Test",
+                    "description": "Test",
+                    "assessment_type": "invalid_type",
+                },
+                "expected_status": 422,
             },
             {
                 "name": "Negative Duration",
-                "data": {"title": "Test", "description": "Test", "assessment_type": "test", "estimated_duration_minutes": -10},
-                "expected_status": 422
+                "data": {
+                    "title": "Test",
+                    "description": "Test",
+                    "assessment_type": "test",
+                    "estimated_duration_minutes": -10,
+                },
+                "expected_status": 422,
             },
             {
                 "name": "Past Deadline",
@@ -331,20 +342,24 @@ class ManualTestCases:
                     "title": "Test",
                     "description": "Test",
                     "assessment_type": "test",
-                    "deadline": (datetime.utcnow() - timedelta(days=1)).isoformat()
+                    "deadline": (datetime.utcnow() - timedelta(days=1)).isoformat(),
                 },
-                "expected_status": 422
+                "expected_status": 422,
             },
             {
                 "name": "Too Long Title",
-                "data": {"title": "A" * 500, "description": "Test", "assessment_type": "test"},
-                "expected_status": 422
-            }
+                "data": {
+                    "title": "A" * 500,
+                    "description": "Test",
+                    "assessment_type": "test",
+                },
+                "expected_status": 422,
+            },
         ]
 
         for i, test_case in enumerate(validation_test_cases, 1):
             print(f"\n4.{i}: {test_case['name']}")
-            print(f"curl -X POST \"http://localhost:8000/api/v1/assessments/\" \\")
+            print(f'curl -X POST "http://localhost:8000/api/v1/assessments/" \\')
             print("  -H 'Authorization: Bearer ADMIN_TOKEN' \\")
             print("  -H 'Content-Type: application/json' \\")
             print(f"  -d '{json.dumps(test_case['data'])}'")
@@ -367,7 +382,7 @@ class ManualTestCases:
         test_name = "Test 5: Performance Tests"
         print(f"\n{'='*60}")
         print(test_name)
-        print('='*60)
+        print("=" * 60)
 
         # Large content test
         large_description = "This is a test description. " * 1000  # ~20KB
@@ -392,18 +407,20 @@ class ManualTestCases:
                             "question_type": "text",
                             "required": True,
                             "order": i,
-                            "weight": 1.0
+                            "weight": 1.0,
                         }
                         for i in range(50)
-                    ]
+                    ],
                 }
-            ]
+            ],
         }
 
         print("\n5.1: Large Content Performance Test")
         print(f"Description size: {len(large_description)} characters")
-        print(f"Total questions: {len(large_assessment_data['sections'][0]['questions'])}")
-        print("curl -X POST \"http://localhost:8000/api/v1/assessments/\" \\")
+        print(
+            f"Total questions: {len(large_assessment_data['sections'][0]['questions'])}"
+        )
+        print('curl -X POST "http://localhost:8000/api/v1/assessments/" \\')
         print("  -H 'Authorization: Bearer ADMIN_TOKEN' \\")
         print("  -H 'Content-Type: application/json' \\")
         print("  -d 'LARGE_ASSESSMENT_DATA'")
@@ -429,39 +446,39 @@ class ManualTestCases:
         test_name = "Test 6: Integration Workflow"
         print(f"\n{'='*60}")
         print(test_name)
-        print('='*60)
+        print("=" * 60)
 
         workflow_steps = [
             {
                 "step": "1. Create Assessment",
                 "method": "POST",
                 "url": "/assessments/",
-                "description": "Create new team assessment"
+                "description": "Create new team assessment",
             },
             {
                 "step": "2. Get Assessment Details",
                 "method": "GET",
                 "url": "/assessments/{assessment_id}",
-                "description": "Retrieve created assessment"
+                "description": "Retrieve created assessment",
             },
             {
                 "step": "3. Assign to Team",
                 "method": "POST",
                 "url": "/assessments/{assessment_id}/assignments",
-                "description": "Assign assessment to team"
+                "description": "Assign assessment to team",
             },
             {
                 "step": "4. Update Assessment",
                 "method": "PUT",
                 "url": "/assessments/{assessment_id}",
-                "description": "Update assessment details"
+                "description": "Update assessment details",
             },
             {
                 "step": "5. Archive Assessment",
                 "method": "POST",
                 "url": "/assessments/{assessment_id}/archive",
-                "description": "Archive assessment when complete"
-            }
+                "description": "Archive assessment when complete",
+            },
         ]
 
         for workflow_step in workflow_steps:
@@ -488,39 +505,41 @@ class ManualTestCases:
         test_name = "Test 7: Security Tests"
         print(f"\n{'='*60}")
         print(test_name)
-        print('='*60)
+        print("=" * 60)
 
         security_test_cases = [
             {
                 "name": "SQL Injection in Title",
                 "field": "title",
-                "payload": "'; DROP TABLE users; --"
+                "payload": "'; DROP TABLE users; --",
             },
             {
                 "name": "XSS in Description",
                 "field": "description",
-                "payload": "<script>alert('XSS')</script>"
+                "payload": "<script>alert('XSS')</script>",
             },
             {
                 "name": "XSS in Instructions",
                 "field": "instructions",
-                "payload": "<img src=x onerror=alert('XSS')>"
+                "payload": "<img src=x onerror=alert('XSS')>",
             },
             {
                 "name": "Path Traversal in File Upload",
                 "field": "file_path",
-                "payload": "../../../etc/passwd"
-            }
+                "payload": "../../../etc/passwd",
+            },
         ]
 
         for i, security_test in enumerate(security_test_cases, 1):
             print(f"\n7.{i}: {security_test['name']}")
             print(f"Field: {security_test['field']}")
             print(f"Payload: {security_test['payload']}")
-            print("curl -X POST \"http://localhost:8000/api/v1/assessments/\" \\")
+            print('curl -X POST "http://localhost:8000/api/v1/assessments/" \\')
             print("  -H 'Authorization: Bearer ADMIN_TOKEN' \\")
             print(f"  -H 'Content-Type: application/json' \\")
-            print(f"  -d '{{\"{security_test['field']}\": \"{security_test['payload']}\"}}'")
+            print(
+                f"  -d '{{\"{security_test['field']}\": \"{security_test['payload']}\"}}'"
+            )
             print("Expected: Should sanitize input or return validation error")
 
     # =============================================================================
@@ -541,28 +560,28 @@ class ManualTestCases:
 
         print(f"\n{'='*60}")
         print("Error Recovery and Edge Case Tests")
-        print('='*60)
+        print("=" * 60)
 
         error_scenarios = [
             {
                 "scenario": "Invalid Assessment ID",
                 "url": "/assessments/invalid-uuid",
                 "method": "GET",
-                "expected_error": "400 or 404"
+                "expected_error": "400 or 404",
             },
             {
                 "scenario": "Non-existent Assessment",
                 "url": "/assessments/00000000-0000-0000-0000-000000000000",
                 "method": "GET",
-                "expected_error": "404 Not Found"
+                "expected_error": "404 Not Found",
             },
             {
                 "scenario": "Malformed JSON",
                 "method": "POST",
                 "url": "/assessments/",
                 "payload": "{invalid json}",
-                "expected_error": "422 Validation Error"
-            }
+                "expected_error": "422 Validation Error",
+            },
         ]
 
         for i, scenario in enumerate(error_scenarios, 1):
@@ -577,7 +596,9 @@ def main():
 
     print("PsychSync Team Assessment Creation - Manual Test Suite")
     print("=" * 80)
-    print("This file contains manual test procedures for validating team assessment creation.")
+    print(
+        "This file contains manual test procedures for validating team assessment creation."
+    )
     print("Use these test cases with curl, Postman, or any API testing tool.")
     print("\nPrerequisites:")
     print("1. FastAPI server running on http://localhost:8000")

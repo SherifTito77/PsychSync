@@ -29,29 +29,25 @@ For automatic stopping on failure:
         --stop-timeout 10
 """
 
-from locust import HttpUser, task, between, events, constant
-from locust.runners import MasterRunner
 import logging
 import random
 import time
 from datetime import datetime
 from typing import Optional
 
-from locust_config import (
-    LoadTestConfig,
-    get_headers,
-    test_data_manager,
-)
+from locust import HttpUser, between, constant, events, task
+from locust.runners import MasterRunner
+from locust_config import LoadTestConfig, get_headers, test_data_manager
 
 logger = logging.getLogger(__name__)
 
 
 # Stress test thresholds
 STRESS_THRESHOLDS = {
-    "max_error_rate": 5.0,     # Stop if error rate exceeds 5%
-    "max_response_time": 5000, # Stop if p95 response time exceeds 5 seconds
-    "ramp_up_interval": 30,    # Add 100 users every 30 seconds
-    "ramp_up_size": 100,       # Number of users to add per interval
+    "max_error_rate": 5.0,  # Stop if error rate exceeds 5%
+    "max_response_time": 5000,  # Stop if p95 response time exceeds 5 seconds
+    "ramp_up_interval": 30,  # Add 100 users every 30 seconds
+    "ramp_up_size": 100,  # Number of users to add per interval
 }
 
 
@@ -341,7 +337,9 @@ breaking_point_info = {
 
 
 @events.request.add_hook
-def monitor_stress_metrics(request_type, name, response_time, response_length, exception, **kwargs):
+def monitor_stress_metrics(
+    request_type, name, response_time, response_length, exception, **kwargs
+):
     """
     Monitor stress test metrics and detect breaking point.
     """
@@ -430,11 +428,19 @@ def generate_stress_test_report(environment, **kwargs):
 
     for endpoint_type, entries in endpoints_by_type.items():
         if entries:
-            avg_p95 = sum(e.get_response_time_percentile(0.95) for e in entries) / len(entries)
+            avg_p95 = sum(e.get_response_time_percentile(0.95) for e in entries) / len(
+                entries
+            )
             total_rps = sum(e.total_rps for e in entries)
-            error_rate = sum(e.num_failures for e in entries) / sum(e.num_requests for e in entries) * 100
+            error_rate = (
+                sum(e.num_failures for e in entries)
+                / sum(e.num_requests for e in entries)
+                * 100
+            )
             print(f"  {endpoint_type}:")
-            print(f"    p95: {avg_p95:.0f}ms, RPS: {total_rps:.1f}, Errors: {error_rate:.2f}%")
+            print(
+                f"    p95: {avg_p95:.0f}ms, RPS: {total_rps:.1f}, Errors: {error_rate:.2f}%"
+            )
 
     # Bottleneck identification
     print(f"\nPotential Bottlenecks (Top 5 by p95):")
@@ -447,7 +453,11 @@ def generate_stress_test_report(environment, **kwargs):
     for i, entry in enumerate(sorted_by_p95, 1):
         p95 = entry.get_response_time_percentile(0.95)
         p99 = entry.get_response_time_percentile(0.99)
-        err_rate = (entry.num_failures / entry.num_requests * 100) if entry.num_requests > 0 else 0
+        err_rate = (
+            (entry.num_failures / entry.num_requests * 100)
+            if entry.num_requests > 0
+            else 0
+        )
         print(f"  {i}. {entry.name}:")
         print(f"     p95: {p95:.0f}ms, p99: {p99:.0f}ms, Errors: {err_rate:.2f}%")
 
@@ -491,7 +501,8 @@ def on_spawning_complete(user_count, **kwargs):
 
 
 if __name__ == "__main__":
-    print("""
+    print(
+        """
 ╔══════════════════════════════════════════════════════════════════════╗
 ║              STRESS TESTING LOAD TEST - PsychSync                    ║
 ╚══════════════════════════════════════════════════════════════════════╝
@@ -529,4 +540,5 @@ Usage:
 ⚠️  WARNING: This test will push the system to its limits.
            Run during maintenance windows only.
 
-    """)
+    """
+    )
