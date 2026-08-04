@@ -99,10 +99,12 @@ class InterventionRequest(BaseModel):
     toxicity_pattern_id: UUID
     intervention_type: str = Field(..., max_length=100)
     intervention_method: str = Field(..., max_length=100)
-    priority_level: str = Field(default="medium", regex="^(low|medium|high|critical)$")
+    priority_level: str = Field(
+        default="medium", pattern="^(low|medium|high|critical)$"
+    )
     intervention_description: str = Field(..., min_length=10, max_length=2000)
     behavioral_goals: List[str]
-    target_group_type: str = Field(..., regex="^(individual|team|organization)$")
+    target_group_type: str = Field(..., pattern="^(individual|team|organization)$")
 
 
 class InterventionResponse(BaseModel):

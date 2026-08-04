@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.endpoints.users import get_async_db, get_current_user
+from app.api.v1.deps import get_db as get_async_db, get_current_user
 from app.db.models.clinical_screening import ClinicalAlert
 from app.db.models.notification import NotificationPreference
 from app.db.models.organizations import Organization

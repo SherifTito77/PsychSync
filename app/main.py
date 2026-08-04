@@ -987,13 +987,7 @@ async def add_additional_security_headers(request: Request, call_next):
 
 
 # Add advanced security middleware
-app.add_middleware(
-    SecurityMiddleware,
-    redis_client=redis_client,
-    enable_rate_limiting=True,
-    enable_request_validation=True,
-    enable_ip_whitelist=False,  # Set to True to enable IP whitelist
-)
+app.add_middleware(SecurityMiddleware)
 
 # PERFORMANCE OPTIMIZATION MIDDLEWARE
 # ===================================

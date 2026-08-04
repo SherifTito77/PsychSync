@@ -8,7 +8,7 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from core.logging import get_logger
+from app.core.structured_logging import get_logger
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.api.v1.deps import get_current_user, get_db

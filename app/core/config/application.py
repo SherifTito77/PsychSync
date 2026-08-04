@@ -58,7 +58,7 @@ class ApplicationConfig:
     # Feature flags
     ENABLE_REGISTRATION: bool = Field(default=True, env="ENABLE_REGISTRATION")
     ENABLE_EMAIL_VERIFICATION: bool = Field(
-        default=True, env="ENABLE_EMAIL_VERIFICATION"
+        default=False, env="ENABLE_EMAIL_VERIFICATION"
     )
     ENABLE_PASSWORD_RESET: bool = Field(default=True, env="ENABLE_PASSWORD_RESET")
     ENABLE_SOCIAL_LOGIN: bool = Field(default=False, env="ENABLE_SOCIAL_LOGIN")

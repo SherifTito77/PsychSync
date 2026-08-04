@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.dependencies.auth import get_current_active_user
+from app.api.v1.deps import get_current_active_user
 from app.db.models.user import User
 from app.db.session import get_async_db
 from app.services.clinical.advanced_analytics_service import AdvancedAnalyticsService

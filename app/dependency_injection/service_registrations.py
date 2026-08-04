@@ -143,7 +143,8 @@ def register_infrastructure_services():
         register_scoped(SlackServiceStub)
 
         # Security services
-        from app.services.security import create_access_token, pwd_context
+        from app.services.security import create_access_token
+        from app.core.security.auth import pwd_context
 
         register_singleton_by_name("password_hasher", lambda: pwd_context)
         register_singleton_by_name("token_factory", create_access_token)

@@ -1,5 +1,8 @@
 # PsychSync AI Enterprise - Comprehensive Git Ignore File
 
+# ===== NON-ESSENTIAL ARCHIVED FILES =====
+_non_essential/
+
 # ===== PYTHON DEPENDENCIES =====
 node_modules/
 __pycache__/

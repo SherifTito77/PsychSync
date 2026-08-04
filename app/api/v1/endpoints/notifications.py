@@ -15,7 +15,10 @@ from sqlalchemy import and_, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_user, get_db
-from app.db.models.notification import Notification, NotificationPreference
+from app.db.models.notifications import (
+    Notification,
+    NotificationPreferences as NotificationPreference,
+)
 from app.db.models.user import User
 from app.schemas.clinical import (
     NotificationListResponse,

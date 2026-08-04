@@ -44,17 +44,17 @@ except ImportError:
 try:
     nltk.data.find("tokenizers/punkt")
 except LookupError:
-    nltk.download("punkt")
+    nltk.download("punkt", quiet=True, raise_on_error=False)
 
 try:
     nltk.data.find("corpora/stopwords")
 except LookupError:
-    nltk.download("stopwords")
+    nltk.download("stopwords", quiet=True, raise_on_error=False)
 
 try:
     nltk.data.find("sentiment/vader_lexicon")
 except LookupError:
-    nltk.download("vader_lexicon")
+    nltk.download("vader_lexicon", quiet=True, raise_on_error=False)
 
 from app.core.logging_config import logger
 

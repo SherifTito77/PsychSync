@@ -23,7 +23,7 @@ from app.core.api_utils import (
 )
 from app.core.async_cache import async_cached  # ✅ ASYNC CACHE (non-blocking)
 from app.core.audit_logger import AuditLogger
-from app.core.rate_limiter_unified import RateLimiter, RateLimitStrategy
+from app.core.rate_limiter_unified import RateLimiter, RateLimitStrategy, rate_limit
 from app.core.response import (
     SuccessResponse,
     create_error_response,
@@ -66,7 +66,7 @@ async def get_user_profile(current_user: User = Depends(get_current_active_user)
 
 
 @router.post("/change-password")
-@rate_limit(limit=5, window_seconds=900)  # 5 attempts per 15 minutes
+@rate_limit(limit=5, window=900)  # 5 attempts per 15 minutes
 @measure_performance
 async def change_password(
     password_change: PasswordChange,
@@ -260,7 +260,7 @@ async def _invalidate_user_sessions(user_id: str) -> None:
 
 
 @router.get("/")
-@rate_limit(limit=30, window_seconds=60)  # 30 requests per minute
+@rate_limit(limit=30, window=60)  # 30 requests per minute
 @measure_performance
 @async_cached(expire=60, key_prefix="users_list")  # ✅ ASYNC: Non-blocking cache
 async def list_users(
@@ -559,7 +559,7 @@ async def update_user_profile(
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-@rate_limit(limit=5, window_seconds=300)  # 5 registrations per 5 minutes per IP
+@rate_limit(limit=5, window=300)  # 5 registrations per 5 minutes per IP
 @measure_performance
 async def create_user_endpoint(
     request: Request, user_create: UserCreate, db: AsyncSession = Depends(get_db)

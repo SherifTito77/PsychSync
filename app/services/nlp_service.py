@@ -58,7 +58,7 @@ try:
     GENSIM_AVAILABLE = True
 except ImportError:
     GENSIM_AVAILABLE = False
-    logging.warning("Gensim not available. Install with: pip install gensim")
+    logging.debug("Gensim not available; topic modeling features disabled")
 
 
 logger = logging.getLogger(__name__)
