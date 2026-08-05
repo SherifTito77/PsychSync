@@ -18,6 +18,19 @@ from app.core.structured_logging import EventType, get_logger
 logger = get_logger(__name__)
 
 
+def _get_client_ip(request: Request) -> str:
+    """Extract client IP from request headers, falling back to connection host."""
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip
+    if hasattr(request, "client") and request.client:
+        return request.client.host
+    return "unknown"
+
+
 class RequestTrackingMiddleware(BaseHTTPMiddleware):
     """
     Middleware to track requests with unique IDs and monitor performance
@@ -344,18 +357,7 @@ class SecurityMonitoringMiddleware(BaseHTTPMiddleware):
 
     def _get_client_ip(self, request: Request) -> str:
         """Get client IP address"""
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            return forwarded_for.split(",")[0].strip()
-
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip
-
-        if hasattr(request, "client") and request.client:
-            return request.client.host
-
-        return "unknown"
+        return _get_client_ip(request)
 
 
 # TODO(human): Implement API rate limiting middleware
@@ -473,18 +475,7 @@ class APIRateLimitMiddleware(BaseHTTPMiddleware):
 
     def _get_client_ip(self, request: Request) -> str:
         """Get client IP address"""
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            return forwarded_for.split(",")[0].strip()
-
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip
-
-        if hasattr(request, "client") and request.client:
-            return request.client.host
-
-        return "unknown"
+        return _get_client_ip(request)
 
     def get_user_usage_stats(self, user_id: str) -> dict[str, Any]:
         """Get usage statistics for a user"""

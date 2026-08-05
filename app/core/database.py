@@ -193,15 +193,21 @@ async def get_async_db_with_retry(
         if session:
             try:
                 await session.close()
-            except Exception as e:
-                pass
+            except Exception as close_err:
+                db_security_logger.warning(
+                    "Failed to close DB session after error",
+                    extra={"close_error": str(close_err)},
+                )
         raise RuntimeError(f"Database connection failed: {e}") from e
     finally:
         if session:
             try:
                 await session.close()
-            except Exception as e:
-                pass
+            except Exception as close_err:
+                db_security_logger.warning(
+                    "Failed to close DB session in finally block",
+                    extra={"close_error": str(close_err)},
+                )
 
 
 async def get_async_db() -> AsyncGenerator[AsyncSession, None]:

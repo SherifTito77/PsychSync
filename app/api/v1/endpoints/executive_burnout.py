@@ -11,13 +11,13 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_active_user, get_db
+from app.api.v1.deps import get_current_active_user, get_current_user, get_db
 from app.db.models.organization import Organization
 from app.db.models.user import User
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 async def validate_org_id(db: AsyncSession, org_id: str) -> str:

@@ -91,50 +91,15 @@ http_requests_active = Gauge(
 # ============================================================================
 # DATABASE METRICS
 # ============================================================================
-
-# Query duration histogram
-db_query_duration_seconds = Histogram(
-    "db_query_duration_seconds",
-    "Database query duration",
-    ["operation", "table"],
-    buckets=(
-        0.001,
-        0.005,
-        0.01,
-        0.025,
-        0.05,
-        0.1,
-        0.25,
-        0.5,
-        1.0,
-        2.5,
-        5.0,
-        float("inf"),
-    ),
-    namespace="psychsync",
-)
-
-# Connection pool usage
-db_connections_active = Gauge(
-    "db_connections_active",
-    "Active database connections",
-    ["database"],
-    namespace="psychsync",
-)
-
-db_connections_idle = Gauge(
-    "db_connections_idle",
-    "Idle database connections",
-    ["database"],
-    namespace="psychsync",
-)
-
-# Slow queries count
-db_slow_queries_total = Counter(
-    "db_slow_queries_total",
-    "Total number of slow queries (>1s)",
-    ["table", "operation"],
-    namespace="psychsync",
+# Imported from neutral monitoring module so core/database/monitoring.py
+# does not need to import from the API layer.
+from app.monitoring.db_metrics import (  # noqa: E402
+    db_connections_active,
+    db_connections_idle,
+    db_query_duration_seconds,
+    db_slow_queries_total,
+    track_db_query,
+    update_db_connections,
 )
 
 # ============================================================================
@@ -371,24 +336,6 @@ def track_http_request(method: str, endpoint: str, status: int, duration: float)
     )
 
 
-def track_db_query(operation: str, table: str, duration: float, is_slow: bool = False):
-    """
-    Track database query metrics
-
-    Call this from SQLAlchemy event listeners.
-
-    Args:
-        operation: SELECT, INSERT, UPDATE, DELETE
-        table: Table name
-        duration: Query duration in seconds
-        is_slow: Whether query is slow (>1s)
-    """
-    db_query_duration_seconds.labels(operation=operation, table=table).observe(duration)
-
-    if is_slow:
-        db_slow_queries_total.labels(table=table, operation=operation).inc()
-
-
 def track_cache_operation(operation: str, cache: str, hit: bool, duration: float):
     """
     Track cache operation metrics
@@ -445,19 +392,6 @@ def update_active_users(timeframe: str, count: int):
         count: Number of active users
     """
     users_active_total.labels(timeframe=timeframe).set(count)
-
-
-def update_db_connections(database: str, active: int, idle: int):
-    """
-    Update database connection metrics
-
-    Args:
-        database: Database name
-        active: Active connections
-        idle: Idle connections
-    """
-    db_connections_active.labels(database=database).set(active)
-    db_connections_idle.labels(database=database).set(idle)
 
 
 # ============================================================================

@@ -6,6 +6,7 @@ File: app/integrations/hris/psychsync_integration.py
 """
 
 import logging
+import os
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -451,7 +452,7 @@ if __name__ == "__main__":
         export_dir="./psychsync_exports",
         export_formats=["csv", "json", "excel", "parquet"],
         enable_webhooks=True,
-        webhook_secret="super-secret-key",
+        webhook_secret=os.environ.get("HRIS_WEBHOOK_SECRET", ""),
         webhook_port=5000,
         outbound_webhooks=["https://api.yourapp.com/webhook"],
         enable_scheduling=True,

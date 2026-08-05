@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncAsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_active_user, get_current_user, get_db
 from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit

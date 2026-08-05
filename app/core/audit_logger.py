@@ -176,8 +176,13 @@ class AuditLogger:
                 logger.error(
                     f"Security audit failure: {event_type if event_type else 'unknown'} - {details if details else 'no details'}"
                 )
-            except Exception as e:
-                pass
+            except Exception:
+                import sys
+
+                print(  # last-resort stderr output when all loggers fail
+                    f"CRITICAL: audit logging completely failed for event={event_type}",
+                    file=sys.stderr,
+                )
 
     def _sanitize_event_data(self, event_data: dict[str, Any]) -> dict[str, Any]:
         """Sanitize event data to remove sensitive information"""

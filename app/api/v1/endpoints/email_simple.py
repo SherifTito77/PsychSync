@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr, Field, validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_active_user, get_db
+from app.api.v1.deps import get_current_active_user, get_current_user, get_db
 from app.core.logging_config import logger
 from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.email_connection import EmailConnection
@@ -20,7 +20,7 @@ from app.services.email_connection_service import email_connection_service
 from app.services.email_fetching_service import email_fetching_service
 from app.services.free_email_connector_service import free_email_connector_service
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 # IMAP Server Configurations for Popular Providers
 IMAP_PROVIDERS = {

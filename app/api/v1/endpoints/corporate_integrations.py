@@ -33,7 +33,11 @@ from app.schemas.corporate_data_sources import (
     UpdateIntegrationRequest,
 )
 
-router = APIRouter(prefix="/integrations/corporate", tags=["corporate-integrations"])
+router = APIRouter(
+    prefix="/integrations/corporate",
+    tags=["corporate-integrations"],
+    dependencies=[Depends(get_current_user)],
+)
 
 
 @router.get("/test-auth")

@@ -37,7 +37,6 @@ except ImportError:
     print("Warning: scikit-learn not available. Using simplified models.")
 
 try:
-    import tensorflow as tf
     from tensorflow.keras.layers import (
         LSTM,
         Dense,

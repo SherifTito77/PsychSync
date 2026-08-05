@@ -11,10 +11,7 @@ from sqlalchemy import event
 from sqlalchemy.engine import Engine
 from sqlalchemy.pool import Pool, PoolProxiedConnection
 
-from app.api.v1.endpoints.prometheus_metrics import (
-    track_db_query,
-    update_db_connections,
-)
+from app.monitoring.db_metrics import track_db_query, update_db_connections
 
 logger = logging.getLogger("app.database.monitoring")
 
