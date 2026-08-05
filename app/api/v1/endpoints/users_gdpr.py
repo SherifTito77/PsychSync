@@ -11,20 +11,19 @@ designed for quick implementation and easy integration.
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict
+from typing import Dict
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
 # from sqlalchemy.orm import Session  # Replaced with AsyncSession
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.path_utils import safe_filename, sanitize_path
 from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
 
 # from app.core.database import get_db  # Replaced with get_async_db
-from app.services.security import get_current_user, verify_password
+from app.services.security import verify_password
 from app.services.user_service import UserService
 
 router = APIRouter()

@@ -22,8 +22,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_db as get_async_db, get_current_user
 from app.db.models.clinical_screening import ClinicalAlert
-from app.db.models.notification import NotificationPreference
-from app.db.models.organizations import Organization
+from app.db.models.notifications import (
+    NotificationPreferences as NotificationPreference,
+)
+from app.db.models.organization import Organization
 from app.db.models.user import User
 from app.services.clinical.automated_alert_service import (
     AlertSeverity,

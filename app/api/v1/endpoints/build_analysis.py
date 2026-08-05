@@ -4,7 +4,6 @@ API endpoints for Build Failure Analysis Agent
 """
 
 from datetime import datetime, timedelta
-from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,18 +14,14 @@ from app.crud.crud_build_analysis import (
     build_analysis_report,
     build_failure,
     build_pattern,
-    root_cause_analysis,
 )
 from app.schemas.build_analysis import (
     BuildAnalysisReport,
     BuildFailure,
     BuildFailureCreate,
     BuildFailureSummary,
-    BuildFailureUpdate,
     BuildPattern,
     BuildPatternCreate,
-    RootCauseAnalysis,
-    RootCauseAnalysisCreate,
 )
 
 router = APIRouter(prefix="/build_analysis", tags=["build_analysis"])
@@ -444,7 +439,7 @@ async def generate_report(
 
     - **days**: Number of days to include in the analysis (default: 7)
     """
-    from sqlalchemy import func, select
+    from sqlalchemy import select
 
     period_end = datetime.utcnow()
     period_start = period_end - timedelta(days=days)

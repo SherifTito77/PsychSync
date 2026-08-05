@@ -142,7 +142,9 @@ class BehavioralPatternRecognizer:
     Advanced behavioral pattern recognition engine.
     """
 
-    def __init__(self, db_session: Session, config: PatternConfig | None = None):
+    def __init__(
+        self, db_session: Session | None = None, config: PatternConfig | None = None
+    ):
         self.db = db_session
         self.config = config or PatternConfig()
         self.redis_client: redis.Redis | None = None

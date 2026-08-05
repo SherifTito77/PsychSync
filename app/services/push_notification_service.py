@@ -25,7 +25,10 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.db.models.notification import NotificationPreference, PushNotificationToken
+from app.db.models.notifications import (
+    NotificationPreferences as NotificationPreference,
+    PushNotificationToken,
+)
 from app.db.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -207,7 +210,7 @@ class PushNotificationService:
     """
 
     def __init__(self):
-        self.fcm_server_key = settings.FCM_SERVER_KEY
+        self.fcm_server_key = getattr(settings, "FCM_SERVER_KEY", "")
         self.fcm_api_url = "https://fcm.googleapis.com/fcm/send"
         self.timeout = 20.0  # Increased from 10s to 20s for better reliability
 

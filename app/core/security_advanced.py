@@ -149,8 +149,8 @@ class IPWhitelistManager:
     def load_ip_lists(self):
         """Load IP lists from configuration"""
         # Load from environment or config
-        whitelist_env = settings.get("IP_WHITELIST", "")
-        blacklist_env = settings.get("IP_BLACKLIST", "")
+        whitelist_env = getattr(settings, "IP_WHITELIST", "")
+        blacklist_env = getattr(settings, "IP_BLACKLIST", "")
 
         if whitelist_env:
             self.whitelist_patterns = [ip.strip() for ip in whitelist_env.split(",")]

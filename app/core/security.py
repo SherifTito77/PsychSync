@@ -857,7 +857,7 @@ async def get_current_user_async(
     from sqlalchemy import select
 
     from app.db.models.user import User
-    from app.services.auth_service import is_token_blacklisted
+    from app.core.token_blacklist import is_token_blacklisted
 
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

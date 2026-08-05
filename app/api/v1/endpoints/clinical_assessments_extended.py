@@ -10,7 +10,7 @@ Provides REST endpoints for:
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -52,7 +52,7 @@ class EAT26Request(BaseModel):
     responses: Dict[int, int] = Field(
         ..., description="Dict mapping item numbers 1-26 to response values (0-5)"
     )
-    behavioral: Optional[Dict[str, any]] = Field(
+    behavioral: Optional[Dict[str, Any]] = Field(
         None,
         description="Behavioral questions: weight_loss_6months, binge_eating, vomiting, laxatives, exercise",
     )
@@ -909,7 +909,7 @@ async def get_gad7_extended_analytics(
         )
 
     try:
-        from app.db.models.clinical_extended import ClinicalAssessmentExtended
+        from app.db.models.clinical import ClinicalAssessmentExtended
         from app.services.clinical.advanced_analytics_service import (
             AdvancedAnalyticsService,
         )

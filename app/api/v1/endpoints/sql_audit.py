@@ -5,14 +5,13 @@ API endpoints for SQL security analysis and vulnerability tracking
 """
 
 from datetime import datetime, timedelta
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_active_user, get_db
-from app.crud.crud_sql_audit import sql_query, sql_scan_report, sql_vulnerability
+from app.crud.crud_sql_audit import sql_query, sql_scan_report
 from app.db.models.sql_audit import SQLQuery, SQLScanReport, SQLVulnerability
 from app.db.models.user import User
 from app.schemas.sql_audit import (

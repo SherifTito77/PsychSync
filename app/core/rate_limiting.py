@@ -141,8 +141,10 @@ class RedisRateLimiter:
             try:
                 penalty_info = json.loads(penalty_data)
                 penalty_multiplier = penalty_info["multiplier"]
-            except (json.JSONDecodeError, KeyError):
-                pass
+            except (json.JSONDecodeError, KeyError) as e:
+                logger.debug(
+                    "Malformed penalty data in Redis, using default multiplier: %s", e
+                )
 
         # Get current request count
         current_requests = await self.redis.zcard(redis_key)

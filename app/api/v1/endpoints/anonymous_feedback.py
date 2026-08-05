@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_user, get_db
+from app.api.v1.deps import get_current_user, get_db, get_db as get_async_db
 from app.core.logging_config import logger
 from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.services.anonymous_feedback import anonymous_feedback_system

@@ -10,7 +10,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, get_db
-from app.core.config import settings
 from app.db.models.user import User
 from app.integrations.corporate_data_sources import (
     INTEGRATION_PRIORITY,
@@ -21,7 +20,6 @@ from app.schemas.corporate_data_sources import (
     BehavioralAnalysisRequest,
     BehavioralInsight,
     BulkIntegrationRequest,
-    ConsentRecord,
     CreateIntegrationRequest,
     IntegrationConfig,
     IntegrationHealthMetrics,
@@ -450,8 +448,8 @@ async def generate_insights_report(
     """
     Generate comprehensive insights report
     """
-    start_date = date_range.get("start")
-    end_date = date_range.get("end")
+    date_range.get("start")
+    date_range.get("end")
 
     # TODO: Generate actual report
 

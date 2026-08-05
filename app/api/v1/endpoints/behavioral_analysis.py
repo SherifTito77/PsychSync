@@ -25,7 +25,9 @@ from app.schemas.behavioral import (
     TeamBehavioralInsightsRequest,
     TeamBehavioralInsightsResponse,
 )
-from app.services.anomaly_detection import AnomalyDetectionService
+from app.services.anomaly_detection import (
+    AdvancedAnomalyDetector as AnomalyDetectionService,
+)
 from app.services.behavioral_pattern_recognition import BehavioralPatternService
 from app.services.team_optimization_service import TeamOptimizationService
 

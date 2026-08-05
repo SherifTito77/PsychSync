@@ -17,13 +17,12 @@ Resources:
 - OECD AI Principles: https://www.oecd.org/ai/
 """
 
-import json
 import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 class ApprovalStatus(Enum):

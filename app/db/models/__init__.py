@@ -21,7 +21,7 @@ except ImportError:
     Question = None
 
 # Import analytics models
-from .analytics import Analytics, AnalyticsEvent, UnifiedAnalyticsEvent
+from .analytics import Analytics, AnalyticsEvent, AssessmentTrend, UnifiedAnalyticsEvent
 
 # Import Employee Safety models
 from .employee_safety import (
@@ -212,6 +212,7 @@ __all__ = [
     # Analytics models
     "Analytics",
     "AnalyticsEvent",
+    "AssessmentTrend",
     "UnifiedAnalyticsEvent",
     "Intervention",
     "InterventionParticipant",

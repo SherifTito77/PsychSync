@@ -11,7 +11,7 @@ Provides endpoints for machine learning-based clinical predictions:
 
 import logging
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -38,7 +38,7 @@ class RiskPredictionResponse(BaseModel):
     risk_level: str
     confidence: float
     predicted_value: Optional[float] = None
-    factors: Dict[str, any] = {}
+    factors: Dict[str, Any] = {}
     recommendations: list[str] = []
     timestamp: str
 
@@ -57,7 +57,7 @@ class BatchPredictionResponse(BaseModel):
     """Response for batch predictions"""
 
     predictions: list[RiskPredictionResponse]
-    summary: Dict[str, any]
+    summary: Dict[str, Any]
 
 
 # =============================================================================
@@ -520,7 +520,7 @@ async def get_comprehensive_risk_assessment(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def _calculate_overall_risk_summary(predictions: Dict) -> Dict[str, any]:
+def _calculate_overall_risk_summary(predictions: Dict) -> Dict[str, Any]:
     """Calculate overall risk summary from all predictions"""
 
     # Count high-risk predictions

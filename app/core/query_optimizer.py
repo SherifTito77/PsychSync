@@ -4,9 +4,10 @@ Query Optimization Utilities
 Provides utilities to optimize database queries and prevent N+1 query patterns.
 """
 
+import enum
 import logging
 import time
-from typing import List
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -18,6 +19,35 @@ from app.db.models.response import Response
 from app.db.models.user import User
 
 logger = logging.getLogger(__name__)
+
+
+class QueryComplexity(enum.Enum):
+    SIMPLE = "simple"
+    MODERATE = "moderate"
+    COMPLEX = "complex"
+    VERY_COMPLEX = "very_complex"
+
+
+class _QueryOptimizer:
+    """Minimal query optimizer stub for endpoint compatibility."""
+
+    async def analyze_query_execution(self, query: str) -> tuple:
+        return {}, []
+
+    def analyze_query(self, query: str) -> Dict[str, Any]:
+        return {"complexity": QueryComplexity.SIMPLE, "estimated_rows": 0}
+
+    def generate_optimization_report(self, metrics: Dict[str, Any]) -> List[str]:
+        return []
+
+
+class _AutoOptimizer:
+    def get_optimization_report(self) -> Dict[str, Any]:
+        return {"status": "ok", "suggestions": []}
+
+
+query_optimizer = _QueryOptimizer()
+auto_optimizer = _AutoOptimizer()
 
 
 def log_slow_query(threshold_ms: float = 100):

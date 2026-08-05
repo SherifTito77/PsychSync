@@ -9,16 +9,15 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_async_db, get_current_active_user, get_current_user, get_db
+from app.api.deps import get_async_db, get_current_active_user
 from app.core.logging_config import logger
 from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.coaching_recommendations import CoachingRecommendation
 from app.db.models.communication_analysis import CommunicationAnalysis
 from app.db.models.communication_patterns import CommunicationPatterns
-from app.db.models.culture_metrics import CultureMetrics
 from app.db.models.user import User
 from app.services.coaching_recommendation_service import coaching_recommendation_service
 from app.services.communication_pattern_service import communication_pattern_service

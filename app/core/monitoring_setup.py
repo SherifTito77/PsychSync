@@ -17,8 +17,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from app.api.v1.endpoints import prometheus_metrics
-
+# prometheus_metrics imported lazily inside functions to avoid core → api dependency
 # from app.middleware import setup_security_middleware as setup_prometheus_middleware
 from app.core.database import setup_database_monitoring
 
@@ -60,6 +59,10 @@ async def lifespan_monitoring_setup(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("🚀 Initializing monitoring stack...")
 
     # 1. Set up Prometheus metrics
+    from app.api.v1.endpoints import (
+        prometheus_metrics,
+    )  # lazy: avoids core→api at module level
+
     app.include_router(prometheus_metrics.router)
     logger.info("✅ Prometheus metrics endpoint registered")
 
@@ -140,6 +143,10 @@ def setup_monitoring(
         slow_query_threshold: Slow query threshold in seconds
     """
     # Include metrics router
+    from app.api.v1.endpoints import (
+        prometheus_metrics,
+    )  # lazy: avoids core→api at module level
+
     app.include_router(prometheus_metrics.router)
 
     # Add Prometheus middleware

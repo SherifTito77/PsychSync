@@ -25,9 +25,11 @@ from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging_config import logger
-from app.db.models.clinical_extended import ClinicalAssessmentExtended
+from app.db.models.clinical import ClinicalAssessmentExtended
 from app.db.models.clinical_screening import ClinicalAlert
-from app.db.models.notification import NotificationPreference
+from app.db.models.notifications import (
+    NotificationPreferences as NotificationPreference,
+)
 from app.db.models.user import User
 from app.services.clinical.notification_service import ClinicianNotificationService
 from app.services.clinical.risk_prediction_service import RiskPredictionService

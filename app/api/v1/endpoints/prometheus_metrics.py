@@ -11,13 +11,10 @@ This creates a standard /metrics endpoint that Prometheus can scrape.
 from fastapi import APIRouter
 from prometheus_client import (
     REGISTRY,
-    CollectorRegistry,
     Counter,
-    Enum,
     Gauge,
     Histogram,
     Info,
-    Summary,
     generate_latest,
 )
 from prometheus_client.openmetrics.exposition import (

@@ -56,7 +56,7 @@ from app.services.security import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/auth")
 
 
 # ============================================================================
@@ -174,8 +174,12 @@ async def login(
             detail="Account is inactive. Please contact support.",
         )
 
-    # Check if user is verified
-    if hasattr(user, "is_verified") and not user.is_verified:
+    # Check if user is verified (only enforced when email verification is enabled)
+    if (
+        getattr(settings, "ENABLE_EMAIL_VERIFICATION", False)
+        and hasattr(user, "is_verified")
+        and not user.is_verified
+    ):
         logger.warning("Login attempt for unverified account: %s", user.email)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

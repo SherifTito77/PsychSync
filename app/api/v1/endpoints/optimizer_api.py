@@ -7,13 +7,11 @@ from pydantic import BaseModel, Field
 from team_optimizer import (
     LineupConstraints,
     OptimizationObjective,
-    OptimizedLineup,
     Player,
     TeamOptimizationEngine,
 )
 
 from app.api.v1.deps import get_current_user
-from app.core.exception_handling import handle_exceptions
 from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 
 router = APIRouter(prefix="/api/optimizer", tags=["optimizer"])
@@ -701,7 +699,7 @@ async def optimizer_health():
     """Health check for optimizer service"""
     try:
         # Test optimizer instantiation
-        optimizer = TeamOptimizationEngine()
+        TeamOptimizationEngine()
 
         return {"status": "healthy", "service": "team_optimizer", "version": "1.0.0"}
     except Exception as e:

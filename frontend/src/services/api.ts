@@ -1,36 +1,22 @@
-// // // // // // src/services/api.ts
-// frontend/src/services/api.ts - Updated for HTTPS support
+// src/services/api.ts
 import axios from 'axios';
-
-// Import https agent for SSL certificate handling (Node.js environment only)
-let httpsAgent: any = undefined;
-if (typeof window === 'undefined' && isHttpsEnvironment && !import.meta.env.PROD) {
-  try {
-    const https = require('https');
-    httpsAgent = new https.Agent({
-      rejectUnauthorized: false // Only for development with self-signed certs
-    });
-  } catch (e) {
-    console.warn('HTTPS agent not available:', e);
-  }
-}
 
 // Use HTTPS in production, HTTP in development
 const isHttpsEnvironment = import.meta.env.PROD || import.meta.env.VITE_FORCE_HTTPS === 'true';
-const defaultPort = isHttpsEnvironment ? '443' : '8000';
-const defaultProtocol = isHttpsEnvironment ? 'https' : 'http';
-const defaultHost = isHttpsEnvironment ? window.location.hostname : 'localhost';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || `${defaultProtocol}://${defaultHost}:${defaultPort}/api/v1`;
+// In development use a relative path so Vite proxy handles CORS.
+// In production use VITE_API_URL or the current origin.
+const API_BASE_URL: string =
+  import.meta.env.VITE_API_URL ||
+  (isHttpsEnvironment ? `https://${window.location.hostname}/api/v1` : '/api/v1');
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    'X-CSRF-Token': 'fetch',
   },
   // SECURITY: Include credentials for httpOnly cookie support
   withCredentials: true,
-  // SSL certificate validation for development (Node.js only)
-  httpsAgent: httpsAgent,
 });
 // Request interceptor - add auth token and CSRF protection
 api.interceptors.request.use(

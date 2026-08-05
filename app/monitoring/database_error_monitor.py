@@ -280,7 +280,7 @@ class DatabaseErrorMonitor:
 
 # Global monitor instance
 db_monitor = DatabaseErrorMonitor(
-    max_history=10000, alert_threshold=settings.get("DB_ERROR_ALERT_THRESHOLD", 10)
+    max_history=10000, alert_threshold=getattr(settings, "DB_ERROR_ALERT_THRESHOLD", 10)
 )
 
 

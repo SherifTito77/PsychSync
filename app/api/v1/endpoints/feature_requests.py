@@ -5,17 +5,16 @@ API endpoints for managing feature requests, voting, and relationships.
 """
 import asyncio
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, desc, func, or_
+from sqlalchemy import desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_async_db, get_current_active_user
 from app.db.models.feature_requests import (
     FeatureRequest,
-    FeatureRequestRelation,
     FeatureRequestVote,
 )
 from app.db.models.user import User
@@ -85,7 +84,6 @@ async def _update_search_vector(request: FeatureRequest, db: AsyncSession):
     """Update full-text search vector"""
     # PostgreSQL will automatically update the search_vector column
     # via the GENERATED ALWAYS AS clause in the table definition
-    pass
 
 
 # ========================================================================

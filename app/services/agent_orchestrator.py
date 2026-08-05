@@ -237,7 +237,7 @@ class AgentOrchestrator:
 
 from fastapi import APIRouter, Depends
 
-from app.api.v1.deps import get_current_user
+from app.core.deps import get_current_user
 
 router = APIRouter(prefix="/agent/tools", tags=["agent-tools"])
 

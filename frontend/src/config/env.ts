@@ -35,7 +35,7 @@ const getApiBaseUrl = (): string => {
       return 'https://api.staging.psychsync.com';
     case 'development':
     default:
-      return 'http://localhost:8000';
+      return '';
   }
 };
 export const API_URL = getApiBaseUrl();

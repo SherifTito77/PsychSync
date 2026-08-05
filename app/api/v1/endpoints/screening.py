@@ -8,8 +8,8 @@ All access is logged and requires proper authorization
 
 import logging
 from datetime import datetime
-from typing import Dict, List
-from uuid import UUID, uuid4
+from typing import List
+from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
@@ -18,7 +18,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_user, get_db
 from app.db.models.clinical_screening import (
-    ClinicalAlert,
     ClinicalConsent,
     ClinicalScreening,
 )
@@ -37,13 +36,11 @@ from app.services.clinical.additional_scorers import (
     DAST10Scorer,
     MDQScorer,
 )
-from app.services.clinical.additional_scorers import get_scorer as get_additional_scorer
 from app.services.clinical.crisis_intervention import CrisisInterventionService
 from app.services.clinical.scoring_algorithms import (
     CSSRSScorer,
     GAD7Scorer,
     PHQ9Scorer,
-    get_scorer,
     score_asrs,
     score_isi,
 )

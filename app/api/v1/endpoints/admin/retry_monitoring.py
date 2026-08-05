@@ -13,14 +13,13 @@ Version: 1.0
 
 import logging
 from datetime import datetime
-from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 
-from app.core.monitoring.retry_metrics import RetryStatus, retry_tracker
+from app.core.monitoring.retry_metrics import retry_tracker
 from app.core.monitoring.retry_prometheus import generate_retry_metrics
 from app.core.retry_config import RetryConfigManager
-from app.core.retry_wrapper import DeadLetterQueue, get_dlq
+from app.core.retry_wrapper import get_dlq
 
 router = APIRouter(prefix="/api/v1/admin/retry", tags=["retry-monitoring"])
 logger = logging.getLogger(__name__)

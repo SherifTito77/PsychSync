@@ -573,3 +573,36 @@ class UnifiedAnalyticsEvent(Base):
 
     def __repr__(self):
         return f"<UnifiedAnalyticsEvent(id={self.id}, event_name={self.event_name})>"
+
+
+class AssessmentTrend(Base):
+    """Tracks longitudinal assessment score trends per user and assessment type"""
+
+    __tablename__ = "assessment_trends"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id = Column(String(255), nullable=False, index=True)
+    assessment_type = Column(String(100), nullable=False)
+    trend_direction = Column(String(50), nullable=True)
+    slope = Column(sa.Float, nullable=True)
+    r_squared = Column(sa.Float, nullable=True)
+    mean_score = Column(sa.Float, nullable=True)
+    median_score = Column(sa.Float, nullable=True)
+    total_assessments = Column(sa.Integer, nullable=True)
+    score_change_30d = Column(sa.Float, nullable=True)
+    score_change_90d = Column(sa.Float, nullable=True)
+    data_points_used = Column(sa.Integer, nullable=True)
+    date_range_start = Column(sa.TIMESTAMP(timezone=True), nullable=True)
+    date_range_end = Column(sa.TIMESTAMP(timezone=True), nullable=True)
+    calculated_at = Column(
+        sa.TIMESTAMP(timezone=True), server_default=sa.text("NOW()"), nullable=False
+    )
+
+    __table_args__ = (
+        Index(
+            "idx_assessment_trend_user_type", "user_id", "assessment_type", unique=True
+        ),
+    )
+
+    def __repr__(self):
+        return f"<AssessmentTrend(user_id={self.user_id}, type={self.assessment_type}, direction={self.trend_direction})>"

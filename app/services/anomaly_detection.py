@@ -137,7 +137,9 @@ class AdvancedAnomalyDetector:
     Advanced anomaly detection system with multiple algorithms.
     """
 
-    def __init__(self, db_session: Session, config: AnomalyConfig | None = None):
+    def __init__(
+        self, db_session: Session | None = None, config: AnomalyConfig | None = None
+    ):
         self.db = db_session
         self.config = config or AnomalyConfig()
         self.redis_client: redis.Redis | None = None

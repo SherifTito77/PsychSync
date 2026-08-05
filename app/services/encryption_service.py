@@ -30,10 +30,9 @@ import logging
 import os
 from typing import Any, Dict, Optional, Union
 
-from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from app.core.config import settings
 
@@ -131,12 +130,11 @@ class EncryptionService:
         # Derive key from environment variable
         # Use PBKDF2 with a fixed salt for consistency
         salt = b"PsychSync_DB_Encryption_Salt_v1"  # In production, use KMS
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=EncryptionConfig.KEY_SIZE,
             salt=salt,
             iterations=EncryptionConfig.ITERATIONS,
-            backend=default_backend(),
         )
 
         # Decode base64 key if needed
@@ -327,7 +325,7 @@ class EncryptionService:
         else:
             value_bytes = value
 
-        digest = hashes.Hash(hashes.SHA256(), backend=default_backend())
+        digest = hashes.Hash(hashes.SHA256())
         digest.update(salt)
         digest.update(value_bytes)
         hash_bytes = digest.finalize()
@@ -436,12 +434,11 @@ class EncryptionService:
         """
         # Derive encryption key from password
         salt = os.urandom(EncryptionConfig.SALT_SIZE)
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=EncryptionConfig.KEY_SIZE,
             salt=salt,
             iterations=EncryptionConfig.ITERATIONS,
-            backend=default_backend(),
         )
         enc_key = kdf.derive(password.encode(EncryptionConfig.ENCODING))
 
@@ -479,12 +476,11 @@ class EncryptionService:
         ]
 
         # Derive decryption key from password
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=EncryptionConfig.KEY_SIZE,
             salt=salt,
             iterations=EncryptionConfig.ITERATIONS,
-            backend=default_backend(),
         )
         enc_key = kdf.derive(password.encode(EncryptionConfig.ENCODING))
 

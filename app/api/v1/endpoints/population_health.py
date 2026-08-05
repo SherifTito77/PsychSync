@@ -13,7 +13,7 @@ Access restricted to clinicians and administrators.
 
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -60,7 +60,7 @@ class HighRiskUserResponse(BaseModel):
     current_score: float
     trend: str
     last_assessment: str
-    factors: dict[str, any]
+    factors: dict[str, Any]
 
 
 class TreatmentOutcomeResponse(BaseModel):
@@ -86,7 +86,7 @@ class SummaryStatisticsResponse(BaseModel):
     """Response model for summary statistics"""
 
     population_metrics: PopulationMetricsResponse
-    high_risk_users: dict[str, any]
+    high_risk_users: dict[str, Any]
     treatment_outcomes: list[TreatmentOutcomeResponse]
     trend_direction: str
     crisis_rate: float

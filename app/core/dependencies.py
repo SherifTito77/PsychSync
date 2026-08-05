@@ -2,7 +2,7 @@
 Dependency adapter to point to the correct locations.
 """
 
-from app.api.v1.deps import (
+from app.core.deps import (
     get_current_active_user,
     get_current_admin_user,
     get_current_user,

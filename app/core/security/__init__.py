@@ -3,6 +3,7 @@ from .auth import (
     get_current_active_user,
     get_current_user_async,
     get_password_hash,
+    oauth2_scheme,
     verify_password,
     verify_token,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "get_current_user",
     "get_current_user_async",
     "get_password_hash",
+    "oauth2_scheme",
     "verify_password",
     "verify_token",
     "sanitize_filename",

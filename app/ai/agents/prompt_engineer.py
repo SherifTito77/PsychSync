@@ -5,19 +5,14 @@ A comprehensive tool for running AI-powered engineering analysis prompts
 """
 
 import argparse
-import json
 import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 
 import yaml
-from rich import print as rprint
 from rich.console import Console
-from rich.markdown import Markdown
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.prompt import Confirm, Prompt
-from rich.syntax import Syntax
 from rich.table import Table
 
 console = Console()

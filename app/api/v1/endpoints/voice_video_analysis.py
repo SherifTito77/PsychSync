@@ -4,24 +4,20 @@ Voice and Video Response Analysis API Endpoints
 Advanced multimodal analysis endpoints with transcription, facial recognition, and sentiment analysis.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_async_db, get_current_active_user, get_current_user, get_db
-from app.core.path_utils import safe_filename, sanitize_path
+from app.api.deps import get_async_db, get_current_active_user
 from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
 from app.services.voice_video_analysis import (
     ComprehensiveAnalysisResult,
-    FacialAnalysisResult,
     TranscriptionConfig,
-    TranscriptionResult,
     VideoRecordingConfig,
-    VoiceSentimentResult,
     VoiceVideoAnalysisEngine,
 )
 

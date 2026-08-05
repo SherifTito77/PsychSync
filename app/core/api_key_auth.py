@@ -263,7 +263,9 @@ class APIKeyManager:
                 if datetime.utcnow() > expire_date:
                     return False
             except Exception as e:
-                pass
+                # Fail closed: malformed expiry date means we cannot confirm validity
+                logger.warning("Malformed API key expiry date, rejecting key: %s", e)
+                return False
 
         return True
 

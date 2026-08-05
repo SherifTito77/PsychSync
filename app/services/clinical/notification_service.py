@@ -15,9 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.email import send_email  # Assuming email service exists
 from app.db.models.clinical_screening import ClinicalAlert, ClinicalScreening
-from app.db.models.notification import (
+from app.db.models.notifications import (
     Notification,
-    NotificationPreference,
+    NotificationPreferences as NotificationPreference,
     NotificationQueue,
 )
 from app.db.models.organization import Organization

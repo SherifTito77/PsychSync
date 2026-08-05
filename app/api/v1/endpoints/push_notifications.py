@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.endpoints.users import get_async_db, get_current_user
+from app.api.v1.deps import get_db as get_async_db, get_current_user
 from app.db.models.user import User
 from app.services.push_notification_service import (
     NotificationType,
