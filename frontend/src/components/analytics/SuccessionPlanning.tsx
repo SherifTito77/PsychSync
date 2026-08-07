@@ -15,7 +15,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/Select';
 import {
   Tabs,
   TabsContent,
@@ -711,7 +711,7 @@ const SuccessionPlanning: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Dialog>
-                          <DialogTrigger asChild>
+                          <DialogTrigger >
                             <Button variant="outline" size="sm">
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -911,7 +911,7 @@ const SuccessionPlanning: React.FC = () => {
                     <Badge variant={
                       scenario.readiness_status === 'READY' ? 'default' :
                       scenario.readiness_status === 'MANAGEABLE' ? 'secondary' :
-                      'destructive'
+                      'error'
                     }>
                       {scenario.readiness_status.replace('_', ' ')}
                     </Badge>

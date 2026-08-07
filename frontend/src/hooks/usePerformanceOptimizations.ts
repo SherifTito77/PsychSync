@@ -363,15 +363,21 @@ export const useIdleCallback = <T extends (...args: any[]) => any>(
     const handleIdle = () => {
       callbackRef.current();
     };
+    let idleId: any = undefined;
+    let timeoutId: NodeJS.Timeout | undefined;
+
     // Request idle callback if available
     if ('requestIdleCallback' in window) {
-      const id = (window as any).requestIdleCallback(handleIdle);
-      return () => (window as any).cancelIdleCallback(id);
+      idleId = (window as any).requestIdleCallback(handleIdle);
     } else {
       // Fallback to setTimeout
-      const id = setTimeout(handleIdle, 1);
-      return () => clearTimeout(id);
+      timeoutId = setTimeout(handleIdle, 1);
     }
+
+    return () => {
+      if (idleId) (window as any).cancelIdleCallback(idleId);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, deps);
 };
 export const useIntersectionObserver = (

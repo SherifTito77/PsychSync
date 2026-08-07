@@ -9,11 +9,11 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field, validator
 
-from ai.pattern_recognition import AnomalyDetector, PatternDetector
-from ai.psychometrics.emotion_detection import EmotionDetector
-from ai.psychometrics.personality_insights import PersonalityInsightEngine
-from ai.psychometrics.psychometric_scorer import PsychometricScorer
-from ai.psychometrics.sentiment_analysis import PsychometricSentimentAnalyzer
+from app.ai.pattern_recognition import AnomalyDetector, PatternDetector
+from app.ai.psychometrics.emotion_detection import EmotionDetector
+from app.ai.psychometrics.personality_insights import PersonalityInsightEngine
+from app.ai.psychometrics.psychometric_scorer import PsychometricScorer
+from app.ai.psychometrics.sentiment_analysis import PsychometricSentimentAnalyzer
 from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 
 router = APIRouter(prefix="/psychometrics", tags=["Psychometrics"])

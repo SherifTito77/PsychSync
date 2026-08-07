@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
-import { Button } from '../ui/Button';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Button } from '../ui/button';
 
 interface SecurityMetrics {
   overall_score: number;
@@ -285,8 +285,8 @@ export const SecurityDashboard: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {Object.entries(metrics.compliance_scores).map(([standard, score]) => (
               <div key={standard} className="text-center">
-                <div className={`text-lg font-semibold ${getScoreColor(score)}`}>
-                  {score}%
+                <div className={`text-lg font-semibold ${getScoreColor(score as number)}`}>
+                  {score as number}%
                 </div>
                 <p className="text-xs text-gray-600 uppercase mt-1">
                   {standard.replace('_', ' ')}
@@ -310,7 +310,7 @@ export const SecurityDashboard: React.FC = () => {
                   <span className="text-sm text-gray-600 capitalize">
                     {indicator.replace('_', ' ')}
                   </span>
-                  <span className={`font-semibold ${count > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  <span className={`font-semibold ${(count as number) > 0 ? 'text-red-600' : 'text-green-600'}`}>
                     {count}
                   </span>
                 </div>
@@ -330,8 +330,8 @@ export const SecurityDashboard: React.FC = () => {
                   <span className="text-sm text-gray-600 capitalize">
                     {component.replace('_', ' ')}
                   </span>
-                  <span className={`font-semibold ${status >= 95 ? 'text-green-600' : 'text-yellow-600'}`}>
-                    {status}%
+                  <span className={`font-semibold ${(status as number) >= 95 ? 'text-green-600' : 'text-yellow-600'}`}>
+                    {status as number}%
                   </span>
                 </div>
               ))}

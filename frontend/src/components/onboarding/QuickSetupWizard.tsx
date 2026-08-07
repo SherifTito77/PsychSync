@@ -1,7 +1,7 @@
 // src/components/onboarding/QuickSetupWizard.tsx - Quick setup wizard for new users
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { useTeam } from '../../contexts/TeamContext';
 import Icon from '../common/Icon';
 

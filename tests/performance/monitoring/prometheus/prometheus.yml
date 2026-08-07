@@ -1,0 +1,58 @@
+# Prometheus Configuration for PsychSync Load Testing
+
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+  external_labels:
+    monitor: 'psychsync-loadtest'
+    environment: 'testing'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Load alert rules
+rule_files:
+  - "alerts.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # FastAPI application metrics (need to add /metrics endpoint)
+  - job_name: 'psychsync-api'
+    static_configs:
+      - targets: ['host.docker.internal:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 2s
+    scrape_timeout: 2s
+
+  # PostgreSQL metrics
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres_exporter:9187']
+    scrape_interval: 10s
+
+  # Redis metrics
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis_exporter:9121']
+    scrape_interval: 10s
+
+  # System metrics (CPU, memory, disk)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node_exporter:9100']
+    scrape_interval: 5s
+
+  # Locust metrics (if running with --prometheus-push-gateway)
+  - job_name: 'locust'
+    static_configs:
+      - targets: ['pushgateway:9091']
+    honor_labels: true

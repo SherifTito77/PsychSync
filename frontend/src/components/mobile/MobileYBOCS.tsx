@@ -142,8 +142,8 @@ const YBOCS_QUESTIONS = [
 
 export function MobileYBOCS() {
   const handleSubmit = async (responses: Record<string, number>) => {
-    const response = await api.post('/api/v1/clinical/YBOCS/submit', responses);
-    return response.data;
+    const response = await api.post('/clinical/YBOCS/submit', responses);
+    return response.data as void;
   };
 
   return (

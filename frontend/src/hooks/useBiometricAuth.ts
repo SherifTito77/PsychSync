@@ -17,7 +17,7 @@ import {
   BiometricStatus,
   BiometricKey,
   AuthResult,
-} from '@/services/biometricAuth';
+} from '../services/biometricAuth';
 
 interface UseBiometricAuthOptions {
   /**
@@ -95,7 +95,7 @@ export function useBiometricAuth(
       } else {
         setIsSupported(false);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to check biometric availability:', err);
       setIsAvailable(false);
       setIsSupported(false);
@@ -109,7 +109,7 @@ export function useBiometricAuth(
     try {
       const status: BiometricStatus = await biometricAuthService.getBiometricStatus(deviceId);
       setIsRegistered(status.enabled);
-    } catch (err: any) {
+    } catch (err) {
       // Not registered is not an error
       if (err.response?.status !== 404) {
         console.error('Failed to check registration status:', err);
@@ -141,7 +141,7 @@ export function useBiometricAuth(
       // Load all registered devices
       const response = await biometricAuthService.getRegisteredDevices();
       setRegisteredDevices(response.devices || []);
-    } catch (err: any) {
+    } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Failed to check availability';
       setError(errorMessage);
     } finally {
@@ -202,7 +202,7 @@ export function useBiometricAuth(
       setIsRegistered(true);
       return true;
 
-    } catch (err: any) {
+    } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Registration failed';
       setError(errorMessage);
       return false;
@@ -229,7 +229,7 @@ export function useBiometricAuth(
       setError('Failed to revoke biometric authentication');
       return false;
 
-    } catch (err: any) {
+    } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Revocation failed';
       setError(errorMessage);
       return false;
@@ -287,7 +287,7 @@ export function useBiometricAuth(
         message: 'Biometric authentication successful',
       };
 
-    } catch (err: any) {
+    } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Authentication failed';
       setError(errorMessage);
 

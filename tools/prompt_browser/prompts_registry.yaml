@@ -1,0 +1,396 @@
+# AI Engineering Prompts Registry for PsychSync
+# Version: 1.0.0
+# Description: Comprehensive collection of AI-powered engineering analysis prompts
+
+registry:
+  metadata:
+    version: "1.0.0"
+    last_updated: "2025-01-17"
+    project: "PsychSync"
+    description: "AI-powered engineering analysis and improvement prompts"
+
+  categories:
+    - id: "architecture"
+      name: "Architecture & Design"
+      description: "System architecture analysis and design improvements"
+      icon: "🏗️"
+      prompts:
+        - id: "audit-architecture"
+          name: "Audit Architecture Bottlenecks"
+          prompt: "Audit the PsychSync codebase and list architecture bottlenecks. Focus on: 1) Service layer coupling, 2) Database query patterns, 3) API endpoint efficiency, 4) Caching strategy, 5) Async task handling. Provide specific file paths and line numbers where issues exist."
+          complexity: "high"
+          estimated_time: "10-15 min"
+          scope: ["backend", "database", "api"]
+
+        - id: "backend-performance"
+          name: "Backend Performance Improvement Plan"
+          prompt: "Generate an improvement plan for backend performance. Analyze: 1) Slow database queries (check app/services/), 2) Inefficient API endpoints, 3) Missing indexes, 4) N+1 query problems, 5) Response time optimization. Prioritize by impact."
+          complexity: "high"
+          estimated_time: "15-20 min"
+          scope: ["backend", "database", "api"]
+
+        - id: "refactoring-roadmap"
+          name: "Refactoring Roadmap"
+          prompt: "Create a refactoring roadmap for maintainability. Identify: 1) Code duplication patterns, 2) Complex functions needing decomposition, 3) Tight coupling issues, 4) Missing abstractions, 5) Technical debt hotspots. Create a phased plan with priorities."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["backend", "frontend"]
+
+        - id: "dependency-analysis"
+          name: "Dependency Risk Analysis"
+          prompt: "Analyze dependencies and mark high-risk packages. Check: 1) Requirements.txt and package.json for outdated packages, 2) Security vulnerabilities, 3) Unmaintained packages, 4) Heavy dependencies, 5) Redundant packages. Provide migration alternatives."
+          complexity: "medium"
+          estimated_time: "8-10 min"
+          scope: ["backend", "frontend", "devops"]
+
+        - id: "error-handling-standards"
+          name: "Error Handling Standards"
+          prompt: "Evaluate error-handling patterns and propose standards. Review: 1) Exception handling in app/api/, 2) Error response consistency, 3) Logging practices, 4) User error messages, 5) Recovery mechanisms. Create a standardized error handling framework."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["backend", "api"]
+
+        - id: "microservice-split"
+          name: "Microservice Splitting Plan"
+          prompt: "Propose microservice splitting plan for PsychSync. Analyze: 1) Domain boundaries (assessments, teams, analytics, AI), 2) Service communication patterns, 3) Data ownership, 4) API Gateway needs, 5) Migration strategy. Provide phased extraction approach."
+          complexity: "high"
+          estimated_time: "20-25 min"
+          scope: ["architecture", "backend"]
+
+        - id: "async-conversion"
+          name: "Async Task Conversion"
+          prompt: "Convert synchronous flows into async tasks where appropriate. Identify: 1) Long-running operations, 2) External API calls, 3) Heavy computations, 4) Email sending, 5) Report generation. Map out which should use background tasks vs immediate responses."
+          complexity: "medium"
+          estimated_time: "10-15 min"
+          scope: ["backend", "api"]
+
+        - id: "caching-strategy"
+          name: "Caching Strategy Enhancement"
+          prompt: "Review caching strategy and propose enhancements. Analyze: 1) Current Redis usage, 2) API response caching opportunities, 3) Query result caching, 4) Session management, 5) Cache invalidation strategies. Propose multi-layer caching approach."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["backend", "database", "infrastructure"]
+
+        - id: "db-query-analysis"
+          name: "Database Query Analysis"
+          prompt: "Review database queries and identify slow reads/writes. Check: 1) ORM usage in app/db/, 2) Missing indexes, 3) Inefficient joins, 4) Large result sets, 5) Query patterns in app/services/. Provide optimization recommendations."
+          complexity: "high"
+          estimated_time: "15-20 min"
+          scope: ["backend", "database"]
+
+        - id: "schema-evolution"
+          name: "Schema Evolution Plan"
+          prompt: "Generate schema evolution plan for future scale. Consider: 1) Table partitioning strategies, 2) Index optimization, 3) Data archival, 4) Migration patterns, 5) Backward compatibility. Create roadmap for 10x, 100x growth."
+          complexity: "high"
+          estimated_time: "15-18 min"
+          scope: ["database", "architecture"]
+
+        - id: "observability-plan"
+          name: "Observability Improvement Recommendations"
+          prompt: "Create observability improvement recommendations. Assess: 1) Current logging coverage, 2) Metrics collection, 3) Distributed tracing, 4) Alerting rules, 5) Dashboard needs. Propose comprehensive observability stack."
+          complexity: "medium"
+          estimated_time: "12-15 min"
+          scope: ["backend", "devops", "infrastructure"]
+
+        - id: "cpu-memory-optimization"
+          name: "CPU/Memory Optimization Suggestions"
+          prompt: "Generate CPU/memory optimization suggestions. Analyze: 1) Memory leaks, 2) Inefficient algorithms, 3) Unnecessary object creation, 4) Large data structures, 5) Connection pool sizing. Profile and provide specific optimizations."
+          complexity: "medium"
+          estimated_time: "10-15 min"
+          scope: ["backend", "frontend"]
+
+    - id: "api"
+      name: "API & Security"
+      description: "API design, validation, and security improvements"
+      icon: "🔒"
+      prompts:
+        - id: "api-validation-rules"
+          name: "API Input Validation Rules"
+          prompt: "Provide validation rules for all API inputs. Review: 1) Request schemas in app/schemas/, 2) Input sanitization, 3) Type validation, 4) Length limits, 5) SQL injection prevention. Create comprehensive validation framework."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["api", "security"]
+
+        - id: "rate-limiting-review"
+          name: "API Rate Limiting Review"
+          prompt: "Review API rate limiting and recommend thresholds. Analyze: 1) Current limits, 2) Endpoint-specific needs, 3) User tiers, 4) DDoS protection, 5) Burst handling. Propose granular rate limiting strategy."
+          complexity: "medium"
+          estimated_time: "8-10 min"
+          scope: ["api", "security"]
+
+        - id: "llm-api-docs"
+          name: "LLM-Based API Documentation"
+          prompt: "Generate LLM-based API documentation. Create: 1) Endpoint descriptions, 2) Request/response examples, 3) Authentication flows, 4) Error scenarios, 5) Usage patterns. Auto-generate from FastAPI routes and schemas."
+          complexity: "medium"
+          estimated_time: "15-20 min"
+          scope: ["api", "documentation"]
+
+        - id: "log-failure-analysis"
+          name: "Backend Log Failure Pattern Analysis"
+          prompt: "Analyze backend logs and categorize recurring failure patterns. Identify: 1) Common exceptions, 2) Failure hotspots, 3) Error propagation, 4) Third-party failures, 5) Time-based patterns. Create mitigation strategies."
+          complexity: "medium"
+          estimated_time: "12-15 min"
+          scope: ["backend", "devops"]
+
+        - id: "auth-flow-improvements"
+          name: "Authentication Flow Improvements"
+          prompt: "Suggest improvements to the authentication flow. Review: 1) JWT handling, 2) Token refresh mechanism, 3) Session management, 4) Multi-factor auth, 5) OAuth integration. Propose security and UX enhancements."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["security", "api"]
+
+        - id: "security-headers"
+          name: "Security Headers for API Responses"
+          prompt: "Generate security headers for all API responses. Define: 1) CORS policies, 2) CSP headers, 3) HSTS configuration, 4) X-Frame-Options, 5) Rate limit headers. Create comprehensive security header framework."
+          complexity: "low"
+          estimated_time: "8-10 min"
+          scope: ["security", "api"]
+
+        - id: "race-condition-detection"
+          name: "Race Condition Detection"
+          prompt: "Detect race conditions or unsafe concurrent flows. Analyze: 1) Database transaction boundaries, 2) Async task dependencies, 3) Shared state access, 4) Payment flows, 5) Assessment submission. Provide thread-safe solutions."
+          complexity: "high"
+          estimated_time: "15-20 min"
+          scope: ["backend", "database"]
+
+    - id: "testing"
+      name: "Testing & Quality"
+      description: "Test coverage, QA, and quality assurance"
+      icon: "🧪"
+      prompts:
+        - id: "integration-test-gaps"
+          name: "Integration Test Coverage Gaps"
+          prompt: "Generate integration test coverage gaps. Analyze: 1) Uncovered API endpoints, 2) Missing service tests, 3) Database operation coverage, 4) Authentication flows, 5) Error scenarios. Create test implementation plan."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["testing", "backend"]
+
+        - id: "regression-test-suite"
+          name: "Automated Regression Test Suite"
+          prompt: "Design automated regression test suites. Identify: 1) Critical user paths, 2) High-risk areas, 3) Common bug sources, 4) Integration points, 5) Performance benchmarks. Create comprehensive test scenarios."
+          complexity: "medium"
+          estimated_time: "12-15 min"
+          scope: ["testing", "backend", "frontend"]
+
+        - id: "ci-linting-rules"
+          name: "CI Linting Rules"
+          prompt: "Generate CI linting rules for consistency. Define: 1) Python code style (Black, Flake8, isort), 2) TypeScript/ESLint rules, 3) Import ordering, 4) Naming conventions, 5) Documentation requirements. Create pre-commit hooks."
+          complexity: "low"
+          estimated_time: "8-10 min"
+          scope: ["devops", "backend", "frontend"]
+
+        - id: "qa-acceptance-criteria"
+          name: "QA Acceptance Criteria"
+          prompt: "Generate QA acceptance criteria for all features. Define: 1) Functional requirements, 2) Performance criteria, 3) Accessibility standards, 4) Security requirements, 5) User experience metrics. Create feature-specific checklists."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["testing", "quality"]
+
+        - id: "combined-race-conditions"
+          name: "Frontend & Backend Race Conditions"
+          prompt: "Detect race conditions in frontend & backend combined. Analyze: 1) State synchronization, 2) Optimistic updates, 3) Concurrent form submissions, 4) Real-time updates, 5) Caching consistency. Provide end-to-end solutions."
+          complexity: "high"
+          estimated_time: "15-20 min"
+          scope: ["testing", "backend", "frontend"]
+
+        - id: "load-testing-scenarios"
+          name: "Load Testing Scenarios"
+          prompt: "Create load-testing scenarios for high concurrency. Design: 1) User registration spikes, 2) Assessment submission storms, 3) Report generation loads, 4) API endpoint stress, 5) Database connection limits. Provide k6 scripts."
+          complexity: "medium"
+          estimated_time: "12-15 min"
+          scope: ["testing", "performance"]
+
+    - id: "frontend"
+      name: "Frontend Engineering"
+      description: "Frontend architecture, performance, and UX"
+      icon: "⚛️"
+      prompts:
+        - id: "state-management-audit"
+          name: "State Management Anti-Patterns Audit"
+          prompt: "Audit frontend state management and identify anti-patterns. Review: 1) Context vs Redux usage, 2) Prop drilling issues, 3) Unnecessary re-renders, 4) State duplication, 5) Missing state normalization. Provide refactoring recommendations."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["frontend"]
+
+        - id: "react-optimization"
+          name: "React Component Performance Optimization"
+          prompt: "Optimize React components for performance. Identify: 1) Unnecessary re-renders, 2) Large component trees, 3) Missing memoization, 4) Inefficient lists, 5) Heavy computations in render. Provide specific component optimizations."
+          complexity: "medium"
+          estimated_time: "12-15 min"
+          scope: ["frontend", "performance"]
+
+        - id: "lazy-loading-strategy"
+          name: "Lazy Loading Strategy"
+          prompt: "Propose lazy-loading strategy. Analyze: 1) Route-based code splitting, 2) Component lazy loading, 3) Image optimization, 4) Data fetching timing, 5) Progressive enhancement. Create implementation plan."
+          complexity: "medium"
+          estimated_time: "8-10 min"
+          scope: ["frontend", "performance"]
+
+        - id: "global-vs-local-state"
+          name: "Global vs Local State Evaluation"
+          prompt: "Evaluate global state vs local state usage. Review: 1) AuthContext usage, 2) Team context scope, 3) Component-level state, 4) URL state management, 5) Form state patterns. Provide state architecture recommendations."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["frontend"]
+
+        - id: "bundle-size-optimization"
+          name: "Bundle Size Reduction"
+          prompt: "Reduce bundle size through dependency pruning. Analyze: 1) Heavy dependencies, 2) Tree-shaking opportunities, 3) Duplicate packages, 4) Unused code, 5) Alternative lighter libraries. Provide specific reduction strategies."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["frontend", "performance"]
+
+        - id: "accessibility-improvements"
+          name: "Frontend Accessibility Improvements"
+          prompt: "Generate frontend accessibility improvements. Assess: 1) ARIA labels, 2) Keyboard navigation, 3) Screen reader support, 4) Color contrast, 5) Focus management. Provide WCAG 2.1 AA compliance checklist."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["frontend", "accessibility"]
+
+        - id: "ui-consistency-audit"
+          name: "UI Consistency Audit"
+          prompt: "Audit UI consistency across pages. Review: 1) Color palette usage, 2) Typography standards, 3) Spacing patterns, 4) Component variants, 5) Responsive breakpoints. Create design system documentation."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["frontend", "design"]
+
+        - id: "css-architecture"
+          name: "CSS Architecture Analysis"
+          prompt: "Analyze CSS architecture and recommend structure. Evaluate: 1) Tailwind usage, 2) Custom CSS patterns, 3) Component styling, 4) Theme system, 5) Responsive design approach. Propose scalable CSS architecture."
+          complexity: "low"
+          estimated_time: "8-10 min"
+          scope: ["frontend", "design"]
+
+    - id: "data"
+      name: "Data & Analytics"
+      description: "Data management, retention, and analytics"
+      icon: "📊"
+      prompts:
+        - id: "data-retention-strategy"
+          name: "Data Retention & Archiving Strategy"
+          prompt: "Propose data retention and archiving strategy. Define: 1) GDPR compliance requirements, 2) Hot/cold data tiers, 3) Automated archival, 4) Purge policies, 5) Backup retention. Create implementation plan."
+          complexity: "medium"
+          estimated_time: "12-15 min"
+          scope: ["database", "compliance", "devops"]
+
+        - id: "async-job-queue"
+          name: "Async Job Queue Evaluation"
+          prompt: "Evaluate async job queues and propose improvements. Analyze: 1) Current Celery/Redis setup, 2) Job prioritization, 3) Retry mechanisms, 4) Dead letter queues, 5) Monitoring needs. Propose enhancements."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["backend", "infrastructure"]
+
+        - id: "team-analytics-model"
+          name: "Team Analytics Data Model"
+          prompt: "Propose data model for team analytics. Design: 1) Aggregate metrics tables, 2) Time-series data structure, 3) Privacy-compliant storage, 4) Query optimization, 5) Real-time aggregation. Provide schema recommendations."
+          complexity: "high"
+          estimated_time: "15-18 min"
+          scope: ["database", "analytics"]
+
+        - id: "usage-score-formula"
+          name: "Customer Usage Score Formula"
+          prompt: "Generate customer usage score formula. Define: 1) Active user metrics, 2) Feature adoption weights, 3) Engagement frequency, 4) Team collaboration index, 5) Growth indicators. Create scoring algorithm."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["analytics", "business"]
+
+        - id: "event-driven-roadmap"
+          name: "Event-Driven Architecture Roadmap"
+          prompt: "Create a roadmap for event-driven architecture. Design: 1) Event schema standards, 2) Message broker selection, 3) Event sourcing patterns, 4) CQRS implementation, 5) Event replay capability. Provide phased implementation."
+          complexity: "high"
+          estimated_time: "20-25 min"
+          scope: ["architecture", "backend"]
+
+        - id: "logging-taxonomy"
+          name: "Logging Taxonomy & Naming Conventions"
+          prompt: "Generate logging taxonomy & naming conventions. Define: 1) Log levels usage, 2) Structured log format, 3) Correlation IDs, 4) Event naming patterns, 5) Error categorization. Create logging standards document."
+          complexity: "low"
+          estimated_time: "8-10 min"
+          scope: ["backend", "devops"]
+
+    - id: "devops"
+      name: "DevOps & Deployment"
+      description: "Deployment, infrastructure, and operations"
+      icon: "🚀"
+      prompts:
+        - id: "code-style-guide"
+          name: "Code Style Guide"
+          prompt: "Generate code style guide based on best practices. Define: 1) Python formatting standards, 2) TypeScript conventions, 3) Import organization, 4) Documentation style, 5) Comment policies. Create team style guide."
+          complexity: "low"
+          estimated_time: "8-10 min"
+          scope: ["backend", "frontend", "documentation"]
+
+        - id: "pr-validation-rules"
+          name: "Pull Request Validation Rules"
+          prompt: "Create rules for pull request validation. Define: 1) Code review checklist, 2) Automated test requirements, 3) Documentation updates, 4) Breaking change detection, 5) Size limits. Create PR template and automation."
+          complexity: "low"
+          estimated_time: "8-10 min"
+          scope: ["devops", "process"]
+
+        - id: "complexity-analysis"
+          name: "Module Complexity Analysis"
+          prompt: "Perform complexity analysis on each backend module. Measure: 1) Cyclomatic complexity, 2) Cognitive load, 3) Dependency depth, 4) Code duplication, 5) Test coverage ratio. Create complexity dashboard."
+          complexity: "medium"
+          estimated_time: "12-15 min"
+          scope: ["backend", "quality"]
+
+        - id: "dead-code-detection"
+          name: "Dead Code & Unused Modules Detection"
+          prompt: "Identify dead code, unused modules, redundant components. Find: 1) Unimported modules, 2) Unused functions, 3) Redundant utilities, 4) Commented code, 5) Duplicate implementations. Provide cleanup plan."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["backend", "frontend"]
+
+        - id: "feature-flagging-system"
+          name: "Feature Flagging System Design"
+          prompt: "Design feature-flagging system. Define: 1) Flag schema, 2) Rollout strategies, 3) A/B testing support, 4) Admin interface, 5) Performance impact. Provide implementation recommendations."
+          complexity: "medium"
+          estimated_time: "12-15 min"
+          scope: ["backend", "frontend", "devops"]
+
+        - id: "multi-tenant-plan"
+          name: "Multi-Tenant Architecture Plan"
+          prompt: "Create a multi-tenant architecture plan. Design: 1) Tenant isolation strategy, 2) Data segregation, 3) Per-tenant configuration, 4) Resource pooling, 5) Migration path. Provide implementation roadmap."
+          complexity: "high"
+          estimated_time: "20-25 min"
+          scope: ["architecture", "database", "security"]
+
+        - id: "zero-downtime-deployment"
+          name: "Zero-Downtime Deployment Plan"
+          prompt: "Propose zero-downtime deployment plan. Define: 1) Blue-green strategy, 2) Rolling updates, 3) Database migrations, 4) Feature toggles, 5) Rollback procedures. Create deployment runbook."
+          complexity: "high"
+          estimated_time: "15-20 min"
+          scope: ["devops", "infrastructure"]
+
+        - id: "migration-rollback"
+          name: "Automated Migration Rollback Strategy"
+          prompt: "Generate automated migration rollback strategy. Define: 1) Rollback triggers, 2) Data restoration, 3) Version downgrade steps, 4) Health check validation, 5) Communication protocols. Create rollback automation."
+          complexity: "medium"
+          estimated_time: "12-15 min"
+          scope: ["devops", "database"]
+
+        - id: "enterprise-scalability"
+          name: "Enterprise Scalability Requirements"
+          prompt: "Generate enterprise scalability requirements. Define: 1) User capacity targets, 2) Performance SLAs, 3) High availability needs, 4) Disaster recovery, 5) Compliance requirements. Create scalability checklist."
+          complexity: "medium"
+          estimated_time: "12-15 min"
+          scope: ["architecture", "devops"]
+
+    - id: "risk"
+      name: "Risk & Governance"
+      description: "Risk analysis, compliance, and governance"
+      icon: "⚠️"
+      prompts:
+        - id: "risk-analysis"
+          name: "Comprehensive Risk Analysis"
+          prompt: "Analyze risks across entire PsychSync architecture. Identify: 1) Security vulnerabilities, 2) Performance bottlenecks, 3) Data loss scenarios, 4) Compliance gaps, 5) Single points of failure. Provide risk matrix."
+          complexity: "high"
+          estimated_time: "20-25 min"
+          scope: ["all"]
+
+        - id: "engineering-kpis"
+          name: "Engineering KPIs for Performance & Reliability"
+          prompt: "Generate engineering KPIs for performance & reliability. Define: 1) Response time targets, 2) Error rate budgets, 3) Availability SLAs, 4) Deployment frequency, 5) Mean time to recovery. Create KPI dashboard."
+          complexity: "medium"
+          estimated_time: "10-12 min"
+          scope: ["all", "management"]

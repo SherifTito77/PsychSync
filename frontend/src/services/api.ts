@@ -1,22 +1,41 @@
-// src/services/api.ts
+// // // // // // src/services/api.ts
+// frontend/src/services/api.ts - Updated for HTTPS support
 import axios from 'axios';
 
 // Use HTTPS in production, HTTP in development
 const isHttpsEnvironment = import.meta.env.PROD || import.meta.env.VITE_FORCE_HTTPS === 'true';
 
-// In development use a relative path so Vite proxy handles CORS.
-// In production use VITE_API_URL or the current origin.
-const API_BASE_URL: string =
-  import.meta.env.VITE_API_URL ||
-  (isHttpsEnvironment ? `https://${window.location.hostname}/api/v1` : '/api/v1');
+// ✅ SECURITY FIX: Request queuing to prevent race conditions during token refresh
+let isRefreshing = false;
+let failedQueue: Array<() => void> = [];
+
+// Import https agent for SSL certificate handling (Node.js environment only)
+let httpsAgent: any = undefined;
+if (typeof window === 'undefined' && isHttpsEnvironment && !import.meta.env.PROD) {
+  try {
+    const https = require('https');
+    httpsAgent = new https.Agent({
+      rejectUnauthorized: false // Only for development with self-signed certs
+    });
+  } catch (e) {
+    console.warn('HTTPS agent not available:', e);
+  }
+}
+const defaultPort = isHttpsEnvironment ? '443' : '8000';
+const defaultProtocol = isHttpsEnvironment ? 'https' : 'http';
+// ✅ FIX: Use localhost:8000 for backend API
+const defaultHost = 'localhost';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || `http://localhost:8000/api/v1`;
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
-    'X-CSRF-Token': 'fetch',
   },
   // SECURITY: Include credentials for httpOnly cookie support
   withCredentials: true,
+  // SSL certificate validation for development (Node.js only)
+  httpsAgent: httpsAgent,
 });
 // Request interceptor - add auth token and CSRF protection
 api.interceptors.request.use(
@@ -67,24 +86,68 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // ✅ SECURITY FIX: If already refreshing, queue the request
+    if (isRefreshing) {
+      // Store request for retry after refresh completes
+      return new Promise<void>((resolve) => {
+        failedQueue.push(() => {
+          resolve(api(originalRequest));
+        });
+      });
+    }
+
     // If error is 401 and we haven't retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
+      isRefreshing = true;
       originalRequest._retry = true;
+
+      // Dispatch auth refresh start event for SessionManager
+      window.dispatchEvent(new CustomEvent('authRefreshStart'));
+
       try {
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
-          // Try to refresh token
-          const response = await axios.post<TokenResponse>(`${API_BASE_URL}/auth/refresh`, {}, {
-            headers: { Authorization: `Bearer ${refreshToken}` }
-          });
-          const { access_token, refresh_token } = response.data;
+          // Try to refresh token - send as form data
+          const response = await axios.post<TokenResponse>(
+            `${API_BASE_URL}/auth/refresh`,
+            new URLSearchParams({ refresh_token: refreshToken }),
+            {
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+              }
+            }
+          );
+          const { access_token, refresh_token: newRefreshToken } = response.data;
           localStorage.setItem('access_token', access_token);
-          localStorage.setItem('refresh_token', refresh_token);
+          localStorage.setItem('refresh_token', newRefreshToken);
+
+          // ✅ FIX: Mark refresh complete and process queued requests
+          isRefreshing = false;
+
+          // Dispatch auth refresh end event for SessionManager
+          window.dispatchEvent(new CustomEvent('authRefreshEnd'));
+
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${access_token}`;
+
+          // Process all queued requests with new token
+          failedQueue.forEach((prom) => prom());
+          failedQueue = [];
+
           return api(originalRequest);
         }
       } catch (refreshError) {
+        // ✅ FIX: Mark refresh complete and process queued requests (even failed)
+        isRefreshing = false;
+
+        // Dispatch auth refresh end event even on failure
+        window.dispatchEvent(new CustomEvent('authRefreshEnd'));
+
+        // Process all queued requests (they will fail with same error)
+        failedQueue.forEach((prom) => prom());
+        failedQueue = [];
+
         // Refresh failed - trigger session expiry flow
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
@@ -100,16 +163,17 @@ api.interceptors.response.use(
         });
         window.dispatchEvent(sessionExpiryEvent);
 
-        // Fallback: redirect after delay (in case modal not mounted)
-        setTimeout(() => {
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login?reason=session_expired';
-          }
-        }, 30000); // 30 seconds to allow user to see modal
+        // ✅ FIX: Don't force redirect, let modal handle it
+        // Removed: setTimeout(() => {
+        //   if (window.location.pathname !== '/login') {
+        //     window.location.href = '/login?reason=session_expired';
+        //   }
+        // }, 30000);
 
         return Promise.reject(refreshError);
       }
     }
+
     return Promise.reject(error);
   }
 );

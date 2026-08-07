@@ -279,7 +279,7 @@ const QuickValuePreview: React.FC = () => {
           {challenge && (
             <div className="text-center">
               <Button
-                size="lg"
+                size="sm"
                 onClick={handleShowInsight}
                 className="px-8 py-3 text-lg"
               >
@@ -352,10 +352,10 @@ const QuickValuePreview: React.FC = () => {
                 This is just a preview. Get your complete team analysis:
               </h4>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg" className="px-6">
+                <Button size="sm" className="px-6">
                   Get Full Team Analysis
                 </Button>
-                <Button size="lg" variant="secondary" className="px-6" onClick={() => setShowInsight(false)}>
+                <Button size="sm" variant="secondary" className="px-6" onClick={() => setShowInsight(false)}>
                   Try Different Scenario
                 </Button>
               </div>

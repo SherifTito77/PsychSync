@@ -95,6 +95,7 @@ interface SummaryStatistics {
   trend_direction: string;
   crisis_rate: number;
   high_risk_rate: number;
+  trend_data?: any[];
 }
 
 // =============================================================================
@@ -281,8 +282,8 @@ const TreatmentOutcomesChart = memo(function TreatmentOutcomesChart({ outcomes }
 });
 
 const TimeSeriesChart = memo(function TimeSeriesChart({ data }: { data: TimeSeriesData[] }) {
-  const maxScore = Math.max(...data.map((d) => d.avg_score));
-  const maxCount = Math.max(...data.map((d) => d.assessment_count));
+  const maxScore = Math.max(...(data as any).map((d) => d.avg_score));
+  const maxCount = Math.max(...(data as any).map((d) => d.assessment_count));
 
   return (
     <div className="space-y-4">
@@ -328,6 +329,9 @@ const TimeSeriesChart = memo(function TimeSeriesChart({ data }: { data: TimeSeri
 // =============================================================================
 
 export default function PopulationHealthDashboard() {
+  // Feature flag: population health endpoint now available
+  const POPULATION_HEALTH_ENABLED = true;
+
   const [summary, setSummary] = useState<SummaryStatistics | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -350,20 +354,35 @@ export default function PopulationHealthDashboard() {
 
   // Fetch summary function (defined before callbacks to avoid circular dependency)
   const fetchSummary = async () => {
+    // Skip fetch if disabled
+    if (!POPULATION_HEALTH_ENABLED) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      const response = await api.get(`/api/v1/population-health/summary?days_back=${daysBack}`);
+      const response = await api.get(`/clinical-population-health/summary?days_back=${daysBack}`);
       if (isMountedRef.current) {
-        setSummary(response.data);
+        setSummary(response.data as SummaryStatistics);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error fetching summary:', err);
       if (isMountedRef.current) {
-        setError(
-          err.response?.data?.detail || 'Failed to load population health data'
-        );
+        // Handle different error types gracefully
+        if (err.response?.status === 500) {
+          setError('Population health service is temporarily unavailable. Please try again later.');
+        } else if (err.response?.status === 403) {
+          setError('Access Denied: You do not have the required clinician or administrator permissions to view this dashboard.');
+        } else if (err.response?.status === 404) {
+          setError('Population health feature is not yet available.');
+        } else {
+          setError(
+            err.response?.data?.detail || 'Failed to load population health data'
+          );
+        }
       }
     } finally {
       if (isMountedRef.current) {
@@ -394,7 +413,32 @@ export default function PopulationHealthDashboard() {
     return () => {
       isMountedRef.current = false;
     };
-  }, [daysBack]); // Remove handleRefresh dependency to avoid circular reference
+  }, [daysBack, POPULATION_HEALTH_ENABLED]); // Add POPULATION_HEALTH_ENABLED dependency
+
+  // Disabled state
+  if (!POPULATION_HEALTH_ENABLED) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <HeartPulse className="h-5 w-5 text-red-500" />
+              Population Health Dashboard
+            </CardTitle>
+            <CardDescription>Monitor clinical outcomes across all users</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-12 pb-12 text-center">
+            <Activity className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">Population Health Analytics Temporarily Disabled</h3>
+            <p className="text-gray-600 max-w-md mx-auto">
+              The population health feature is currently unavailable due to backend maintenance.
+              Please check back later or contact your administrator for more information.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Loading state
   if (loading) {
@@ -414,7 +458,7 @@ export default function PopulationHealthDashboard() {
   if (error || !summary) {
     return (
       <div className="max-w-7xl mx-auto p-6">
-        <Alert variant="destructive">
+        <Alert variant="error">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error || 'Unable to load population health data'}</AlertDescription>
         </Alert>

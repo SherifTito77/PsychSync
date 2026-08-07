@@ -1,7 +1,7 @@
 // src/hooks/useRoleNavigation.ts - Hook for role-based navigation
 
 import { useMemo } from 'react';
-import { useAuth } from './useAuth';
+import { useAuth } from '../contexts/AuthContext';
 import {
   UserRole,
   filterNavigationByRole,

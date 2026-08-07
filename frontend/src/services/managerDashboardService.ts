@@ -18,7 +18,19 @@ export interface TeamHealthFilters {
 }
 
 export class ManagerDashboardService {
-  private static readonly BASE_PATH = '/manager-dashboard';
+  private static readonly BASE_PATH = '/health-monitoring/manager-dashboard';
+  private static activeControllers: Map<string, AbortController> = new Map();
+
+  /**
+   * Cancel ongoing request
+   */
+  private static cancelRequest(key: string) {
+    const controller = this.activeControllers.get(key);
+    if (controller) {
+      controller.abort();
+      this.activeControllers.delete(key);
+    }
+  }
 
   /**
    * Get anonymized team health dashboard
@@ -33,21 +45,33 @@ export class ManagerDashboardService {
    * @returns Manager dashboard data with anonymized team health metrics
    */
   static async getTeamDashboard(
-    filters: TeamHealthFilters = {}
+    filters: TeamHealthFilters = {},
+    signal?: AbortSignal
   ): Promise<ManagerDashboardData> {
     try {
+      console.log('[ManagerDashboard] Fetching team dashboard with filters:', filters);
+
+      // Create request config with abort signal
+      const config: any = {
+        params: {
+          team_id: filters.team_id,
+          days: filters.days || 30,
+        },
+      };
+
+      // Add abort signal if provided
+      if (signal) {
+        config.signal = signal;
+      }
+
       const response = await api.get<ManagerDashboardData>(
         this.BASE_PATH,
-        {
-          params: {
-            team_id: filters.team_id,
-            days: filters.days || 30,
-          },
-        }
+        config
       );
+      console.log('[ManagerDashboard] Received response:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Failed to get team dashboard:', error);
+      console.error('[ManagerDashboard] Failed to get team dashboard:', error);
       throw error;
     }
   }
@@ -55,18 +79,18 @@ export class ManagerDashboardService {
   /**
    * Get organization-wide health overview
    */
-  static async getOrganizationOverview(days: number = 30): Promise<ManagerDashboardData> {
-    return this.getTeamDashboard({ days });
+  static async getOrganizationOverview(days: number = 30, signal?: AbortSignal): Promise<ManagerDashboardData> {
+    return this.getTeamDashboard({ days }, signal);
   }
 
   /**
    * Get specific team health overview
    */
-  static async getTeamOverview(teamId: string, days: number = 30): Promise<ManagerDashboardData> {
+  static async getTeamOverview(teamId: string, days: number = 30, signal?: AbortSignal): Promise<ManagerDashboardData> {
     return this.getTeamDashboard({
       team_id: teamId,
       days,
-    });
+    }, signal);
   }
 
   /**
@@ -95,7 +119,7 @@ export class ManagerDashboardService {
   static async checkManagerAccess(): Promise<boolean> {
     try {
       const response = await api.get<{ has_access: boolean }>(
-        '/manager-access'
+        '/health-monitoring/manager-access'
       );
       return response.data.has_access;
     } catch (error) {

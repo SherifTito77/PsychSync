@@ -120,7 +120,7 @@ describe('API Security Tests', () => {
     it('should enforce rate limiting on API endpoints', async () => {
       // Simulate rapid successive requests
       const requests = Array.from({ length: 100 }, (_, i) =>
-        apiClient.get('/api/v1/assessments', {
+        apiClient.get('/assessments', {
           headers: { 'X-Test-Rate-Limit': 'true' }
         })
       );
@@ -139,7 +139,7 @@ describe('API Security Tests', () => {
 
     it('should include appropriate rate limit headers', async () => {
       try {
-        await apiClient.get('/api/v1/assessments', {
+        await apiClient.get('/assessments', {
           headers: { 'X-Test-Rate-Limit': 'true' }
         });
       } catch (error: any) {
@@ -151,7 +151,7 @@ describe('API Security Tests', () => {
     it('should implement different rate limits for different user types', async () => {
       // Test admin user rate limit
       const adminRequests = Array.from({ length: 200 }, (_, i) =>
-        apiClient.get('/api/v1/admin/users', {
+        apiClient.get('/admin/users', {
           headers: {
             'X-Test-Rate-Limit': 'true',
             'X-User-Role': 'admin'
@@ -166,7 +166,7 @@ describe('API Security Tests', () => {
 
       // Test regular user rate limit
       const userRequests = Array.from({ length: 100 }, (_, i) =>
-        apiClient.get('/api/v1/assessments', {
+        apiClient.get('/assessments', {
           headers: {
             'X-Test-Rate-Limit': 'true',
             'X-User-Role': 'user'
@@ -212,7 +212,7 @@ describe('API Security Tests', () => {
       };
 
       try {
-        await apiClient.put('/api/v1/assessments/other-user-assessment', updateData);
+        await apiClient.put('/assessments/other-user-assessment', updateData);
         expect.fail('Should not allow updating other users assessments');
       } catch (error: any) {
         expect(error.status).toBe(403);
@@ -279,7 +279,7 @@ describe('API Security Tests', () => {
 
       for (const payload of maliciousPayloads) {
         try {
-          await apiClient.post('/api/v1/assessments', payload);
+          await apiClient.post('/assessments', payload);
           expect.fail('Should reject mass assignment attempts');
         } catch (error: any) {
           expect(error.status).toBe(400);
@@ -299,7 +299,7 @@ describe('API Security Tests', () => {
         questions: []
       };
 
-      const validResponse = await apiClient.post('/api/v1/assessments', validPayload);
+      const validResponse = await apiClient.post('/assessments', validPayload);
       expect(validResponse.status).toBe(200);
 
       // Test with malicious fields
@@ -310,7 +310,7 @@ describe('API Security Tests', () => {
       };
 
       try {
-        await apiClient.post('/api/v1/assessments', invalidPayload);
+        await apiClient.post('/assessments', invalidPayload);
         expect.fail('Should reject payload with malicious fields');
       } catch (error: any) {
         expect(error.status).toBe(400);
@@ -333,7 +333,7 @@ describe('API Security Tests', () => {
       };
 
       try {
-        await apiClient.post('/api/v1/assessments', nestedPayload);
+        await apiClient.post('/assessments', nestedPayload);
         expect.fail('Should reject nested mass assignment attempts');
       } catch (error: any) {
         expect(error.status).toBe(400);
@@ -471,7 +471,7 @@ describe('API Security Tests', () => {
     it('should not expose sensitive user information in API responses', async () => {
       // Test user endpoint data exposure
       try {
-        const response = await apiClient.get('/api/v1/users/profile');
+        const response = await apiClient.get('/users/profile');
 
         // Check for sensitive fields that shouldn't be exposed
         const sensitiveFields = [
@@ -498,7 +498,7 @@ describe('API Security Tests', () => {
     it('should limit assessment response data based on user permissions', async () => {
       // Test assessment endpoint with restricted data
       try {
-        const response = await apiClient.get('/api/v1/assessments/team-assessment-123');
+        const response = await apiClient.get('/assessments/team-assessment-123');
 
         // Should not include other users' responses
         expect(response.data).not.toHaveProperty('allResponses');
@@ -540,10 +540,10 @@ describe('API Security Tests', () => {
 
     it('should sanitize error messages to prevent information disclosure', async () => {
       const errorInducingRequests = [
-        apiClient.get('/api/v1/assessments/invalid-id'),
-        apiClient.post('/api/v1/users', { invalid: 'data' }),
-        apiClient.delete('/api/v1/admin/system-config'),
-        apiClient.get('/api/v1/internal/debug-info')
+        apiClient.get('/assessments/invalid-id'),
+        apiClient.post('/users', { invalid: 'data' }),
+        apiClient.delete('/admin/system-config'),
+        apiClient.get('/internal/debug-info')
       ];
 
       for (const request of errorInducingRequests) {
@@ -596,7 +596,7 @@ describe('API Security Tests', () => {
 
       for (const token of invalidTokens) {
         try {
-          await apiClient.get('/api/v1/assessments', {
+          await apiClient.get('/assessments', {
             headers: { Authorization: `Bearer ${token}` }
           });
           expect.fail('Should reject invalid JWT tokens');
@@ -643,7 +643,7 @@ describe('API Security Tests', () => {
 
       for (const input of maliciousInputs) {
         try {
-          const response = await apiClient.post('/api/v1/assessments', input);
+          const response = await apiClient.post('/assessments', input);
 
           // Response should not contain unescaped HTML/JS
           const responseStr = JSON.stringify(response.data);
@@ -682,7 +682,7 @@ describe('API Security Tests', () => {
       };
 
       try {
-        await apiClient.post('/api/v1/assessments', largePayload);
+        await apiClient.post('/assessments', largePayload);
         expect.fail('Should reject overly large payloads');
       } catch (error: any) {
         expect([413, 400, 422]).toContain(error.status);
@@ -702,7 +702,7 @@ describe('API Security Tests', () => {
 
       // API should reject or redirect HTTP requests
       try {
-        await apiClient.get('/api/v1/assessments', {
+        await apiClient.get('/assessments', {
           headers: { 'X-Forwarded-Proto': 'http' }
         });
         expect.fail('Should enforce HTTPS');
@@ -713,7 +713,7 @@ describe('API Security Tests', () => {
 
     it('should include security headers in responses', async () => {
       try {
-        const response = await apiClient.get('/api/v1/assessments');
+        const response = await apiClient.get('/assessments');
 
         // In real implementation, check for security headers
         const expectedHeaders = [

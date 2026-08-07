@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/badge';
 
 import { useAdminDashboard } from './hooks/useAdminDashboard';
 import {
@@ -32,6 +32,29 @@ import {
   formatDate,
   formatNumber
 } from './utils/displayHelpers';
+
+// Map color strings to Badge variants
+const getStatusVariant = (status: string): 'default' | 'success' | 'error' | 'warning' => {
+  const colorMap: Record<string, 'default' | 'success' | 'error' | 'warning'> = {
+    active: 'success',
+    inactive: 'default',
+    suspended: 'error',
+    resolved: 'success',
+    open: 'error',
+    acknowledged: 'warning'
+  };
+  return colorMap[status] || 'default';
+};
+
+const getSeverityVariant = (severity: string): 'default' | 'success' | 'error' | 'warning' => {
+  const severityMap: Record<string, 'default' | 'success' | 'error' | 'warning'> = {
+    low: 'success',
+    medium: 'warning',
+    high: 'error',
+    critical: 'error'
+  };
+  return severityMap[severity] || 'default';
+};
 
 const AdminDashboard: React.FC<{ className?: string }> = ({ className = '' }) => {
   const {
@@ -196,7 +219,7 @@ const AdminDashboard: React.FC<{ className?: string }> = ({ className = '' }) =>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
-                    <Badge color={getStatusColor(user.status)}>{user.status}</Badge>
+                    <Badge variant={getStatusVariant(user.status)}>{user.status}</Badge>
                     <Badge variant="outline">{user.role}</Badge>
                     <Button
                       variant="outline"
@@ -228,7 +251,7 @@ const AdminDashboard: React.FC<{ className?: string }> = ({ className = '' }) =>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <Badge color={getSeverityColor(alert.severity)}>
+                      <Badge variant={getSeverityVariant(alert.severity)}>
                         {alert.severity.toUpperCase()}
                       </Badge>
                       <Badge variant="outline">{alert.category}</Badge>
@@ -325,7 +348,7 @@ const AdminDashboard: React.FC<{ className?: string }> = ({ className = '' }) =>
                 {filteredAlerts.slice(0, 5).map((alert) => (
                   <div key={alert.id} className="flex items-center justify-between text-sm">
                     <span className="flex-1 truncate">{alert.title}</span>
-                    <Badge color={getSeverityColor(alert.severity)} size="sm">
+                    <Badge variant={getSeverityVariant(alert.severity)} size="sm">
                       {alert.severity}
                     </Badge>
                   </div>

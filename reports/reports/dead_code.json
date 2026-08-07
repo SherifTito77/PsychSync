@@ -1,0 +1,673 @@
+{
+  "timestamp": "2026-01-13T19:09:19.847625",
+  "files_scanned": 109,
+  "total_unused_functions": 1131,
+  "total_unused_classes": 395,
+  "total_unused_imports": 25,
+  "total_unused_variables": 0,
+  "total_dead_files": 109,
+  "unused_functions": [
+    {
+      "name": "to_dict",
+      "line": 31,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "record_query",
+      "line": 105,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "get_stats",
+      "line": 122,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "before_cursor_execute",
+      "line": 144,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "after_cursor_execute",
+      "line": 150,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "handle_error",
+      "line": 157,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "get_async_db",
+      "line": 166,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "get_async_db_with_context",
+      "line": 184,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "analyze_table",
+      "line": 202,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "get_database_health",
+      "line": 279,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "vacuum_analyze_table",
+      "line": 370,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "update_table_statistics",
+      "line": 382,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "reindex_table",
+      "line": 394,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "get_connection_pool_stats",
+      "line": 407,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "close_database_connections",
+      "line": 421,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "init_advanced_db",
+      "line": 431,
+      "reason": "Never called",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "call",
+      "line": 72,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "initialize",
+      "line": 113,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "get_connection",
+      "line": 210,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "acquire_connection",
+      "line": 220,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "get_transaction",
+      "line": 235,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "execute_query",
+      "line": 244,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "execute_command",
+      "line": 263,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "get_pool_metrics",
+      "line": 298,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "get_all_metrics",
+      "line": 314,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "close_all",
+      "line": 322,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "execute",
+      "line": 348,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "fetch",
+      "line": 352,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "fetchrow",
+      "line": 356,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "fetchval",
+      "line": 360,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "transaction",
+      "line": 364,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "set_user_context",
+      "line": 368,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "clear_user_context",
+      "line": 376,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "release",
+      "line": 382,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "get_database_connection",
+      "line": 404,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "get_database_transaction",
+      "line": 409,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "initialize_databases",
+      "line": 415,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "close_databases",
+      "line": 420,
+      "reason": "Never called",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "user",
+      "line": 32,
+      "reason": "Never called",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "team",
+      "line": 36,
+      "reason": "Never called",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "assessment",
+      "line": 40,
+      "reason": "Never called",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "api_response",
+      "line": 44,
+      "reason": "Never called",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "session",
+      "line": 49,
+      "reason": "Never called",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "rate_limit",
+      "line": 53,
+      "reason": "Never called",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "get",
+      "line": 73,
+      "reason": "Never called",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "set",
+      "line": 100,
+      "reason": "Never called",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "delete",
+      "line": 137,
+      "reason": "Never called",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "delete_pattern",
+      "line": 146,
+      "reason": "Never called",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "exists",
+      "line": 158,
+      "reason": "Never called",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "increment",
+      "line": 167,
+      "reason": "Never called",
+      "file": "app/core/enhanced_cache.py"
+    }
+  ],
+  "unused_classes": [
+    {
+      "name": "Base",
+      "line": 23,
+      "reason": "Never instantiated",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "DatabaseMonitor",
+      "line": 92,
+      "reason": "Never instantiated",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "QueryOptimizer",
+      "line": 198,
+      "reason": "Never instantiated",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "DatabaseMaintenance",
+      "line": 366,
+      "reason": "Never instantiated",
+      "file": "app/core/database_advanced.py"
+    },
+    {
+      "name": "DatabaseRole",
+      "line": 24,
+      "reason": "Never instantiated",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "DatabaseConfig",
+      "line": 31,
+      "reason": "Never instantiated",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "PoolMetrics",
+      "line": 47,
+      "reason": "Never instantiated",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "CircuitBreaker",
+      "line": 61,
+      "reason": "Never instantiated",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "AdvancedDatabaseManager",
+      "line": 102,
+      "reason": "Never instantiated",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "EnhancedConnection",
+      "line": 337,
+      "reason": "Never instantiated",
+      "file": "app/core/advanced_database.py"
+    },
+    {
+      "name": "CacheKey",
+      "line": 28,
+      "reason": "Never instantiated",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "EnhancedCacheManager",
+      "line": 57,
+      "reason": "Never instantiated",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "CacheDecorator",
+      "line": 197,
+      "reason": "Never instantiated",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "RateLimiter",
+      "line": 294,
+      "reason": "Never instantiated",
+      "file": "app/core/enhanced_cache.py"
+    },
+    {
+      "name": "LogLevel",
+      "line": 16,
+      "reason": "Never instantiated",
+      "file": "app/core/structured_logging.py"
+    },
+    {
+      "name": "EventType",
+      "line": 26,
+      "reason": "Never instantiated",
+      "file": "app/core/structured_logging.py"
+    },
+    {
+      "name": "LogContext",
+      "line": 44,
+      "reason": "Never instantiated",
+      "file": "app/core/structured_logging.py"
+    },
+    {
+      "name": "LogEvent",
+      "line": 58,
+      "reason": "Never instantiated",
+      "file": "app/core/structured_logging.py"
+    },
+    {
+      "name": "StructuredLogger",
+      "line": 104,
+      "reason": "Never instantiated",
+      "file": "app/core/structured_logging.py"
+    },
+    {
+      "name": "LogAnalyzer",
+      "line": 384,
+      "reason": "Never instantiated",
+      "file": "app/core/structured_logging.py"
+    }
+  ],
+  "unused_imports": [
+    {
+      "module": "os",
+      "name": "os",
+      "reason": "Imported but never used",
+      "file": "app/core/tasks.py"
+    },
+    {
+      "module": "json",
+      "name": "json",
+      "reason": "Imported but never used",
+      "file": "app/core/tasks.py"
+    },
+    {
+      "module": "typing",
+      "name": "Union",
+      "reason": "Imported but never used",
+      "file": "app/core/tasks.py"
+    },
+    {
+      "module": "datetime",
+      "name": "timedelta",
+      "reason": "Imported but never used",
+      "file": "app/core/tasks.py"
+    },
+    {
+      "module": "celery.exceptions",
+      "name": "WorkerLostError",
+      "reason": "Imported but never used",
+      "file": "app/core/tasks.py"
+    },
+    {
+      "module": "celery.exceptions",
+      "name": "Retry",
+      "reason": "Imported but never used",
+      "file": "app/core/tasks.py"
+    },
+    {
+      "module": "sqlalchemy.ext.asyncio",
+      "name": "AsyncSession",
+      "reason": "Imported but never used",
+      "file": "app/core/tasks.py"
+    },
+    {
+      "module": "app.core.database",
+      "name": "get_async_db",
+      "reason": "Imported but never used",
+      "file": "app/core/tasks.py"
+    },
+    {
+      "module": "config.settings",
+      "name": "get_settings",
+      "reason": "Imported but never used",
+      "file": "app/core/config.py"
+    },
+    {
+      "module": "config.settings",
+      "name": "reload_settings",
+      "reason": "Imported but never used",
+      "file": "app/core/config.py"
+    },
+    {
+      "module": "opentelemetry",
+      "name": "context",
+      "reason": "Imported but never used",
+      "file": "app/core/distributed_tracing.py"
+    },
+    {
+      "module": "opentelemetry.propagate",
+      "name": "extract",
+      "reason": "Imported but never used",
+      "file": "app/core/distributed_tracing.py"
+    },
+    {
+      "module": "opentelemetry.propagate",
+      "name": "inject",
+      "reason": "Imported but never used",
+      "file": "app/core/distributed_tracing.py"
+    },
+    {
+      "module": "opentelemetry.propagators.b3",
+      "name": "B3MultiFormat",
+      "reason": "Imported but never used",
+      "file": "app/core/distributed_tracing.py"
+    },
+    {
+      "module": "sqlalchemy.orm",
+      "name": "declarative_base",
+      "reason": "Imported but never used",
+      "file": "app/core/tenant_database.py"
+    },
+    {
+      "module": "config",
+      "name": "get_settings",
+      "reason": "Imported but never used",
+      "file": "app/core/config_compat.py"
+    },
+    {
+      "module": "config",
+      "name": "reload_settings",
+      "reason": "Imported but never used",
+      "file": "app/core/config_compat.py"
+    },
+    {
+      "module": "config",
+      "name": "Settings",
+      "reason": "Imported but never used",
+      "file": "app/core/config_compat.py"
+    },
+    {
+      "module": "redis.asyncio",
+      "name": "Redis",
+      "reason": "Imported but never used",
+      "file": "app/core/async_cache.py"
+    },
+    {
+      "module": "starlette.exceptions",
+      "name": "HTTPException",
+      "reason": "Imported but never used",
+      "file": "app/core/application_factory.py"
+    },
+    {
+      "module": "pydantic",
+      "name": "field_validator",
+      "reason": "Imported but never used",
+      "file": "app/core/config/security.py"
+    },
+    {
+      "module": "settings",
+      "name": "get_settings",
+      "reason": "Imported but never used",
+      "file": "app/core/config/__init__.py"
+    },
+    {
+      "module": "settings",
+      "name": "reload_settings",
+      "reason": "Imported but never used",
+      "file": "app/core/config/__init__.py"
+    },
+    {
+      "module": "settings",
+      "name": "Settings",
+      "reason": "Imported but never used",
+      "file": "app/core/config/__init__.py"
+    },
+    {
+      "module": "os",
+      "name": "os",
+      "reason": "Imported but never used",
+      "file": "app/core/config/celery_config.py"
+    }
+  ],
+  "unused_variables": [],
+  "dead_files": [
+    {
+      "file": "api_optimization.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "circuit_breaker.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "api_rate_limiter.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "performance_monitoring.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "ssl_config.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "monitoring.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "siem_integration.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "database_advanced.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "config_compat.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "secret_manager.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "security_utils.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "log_sanitizer.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "secure_query.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "redis_client.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "enhanced_session_manager.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "api_performance_optimizer.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "application_factory.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "tasks.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "distributed_tracing.py",
+      "reason": "Never imported"
+    },
+    {
+      "file": "database_minimal.py",
+      "reason": "Never imported"
+    }
+  ],
+  "recommendations": [
+    "Remove 1131 unused functions to reduce codebase size",
+    "Review 109 potentially unused files",
+    "Remove 395 unused classes"
+  ]
+}

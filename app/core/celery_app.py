@@ -38,7 +38,7 @@ def debug_task(self):
 @celery_app.task
 def test_ai_processing():
     """Test AI processing in background"""
-    from ai.processors.mbti_processor import MBTIProcessor
+    from app.ai.processors.mbti_processor import MBTIProcessor
 
     try:
         processor = MBTIProcessor()

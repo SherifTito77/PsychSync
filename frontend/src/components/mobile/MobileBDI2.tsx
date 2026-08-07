@@ -254,8 +254,8 @@ const BDI2_QUESTIONS = [
 
 export function MobileBDI2() {
   const handleSubmit = async (responses: Record<string, number>) => {
-    const response = await api.post('/api/v1/clinical/BDI2/submit', responses);
-    return response.data;
+    const response = await api.post('/clinical/BDI2/submit', responses);
+    return response.data as void;
   };
 
   return (

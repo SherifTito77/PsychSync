@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 interface Therapist {
   id: string;
@@ -41,6 +42,7 @@ interface Resource {
 }
 
 const ClinicalResources: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'therapists' | 'groups' | 'resources'>('therapists');
   const [therapists, setTherapists] = useState<Therapist[]>([]);
   const [supportGroups, setSupportGroups] = useState<SupportGroup[]>([]);
@@ -259,7 +261,7 @@ const ClinicalResources: React.FC = () => {
 
       {/* Tab Navigation */}
       <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-8 flex-wrap">
           <button
             onClick={() => setActiveTab('therapists')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${

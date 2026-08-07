@@ -5,10 +5,10 @@ import QuickValuePreview from './QuickValuePreview';
 import StreamlinedRegister from './StreamlinedRegister';
 
 interface ImprovedLandingProps {
-  onGetStarted: (role: string, challenge: string) => void;
+  onGetStarted?: (role: string, challenge: string) => void;
 }
 
-const ImprovedLanding: React.FC<ImprovedLandingProps> = ({ onGetStarted }) => {
+const ImprovedLanding: React.FC<ImprovedLandingProps> = ({ onGetStarted = () => {} }) => {
   const [currentView, setCurrentView] = useState<'landing' | 'preview' | 'signup'>('landing');
   const [selectedRole, setSelectedRole] = useState<string>('');
   const [selectedChallenge, setSelectedChallenge] = useState<string>('');
@@ -39,9 +39,7 @@ const ImprovedLanding: React.FC<ImprovedLandingProps> = ({ onGetStarted }) => {
           </svg>
           Back to overview
         </button>
-        <QuickValuePreview
-          onComplete={(role, challenge) => onGetStarted(role, challenge)}
-        />
+        <QuickValuePreview />
       </div>
     );
   }
@@ -119,8 +117,9 @@ const ImprovedLanding: React.FC<ImprovedLandingProps> = ({ onGetStarted }) => {
                 See how it works - try it now (no registration required)
               </h3>
               <button
+                type="button"
                 onClick={() => handlePreviewStart('', '')}
-                className="bg-indigo-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-indigo-700 transition-colors shadow-lg"
+                className="bg-indigo-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-indigo-700 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors shadow-lg"
               >
                 <span className="mr-2">🚀</span>
                 Try Free Team Analysis - 2 Minutes
@@ -297,8 +296,11 @@ const ImprovedLanding: React.FC<ImprovedLandingProps> = ({ onGetStarted }) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-gray-50 rounded-lg p-6">
               <div className="flex items-center mb-4">
-                <img src="https://images.unsplash.com/photo-1494790108755-2616b332c5ca?w=40&h=40&fit=crop&crop=face"
-                     alt="Sarah Chen" className="w-12 h-12 rounded-full mr-3" />
+                <img
+                  src="https://images.unsplash.com/photo-1494790108755-2616b332c5ca?w=40&h=40&fit=crop&crop=face"
+                  alt="Professional headshot of Sarah Chen, Engineering Manager at TechCorp"
+                  className="w-12 h-12 rounded-full mr-3"
+                />
                 <div>
                   <h4 className="font-semibold text-gray-900">Sarah Chen</h4>
                   <p className="text-sm text-gray-600">Engineering Manager, TechCorp</p>
@@ -319,8 +321,11 @@ const ImprovedLanding: React.FC<ImprovedLandingProps> = ({ onGetStarted }) => {
 
             <div className="bg-gray-50 rounded-lg p-6">
               <div className="flex items-center mb-4">
-                <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face"
-                     alt="Michael Rodriguez" className="w-12 h-12 rounded-full mr-3" />
+                <img
+                  src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face"
+                  alt="Professional headshot of Michael Rodriguez, HR Director at GlobalFinance"
+                  className="w-12 h-12 rounded-full mr-3"
+                />
                 <div>
                   <h4 className="font-semibold text-gray-900">Michael Rodriguez</h4>
                   <p className="text-sm text-gray-600">HR Director, GlobalFinance</p>
@@ -341,8 +346,11 @@ const ImprovedLanding: React.FC<ImprovedLandingProps> = ({ onGetStarted }) => {
 
             <div className="bg-gray-50 rounded-lg p-6">
               <div className="flex items-center mb-4">
-                <img src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40&h=40&fit=crop&crop=face"
-                     alt="Emily Johnson" className="w-12 h-12 rounded-full mr-3" />
+                <img
+                  src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40&h=40&fit=crop&crop=face"
+                  alt="Professional headshot of Emily Johnson, Team Lead at StartupXYZ"
+                  className="w-12 h-12 rounded-full mr-3"
+                />
                 <div>
                   <h4 className="font-semibold text-gray-900">Emily Johnson</h4>
                   <p className="text-sm text-gray-600">Team Lead, StartupXYZ</p>
@@ -375,14 +383,16 @@ const ImprovedLanding: React.FC<ImprovedLandingProps> = ({ onGetStarted }) => {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
+              type="button"
               onClick={() => handlePreviewStart('', '')}
-              className="bg-white text-indigo-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100 transition-colors"
+              className="bg-white text-indigo-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-100 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
             >
               Try Free Analysis - 2 Minutes
             </button>
             <button
+              type="button"
               onClick={handleSignupStart}
-              className="bg-indigo-500 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-indigo-400 transition-colors"
+              className="bg-indigo-500 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-indigo-400 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
             >
               Sign Up Free
             </button>

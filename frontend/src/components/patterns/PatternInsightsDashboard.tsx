@@ -1,7 +1,9 @@
 // Pattern Insights Dashboard Component
 // Comprehensive dashboard for displaying behavioral pattern insights and anomalies
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useAsyncEffect } from '@/hooks/useAsyncEffect';
+import { useDebouncedCallback } from '@/hooks/usePerformanceOptimizations';
 import {
   Card,
   CardContent,
@@ -144,9 +146,23 @@ const PatternInsightsDashboard: React.FC<PatternInsightsDashboardProps> = ({
   const [selectedTab, setSelectedTab] = useState('overview');
   const [expandedPatterns, setExpandedPatterns] = useState<Set<string>>(new Set());
   const [filterSeverity, setFilterSeverity] = useState<string>('all');
+  const [insights, setInsights] = useState<any[]>([]);
+  const [anomalies, setAnomalies] = useState<any[]>([]);
+  const [trends, setTrends] = useState<any[]>([]);
+  const [correlations, setCorrelations] = useState<any[]>([]);
+  const [predictions, setPredictions] = useState<any[]>([]);
+
+  // Track if we're currently fetching to prevent concurrent requests
+  const isFetchingRef = useRef(false);
 
   // TODO(human): Fetch pattern insights data from the API
   const fetchPatternInsights = useCallback(async () => {
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      return;
+    }
+
+    isFetchingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -270,12 +286,53 @@ const PatternInsightsDashboard: React.FC<PatternInsightsDashboardProps> = ({
       setError(err instanceof Error ? err.message : 'Failed to fetch pattern insights');
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, [userId, timeRange]);
 
-  useEffect(() => {
-    fetchPatternInsights();
-  }, [fetchPatternInsights]);
+  // Debounced refresh handler (500ms debounce)
+  const handleRefresh = useDebouncedCallback(() => {
+    if (!isFetchingRef.current) {
+      fetchPatternInsights();
+    }
+  }, 500, []);
+
+  // ✅ FIXED: Memory leak prevention - direct async call with cleanup
+  useAsyncEffect(async (signal, isMounted) => {
+    if (!isMounted()) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Direct inline fetch with abort signal
+      const response = await fetch(`/api/v1/analytics/behavioral-patterns?user_id=${userId}&time_range=${timeRange}`, {
+        signal,
+      });
+
+      if (!isMounted()) return;
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (isMounted()) {
+        setInsights(data.insights || []);
+        setAnomalies(data.anomalies || []);
+        setTrends(data.trends || []);
+        setCorrelations(data.correlations || []);
+        setPredictions(data.predictions || []);
+        setLoading(false);
+      }
+    } catch (err) {
+      if (isMounted() && err.name !== 'AbortError') {
+        setError(err instanceof Error ? err.message : 'Failed to fetch pattern insights');
+        setLoading(false);
+      }
+    }
+  }, [userId, timeRange]);
 
   const togglePatternExpansion = (patternId: string) => {
     setExpandedPatterns(prev => {
@@ -348,7 +405,7 @@ const PatternInsightsDashboard: React.FC<PatternInsightsDashboardProps> = ({
             <AlertTriangle className="h-5 w-5 mr-2" />
             <span>Error loading pattern insights: {error}</span>
           </div>
-          <Button onClick={fetchPatternInsights} className="mt-4">
+          <Button onClick={handleRefresh} className="mt-4">
             <RefreshCw className="h-4 w-4 mr-2" />
             Retry
           </Button>
@@ -378,7 +435,7 @@ const PatternInsightsDashboard: React.FC<PatternInsightsDashboardProps> = ({
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button onClick={fetchPatternInsights} size="sm">
+          <Button onClick={handleRefresh} size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
@@ -422,7 +479,7 @@ const PatternInsightsDashboard: React.FC<PatternInsightsDashboardProps> = ({
                   </Badge>
                 )}
                 {data.risk_assessment.requires_intervention && (
-                  <Badge variant="destructive">
+                  <Badge variant="error">
                     <AlertTriangle className="h-3 w-3 mr-1" />
                     Intervention Required
                   </Badge>
@@ -503,7 +560,7 @@ const PatternInsightsDashboard: React.FC<PatternInsightsDashboardProps> = ({
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percentage }) => `${name} ${percentage}%`}
+                      label={(props: any) => `${props.name} ${props.percentage}%`}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
@@ -658,7 +715,7 @@ const PatternInsightsDashboard: React.FC<PatternInsightsDashboardProps> = ({
                         {Object.entries(anomaly.baseline_metrics).map(([key, value]) => (
                           <div key={key} className="flex justify-between text-sm">
                             <span className="text-gray-600">{key}:</span>
-                            <span className="font-medium">{typeof value === 'number' ? value.toFixed(3) : value}</span>
+                            <span className="font-medium">{typeof value === 'number' ? (value as number).toFixed(3) : value}</span>
                           </div>
                         ))}
                       </div>
@@ -669,7 +726,7 @@ const PatternInsightsDashboard: React.FC<PatternInsightsDashboardProps> = ({
                         {Object.entries(anomaly.observed_metrics).map(([key, value]) => (
                           <div key={key} className="flex justify-between text-sm">
                             <span className="text-gray-600">{key}:</span>
-                            <span className="font-medium text-orange-600">{typeof value === 'number' ? value.toFixed(3) : value}</span>
+                            <span className="font-medium text-orange-600">{typeof value === 'number' ? (value as number).toFixed(3) : value}</span>
                           </div>
                         ))}
                       </div>

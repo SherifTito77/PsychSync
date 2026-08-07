@@ -120,12 +120,19 @@ class EncryptionService:
         env_key = os.environ.get("DB_ENCRYPTION_KEY")
 
         if not env_key:
-            # Generate and warn (not for production!)
-            logger.warning(
-                "DB_ENCRYPTION_KEY not set. Generating temporary key. "
-                "This should NOT be used in production!"
+            # Fall back to SECRET_KEY-derived key for development consistency
+            from app.core.config import settings as _settings
+
+            env_key = _settings.SECRET_KEY
+            if not env_key or len(env_key) < 16:
+                logger.warning(
+                    "DB_ENCRYPTION_KEY not set and SECRET_KEY too short. "
+                    "Set DB_ENCRYPTION_KEY in environment for production!"
+                )
+                return os.urandom(EncryptionConfig.KEY_SIZE)
+            logger.debug(
+                "DB_ENCRYPTION_KEY not set; using SECRET_KEY-derived key (dev mode)"
             )
-            return os.urandom(EncryptionConfig.KEY_SIZE)
 
         # Derive key from environment variable
         # Use PBKDF2 with a fixed salt for consistency

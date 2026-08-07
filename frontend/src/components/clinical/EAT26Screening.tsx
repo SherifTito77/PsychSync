@@ -264,10 +264,13 @@ function EAT26Screening() {
         behavioral_questions: behavioralQuestions,
       };
 
-      const response = await api.post('/api/v1/screening/eat26', payload);
-      setResult(response.data);
+      const response = await api.post('/clinical/screening/submit', {
+        assessment_type: 'eat26',
+        responses: responses
+      }
+      setResult(response.data as ScreeningResult);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err: any) {
+    } catch (err) {
       setError(
         err.response?.data?.detail || 'Failed to submit assessment. Please try again.'
       );
@@ -467,10 +470,10 @@ function EAT26Screening() {
 
         {/* Actions */}
         <div className="flex gap-4">
-          <Button onClick={handleReset} variant="outline" size="lg">
+          <Button onClick={handleReset} variant="outline" size="sm">
             Take Assessment Again
           </Button>
-          <Button onClick={() => window.print()} size="lg">
+          <Button onClick={() => window.print()} size="sm">
             Save Results
           </Button>
         </div>
@@ -519,7 +522,7 @@ function EAT26Screening() {
               </Label>
               <RadioGroup
                 value={behavioralQuestions.binge_eating}
-                onValueChange={(value) =>
+                onChange={(value) =>
                   setBehavioralQuestions((prev) => ({ ...prev, binge_eating: value }))
                 }
               >
@@ -541,7 +544,7 @@ function EAT26Screening() {
               </Label>
               <RadioGroup
                 value={behavioralQuestions.vomiting}
-                onValueChange={(value) =>
+                onChange={(value) =>
                   setBehavioralQuestions((prev) => ({ ...prev, vomiting: value }))
                 }
               >
@@ -563,7 +566,7 @@ function EAT26Screening() {
               </Label>
               <RadioGroup
                 value={behavioralQuestions.laxatives}
-                onValueChange={(value) =>
+                onChange={(value) =>
                   setBehavioralQuestions((prev) => ({ ...prev, laxatives: value }))
                 }
               >
@@ -585,7 +588,7 @@ function EAT26Screening() {
               </Label>
               <RadioGroup
                 value={behavioralQuestions.exercise}
-                onValueChange={(value) =>
+                onChange={(value) =>
                   setBehavioralQuestions((prev) => ({ ...prev, exercise: value }))
                 }
               >
@@ -621,7 +624,7 @@ function EAT26Screening() {
             <Button
               onClick={handleSubmit}
               disabled={loading}
-              size="lg"
+              size="sm"
               className="w-full"
             >
               {loading ? (
@@ -688,7 +691,7 @@ function EAT26Screening() {
         <CardContent className="space-y-4">
           <RadioGroup
             value={responses[question.id]?.toString()}
-            onValueChange={(value) => handleResponse(question.id, parseInt(value))}
+            onChange={(value) => handleResponse(question.id, parseInt(value))}
           >
             {RESPONSE_OPTIONS.map((option, idx) => (
               <div
@@ -708,7 +711,7 @@ function EAT26Screening() {
 
           {/* Error Message */}
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="error">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
@@ -722,7 +725,7 @@ function EAT26Screening() {
           onClick={handlePrevious}
           disabled={currentQuestion === 0}
           variant="outline"
-          size="lg"
+          size="sm"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Previous
@@ -732,7 +735,7 @@ function EAT26Screening() {
           <Button
             onClick={handleNext}
             disabled={!currentQuestionComplete}
-            size="lg"
+            size="sm"
           >
             Next
             <ArrowRight className="h-4 w-4 ml-2" />
@@ -741,7 +744,7 @@ function EAT26Screening() {
           <Button
             onClick={() => {}}
             disabled={!allQuestionsComplete}
-            size="lg"
+            size="sm"
             className="bg-green-600 hover:bg-green-700"
           >
             Continue to Additional Questions

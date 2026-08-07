@@ -3,7 +3,7 @@
  * Assessment Scoring Dashboard Component
  * Displays assessment scores, analytics, and insights
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   LineChart,
   Line,
@@ -22,6 +22,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Download, RefreshCw, TrendingUp, TrendingDown, Activity } from 'lucide-react';
+import { useAsyncEffect } from '@/hooks/useAsyncEffect';
+import { useDebouncedCallback } from '@/hooks/usePerformanceOptimizations';
 // =================================================================
 // TYPES
 // =================================================================
@@ -62,13 +64,19 @@ const ScoringDashboard: React.FC<DashboardProps> = ({ userId, teamId }) => {
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year'>('month');
   const [activeTab, setActiveTab] = useState<'overview' | 'trends' | 'personality'>('overview');
+
+  // Track if we're currently fetching to prevent concurrent requests
+  const isFetchingRef = useRef(false);
   // =================================================================
   // DATA FETCHING
   // =================================================================
-  useEffect(() => {
-    fetchDashboardData();
-  }, [userId, teamId, selectedPeriod]);
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async (signal?: AbortSignal) => {
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      return;
+    }
+
+    isFetchingRef.current = true;
     setLoading(true);
     try {
       const token = localStorage.getItem('access_token');
@@ -79,30 +87,68 @@ const ScoringDashboard: React.FC<DashboardProps> = ({ userId, teamId }) => {
       // Fetch assessment scores
       const scoresResponse = await fetch(
         `/api/v1/assessments/scores?period=${selectedPeriod}`,
-        { headers }
+        { headers, signal }
       );
       const scoresData = await scoresResponse.json();
+
+      // Check if request was aborted
+      if (signal?.aborted) {
+        return;
+      }
+
       setScores(scoresData);
       // Fetch trend data
       const trendsResponse = await fetch(
         `/api/v1/assessments/trends?period=${selectedPeriod}`,
-        { headers }
+        { headers, signal }
       );
       const trendsData = await trendsResponse.json();
+
+      // Check if request was aborted
+      if (signal?.aborted) {
+        return;
+      }
+
       setTrendData(trendsData);
       // Fetch personality profile
       const profileResponse = await fetch(
         `/api/v1/assessments/personality-profile`,
-        { headers }
+        { headers, signal }
       );
       const profileData = await profileResponse.json();
+
+      // Check if request was aborted
+      if (signal?.aborted) {
+        return;
+      }
+
       setPersonalityProfile(profileData);
-    } catch (error) {
+    } catch (error: any) {
+      // Don't log if request was aborted
+      if (error.name === 'AbortError' || signal?.aborted) {
+        return;
+      }
       console.error('Error fetching dashboard data:', error);
     } finally {
-      setLoading(false);
+      // Only update loading state if request wasn't aborted
+      if (!signal?.aborted) {
+        setLoading(false);
+        isFetchingRef.current = false;
+      }
     }
-  };
+  }, [selectedPeriod]);
+
+  // Initial data load with race condition protection
+  useAsyncEffect(async (signal, isMounted) => {
+    await fetchDashboardData(signal);
+  }, [fetchDashboardData]);
+
+  // Debounced refresh handler (500ms debounce)
+  const handleRefresh = useDebouncedCallback(() => {
+    if (!isFetchingRef.current) {
+      fetchDashboardData();
+    }
+  }, 500, []);
   // =================================================================
   // UTILITY FUNCTIONS
   // =================================================================
@@ -205,7 +251,7 @@ const ScoringDashboard: React.FC<DashboardProps> = ({ userId, teamId }) => {
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={Object.entries(scores[0]?.category_scores || {}).map(([key, value]) => ({
             category: key,
-            score: value,
+            score: value as number,
           }))}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="category" />
@@ -450,7 +496,7 @@ const ScoringDashboard: React.FC<DashboardProps> = ({ userId, teamId }) => {
           </select>
           {/* Refresh Button */}
           <button
-            onClick={fetchDashboardData}
+            onClick={handleRefresh}
             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <RefreshCw className="w-5 h-5" />

@@ -19,7 +19,7 @@ from app.db.models.user import User
 
 # AI Processing imports
 try:
-    from ai.processors import get_processor
+    from app.ai.processors import get_processor
 
     AI_PROCESSORS_AVAILABLE = True
 except ImportError:
@@ -534,24 +534,24 @@ async def _process_personality_assessment(
     try:
         # Import appropriate processor
         if framework_code.lower() == "mbti":
-            from ai.processors.mbti_processor import MBTIProcessor
+            from app.ai.processors.mbti_processor import MBTIProcessor
 
             processor = MBTIProcessor()
         elif framework_code.lower() == "big_five":
-            from ai.processors.big_five import BigFiveProcessor
+            from app.ai.processors.big_five import BigFiveProcessor
 
             processor = BigFiveProcessor()
         elif framework_code.lower() == "enneagram":
-            from ai.processors.enneagram import EnneagramProcessor
+            from app.ai.processors.enneagram import EnneagramProcessor
 
             processor = EnneagramProcessor()
         elif framework_code.lower() == "predictive_index":
-            from ai.processors.predictive_index import PredictiveIndexProcessor
+            from app.ai.processors.predictive_index import PredictiveIndexProcessor
 
             processor = PredictiveIndexProcessor()
         else:
             # Default processor
-            from ai.processors.processors_base import PersonalityFrameworkProcessor
+            from app.ai.processors.processors_base import PersonalityFrameworkProcessor
 
             processor = PersonalityFrameworkProcessor()
 

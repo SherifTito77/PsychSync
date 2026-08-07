@@ -6,7 +6,7 @@ interface LabelProps {
   className?: string;
 }
 
-const Label: React.FC<LabelProps> = ({ children, htmlFor, className = '' }) => {
+const Label = React.memo<LabelProps>(({ children, htmlFor, className = '' }) => {
   return (
     <label
       htmlFor={htmlFor}
@@ -15,7 +15,9 @@ const Label: React.FC<LabelProps> = ({ children, htmlFor, className = '' }) => {
       {children}
     </label>
   );
-};
+});
+
+Label.displayName = 'Label';
 
 export { Label };
 export default Label;

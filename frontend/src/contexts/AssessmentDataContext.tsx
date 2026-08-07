@@ -1,4 +1,19 @@
-import React, { createContext, useContext, useState, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
+
+/**
+ * AssessmentDataContext - Core assessment data management
+ *
+ * This context ONLY manages assessment data:
+ * - Assessment configuration
+ * - Current question index
+ * - User answers
+ * - Results
+ *
+ * UI state (loading, error) is in AssessmentUIContext
+ * Actions are in AssessmentActionsContext
+ *
+ * This split prevents unnecessary re-renders when UI state changes.
+ */
 
 // Generic interfaces for assessment data
 interface AssessmentQuestion {

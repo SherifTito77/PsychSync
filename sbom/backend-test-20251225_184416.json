@@ -1,0 +1,141 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "metadata": {
+    "timestamp": "2025-12-25T11:44:16.619808Z",
+    "component": {
+      "name": "psychsync-backend",
+      "type": "application",
+      "version": "1.0.0"
+    },
+    "tools": [
+      {
+        "vendor": "PsychSync",
+        "name": "manual-sbom-generator",
+        "version": "1.0"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "fastapi",
+      "version": "0.109.1",
+      "purl": "pkg:pypi/fastapi@0.109.1",
+      "type": "library"
+    },
+    {
+      "name": "uvicorn[standard]",
+      "version": "0.24.0",
+      "purl": "pkg:pypi/uvicorn[standard]@0.24.0",
+      "type": "library"
+    },
+    {
+      "name": "slowapi",
+      "version": "0.1.9",
+      "purl": "pkg:pypi/slowapi@0.1.9",
+      "type": "library"
+    },
+    {
+      "name": "sqlalchemy",
+      "version": "2.0.23",
+      "purl": "pkg:pypi/sqlalchemy@2.0.23",
+      "type": "library"
+    },
+    {
+      "name": "alembic",
+      "version": "1.12.1",
+      "purl": "pkg:pypi/alembic@1.12.1",
+      "type": "library"
+    },
+    {
+      "name": "psycopg2-binary",
+      "version": "2.9.9",
+      "purl": "pkg:pypi/psycopg2-binary@2.9.9",
+      "type": "library"
+    },
+    {
+      "name": "aiosqlite",
+      "version": "0.21.0",
+      "purl": "pkg:pypi/aiosqlite@0.21.0",
+      "type": "library"
+    },
+    {
+      "name": "boto3",
+      "version": "1.41.1",
+      "purl": "pkg:pypi/boto3@1.41.1",
+      "type": "library"
+    },
+    {
+      "name": "pydantic",
+      "version": "2.5.0",
+      "purl": "pkg:pypi/pydantic@2.5.0",
+      "type": "library"
+    },
+    {
+      "name": "pydantic-settings",
+      "version": "2.1.0",
+      "purl": "pkg:pypi/pydantic-settings@2.1.0",
+      "type": "library"
+    },
+    {
+      "name": "python-jose[cryptography]",
+      "version": "3.4.0",
+      "purl": "pkg:pypi/python-jose[cryptography]@3.4.0",
+      "type": "library"
+    },
+    {
+      "name": "passlib[bcrypt]",
+      "version": "1.7.4",
+      "purl": "pkg:pypi/passlib[bcrypt]@1.7.4",
+      "type": "library"
+    },
+    {
+      "name": "pyotp",
+      "version": "2.9.0",
+      "purl": "pkg:pypi/pyotp@2.9.0",
+      "type": "library"
+    },
+    {
+      "name": "qrcode",
+      "version": "7.4.2",
+      "purl": "pkg:pypi/qrcode@7.4.2",
+      "type": "library"
+    },
+    {
+      "name": "pillow",
+      "version": "10.1.0",
+      "purl": "pkg:pypi/pillow@10.1.0",
+      "type": "library"
+    },
+    {
+      "name": "python-multipart",
+      "version": "0.0.18",
+      "purl": "pkg:pypi/python-multipart@0.0.18",
+      "type": "library"
+    },
+    {
+      "name": "google-api-python-client",
+      "version": "2.108.0",
+      "purl": "pkg:pypi/google-api-python-client@2.108.0",
+      "type": "library"
+    },
+    {
+      "name": "google-auth-httplib2",
+      "version": "0.2.0",
+      "purl": "pkg:pypi/google-auth-httplib2@0.2.0",
+      "type": "library"
+    },
+    {
+      "name": "google-auth-oauthlib",
+      "version": "1.1.0",
+      "purl": "pkg:pypi/google-auth-oauthlib@1.1.0",
+      "type": "library"
+    },
+    {
+      "name": "google-auth",
+      "version": "2.23.4",
+      "purl": "pkg:pypi/google-auth@2.23.4",
+      "type": "library"
+    }
+  ]
+}

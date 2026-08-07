@@ -163,7 +163,7 @@ export const HealthAlertBanner: React.FC<HealthAlertBannerProps> = ({
                   key={i}
                   variant="outline"
                   size="sm"
-                  asChild
+
                   className={`text-xs ${resource.type === 'crisis' ? 'border-red-500 text-red-700 hover:bg-red-100' : ''}`}
                 >
                   <a

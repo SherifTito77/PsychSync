@@ -242,7 +242,9 @@ const MultiFrameworkSynthesis: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <Puzzle className="h-8 w-8 text-purple-600" />
+          <div className="h-8 w-8 text-purple-600 flex items-center justify-center bg-purple-100 rounded-lg">
+            <Puzzle className="h-6 w-6" />
+          </div>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Multi-Framework Synthesis</h1>
             <p className="text-sm text-gray-500">AI-powered synthesis across personality frameworks for unified insights</p>

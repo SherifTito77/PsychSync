@@ -101,7 +101,7 @@ const securityAnalyticsApi = {
    * Get system security status overview
    */
   getSystemStatus: async (): Promise<SecurityMetrics> => {
-    const response = await api.get('/api/v1/analytics/status/overview');
+    const response = await api.get('/security/analytics/status/overview');
     return response.data;
   },
 
@@ -110,7 +110,7 @@ const securityAnalyticsApi = {
    */
   getActiveThreats: async (params: GetThreatsParams = {}): Promise<ThreatIndicator[]> => {
     const { hours = 24, severity } = params;
-    const response = await api.get('/api/v1/analytics/metrics/threats', {
+    const response = await api.get('/security/analytics/metrics/threats', {
       params: { hours, severity }
     });
     return response.data;
@@ -121,7 +121,7 @@ const securityAnalyticsApi = {
    */
   getSecurityEvents: async (params: GetSecurityEventsParams = {}): Promise<SecurityEvent[]> => {
     const { event_type, severity, hours = 24, limit = 100 } = params;
-    const response = await api.get('/api/v1/analytics/metrics/events', {
+    const response = await api.get('/security/analytics/metrics/events', {
       params: { event_type, severity, hours, limit }
     });
     return response.data;
@@ -131,7 +131,7 @@ const securityAnalyticsApi = {
    * Get security event timeline for trends
    */
   getSecurityTimeline: async (hours: number = 24, interval: 'hour' | 'day' = 'hour'): Promise<TimelineData> => {
-    const response = await api.get('/api/v1/analytics/metrics/timeline', {
+    const response = await api.get('/security/analytics/metrics/timeline', {
       params: { hours, interval }
     });
     return response.data;
@@ -142,7 +142,7 @@ const securityAnalyticsApi = {
    */
   getAuditLogs: async (params: GetAuditLogsParams = {}): Promise<AuditLog[]> => {
     const { event_type, severity, user_id, hours = 24, limit = 100 } = params;
-    const response = await api.get('/api/v1/analytics/audit/logs', {
+    const response = await api.get('/security/analytics/audit/logs', {
       params: { event_type, severity, user_id, hours, limit }
     });
     return response.data;
@@ -159,7 +159,7 @@ const securityAnalyticsApi = {
     unique_users: number;
     unique_ips: number;
   }> => {
-    const response = await api.get('/api/v1/analytics/audit/summary', {
+    const response = await api.get('/security/analytics/audit/summary', {
       params: { hours }
     });
     return response.data;
@@ -169,7 +169,7 @@ const securityAnalyticsApi = {
    * Get active security alerts
    */
   getActiveAlerts: async (hours: number = 24): Promise<SecurityEvent[]> => {
-    const response = await api.get('/api/v1/analytics/alerts/active', {
+    const response = await api.get('/security/analytics/alerts/active', {
       params: { hours }
     });
     return response.data;
@@ -179,7 +179,7 @@ const securityAnalyticsApi = {
    * Acknowledge a security alert
    */
   acknowledgeAlert: async (alertId: string): Promise<{ status: string; alert_id: string }> => {
-    const response = await api.post(`/api/v1/analytics/alerts/${alertId}/acknowledge`);
+    const response = await api.post(`/security/analytics/alerts/${alertId}/acknowledge`);
     return response.data;
   },
 
@@ -187,7 +187,7 @@ const securityAnalyticsApi = {
    * Get user risk profile
    */
   getUserRiskProfile: async (userId: number, hours: number = 24): Promise<UserRiskProfile> => {
-    const response = await api.get(`/api/v1/analytics/risk/users/${userId}`, {
+    const response = await api.get(`/security/analytics/risk/users/${userId}`, {
       params: { hours }
     });
     return response.data;
@@ -207,7 +207,7 @@ const securityAnalyticsApi = {
     users_with_recent_activity: number;
     ips_with_recent_activity: number;
   }> => {
-    const response = await api.get('/api/v1/analytics/metrics/overview');
+    const response = await api.get('/security/analytics/metrics/overview');
     return response.data;
   }
 };

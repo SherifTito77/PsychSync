@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { FontScalingValidator } from '../accessibility';
+import { FontScalingValidator } from '../accessibility/FontScalingValidator';
 
 interface FontSizeDemo {
   level: number;
@@ -76,7 +76,7 @@ const DEMO_CONTENT = {
   mixedContent: [
     { text: 'This paragraph contains ', bold: 'bold text', postfix: ', ', italic: 'italic text', postfix2: ', and ', link: { text: 'inline links', href: '#' }, postfix3: ' that should all scale proportionally.' },
     { text: 'Numbers and symbols (123, @#$%, &*%) must remain clear and readable at all sizes.' },
-    { text: 'Mixed content testing: Regular ', bold: 'bold', postfix: ' ', italic: 'italic', postfix: ' ', boldItalic: { bold: 'bold italic', italic: 'italic' }, postfix: ' and ', link: { text: 'links', href: '#' }, postfix: '.' }
+    { text: 'Mixed content testing: Regular ', bold: 'bold', postfix1: ' ', italic: 'italic', postfix2: ' ', boldItalic: { bold: 'bold italic', italic: 'italic' }, postfix3: ' and ', link: { text: 'links', href: '#' }, postfix4: '.' }
   ]
 };
 
@@ -121,7 +121,7 @@ export const FontScalingDemo: React.FC = () => {
 
   return (
     <div className="font-scaling-demo">
-      <style jsx>{`
+      <style>{`
         .font-scaling-demo {
           padding: 20px;
           max-width: 1400px;
@@ -154,11 +154,19 @@ export const FontScalingDemo: React.FC = () => {
         .current-size-display {
           display: inline-block;
           padding: 12px 24px;
-          background: rgba(255, 255, 255, 0.2);
           border-radius: 30px;
           font-weight: 600;
           font-size: 20px;
-          backdrop-filter: blur(10px);
+
+          /* Firefox fallback - solid background */
+          background: rgba(255, 255, 255, 0.85);
+
+          /* Modern browsers - backdrop blur */
+          @supports (-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px)) {
+            background: rgba(255, 255, 255, 0.4);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+          }
         }
 
         .size-selector {

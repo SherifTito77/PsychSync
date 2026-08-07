@@ -282,7 +282,7 @@ const SelfHelpResources: React.FC = () => {
             </p>
             <div className="flex justify-center space-x-4">
               <Button
-                variant="destructive"
+                variant="danger"
                 onClick={() => window.open('tel:988')}
               >
                 Call 988

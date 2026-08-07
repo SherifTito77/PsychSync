@@ -130,6 +130,20 @@ class Settings(BaseSettings, ApplicationConfig, SecurityConfig, DatabaseConfig):
     REDIS_DB: int = Field(default=0, env="REDIS_DB")
     REDIS_MAX_CONNECTIONS: int = Field(default=20, env="REDIS_MAX_CONNECTIONS")
 
+    @property
+    def REDIS_HOST(self) -> str:
+        """Parsed host from REDIS_URL for legacy code."""
+        from urllib.parse import urlparse
+
+        return urlparse(self.REDIS_URL).hostname or "localhost"
+
+    @property
+    def REDIS_PORT(self) -> int:
+        """Parsed port from REDIS_URL for legacy code."""
+        from urllib.parse import urlparse
+
+        return urlparse(self.REDIS_URL).port or 6379
+
     # External services
     SLACK_BOT_TOKEN: str | None = Field(default=None, env="SLACK_BOT_TOKEN")
     SLACK_SIGNING_SECRET: str | None = Field(default=None, env="SLACK_SIGNING_SECRET")

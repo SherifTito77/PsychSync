@@ -1,6 +1,9 @@
 // // src/contexts/NotificationContext.tsx
 // src/contexts/NotificationContext.tsx - Notification Management Context
-import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
+//
+// FIXED: Memory leaks from setTimeout cleanup - now tracks and cleans up timeouts
+
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef, ReactNode } from 'react';
 import { Notification } from '../types';
 interface NotificationContextType {
   notifications: Notification[];
@@ -21,6 +24,18 @@ interface NotificationProviderProps {
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
+  // Track timeout IDs for cleanup - FIXED: Prevents memory leaks
+  const timeoutRefs = useRef<Map<number, NodeJS.Timeout>>(new Map());
+
+  // Clean up all timeouts on unmount
+  React.useEffect(() => {
+    return () => {
+      // Clear all pending timeouts when provider unmounts
+      timeoutRefs.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      timeoutRefs.current.clear();
+    };
+  }, []);
+
   // ✅ MEMOIZED: Functions with useCallback
   const showNotification = useCallback((
     message: string,
@@ -35,14 +50,28 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       duration,
     };
     setNotifications((prev) => [...prev, notification]);
+
+    // Auto-dismiss after duration - FIXED: Now tracks timeout for cleanup
     if (duration > 0) {
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         setNotifications((prev) => prev.filter((notif) => notif.id !== id));
+        // Clean up timeout ref after execution
+        timeoutRefs.current.delete(id);
       }, duration);
+
+      // Store timeout ref for cleanup
+      timeoutRefs.current.set(id, timeoutId);
     }
   }, []);
 
   const removeNotification = useCallback((id: number): void => {
+    // Clear timeout if it exists for this notification
+    const timeoutId = timeoutRefs.current.get(id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutRefs.current.delete(id);
+    }
+
     setNotifications((prev) => prev.filter((notif) => notif.id !== id));
   }, []);
 

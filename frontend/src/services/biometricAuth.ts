@@ -210,7 +210,7 @@ class BiometricAuthService {
     try {
       const deviceInfo = this.getDeviceInfo();
 
-      const response = await api.post('/api/v1/biometric-auth/register/initiate', {
+      const response = await api.post('/biometric-auth/register/initiate', {
         device_id: deviceInfo.device_id,
         biometric_type: biometricType,
         device_info: deviceInfo,
@@ -233,7 +233,7 @@ class BiometricAuthService {
     message: string;
   }> {
     try {
-      const response = await api.post('/api/v1/biometric-auth/register/complete', request);
+      const response = await api.post('/biometric-auth/register/complete', request);
 
       // Cache the key info
       if (response.data.success) {
@@ -258,7 +258,7 @@ class BiometricAuthService {
    */
   async initiateAuthentication(deviceId?: string): Promise<AuthChallenge> {
     try {
-      const response = await api.post('/api/v1/biometric-auth/authenticate/initiate', {
+      const response = await api.post('/biometric-auth/authenticate/initiate', {
         device_id: deviceId || this.getDeviceId(),
       });
 
@@ -274,7 +274,7 @@ class BiometricAuthService {
    */
   async verifyAuthentication(request: VerifyAuthRequest): Promise<AuthResult> {
     try {
-      const response = await api.post('/api/v1/biometric-auth/authenticate/verify', request);
+      const response = await api.post('/biometric-auth/authenticate/verify', request);
 
       // Update last used timestamp
       const key = this.registeredKeys.get(request.device_id);
@@ -295,7 +295,7 @@ class BiometricAuthService {
    */
   async revokeBiometric(deviceId?: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await api.post('/api/v1/biometric-auth/revoke', {
+      const response = await api.post('/biometric-auth/revoke', {
         device_id: deviceId || this.getDeviceId(),
       });
 
@@ -315,7 +315,7 @@ class BiometricAuthService {
    */
   async getRegisteredDevices(): Promise<{ devices: BiometricKey[]; total: number }> {
     try {
-      const response = await api.get('/api/v1/biometric-auth/devices');
+      const response = await api.get('/biometric-auth/devices');
       return response.data;
     } catch (error: any) {
       console.error('Failed to get registered devices:', error);
@@ -342,7 +342,7 @@ class BiometricAuthService {
    */
   async getSupportedTypes(): Promise<{ biometric_types: BiometricTypeInfo[]; total_types: number }> {
     try {
-      const response = await api.get('/api/v1/biometric-auth/types');
+      const response = await api.get('/biometric-auth/types');
       return response.data;
     } catch (error: any) {
       console.error('Failed to get supported biometric types:', error);

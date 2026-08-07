@@ -138,10 +138,13 @@ function LSASScreening() {
     setError(null);
 
     try {
-      const response = await api.post('/api/v1/screening/lsas', responses);
-      setResult(response.data);
+      const response = await api.post('/clinical/screening/submit', {
+        assessment_type: 'lsas',
+        responses: responses
+      }
+      setResult(response.data as ScreeningResult);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err: any) {
+    } catch (err) {
       setError(
         err.response?.data?.detail || 'Failed to submit assessment. Please try again.'
       );
@@ -310,10 +313,10 @@ function LSASScreening() {
 
         {/* Actions */}
         <div className='flex gap-4'>
-          <Button onClick={handleReset} variant='outline' size='lg'>
+          <Button onClick={handleReset} variant='outline' size='large'>
             Take Assessment Again
           </Button>
-          <Button onClick={() => window.print()} size='lg'>
+          <Button onClick={() => window.print()} size='large'>
             Save Results
           </Button>
         </div>
@@ -373,7 +376,7 @@ function LSASScreening() {
             </div>
             <RadioGroup
               value={currentResponse.fear?.toString()}
-              onValueChange={(value) => handleResponse(question.id, 'fear', parseInt(value))}
+              onChange={(value) => handleResponse(question.id, 'fear', parseInt(value))}
             >
               {FEAR_OPTIONS.map((option) => (
                 <div key={option.value} className='flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 border'>
@@ -397,7 +400,7 @@ function LSASScreening() {
             </div>
             <RadioGroup
               value={currentResponse.avoidance?.toString()}
-              onValueChange={(value) => handleResponse(question.id, 'avoidance', parseInt(value))}
+              onChange={(value) => handleResponse(question.id, 'avoidance', parseInt(value))}
             >
               {AVOIDANCE_OPTIONS.map((option) => (
                 <div key={option.value} className='flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 border'>
@@ -415,7 +418,7 @@ function LSASScreening() {
 
           {/* Error Message */}
           {error && (
-            <Alert variant='destructive'>
+            <Alert variant='error'>
               <AlertTriangle className='h-4 w-4' />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
@@ -429,7 +432,7 @@ function LSASScreening() {
           onClick={handlePrevious}
           disabled={currentQuestion === 0}
           variant='outline'
-          size='lg'
+          size='large'
         >
           <ArrowLeft className='h-4 w-4 mr-2' />
           Previous
@@ -439,7 +442,7 @@ function LSASScreening() {
           <Button
             onClick={handleNext}
             disabled={!currentQuestionComplete}
-            size='lg'
+            size='large'
           >
             Next
             <ArrowRight className='h-4 w-4 ml-2' />
@@ -448,7 +451,7 @@ function LSASScreening() {
           <Button
             onClick={handleSubmit}
             disabled={!allQuestionsComplete || loading}
-            size='lg'
+            size='large'
             className={allQuestionsComplete ? 'bg-blue-600 hover:bg-blue-700' : ''}
           >
             {loading ? (

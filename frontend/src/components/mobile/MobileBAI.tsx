@@ -249,8 +249,8 @@ const BAI_QUESTIONS = [
 
 export function MobileBAI() {
   const handleSubmit = async (responses: Record<string, number>) => {
-    const response = await api.post('/api/v1/clinical/BAI/submit', responses);
-    return response.data;
+    const response = await api.post('/clinical/BAI/submit', responses);
+    return response.data as void;
   };
 
   return (

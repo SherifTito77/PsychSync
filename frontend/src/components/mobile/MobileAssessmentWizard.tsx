@@ -12,7 +12,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, ChevronLeft, CheckCircle2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import Progress from '@/components/ui/progress';
 
@@ -48,6 +48,7 @@ export function MobileAssessmentWizard({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [direction, setDirection] = useState(0);
+  const shouldReduceMotion = useReducedMotion();
 
   const currentQ = questions[currentQuestion];
   const progress = ((currentQuestion + 1) / questions.length) * 100;
@@ -147,15 +148,16 @@ export function MobileAssessmentWizard({
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
         <motion.div
+          layout
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+          transition={shouldReduceMotion ? { duration: 0.3 } : { type: 'spring', stiffness: 200, damping: 15 }}
           className="text-center"
         >
           <CheckCircle2 className="w-24 h-24 text-green-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Assessment Complete!</h2>
           <p className="text-gray-600 mb-6">Your responses have been submitted successfully.</p>
-          <Button onClick={() => window.history.back()} size="lg" className="w-full max-w-sm">
+          <Button onClick={() => window.history.back()} size="sm" className="w-full max-w-sm">
             Return to Dashboard
           </Button>
         </motion.div>
@@ -182,22 +184,24 @@ export function MobileAssessmentWizard({
 
       {/* Question card */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
-        <motion.div
-          key={currentQuestion}
-          custom={direction}
-          variants={variants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={{
-            x: { type: 'spring', stiffness: 300, damping: 30 },
-            opacity: { duration: 0.2 },
-          }}
-          className="max-w-lg mx-auto"
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
-        >
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            layout
+            key={currentQuestion}
+            custom={direction}
+            variants={shouldReduceMotion ? undefined : variants}
+            initial={shouldReduceMotion ? { opacity: 0 } : "enter"}
+            animate={shouldReduceMotion ? { opacity: 1 } : "center"}
+            exit={shouldReduceMotion ? { opacity: 0 } : "exit"}
+            transition={shouldReduceMotion ? { duration: 0.2 } : {
+              x: { type: 'spring', stiffness: 300, damping: 30 },
+              opacity: { duration: 0.2 },
+            }}
+            className="max-w-lg mx-auto"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+          >
           <div className="bg-white rounded-2xl shadow-sm p-6 mb-4">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">{currentQ.text}</h2>
             <p className="text-sm text-gray-500">Select the option that best describes you</p>
@@ -212,7 +216,7 @@ export function MobileAssessmentWizard({
                 <motion.button
                   key={option.value}
                   onClick={() => handleResponse(option.value)}
-                  className={`w-full p-5 rounded-xl border-2 text-left transition-all min-h-[60px] flex items-center ${
+                  className={`w-full p-4 sm:p-5 rounded-xl border-2 text-left transition-all min-h-[48px] sm:min-h-[52px] flex items-center ${
                     isSelected
                       ? 'border-blue-500 bg-blue-50 text-blue-700'
                       : 'border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:bg-blue-50/50'
@@ -242,6 +246,7 @@ export function MobileAssessmentWizard({
             </p>
           )}
         </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Sticky bottom navigation */}
@@ -249,10 +254,10 @@ export function MobileAssessmentWizard({
         <div className="max-w-lg mx-auto flex gap-3">
           <Button
             variant="outline"
-            size="lg"
+            size="sm"
             onClick={handlePrevious}
             disabled={currentQuestion === 0 || isSubmitting}
-            className="flex-1 min-h-[52px]"
+            className="flex-1 min-h-[48px] sm:min-h-[52px]"
           >
             <ChevronLeft className="w-5 h-5 mr-1" />
             Previous
@@ -262,8 +267,8 @@ export function MobileAssessmentWizard({
             <Button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              size="lg"
-              className="flex-1 min-h-[52px] bg-blue-600 hover:bg-blue-700"
+              size="sm"
+              className="flex-1 min-h-[48px] sm:min-h-[52px] bg-blue-600 hover:bg-blue-700"
             >
               {isSubmitting ? 'Submitting...' : 'Submit'}
               <CheckCircle2 className="w-5 h-5 ml-2" />
@@ -272,8 +277,8 @@ export function MobileAssessmentWizard({
             <Button
               onClick={handleNext}
               disabled={!canGoNext || isSubmitting}
-              size="lg"
-              className="flex-1 min-h-[52px] bg-blue-600 hover:bg-blue-700"
+              size="sm"
+              className="flex-1 min-h-[48px] sm:min-h-[52px] bg-blue-600 hover:bg-blue-700"
             >
               Next
               <ChevronRight className="w-5 h-5 ml-2" />

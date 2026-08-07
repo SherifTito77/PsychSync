@@ -13,10 +13,10 @@ import numpy as np
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai.processors.big_five import BigFiveProcessor
+from app.ai.processors.big_five import BigFiveProcessor
 
 # AI Engine imports
-from ai.processors.mbti_processor import MBTIProcessor
+from app.ai.processors.mbti_processor import MBTIProcessor
 from app.services.ai_behavioral_integration import AIBehavioralIntegrationService
 
 # Behavioral and analytics imports

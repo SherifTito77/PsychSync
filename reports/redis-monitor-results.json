@@ -1,0 +1,272 @@
+[
+  {
+    "timestamp": "2026-01-17T17:29:01.154017",
+    "elapsed_time_seconds": 0.0,
+    "memory": {
+      "used_memory": 1168432,
+      "used_memory_human": "1.11M",
+      "used_memory_peak": 1229728,
+      "used_memory_peak_human": "1.17M",
+      "used_memory_percentage": 0,
+      "maxmemory": 0,
+      "maxmemory_human": "0B",
+      "maxmemory_policy": "noeviction"
+    },
+    "cache": {
+      "total_keys": 71,
+      "sampled_keys_with_ttl": 71,
+      "sample_size": 71,
+      "ttl_percentage": 100.0
+    },
+    "key_patterns": {
+      "cache:*": 0,
+      "user:*": 0,
+      "session:*": 0,
+      "lock:*": 0,
+      "other": 71
+    }
+  },
+  {
+    "timestamp": "2026-01-17T17:29:31.271025",
+    "elapsed_time_seconds": 30.12,
+    "memory": {
+      "used_memory": 1252048,
+      "used_memory_human": "1.19M",
+      "used_memory_peak": 1267376,
+      "used_memory_peak_human": "1.21M",
+      "used_memory_percentage": 0,
+      "maxmemory": 0,
+      "maxmemory_human": "0B",
+      "maxmemory_policy": "noeviction"
+    },
+    "cache": {
+      "total_keys": 71,
+      "sampled_keys_with_ttl": 71,
+      "sample_size": 71,
+      "ttl_percentage": 100.0
+    },
+    "key_patterns": {
+      "cache:*": 0,
+      "user:*": 0,
+      "session:*": 0,
+      "lock:*": 0,
+      "other": 71
+    }
+  },
+  {
+    "timestamp": "2026-01-17T17:30:01.291418",
+    "elapsed_time_seconds": 60.14,
+    "memory": {
+      "used_memory": 1252048,
+      "used_memory_human": "1.19M",
+      "used_memory_peak": 1268880,
+      "used_memory_peak_human": "1.21M",
+      "used_memory_percentage": 0,
+      "maxmemory": 0,
+      "maxmemory_human": "0B",
+      "maxmemory_policy": "noeviction"
+    },
+    "cache": {
+      "total_keys": 71,
+      "sampled_keys_with_ttl": 71,
+      "sample_size": 71,
+      "ttl_percentage": 100.0
+    },
+    "key_patterns": {
+      "cache:*": 0,
+      "user:*": 0,
+      "session:*": 0,
+      "lock:*": 0,
+      "other": 71
+    }
+  },
+  {
+    "timestamp": "2026-01-17T17:30:31.310867",
+    "elapsed_time_seconds": 90.16,
+    "memory": {
+      "used_memory": 1252048,
+      "used_memory_human": "1.19M",
+      "used_memory_peak": 1268880,
+      "used_memory_peak_human": "1.21M",
+      "used_memory_percentage": 0,
+      "maxmemory": 0,
+      "maxmemory_human": "0B",
+      "maxmemory_policy": "noeviction"
+    },
+    "cache": {
+      "total_keys": 71,
+      "sampled_keys_with_ttl": 71,
+      "sample_size": 71,
+      "ttl_percentage": 100.0
+    },
+    "key_patterns": {
+      "cache:*": 0,
+      "user:*": 0,
+      "session:*": 0,
+      "lock:*": 0,
+      "other": 71
+    }
+  },
+  {
+    "timestamp": "2026-01-17T17:31:01.373092",
+    "elapsed_time_seconds": 120.22,
+    "memory": {
+      "used_memory": 1252256,
+      "used_memory_human": "1.19M",
+      "used_memory_peak": 1269088,
+      "used_memory_peak_human": "1.21M",
+      "used_memory_percentage": 0,
+      "maxmemory": 0,
+      "maxmemory_human": "0B",
+      "maxmemory_policy": "noeviction"
+    },
+    "cache": {
+      "total_keys": 71,
+      "sampled_keys_with_ttl": 71,
+      "sample_size": 71,
+      "ttl_percentage": 100.0
+    },
+    "key_patterns": {
+      "cache:*": 0,
+      "user:*": 0,
+      "session:*": 0,
+      "lock:*": 0,
+      "other": 71
+    }
+  },
+  {
+    "timestamp": "2026-01-17T17:31:31.392888",
+    "elapsed_time_seconds": 150.24,
+    "memory": {
+      "used_memory": 1252256,
+      "used_memory_human": "1.19M",
+      "used_memory_peak": 1269088,
+      "used_memory_peak_human": "1.21M",
+      "used_memory_percentage": 0,
+      "maxmemory": 0,
+      "maxmemory_human": "0B",
+      "maxmemory_policy": "noeviction"
+    },
+    "cache": {
+      "total_keys": 71,
+      "sampled_keys_with_ttl": 71,
+      "sample_size": 71,
+      "ttl_percentage": 100.0
+    },
+    "key_patterns": {
+      "cache:*": 0,
+      "user:*": 0,
+      "session:*": 0,
+      "lock:*": 0,
+      "other": 71
+    }
+  },
+  {
+    "timestamp": "2026-01-17T17:32:01.409925",
+    "elapsed_time_seconds": 180.26,
+    "memory": {
+      "used_memory": 1252256,
+      "used_memory_human": "1.19M",
+      "used_memory_peak": 1269088,
+      "used_memory_peak_human": "1.21M",
+      "used_memory_percentage": 0,
+      "maxmemory": 0,
+      "maxmemory_human": "0B",
+      "maxmemory_policy": "noeviction"
+    },
+    "cache": {
+      "total_keys": 71,
+      "sampled_keys_with_ttl": 71,
+      "sample_size": 71,
+      "ttl_percentage": 100.0
+    },
+    "key_patterns": {
+      "cache:*": 0,
+      "user:*": 0,
+      "session:*": 0,
+      "lock:*": 0,
+      "other": 71
+    }
+  },
+  {
+    "timestamp": "2026-01-17T17:32:31.429940",
+    "elapsed_time_seconds": 210.28,
+    "memory": {
+      "used_memory": 1252256,
+      "used_memory_human": "1.19M",
+      "used_memory_peak": 1269088,
+      "used_memory_peak_human": "1.21M",
+      "used_memory_percentage": 0,
+      "maxmemory": 0,
+      "maxmemory_human": "0B",
+      "maxmemory_policy": "noeviction"
+    },
+    "cache": {
+      "total_keys": 71,
+      "sampled_keys_with_ttl": 71,
+      "sample_size": 71,
+      "ttl_percentage": 100.0
+    },
+    "key_patterns": {
+      "cache:*": 0,
+      "user:*": 0,
+      "session:*": 0,
+      "lock:*": 0,
+      "other": 71
+    }
+  },
+  {
+    "timestamp": "2026-01-17T17:33:01.452632",
+    "elapsed_time_seconds": 240.3,
+    "memory": {
+      "used_memory": 1252256,
+      "used_memory_human": "1.19M",
+      "used_memory_peak": 1269088,
+      "used_memory_peak_human": "1.21M",
+      "used_memory_percentage": 0,
+      "maxmemory": 0,
+      "maxmemory_human": "0B",
+      "maxmemory_policy": "noeviction"
+    },
+    "cache": {
+      "total_keys": 71,
+      "sampled_keys_with_ttl": 71,
+      "sample_size": 71,
+      "ttl_percentage": 100.0
+    },
+    "key_patterns": {
+      "cache:*": 0,
+      "user:*": 0,
+      "session:*": 0,
+      "lock:*": 0,
+      "other": 71
+    }
+  },
+  {
+    "timestamp": "2026-01-17T17:33:31.468389",
+    "elapsed_time_seconds": 270.31,
+    "memory": {
+      "used_memory": 1252256,
+      "used_memory_human": "1.19M",
+      "used_memory_peak": 1269088,
+      "used_memory_peak_human": "1.21M",
+      "used_memory_percentage": 0,
+      "maxmemory": 0,
+      "maxmemory_human": "0B",
+      "maxmemory_policy": "noeviction"
+    },
+    "cache": {
+      "total_keys": 71,
+      "sampled_keys_with_ttl": 71,
+      "sample_size": 71,
+      "ttl_percentage": 100.0
+    },
+    "key_patterns": {
+      "cache:*": 0,
+      "user:*": 0,
+      "session:*": 0,
+      "lock:*": 0,
+      "other": 71
+    }
+  }
+]

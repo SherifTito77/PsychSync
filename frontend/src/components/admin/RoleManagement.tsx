@@ -1,6 +1,6 @@
 // src/components/admin/RoleManagement.tsx - Admin panel for managing user roles
 import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import { useRoleNavigation } from '../../hooks/useRoleNavigation';
 import api from '../../services/api';
 import Icon from '../common/Icon';
@@ -22,7 +22,7 @@ interface UpdateRoleData {
 
 const RoleManagement: React.FC = () => {
   const { user: currentUser } = useAuth();
-  const { isAdmin } = useRoleNavigation();
+  const { isAdmin, isSuperAdmin } = useRoleNavigation();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,7 +42,7 @@ const RoleManagement: React.FC = () => {
     try {
       setLoading(true);
       const response = await api.get('/users'); // Assuming this endpoint exists
-      setUsers(response.data as User[]);
+      setUsers(response.data);
     } catch (error) {
       console.error('Failed to fetch users:', error);
     } finally {

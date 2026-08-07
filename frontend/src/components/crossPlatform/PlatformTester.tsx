@@ -4,7 +4,13 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { clsx, type ClassValue } from 'clsx';
 import { mobileBrowserCompatibility, type BrowserInfo, type CompatibilityIssue } from '../../utils/crossPlatform/mobileBrowserCompatibility';
+
+// Helper function for conditional classes
+function cn(...inputs: ClassValue[]) {
+  return clsx(inputs);
+}
 
 interface PlatformTesterProps {
   showInDevelopment?: boolean;
@@ -57,7 +63,7 @@ export const PlatformTester: React.FC<PlatformTesterProps> = ({ showInDevelopmen
     const testContainer = document.createElement('div');
     testContainer.style.height = '200px';
     testContainer.style.overflowY = 'auto';
-    testContainer.style.webkitOverflowScrolling = info.platform === 'ios' ? 'touch' : 'auto';
+    (testContainer.style as any).webkitOverflowScrolling = info.platform === 'ios' ? 'touch' : 'auto';
 
     // Add test items
     for (let i = 0; i < 50; i++) {
@@ -112,8 +118,8 @@ export const PlatformTester: React.FC<PlatformTesterProps> = ({ showInDevelopmen
       hasTouchSupport: 'ontouchstart' in window,
       touchAction: computedStyle.touchAction,
       platformOptimizations: info.platform === 'ios' ? {
-        tapHighlight: computedStyle.webkitTapHighlightColor,
-        overflowScrolling: computedStyle.webkitOverflowScrolling
+        tapHighlight: (computedStyle as any).webkitTapHighlightColor,
+        overflowScrolling: (computedStyle as any).webkitOverflowScrolling
       } : {
         touchAction: computedStyle.touchAction,
         overscrollBehavior: computedStyle.overscrollBehavior
@@ -236,92 +242,64 @@ export const PlatformTester: React.FC<PlatformTesterProps> = ({ showInDevelopmen
     return '🌐';
   };
 
-  const getPerformanceColor = (grade: string) => {
+  const getPerformanceColor = (grade: string): string => {
     switch (grade) {
-      case 'A+': case 'A': return '#4caf50';
-      case 'B': return '#8bc34a';
-      case 'C': return '#ffc107';
-      case 'D': return '#f44336';
-      default: return '#9e9e9e';
+      case 'A+': case 'A': return 'text-green-500';
+      case 'B': return 'text-green-400';
+      case 'C': return 'text-yellow-500';
+      case 'D': return 'text-red-500';
+      default: return 'text-gray-400';
     }
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: '20px',
-      left: '20px',
-      zIndex: 9999,
-      minWidth: '350px',
-      maxWidth: '400px'
-    }}>
+    <div className="fixed top-5 left-5 right-5 z-[9999] w-auto max-w-[400px]">
       {/* Platform Indicator */}
       <div
         onClick={() => setShowDetails(!showDetails)}
-        style={{
-          backgroundColor: browserInfo?.platform === 'ios' ? '#007aff' : '#4caf50',
-          color: 'white',
-          padding: '12px 16px',
-          borderRadius: '8px',
-          cursor: 'pointer',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '14px',
-          fontWeight: '600'
-        }}
+        className={cn(
+          'flex justify-between items-center cursor-pointer shadow-lg',
+          browserInfo?.platform === 'ios' ? 'bg-[#007aff]' : 'bg-green-500',
+          'text-white p-3 rounded-lg text-sm font-semibold'
+        )}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '20px' }}>{getPlatformIcon()}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xl">{getPlatformIcon()}</span>
             <span>{browserInfo?.platform.toUpperCase() || 'Unknown'}</span>
           </div>
-          <div style={{ fontSize: '12px', opacity: 0.9, marginTop: '2px' }}>
+          <div className="text-xs opacity-90 mt-0.5">
             {getBrowserIcon()} {browserInfo?.browser || 'Unknown'} {browserInfo?.version}
           </div>
-          <div style={{ fontSize: '10px', opacity: 0.8, marginTop: '2px' }}>
+          <div className="text-[10px] opacity-80 mt-0.5">
             {issues.length} compatibility issues
           </div>
         </div>
-        <div style={{ fontSize: '18px' }}>
+        <div className="text-lg">
           {showDetails ? '▼' : '▶'}
         </div>
       </div>
 
       {/* Detailed Panel */}
       {showDetails && (
-        <div
-          style={{
-            backgroundColor: 'white',
-            borderRadius: '8px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-            marginTop: '10px',
-            maxHeight: '80vh',
-            overflowY: 'auto'
-          }}
-        >
+        <div className="bg-white rounded-lg shadow-xl mt-2.5 max-h-[80vh] overflow-y-auto">
           {/* Header */}
-          <div style={{
-            padding: '16px',
-            borderBottom: '1px solid #eee',
-            backgroundColor: '#f8f9fa'
-          }}>
-            <h3 style={{ margin: 0, color: '#333', fontSize: '16px' }}>
+          <div className="p-4 border-b border-gray-200 bg-gray-50">
+            <h3 className="my-0 text-gray-900 text-base">
               Platform Compatibility Analysis
             </h3>
-            <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+            <div className="text-xs text-gray-600 mt-1">
               {browserInfo?.engine.toUpperCase()} Engine • {browserInfo?.capabilities.performance} Performance
             </div>
           </div>
 
           {/* Browser Info */}
           {browserInfo && (
-            <div style={{ padding: '16px', borderBottom: '1px solid #eee' }}>
-              <h4 style={{ margin: '0 0 12px 0', color: '#333', fontSize: '14px' }}>
+            <div className="p-4 border-b border-gray-200">
+              <h4 className="my-0 mb-3 text-gray-900 text-sm">
                 🔍 Browser Information
               </h4>
-              <div style={{ fontSize: '12px', color: '#666' }}>
+              <div className="text-xs text-gray-600">
                 <div><strong>Platform:</strong> {browserInfo.platform}</div>
                 <div><strong>Browser:</strong> {browserInfo.browser}</div>
                 <div><strong>Version:</strong> {browserInfo.version}</div>
@@ -335,22 +313,16 @@ export const PlatformTester: React.FC<PlatformTesterProps> = ({ showInDevelopmen
 
           {/* CSS Support */}
           {testResults.cssTest && (
-            <div style={{ padding: '16px', borderBottom: '1px solid #eee' }}>
-              <h4 style={{ margin: '0 0 12px 0', color: '#333', fontSize: '14px' }}>
+            <div className="p-4 border-b border-gray-200">
+              <h4 className="my-0 mb-3 text-gray-900 text-sm">
                 🎨 CSS Feature Support
               </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
+              <div className="grid grid-cols-2 gap-2 text-xs">
                 {Object.entries(testResults.cssTest).map(([feature, supported]) => (
-                  <div key={feature} style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    padding: '4px 8px',
-                    backgroundColor: supported ? '#e8f5e8' : '#ffebee',
-                    borderRadius: '4px'
-                  }}>
+                  <div key={feature} className="flex justify-between p-1 bg-green-50 rounded">
                     <span>{feature}</span>
-                    <span style={{ color: supported ? '#4caf50' : '#f44336' }}>
-                      {supported ? '✓' : '✗'}
+                    <span className={(supported as boolean) ? 'text-green-500' : 'text-red-500'}>
+                      {(supported as boolean) ? '✓' : '✗'}
                     </span>
                   </div>
                 ))}
@@ -359,24 +331,23 @@ export const PlatformTester: React.FC<PlatformTesterProps> = ({ showInDevelopmen
           )}
 
           {/* Performance Tests */}
-          <div style={{ padding: '16px', borderBottom: '1px solid #eee' }}>
-            <h4 style={{ margin: '0 0 12px 0', color: '#333', fontSize: '14px' }}>
+          <div className="p-4 border-b border-gray-200">
+            <h4 className="my-0 mb-3 text-gray-900 text-sm">
               ⚡ Performance Tests
             </h4>
 
             {testResults.scrollTest && !testResults.scrollTest.pending && (
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '12px', marginBottom: '8px' }}>
+              <div className="mb-3">
+                <div className="text-xs mb-2">
                   <strong>Scroll Performance:</strong>
-                  <span style={{
-                    color: getPerformanceColor(testResults.scrollTest.grade),
-                    marginLeft: '8px',
-                    fontWeight: '600'
-                  }}>
+                  <span className={cn(
+                    'ml-2 font-semibold',
+                    getPerformanceColor(testResults.scrollTest.grade)
+                  )}>
                     Grade {testResults.scrollTest.grade}
                   </span>
                 </div>
-                <div style={{ fontSize: '11px', color: '#666' }}>
+                <div className="text-[11px] text-gray-600">
                   FPS: {testResults.scrollTest.fps} •
                   Time: {testResults.scrollTest.totalTime}ms
                 </div>
@@ -384,18 +355,17 @@ export const PlatformTester: React.FC<PlatformTesterProps> = ({ showInDevelopmen
             )}
 
             {testResults.listPerformanceTest && (
-              <div style={{ marginBottom: '12px' }}>
-                <div style={{ fontSize: '12px', marginBottom: '8px' }}>
+              <div className="mb-3">
+                <div className="text-xs mb-2">
                   <strong>List Rendering:</strong>
-                  <span style={{
-                    color: getPerformanceColor(testResults.listPerformanceTest.performanceGrade),
-                    marginLeft: '8px',
-                    fontWeight: '600'
-                  }}>
+                  <span className={cn(
+                    'ml-2 font-semibold',
+                    getPerformanceColor(testResults.listPerformanceTest.performanceGrade)
+                  )}>
                     {testResults.listPerformanceTest.performanceGrade.toUpperCase()}
                   </span>
                 </div>
-                <div style={{ fontSize: '11px', color: '#666' }}>
+                <div className="text-[11px] text-gray-600">
                   {testResults.listPerformanceTest.itemCount} items •
                   {testResults.listPerformanceTest.renderTime}ms
                 </div>
@@ -404,10 +374,10 @@ export const PlatformTester: React.FC<PlatformTesterProps> = ({ showInDevelopmen
 
             {testResults.memoryTest && (
               <div>
-                <div style={{ fontSize: '12px', marginBottom: '8px' }}>
+                <div className="text-xs mb-2">
                   <strong>Memory Usage:</strong>
                 </div>
-                <div style={{ fontSize: '11px', color: '#666' }}>
+                <div className="text-[11px] text-gray-600">
                   {testResults.memoryTest.message ||
                    `Used: ${Math.round(testResults.memoryTest.used / 1024 / 1024)}MB ` +
                    `(${testResults.memoryTest.percentage}%)`}
@@ -418,134 +388,39 @@ export const PlatformTester: React.FC<PlatformTesterProps> = ({ showInDevelopmen
 
           {/* Compatibility Issues */}
           {issues.length > 0 && (
-            <div style={{ padding: '16px' }}>
-              <h4 style={{ margin: '0 0 12px 0', color: '#333', fontSize: '14px' }}>
+            <div className="p-4">
+              <h4 className="my-0 mb-3 text-gray-900 text-sm">
                 ⚠️ Compatibility Issues
               </h4>
               {issues.slice(0, 3).map((issue, index) => (
                 <div
                   key={issue.id}
-                  style={{
-                    marginBottom: '12px',
-                    padding: '12px',
-                    border: '1px solid #e0e0e0',
-                    borderRadius: '6px',
-                    backgroundColor: issue.severity === 'critical' ? '#ffebee' :
-                                     issue.severity === 'major' ? '#fff3e0' : '#f3e5f5'
-                  }}
+                  className={cn(
+                    'mb-3 p-3 border rounded bg-opacity-20',
+                    issue.severity === 'critical' ? 'border-red-200 bg-red-50' :
+                    issue.severity === 'major' ? 'border-orange-200 bg-orange-50' : 'border-purple-200 bg-purple-50'
+                  )}
                 >
-                  <div style={{
-                    fontWeight: '600',
-                    color: '#333',
-                    fontSize: '13px',
-                    marginBottom: '4px'
-                  }}>
+                  <div className="font-semibold text-sm mb-1">
                     {issue.title}
                   </div>
-                  <div style={{ color: '#666', fontSize: '11px', marginBottom: '6px' }}>
+                  <div className="text-xs text-gray-600 mb-2">
                     {issue.description}
                   </div>
-                  <div style={{ fontSize: '10px', color: '#888' }}>
-                    <span style={{
-                      color: issue.severity === 'critical' ? '#f44336' :
-                              issue.severity === 'major' ? '#ff9800' : '#9c27b0'
-                    }}>
-                      {issue.severity.toUpperCase()}
-                    </span>
-                    {' • '}
-                    Category: {issue.category}
-                  </div>
+                  {issue.recommendation && (
+                    <div className="text-[11px] text-blue-600">
+                      💡 {issue.recommendation}
+                    </div>
+                  )}
                 </div>
               ))}
-
-              {issues.length > 3 && (
-                <div style={{ textAlign: 'center', fontSize: '12px', color: '#666' }}>
-                  ... and {issues.length - 3} more issues
-                </div>
-              )}
             </div>
           )}
-
-          {/* Platform-Specific Tips */}
-          <div style={{ padding: '16px' }}>
-            <h4 style={{ margin: '0 0 12px 0', color: '#333', fontSize: '14px' }}>
-              💡 Platform-Specific Tips
-            </h4>
-            <div style={{ fontSize: '12px', color: '#666' }}>
-              {browserInfo?.platform === 'ios' ? (
-                <ul style={{ margin: 0, paddingLeft: '16px' }}>
-                  <li>Use -webkit-overflow-scrolling: touch for smooth scrolling</li>
-                  <li>Disable -webkit-tap-highlight-color for custom feedback</li>
-                  <li>Test on actual iOS devices for accurate touch behavior</li>
-                  <li>Be mindful of backdrop filter performance impact</li>
-                </ul>
-              ) : browserInfo?.platform === 'android' ? (
-                <ul style={{ margin: 0, paddingLeft: '16px' }}>
-                  <li>Use touch-action CSS property for better performance</li>
-                  <li>Test on various Android devices for consistency</li>
-                  <li>Consider overscroll-behavior for better UX</li>
-                  <li>Optimize for varying screen densities</li>
-                </ul>
-              ) : (
-                <ul style={{ margin: 0, paddingLeft: '16px' }}>
-                  <li>Test on both iOS Safari and Android Chrome</li>
-                  <li>Use progressive enhancement for features</li>
-                  <li>Implement platform-specific optimizations</li>
-                  <li>Test on actual devices, not emulators</li>
-                </ul>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div style={{ padding: '16px', borderTop: '1px solid #eee' }}>
-            <h4 style={{ margin: '0 0 8px 0', color: '#333', fontSize: '14px' }}>
-              🚀 Quick Actions
-            </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <button
-                onClick={() => {
-                  console.log('Platform Info:', browserInfo);
-                  console.log('Issues:', issues);
-                  console.log('Test Results:', testResults);
-                }}
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: '#2196f3',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
-              >
-                📋 Log Details
-              </button>
-              <button
-                onClick={() => {
-                  const report = mobileBrowserCompatibility.generateCompatibilityReport();
-                  console.log('Compatibility Report:', report);
-                }}
-                style={{
-                  padding: '8px 12px',
-                  backgroundColor: '#4caf50',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
-              >
-                📊 Generate Report
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
   );
 };
-
 // Platform comparison component
 export const PlatformComparison: React.FC = () => {
   const [testData, setTestData] = useState<Record<string, any>>({});
@@ -642,25 +517,27 @@ export const PlatformComparison: React.FC = () => {
     };
   };
 
-  const testPerformanceDifferences = {
-    iosSafari: {
-      javascript: 'excellent (Nitro engine)',
-      rendering: 'very good',
-      memoryManagement: 'efficient',
-      batteryOptimization: 'excellent'
-    },
-    androidChrome: {
-      javascript: 'excellent (V8 engine)',
-      rendering: 'excellent',
-      memoryManagement: 'good',
-      batteryOptimization: 'good'
-    },
-    keyDifferences: [
-      'iOS: Better battery optimization',
-      'Android: More consistent performance',
-      'iOS: Better touch responsiveness',
-      'Both: Excellent JavaScript performance'
-    ]
+  const testPerformanceDifferences = () => {
+    return {
+      iosSafari: {
+        javascript: 'excellent (Nitro engine)',
+        rendering: 'very good',
+        memoryManagement: 'efficient',
+        batteryOptimization: 'excellent'
+      },
+      androidChrome: {
+        javascript: 'excellent (V8 engine)',
+        rendering: 'excellent',
+        memoryManagement: 'good',
+        batteryOptimization: 'good'
+      },
+      keyDifferences: [
+        'iOS: Better battery optimization',
+        'Android: More consistent performance',
+        'iOS: Better touch responsiveness',
+        'Both: Excellent JavaScript performance'
+      ]
+    };
   };
 
   return (

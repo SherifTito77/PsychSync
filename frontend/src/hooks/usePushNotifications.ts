@@ -67,7 +67,7 @@ export function usePushNotifications(
       const granted = await pushNotificationService.requestPermission();
       setStatus(granted ? 'granted' : 'denied');
       return granted;
-    } catch (err: any) {
+    } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Failed to request permission';
       setError(errorMessage);
       return false;
@@ -116,7 +116,7 @@ export function usePushNotifications(
 
       return success;
 
-    } catch (err: any) {
+    } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Failed to register';
       setError(errorMessage);
       return false;
@@ -143,7 +143,7 @@ export function usePushNotifications(
         });
       }
 
-    } catch (err: any) {
+    } catch (err) {
       const errorMessage = err.response?.data?.detail || err.message || 'Failed to send test';
       setError(errorMessage);
     } finally {
@@ -167,7 +167,7 @@ export function usePushNotifications(
 
       setIsInitialized(notifStatus.push_enabled);
 
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to check status:', err);
     }
   }, []);

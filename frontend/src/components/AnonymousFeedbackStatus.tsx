@@ -22,9 +22,10 @@ const AnonymousFeedbackStatus: React.FC = () => {
       } else {
         setError('Tracking ID not found. Please check your tracking ID or contact support.');
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Status check error:', err);
-      setError(err.message || 'Unable to check status. Please try again later.');
+      const errorMessage = err instanceof Error ? err.message : 'Unable to check status. Please try again later.';
+      setError(errorMessage);
     } finally {
       setIsSearching(false);
     }

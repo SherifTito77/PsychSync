@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert } from '@/components/ui/Alert';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 
 interface ClinicalAlertBannerProps {
@@ -22,11 +22,11 @@ const ClinicalAlertBanner: React.FC<ClinicalAlertBannerProps> = ({
   const getVariant = () => {
     switch (severity) {
       case 'error':
-        return 'destructive';
+        return 'error';
       case 'warning':
         return 'warning';
       default:
-        return 'default';
+        return 'info';
     }
   };
 
@@ -44,7 +44,7 @@ const ClinicalAlertBanner: React.FC<ClinicalAlertBannerProps> = ({
         <div className="flex items-center space-x-2 ml-4">
           {showEmergencyButton && (
             <Button
-              variant="destructive"
+              variant="danger"
               size="sm"
               onClick={handleEmergencyClick}
             >

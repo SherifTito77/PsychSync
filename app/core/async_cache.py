@@ -219,10 +219,11 @@ def async_cached(expire: int = 3600, key_prefix: str = ""):
             # Cache miss - implement cache stampede prevention with lock
             logger.debug(f"Cache MISS for key: {cache_key}")
 
-            # Try to acquire lock for this cache key
-            redis_client = await redis.from_url(
-                AsyncCache.redis_url, encoding="utf-8", decode_responses=True
-            )
+            redis_client = async_redis_client
+            if redis_client is None:
+                # No Redis available — compute directly
+                result = await func(*args, **kwargs)
+                return result
 
             try:
                 # ATOMIC OPERATION: SET NX (set if not exists) for lock acquisition
@@ -273,8 +274,10 @@ def async_cached(expire: int = 3600, key_prefix: str = ""):
                     await AsyncCache.set(cache_key, result, expire=expire)
                     return result
 
-            finally:
-                await redis_client.close()
+            except Exception as e:
+                logger.error(f"Cache lock error for key {cache_key}: {e}")
+                result = await func(*args, **kwargs)
+                return result
 
         return wrapper
 

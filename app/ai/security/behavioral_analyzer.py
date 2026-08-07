@@ -637,7 +637,7 @@ def analyze_behavior(
     Convenience function to analyze user behavior.
 
     Usage:
-        from ai.security.behavioral_analyzer import analyze_behavior
+        from app.ai.security.behavioral_analyzer import analyze_behavior
 
         request_data = {
             'requests_per_minute': 120,

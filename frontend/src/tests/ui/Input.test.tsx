@@ -7,9 +7,10 @@
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import Input from '../../components/ui/Input';
-import { ComponentTestSuite, ComponentTestCase, InteractionTestCase, AccessibilityRules } from '../utils/componentTestFramework';
+import Input from '../../components/ui/input';
+// import { ComponentTestSuite, ComponentTestCase, InteractionTestCase, AccessibilityRules } from '../utils/componentTestFramework';
 
 interface InputProps {
   value?: string;
@@ -26,31 +27,18 @@ interface InputProps {
   className?: string;
 }
 
-class InputTestSuite extends ComponentTestSuite<InputProps> {
-  protected createComponent(props: InputProps): React.ReactElement {
-    return <Input {...props} />;
-  }
-}
+// class InputTestSuite extends ComponentTestSuite<InputProps> {
+//   protected createComponent(props: InputProps): React.ReactElement {
+//     return <Input {...props} />;
+//   }
+// }
 
 describe('🎯 Comprehensive Input Component Tests', () => {
-  let testSuite: InputTestSuite;
+  // let testSuite: InputTestSuite;
   let userEventSetup: ReturnType<typeof userEvent.setup>;
 
   beforeEach(() => {
-    testSuite = new InputTestSuite({
-      componentName: 'Input',
-      defaultProps: {
-        type: 'text',
-        placeholder: 'Enter text...',
-      },
-      accessibilityConfig: {
-        axeRules: AccessibilityRules.interactive,
-      },
-      interactionConfig: {
-        skipMouseTesting: false,
-        skipKeyboardTesting: false,
-      },
-    });
+    // testSuite = new InputTestSuite();
 
     userEventSetup = userEvent.setup();
   });

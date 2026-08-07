@@ -411,12 +411,12 @@ class ComprehensiveAISecurityGuard:
         # Import security components with flexible path handling
         # This pattern supports both package imports and standalone execution
         try:
-            from ai.security.human_in_the_loop import ApprovalWorkflow
-            from ai.security.spotlighting import (
+            from app.ai.security.human_in_the_loop import ApprovalWorkflow
+            from app.ai.security.spotlighting import (
                 SpotlightingEngine,
                 SpotlightTemplateType,
             )
-            from ai.security.tool_scoping import ToolScopeManager
+            from app.ai.security.tool_scoping import ToolScopeManager
         except ImportError:
             from human_in_the_loop import ApprovalWorkflow
             from spotlighting import SpotlightingEngine, SpotlightTemplateType

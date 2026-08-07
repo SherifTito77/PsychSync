@@ -362,8 +362,8 @@ export function MobileEAT26() {
       numberedResponses[parseInt(key)] = value;
     });
 
-    const response = await api.post('/api/v1/clinical/EAT26/submit', numberedResponses);
-    return response.data;
+    const response = await api.post('/clinical/EAT26/submit', numberedResponses);
+    return response.data as void;
   };
 
   return (

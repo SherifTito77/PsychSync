@@ -207,7 +207,7 @@ async def login(
             # Use async context manager for automatic connection cleanup
             # This prevents connection leaks if any error occurs
             async with await redis.from_url(
-                f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
+                getattr(settings, "REDIS_URL", "redis://localhost:6379"),
                 decoding="utf-8",
                 health_check_interval=30,  # Detect stale connections
             ) as redis_client:
@@ -253,11 +253,11 @@ async def login(
 
     # Create tokens
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=access_token_expires
+    access_token = await create_access_token(
+        subject=str(user.id), expires_delta=access_token_expires
     )
 
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    refresh_token = create_refresh_token(subject=str(user.id))
 
     # Store refresh token in database
     # Hash the token for storage (NEVER store plaintext)
@@ -388,7 +388,7 @@ async def login_verify_mfa(
         try:
             # Use async context manager for automatic connection cleanup
             async with await redis.from_url(
-                f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
+                getattr(settings, "REDIS_URL", "redis://localhost:6379"),
                 decoding="utf-8",
                 health_check_interval=30,
             ) as redis_client:
@@ -461,11 +461,11 @@ async def login_verify_mfa(
 
         # Create access and refresh tokens
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": str(user.id)}, expires_delta=access_token_expires
+        access_token = await create_access_token(
+            subject=str(user.id), expires_delta=access_token_expires
         )
 
-        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+        refresh_token = create_refresh_token(subject=str(user.id))
 
         # Store refresh token in database
         token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
@@ -879,7 +879,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
         "email": current_user.email,
         "full_name": current_user.full_name,
         "is_active": current_user.is_active,
-        "is_verified": current_user.is_verified,
+        "is_verified": getattr(current_user, "is_verified", True),
         "mfa_enabled": current_user.two_factor_enabled,
         "created_at": (
             current_user.created_at.isoformat() if current_user.created_at else None
@@ -1014,11 +1014,11 @@ async def refresh_token(
 
     # Create new tokens
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    new_access_token = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=access_token_expires
+    new_access_token = await create_access_token(
+        subject=str(user.id), expires_delta=access_token_expires
     )
 
-    new_refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    new_refresh_token = create_refresh_token(subject=str(user.id))
 
     # Store new refresh token in database
     new_token_hash = hashlib.sha256(new_refresh_token.encode()).hexdigest()

@@ -328,9 +328,12 @@ export function IATScreening() {
     setError(null);
 
     try {
-      const response = await api.post('/api/v1/screening/iat', responses);
-      setResult(response.data);
-    } catch (err: any) {
+      const response = await api.post('/clinical/screening/submit', {
+        assessment_type: 'iat',
+        responses: responses
+      }
+      setResult(response.data as ScreeningResult);
+    } catch (err) {
       console.error('Screening submission error:', err);
       const errorMessage = err?.response?.data?.detail || err?.response?.data?.message || 'Failed to submit screening. Please try again.';
       setError(errorMessage);
@@ -439,7 +442,7 @@ export function IATScreening() {
       </CardHeader>
       <CardContent className="space-y-6">
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="error">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -470,8 +473,8 @@ export function IATScreening() {
 
           {/* Response options */}
           <RadioGroup
-            value={responses[QUESTIONS[currentQuestion].id as keyof IATResponse]}
-            onValueChange={(value) =>
+            value={String(responses[QUESTIONS[currentQuestion].id as keyof IATResponse] || 0)}
+            onChange={(value) =>
               handleResponse(QUESTIONS[currentQuestion].id, parseInt(value))
             }
           >

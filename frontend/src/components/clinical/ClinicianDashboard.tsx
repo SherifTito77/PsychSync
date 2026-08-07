@@ -126,34 +126,73 @@ export const ClinicianDashboard: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [onDuty, setOnDuty] = useState(true);
 
-  const fetchDashboardData = useCallback(async () => {
+  // ✅ FIXED: Safe fetch function with optional AbortSignal
+  const fetchDashboardData = useCallback(async (signal?: AbortSignal) => {
     try {
       const [alertsRes, statsRes] = await Promise.all([
-        fetch('/api/v1/clinical/alerts?status=pending,in_progress'),
-        fetch('/api/v1/clinical/dashboard/stats')
+        fetch('/api/v1/clinical/alerts?status=pending,in_progress', { signal }),
+        fetch('/api/v1/clinical/dashboard/stats', { signal })
       ]);
+
+      // ✅ Check for abort
+      if (signal?.aborted) {
+        return;
+      }
 
       if (alertsRes.ok) {
         const alertsData = await alertsRes.json();
-        setAlerts(alertsData);
+        if (!signal?.aborted) {
+          setAlerts(alertsData);
+        }
       }
 
       if (statsRes.ok) {
         const statsData = await statsRes.json();
-        setStats(statsData);
+        if (!signal?.aborted) {
+          setStats(statsData);
+        }
       }
 
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     } catch (error) {
+      // ✅ Ignore abort errors
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
       console.error('Error fetching dashboard data:', error);
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   }, []);
 
+  // ✅ FIXED: Safe async effect with cleanup
   useEffect(() => {
-    fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 30000); // 30-second refresh
-    return () => clearInterval(interval);
+    let isMounted = true;
+    const abortController = new AbortController();
+    const signal = abortController.signal;
+
+    const fetchData = async () => {
+      if (!isMounted || signal.aborted) {
+        return;
+      }
+      await fetchDashboardData(signal);
+    };
+
+    // Run immediately on mount
+    fetchData();
+
+    // Set up interval for periodic refresh
+    const interval = setInterval(fetchData, 30000); // 30-second refresh
+
+    // ✅ Cleanup function
+    return () => {
+      isMounted = false;
+      abortController.abort();
+      clearInterval(interval);
+    };
   }, [fetchDashboardData]);
 
   const handleAcknowledgeAlert = async (alertId: string) => {

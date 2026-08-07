@@ -1,10 +1,15 @@
 /**
  * Error Context and Notification System
  * Provides global error handling with user-friendly notifications
+ *
+ * FIXED: Memory leaks from setTimeout cleanup - now uses useSafeTimeout hook
+ * ENHANCED: Added wrapEventHandler to prevent crashes from button clicks
  */
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode, useRef } from 'react';
 import { XCircle, AlertTriangle, Info, CheckCircle, X } from 'lucide-react';
+import { useSafeTimeout } from '../hooks/useAsyncEffect';
+import { wrapEventHandler } from '@/utils/errorHandlingCoverage';
 
 export type ErrorSeverity = 'error' | 'warning' | 'info' | 'success';
 
@@ -47,6 +52,18 @@ export const useError = () => {
 export const ErrorProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<ErrorNotification[]>([]);
 
+  // Track timeout IDs for cleanup
+  const timeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  // Clean up all timeouts on unmount
+  React.useEffect(() => {
+    return () => {
+      // Clear all pending timeouts when provider unmounts
+      timeoutRefs.current.forEach((timeoutId) => clearTimeout(timeoutId));
+      timeoutRefs.current.clear();
+    };
+  }, []);
+
   const addNotification = useCallback((
     message: string,
     severity: ErrorSeverity,
@@ -65,11 +82,16 @@ export const ErrorProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     setNotifications((prev) => [...prev, notification]);
 
-    // Auto-dismiss if duration is set
+    // Auto-dismiss if duration is set - FIXED: Now tracks timeout for cleanup
     if (notification.duration && notification.duration > 0) {
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         setNotifications((prev) => prev.filter((n) => n.id !== id));
+        // Clean up timeout ref after execution
+        timeoutRefs.current.delete(id);
       }, notification.duration);
+
+      // Store timeout ref for cleanup
+      timeoutRefs.current.set(id, timeoutId);
     }
 
     return id;
@@ -92,24 +114,36 @@ export const ErrorProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [addNotification]);
 
   const clearError = useCallback((id: string) => {
+    // Clear timeout if it exists for this notification
+    const timeoutId = timeoutRefs.current.get(id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutRefs.current.delete(id);
+    }
+
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
   const clearAllErrors = useCallback(() => {
+    // Clear all pending timeouts
+    timeoutRefs.current.forEach((timeoutId) => clearTimeout(timeoutId));
+    timeoutRefs.current.clear();
+
     setNotifications([]);
   }, []);
 
+  // ✅ MEMOIZED: Context value only changes when dependencies change
+  const value = useMemo(() => ({
+    showError,
+    showWarning,
+    showInfo,
+    showSuccess,
+    clearError,
+    clearAllErrors,
+  }), [showError, showWarning, showInfo, showSuccess, clearError, clearAllErrors]);
+
   return (
-    <ErrorContext.Provider
-      value={{
-        showError,
-        showWarning,
-        showInfo,
-        showSuccess,
-        clearError,
-        clearAllErrors,
-      }}
-    >
+    <ErrorContext.Provider value={value}>
       {children}
       <ErrorToastContainer notifications={notifications} onDismiss={clearError} />
     </ErrorContext.Provider>
@@ -197,10 +231,10 @@ const ErrorToast: React.FC<ErrorToastProps> = ({ notification, onDismiss }) => {
 
         {notification.retryable && notification.onRetry && (
           <button
-            onClick={() => {
+            onClick={wrapEventHandler(() => {
               notification.onRetry?.();
               onDismiss();
-            }}
+            }, 'retry failed operation')}
             className="mt-2 text-sm font-medium underline hover:no-underline focus:outline-none focus:ring-2 focus:ring-offset-2"
           >
             Try Again
@@ -209,7 +243,7 @@ const ErrorToast: React.FC<ErrorToastProps> = ({ notification, onDismiss }) => {
       </div>
 
       <button
-        onClick={onDismiss}
+        onClick={wrapEventHandler(onDismiss, 'dismiss error notification')}
         className="flex-shrink-0 inline-flex rounded-md p-1.5 hover:bg-black hover:bg-opacity-10 focus:outline-none focus:ring-2 focus:ring-offset-2"
         aria-label="Dismiss"
       >

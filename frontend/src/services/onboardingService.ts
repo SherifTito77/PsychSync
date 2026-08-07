@@ -1,6 +1,8 @@
 // src/services/onboardingService.ts
 // Frontend service for value-first onboarding API calls
+// ✅ MIGRATED: Now uses unified analytics tracker
 import { apiClient } from './api';
+import { getAnalytics, EVENT_CATALOG } from './analytics/tracker';
 
 export interface QuickAssessmentRequest {
   role: 'manager' | 'hr' | 'lead' | 'member' | 'executive';
@@ -105,7 +107,7 @@ class OnboardingService {
    */
   async processSetupStep(step: string, data: Record<string, any>): Promise<any> {
     try {
-      const response = await apiClient.post('/onboarding/setup-wizard', {
+      const response = await apiClient.post('/setup-wizard', {
         step,
         data,
         session_id: this.sessionId
@@ -126,19 +128,38 @@ class OnboardingService {
 
   /**
    * Track conversion events for analytics and optimization
+   * ✅ MIGRATED: Now uses unified analytics tracker with standard schema
    */
   async trackConversionEvent(eventType: string, data?: Record<string, any>): Promise<void> {
     try {
-      await apiClient.post('/onboarding/track-conversion', {
-        event_type: eventType,
+      const analytics = getAnalytics();
+
+      // Map legacy event types to standard catalog
+      const standardEventName = this.mapToStandardEvent(eventType);
+
+      // Track using unified schema
+      analytics.track(standardEventName, {
+        ...data,
         session_id: this.sessionId,
-        data,
-        timestamp: new Date().toISOString()
+        original_event_type: eventType, // Preserve for debugging
       });
     } catch (error) {
       // Don't fail the user experience for analytics tracking
       console.warn('Failed to track conversion event:', error);
     }
+  }
+
+  /**
+   * Map legacy onboarding event types to standard catalog
+   */
+  private mapToStandardEvent(eventType: string): string {
+    const eventMap: Record<string, string> = {
+      'quick_assessment_completed': EVENT_CATALOG.FUNNEL_ASSESSMENT_COMPLETED,
+      'setup_step_completed': EVENT_CATALOG.FUNNEL_ONBOARDING_COMPLETED,
+      'team_insights_generated': 'engagement_insights_viewed',
+    };
+
+    return eventMap[eventType] || `onboarding_${eventType}`;
   }
 
   /**

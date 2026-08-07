@@ -124,13 +124,13 @@ function LegalRightsDashboard() {
         api.get(`/legal-rights/legal-aid?country_code=${countryCode}&free_only=true`)
       ]);
 
-      setRightsSummary(summaryRes.data);
-      setLaborLaws(lawsRes.data);
-      setResources(resourcesRes.data);
-      setViolations(violationsRes.data);
-      setLegalAid(legalAidRes.data);
+      setRightsSummary(summaryRes.data as any);
+      setLaborLaws(lawsRes.data as any);
+      setResources(resourcesRes.data as any);
+      setViolations(violationsRes.data as any);
+      setLegalAid(legalAidRes.data as any);
 
-    } catch (err: any) {
+    } catch (err) {
       setError(err.response?.data?.detail || 'Failed to load legal rights data');
     } finally {
       setLoading(false);
@@ -394,7 +394,7 @@ function LegalRightsDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-center py-8">
-                <Button size="lg" className="bg-orange-600 hover:bg-orange-700">
+                <Button size="sm" className="bg-orange-600 hover:bg-orange-700">
                   <FileText className="h-5 w-5 mr-2" />
                   Submit Violation Report
                 </Button>

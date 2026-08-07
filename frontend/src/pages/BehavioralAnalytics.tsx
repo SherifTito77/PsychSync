@@ -50,12 +50,28 @@ import {
   AlertCircle,
   CheckCircle,
   Info,
+  Flame,
 } from 'lucide-react';
 
 import behavioralAnalyticsService, {
   PatternAnalysisResponse,
   TeamBehavioralInsights
 } from '@/services/behavioralAnalyticsService';
+import { QuickStatsDashboard } from '@/components/behavioral/QuickStatsDashboard';
+import { ComparisonView } from '@/components/behavioral/ComparisonView';
+import { SmartAlerts } from '@/components/behavioral/SmartAlerts';
+import { GoalTracking } from '@/components/behavioral/GoalTracking';
+import { ExportPanel } from '@/components/behavioral/ExportPanel';
+import { CustomDateRangePicker } from '@/components/behavioral/CustomDateRangePicker';
+import { RecommendationsPanel } from '@/components/behavioral/RecommendationsPanel';
+import { GaugeMeter, MultiGaugeDisplay, WellnessRadarGauge } from '@/components/behavioral/GaugeMeters';
+import {
+  QuickStatsSkeleton,
+  ComparisonSkeleton,
+  AlertSkeleton,
+  GoalSkeleton,
+  FullPageSkeleton
+} from '@/components/behavioral/SkeletonLoaders';
 
 const BehavioralAnalytics: React.FC = () => {
   const [loading, setLoading] = useState(true);
@@ -66,6 +82,16 @@ const BehavioralAnalytics: React.FC = () => {
   const [mentalHealthInsights, setMentalHealthInsights] = useState<any>(null);
   const [wellnessMetrics, setWellnessMetrics] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Enhanced features state
+  const [quickStats, setQuickStats] = useState<any>(null);
+  const [comparisonData, setComparisonData] = useState<any>(null);
+  const [alerts, setAlerts] = useState<any>(null);
+  const [goals, setGoals] = useState<any>(null);
+  const [forecasts, setForecasts] = useState<any>(null);
+  const [recommendations, setRecommendations] = useState<any>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [customDateRange, setCustomDateRange] = useState<{ start: string; end: string } | null>(null);
 
   const timeRanges = [
     { value: '7d', label: 'Last 7 Days' },
@@ -94,9 +120,8 @@ const BehavioralAnalytics: React.FC = () => {
       // Load pattern analysis
       const patternData = await behavioralAnalyticsService.analyzeUserPatterns(
         selectedUserId,
-        selectedTimeRange === '7d' ? 168 : selectedTimeRange === '30d' ? 720 : selectedTimeRange === '90d' ? 2160 : 8760,
-        ['temporal', 'sequential', 'social', 'learning', 'performance', 'risk'],
-        true
+        selectedTimeRange,
+        ['temporal', 'sequential', 'social', 'learning', 'performance', 'risk']
       );
       setPatternAnalysis(patternData);
 
@@ -116,6 +141,26 @@ const BehavioralAnalytics: React.FC = () => {
         console.warn('Wellness metrics not available:', err);
       }
 
+      // Load enhanced features data
+      try {
+        const [stats, comparison, alertsData, goalsData, forecastsData, recommendationsData] = await Promise.all([
+          behavioralAnalyticsService.getQuickStats(selectedUserId, selectedTimeRange),
+          behavioralAnalyticsService.getComparisonData(selectedUserId, selectedTimeRange),
+          behavioralAnalyticsService.getAlerts(selectedUserId),
+          behavioralAnalyticsService.getGoals(selectedUserId),
+          behavioralAnalyticsService.getTrendForecasts(selectedUserId),
+          behavioralAnalyticsService.getRecommendations(selectedUserId),
+        ]);
+        setQuickStats(stats);
+        setComparisonData(comparison);
+        setAlerts(alertsData);
+        setGoals(goalsData.goals);
+        setForecasts(forecastsData);
+        setRecommendations(recommendationsData.recommendations);
+      } catch (err) {
+        console.warn('Enhanced features not available:', err);
+      }
+
     } catch (err) {
       console.error('Error loading behavioral data:', err);
       setError('Failed to load behavioral analytics data. Please try again.');
@@ -132,8 +177,8 @@ const BehavioralAnalytics: React.FC = () => {
     switch (level) {
       case 'low': return 'secondary';
       case 'medium': return 'outline';
-      case 'high': return 'destructive';
-      case 'critical': return 'destructive';
+      case 'high': return 'error';
+      case 'critical': return 'error';
       default: return 'secondary';
     }
   };
@@ -157,6 +202,63 @@ const BehavioralAnalytics: React.FC = () => {
       { metric: 'Social', value: wellnessMetrics.social_wellness * 10, fullMark: 100 },
       { metric: 'Professional', value: wellnessMetrics.professional_wellness * 10, fullMark: 100 },
     ];
+  };
+
+  // Enhanced feature handlers
+  const handleUpdateGoal = async (goalId: string, progress: number) => {
+    try {
+      await behavioralAnalyticsService.updateGoalProgress(goalId, progress);
+      // Reload goals after update
+      const goalsData = await behavioralAnalyticsService.getGoals(selectedUserId);
+      setGoals(goalsData.goals);
+    } catch (err) {
+      console.error('Error updating goal:', err);
+    }
+  };
+
+  const handleCreateGoal = async (goal: any) => {
+    try {
+      await behavioralAnalyticsService.createGoal(goal);
+      // Reload goals after creation
+      const goalsData = await behavioralAnalyticsService.getGoals(selectedUserId);
+      setGoals(goalsData.goals);
+    } catch (err) {
+      console.error('Error creating goal:', err);
+    }
+  };
+
+  const handleExport = async (format: string, options: any) => {
+    try {
+      setIsExporting(true);
+      const blob = await behavioralAnalyticsService.exportReport(format, options);
+      // Create download link and trigger download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `behavioral-report.${format === 'pdf-detailed' ? 'pdf' : format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Error exporting report:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleShare = async (method: string, options: any) => {
+    try {
+      if (method === 'link') {
+        const result = await behavioralAnalyticsService.generateShareLink(options);
+        return result.shareLink;
+      } else if (method === 'email') {
+        await behavioralAnalyticsService.scheduleEmailReport(options);
+      }
+    } catch (err) {
+      console.error('Error sharing:', err);
+      throw err;
+    }
   };
 
   if (loading) {
@@ -222,16 +324,100 @@ const BehavioralAnalytics: React.FC = () => {
 
         {patternAnalysis && (
           <Tabs defaultValue="overview" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-10">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="patterns">Patterns</TabsTrigger>
               <TabsTrigger value="mental-health">Mental Health</TabsTrigger>
               <TabsTrigger value="wellness">Wellness</TabsTrigger>
+              <TabsTrigger value="goals">Goals</TabsTrigger>
+              <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
+              <TabsTrigger value="gauges">Gauges</TabsTrigger>
               <TabsTrigger value="insights">Insights</TabsTrigger>
+              <TabsTrigger value="alerts">Alerts</TabsTrigger>
+              <TabsTrigger value="export">Export</TabsTrigger>
             </TabsList>
 
             {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-6">
+              {/* Custom Date Range Picker */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-blue-600" />
+                    Custom Date Range
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CustomDateRangePicker
+                    onDateRangeChange={(start, end) => {
+                      setCustomDateRange({ start, end });
+                      // Trigger reload with new date range
+                      loadBehavioralData();
+                    }}
+                    initialStartDate={customDateRange?.start}
+                    initialEndDate={customDateRange?.end}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Quick Stats Dashboard */}
+              {quickStats ? (
+                <QuickStatsDashboard
+                  stats={[
+                    {
+                      label: 'Assessments Completed',
+                      value: quickStats.assessmentsCompleted,
+                      previousValue: quickStats.assessmentsCompleted - quickStats.assessmentsChange,
+                      trend: quickStats.assessmentsChange > 0 ? 'up' : quickStats.assessmentsChange < 0 ? 'down' : 'neutral',
+                      icon: <CheckCircle className="h-4 w-4 text-blue-600" />,
+                      unit: ''
+                    },
+                    {
+                      label: 'Wellness Score',
+                      value: (quickStats.wellnessScore * 100).toFixed(0),
+                      previousValue: ((quickStats.wellnessScore - quickStats.wellnessChange) * 100).toFixed(0),
+                      trend: quickStats.wellnessChange > 0 ? 'up' : quickStats.wellnessChange < 0 ? 'down' : 'neutral',
+                      icon: <Heart className="h-4 w-4 text-green-600" />,
+                      unit: '%',
+                      threshold: { warning: 50, good: 70 }
+                    },
+                    {
+                      label: 'Risk Factors',
+                      value: quickStats.riskFactorsDetected,
+                      previousValue: quickStats.riskFactorsDetected - quickStats.riskFactorsChange,
+                      trend: quickStats.riskFactorsChange < 0 ? 'up' : quickStats.riskFactorsChange > 0 ? 'down' : 'neutral',
+                      icon: <AlertTriangle className="h-4 w-4 text-orange-600" />,
+                      unit: ''
+                    },
+                    {
+                      label: 'Goal Streak',
+                      value: quickStats.streakDays,
+                      trend: 'neutral',
+                      icon: <Flame className="h-4 w-4 text-purple-600" />,
+                      unit: 'days'
+                    }
+                  ]}
+                  timeRange={selectedTimeRange}
+                />
+              ) : (
+                <QuickStatsSkeleton />
+              )}
+
+              {/* Comparison View */}
+              {comparisonData ? (
+                <ComparisonView
+                  metrics={{
+                    currentPeriod: comparisonData.currentPeriod,
+                    previousPeriod: comparisonData.previousPeriod,
+                    peerAverage: comparisonData.peerAverage,
+                    percentileRankings: comparisonData.percentileRankings
+                  }}
+                  timeRange={selectedTimeRange}
+                />
+              ) : (
+                <ComparisonSkeleton />
+              )}
+
               {/* Risk Assessment */}
               <Card>
                 <CardHeader>
@@ -244,30 +430,30 @@ const BehavioralAnalytics: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="text-center">
                       <div className="text-3xl font-bold mb-2">
-                        {(patternAnalysis.risk_assessment.risk_score * 100).toFixed(1)}%
+                        {((patternAnalysis.risk_assessment?.risk_score || 0) * 100).toFixed(1)}%
                       </div>
                       <Badge
-                        variant={getRiskLevelVariant(patternAnalysis.risk_assessment.risk_level)}
+                        variant={getRiskLevelVariant(patternAnalysis.risk_assessment?.risk_level || 'low')}
                         className="mb-2"
                       >
-                        {patternAnalysis.risk_assessment.risk_level.toUpperCase()} RISK
+                        {(patternAnalysis.risk_assessment?.risk_level || 'low').toUpperCase()} RISK
                       </Badge>
                       <p className="text-sm text-gray-600">
-                        {patternAnalysis.risk_assessment.recommendation}
+                        {patternAnalysis.risk_assessment?.recommendation || 'Continue monitoring behavioral patterns'}
                       </p>
                     </div>
 
                     <div className="col-span-2">
                       <h4 className="font-semibold mb-3">Risk Factors</h4>
                       <div className="space-y-2">
-                        {patternAnalysis.risk_assessment.risk_factors.length > 0 ? (
-                          patternAnalysis.risk_assessment.risk_factors.map((factor, index) => (
+                        {(patternAnalysis.risk_assessment?.risk_factors || []).length > 0 ? (
+                          (patternAnalysis.risk_assessment?.risk_factors || []).map((factor, index) => (
                             <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded">
                               <div>
                                 <p className="font-medium">{factor.description}</p>
                                 <p className="text-sm text-gray-600">Type: {factor.type}</p>
                               </div>
-                              <Badge variant={factor.severity === 'high' ? 'destructive' : 'outline'}>
+                              <Badge variant={factor.severity === 'high' ? 'error' : 'outline'}>
                                 {factor.severity}
                               </Badge>
                             </div>
@@ -298,19 +484,19 @@ const BehavioralAnalytics: React.FC = () => {
                       <div className="flex justify-between items-center">
                         <span>Total Patterns</span>
                         <Badge variant="secondary">
-                          {patternAnalysis.behavioral_profile.overview.total_patterns}
+                          {patternAnalysis.behavioral_profile?.overview?.total_patterns || 0}
                         </Badge>
                       </div>
                       <div className="flex justify-between items-center">
                         <span>Average Confidence</span>
                         <Badge variant="secondary">
-                          {(patternAnalysis.behavioral_profile.overview.avg_confidence * 100).toFixed(1)}%
+                          {((patternAnalysis.behavioral_profile?.overview?.avg_confidence || 0) * 100).toFixed(1)}%
                         </Badge>
                       </div>
                       <div className="flex justify-between items-center">
                         <span>Data Quality</span>
                         <Badge variant="secondary">
-                          {(patternAnalysis.data_quality.overall_quality * 100).toFixed(1)}%
+                          {((patternAnalysis.data_quality?.overall_quality || 0) * 100).toFixed(1)}%
                         </Badge>
                       </div>
                     </div>
@@ -328,7 +514,7 @@ const BehavioralAnalytics: React.FC = () => {
                     <ResponsiveContainer width="100%" height={200}>
                       <PieChart>
                         <Pie
-                          data={Object.entries(patternAnalysis.behavioral_profile.patterns_summary).map(([key, value]) => ({
+                          data={Object.entries(patternAnalysis.behavioral_profile?.patterns_summary || {}).map(([key, value]) => ({
                             name: key,
                             value: value as number
                           }))}
@@ -338,7 +524,7 @@ const BehavioralAnalytics: React.FC = () => {
                           cy="50%"
                           outerRadius={80}
                         >
-                          {Object.entries(patternAnalysis.behavioral_profile.patterns_summary).map((_, index) => (
+                          {Object.entries(patternAnalysis.behavioral_profile?.patterns_summary || {}).map((_, index) => (
                             <Cell key={`cell-${index}`} fill={behavioralColors[index % behavioralColors.length]} />
                           ))}
                         </Pie>
@@ -363,10 +549,10 @@ const BehavioralAnalytics: React.FC = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {patternAnalysis.patterns.length > 0 ? (
+                  {(patternAnalysis.patterns || []).length > 0 ? (
                     <div className="space-y-4">
                       <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={formatPatternData(patternAnalysis.patterns)}>
+                        <BarChart data={formatPatternData(patternAnalysis.patterns || [])}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="name" />
                           <YAxis />
@@ -377,7 +563,7 @@ const BehavioralAnalytics: React.FC = () => {
                       </ResponsiveContainer>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {patternAnalysis.patterns.map((pattern, index) => (
+                        {(patternAnalysis.patterns || []).map((pattern, index) => (
                           <Card key={pattern.pattern_id} className="p-4">
                             <div className="flex justify-between items-start mb-2">
                               <h4 className="font-semibold capitalize">{pattern.pattern_type}</h4>
@@ -416,12 +602,12 @@ const BehavioralAnalytics: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
-                        {Object.entries(mentalHealthInsights.risk_indicators).map(([key, value]) => (
+                        {Object.entries(mentalHealthInsights?.risk_indicators || {}).map(([key, value]) => (
                           <div key={key}>
                             <div className="flex justify-between items-center mb-2">
                               <span className="capitalize">{key.replace('_', ' ')}</span>
                               <Badge
-                                variant={value === 'low' ? 'secondary' : value === 'medium' ? 'outline' : 'destructive'}
+                                variant={value === 'low' ? 'secondary' : value === 'medium' ? 'outline' : 'error'}
                               >
                                 {value}
                               </Badge>
@@ -445,12 +631,12 @@ const BehavioralAnalytics: React.FC = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        {Object.entries(mentalHealthInsights.wellness_trends).map(([key, value]) => (
+                        {Object.entries(mentalHealthInsights?.wellness_trends || {}).map(([key, value]) => (
                           <div key={key} className="flex items-center gap-2">
                             {value === 'improving' && <TrendingUp className="h-4 w-4 text-green-500" />}
                             {value === 'declining' && <TrendingUp className="h-4 w-4 text-red-500 rotate-180" />}
                             {value === 'stable' && <Activity className="h-4 w-4 text-blue-500" />}
-                            <span className="capitalize">{key.replace('_', ' ')}: {value}</span>
+                            <span className="capitalize">{key.replace('_', ' ')}: {value as React.ReactNode}</span>
                           </div>
                         ))}
                       </div>
@@ -560,7 +746,7 @@ const BehavioralAnalytics: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {patternAnalysis.insights.map((insight, index) => (
+                      {(patternAnalysis.insights || []).map((insight, index) => (
                         <div key={index} className="p-4 border border-gray-200 rounded-lg">
                           <div className="flex items-start justify-between mb-2">
                             <h4 className="font-semibold">{insight.title}</h4>
@@ -590,7 +776,7 @@ const BehavioralAnalytics: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {patternAnalysis.recommendations.map((recommendation, index) => (
+                      {(patternAnalysis.recommendations || []).map((recommendation, index) => (
                         <div key={index} className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
                           <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
                           <p className="text-sm text-green-800">{recommendation}</p>
@@ -609,13 +795,13 @@ const BehavioralAnalytics: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      {patternAnalysis.behavioral_profile.strengths.map((strength, index) => (
+                      {(patternAnalysis.behavioral_profile?.strengths || []).map((strength, index) => (
                         <div key={index} className="flex items-center gap-2 text-green-700">
                           <CheckCircle className="h-4 w-4" />
                           <span>{strength}</span>
                         </div>
                       ))}
-                      {patternAnalysis.behavioral_profile.strengths.length === 0 && (
+                      {(patternAnalysis.behavioral_profile?.strengths || []).length === 0 && (
                         <p className="text-gray-500 italic">Continue using the platform to identify your strengths</p>
                       )}
                     </div>
@@ -628,19 +814,218 @@ const BehavioralAnalytics: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      {patternAnalysis.behavioral_profile.development_areas.map((area, index) => (
+                      {(patternAnalysis.behavioral_profile?.development_areas || []).map((area, index) => (
                         <div key={index} className="flex items-center gap-2 text-orange-700">
                           <AlertTriangle className="h-4 w-4" />
                           <span>{area}</span>
                         </div>
                       ))}
-                      {patternAnalysis.behavioral_profile.development_areas.length === 0 && (
+                      {(patternAnalysis.behavioral_profile?.development_areas || []).length === 0 && (
                         <p className="text-gray-500 italic">No development areas identified at this time</p>
                       )}
                     </div>
                   </CardContent>
                 </Card>
               </div>
+            </TabsContent>
+
+            {/* Goals Tab */}
+            <TabsContent value="goals" className="space-y-6">
+              {goals ? (
+                <GoalTracking
+                  goals={goals}
+                  onUpdateGoal={handleUpdateGoal}
+                  onCreateGoal={handleCreateGoal}
+                />
+              ) : (
+                <GoalSkeleton />
+              )}
+            </TabsContent>
+
+            {/* Recommendations Tab */}
+            <TabsContent value="recommendations" className="space-y-6">
+              {recommendations ? (
+                <RecommendationsPanel
+                  recommendations={recommendations}
+                  onUpdateStatus={(id, status) => {
+                    console.log('Update recommendation:', id, status);
+                    // Update local state
+                    setRecommendations(prev =>
+                      prev?.map(r => r.id === id ? { ...r, status } : r)
+                    );
+                  }}
+                  onDismiss={(id) => {
+                    console.log('Dismiss recommendation:', id);
+                    setRecommendations(prev =>
+                      prev?.map(r => r.id === id ? { ...r, status: 'dismissed' as const } : r)
+                    );
+                  }}
+                />
+              ) : (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <div className="animate-pulse space-y-3">
+                      <div className="h-6 bg-gray-200 rounded w-1/3 mx-auto" />
+                      <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto" />
+                      <div className="h-32 bg-gray-200 rounded" />
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* Gauges Tab */}
+            <TabsContent value="gauges" className="space-y-6">
+              {/* Wellness Gauge Meters */}
+              {wellnessMetrics && (
+                <MultiGaugeDisplay
+                  title="Wellness Metrics Overview"
+                  gauges={[
+                    {
+                      value: wellnessMetrics.overall_wellness_score * 100,
+                      max: 100,
+                      label: 'Overall Wellness',
+                      thresholds: { warning: 50, danger: 30 },
+                      trend: {
+                        value: 5,
+                        direction: 'up'
+                      }
+                    },
+                    {
+                      value: wellnessMetrics.burnout_risk_score * 100,
+                      max: 100,
+                      label: 'Burnout Risk',
+                      thresholds: { warning: 40, danger: 60 },
+                      trend: {
+                        value: 8,
+                        direction: 'down'
+                      }
+                    },
+                    {
+                      value: wellnessMetrics.stress_level * 100,
+                      max: 100,
+                      label: 'Stress Level',
+                      thresholds: { warning: 60, danger: 80 }
+                    },
+                    {
+                      value: wellnessMetrics.engagement_level * 100,
+                      max: 100,
+                      label: 'Engagement',
+                      thresholds: { warning: 40, danger: 25 },
+                      trend: {
+                        value: 3,
+                        direction: 'up'
+                      }
+                    }
+                  ]}
+                />
+              )}
+
+              {/* Risk Score Gauges */}
+              {patternAnalysis && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Risk Assessment Gauge</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <GaugeMeter
+                        value={(patternAnalysis.risk_assessment?.risk_score || 0) * 100}
+                        max={100}
+                        label="Risk Score"
+                        thresholds={{ warning: 50, danger: 75 }}
+                        size="lg"
+                        showThresholds={true}
+                      />
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Data Quality Score</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <GaugeMeter
+                        value={(patternAnalysis.data_quality?.overall_quality || 0) * 100}
+                        max={100}
+                        label="Data Quality"
+                        color="#8b5cf6"
+                        thresholds={{ warning: 60, danger: 40 }}
+                        size="lg"
+                        showThresholds={true}
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Wellness Radar Chart */}
+              {wellnessMetrics && (
+                <WellnessRadarGauge
+                  title="Wellness Dimensions"
+                  data={[
+                    { metric: 'Physical', value: wellnessMetrics.physical_wellness * 10, max: 10 },
+                    { metric: 'Emotional', value: wellnessMetrics.emotional_wellness * 10, max: 10 },
+                    { metric: 'Mental', value: wellnessMetrics.mental_wellness * 10, max: 10 },
+                    { metric: 'Social', value: wellnessMetrics.social_wellness * 10, max: 10 },
+                    { metric: 'Professional', value: wellnessMetrics.professional_wellness * 10, max: 10 }
+                  ]}
+                />
+              )}
+
+              {/* Trend Forecast Gauges */}
+              {forecasts && (
+                <MultiGaugeDisplay
+                  title="30-Day Forecasts"
+                  gauges={[
+                    {
+                      value: forecasts.wellnessForecast.predicted30Days * 100,
+                      max: 100,
+                      label: 'Predicted Wellness',
+                      color: "#22c55e",
+                      thresholds: { warning: 50, danger: 30 }
+                    },
+                    {
+                      value: forecasts.burnoutRiskForecast.predicted30Days * 100,
+                      max: 100,
+                      label: 'Predicted Burnout Risk',
+                      color: "#ef4444",
+                      thresholds: { warning: 40, danger: 60 }
+                    },
+                    {
+                      value: forecasts.confidence * 100,
+                      max: 100,
+                      label: 'Forecast Confidence',
+                      color: "#3b82f6",
+                      thresholds: { warning: 70, danger: 50 }
+                    }
+                  ]}
+                />
+              )}
+            </TabsContent>
+
+            {/* Alerts Tab */}
+            <TabsContent value="alerts" className="space-y-6">
+              {alerts && (
+                <SmartAlerts
+                  alerts={[
+                    ...(alerts.warnings || []),
+                    ...(alerts.achievements || []),
+                    ...(alerts.tips || [])
+                  ]}
+                  onDismiss={(alertId) => console.log('Dismiss alert:', alertId)}
+                  onAction={(alertId) => console.log('Action alert:', alertId)}
+                />
+              )}
+            </TabsContent>
+
+            {/* Export Tab */}
+            <TabsContent value="export" className="space-y-6">
+              <ExportPanel
+                onExport={handleExport}
+                onShare={handleShare}
+                isExporting={isExporting}
+              />
             </TabsContent>
           </Tabs>
         )}

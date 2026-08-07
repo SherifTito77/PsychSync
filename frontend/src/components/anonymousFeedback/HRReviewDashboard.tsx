@@ -10,10 +10,10 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -100,7 +100,9 @@ export const HRReviewDashboard: React.FC<HRReviewDashboardProps> = ({
       const feedbackResponse = await anonymousFeedbackService.getFeedbackForReview({
         ...filters,
       });
-      setFeedbackData(feedbackResponse);
+      // Type assertion: service returns array but we need object format
+      const formattedResponse = feedbackResponse as unknown as FeedbackReviewResponse;
+      setFeedbackData(formattedResponse);
       // Load statistics
       try {
         const statsResponse = await anonymousFeedbackService.getFeedbackStatistics(organizationId);
@@ -109,7 +111,7 @@ export const HRReviewDashboard: React.FC<HRReviewDashboardProps> = ({
         console.error('Failed to load statistics:', statsErr);
         // Don't fail the whole dashboard if stats fail
       }
-    } catch (err: any) {
+    } catch (err) {
       setError(err.message || 'Failed to load feedback data');
     } finally {
       setIsLoading(false);
@@ -155,7 +157,7 @@ export const HRReviewDashboard: React.FC<HRReviewDashboardProps> = ({
         public_notes: '',
         actions_taken: '',
       });
-    } catch (err: any) {
+    } catch (err) {
       setError(err.message || 'Failed to update feedback status');
     } finally {
       setIsUpdating(false);
@@ -233,7 +235,7 @@ export const HRReviewDashboard: React.FC<HRReviewDashboardProps> = ({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-64">
-        <LoadingSpinner size="lg" />
+        <LoadingSpinner size="sm" />
       </div>
     );
   }

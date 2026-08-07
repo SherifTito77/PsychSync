@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import api from '@/services/api';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Shield,
   AlertTriangle,
@@ -62,6 +64,7 @@ interface DashboardSummary {
 }
 
 const ToxicBehaviorDetection: React.FC = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -87,12 +90,11 @@ const ToxicBehaviorDetection: React.FC = () => {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const orgId = localStorage.getItem('organization_id') || 'demo-org-id';
+      const orgId = user?.organization_id || 'demo-org-id';
 
-      const response = await fetch(`/api/v1/toxicity/dashboard?organization_id=${orgId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setDashboardSummary(data.summary);
+      const response = await api.get(`/toxicity/dashboard?organization_id=${orgId}`);
+      if (response.data) {
+        setDashboardSummary(response.data.summary);
       }
     } catch (error) {
       console.error('Error loading dashboard:', error);
@@ -105,30 +107,22 @@ const ToxicBehaviorDetection: React.FC = () => {
   const runAnalysis = async () => {
     setAnalyzing(true);
     try {
-      const orgId = localStorage.getItem('organization_id') || 'demo-org-id';
+      const orgId = user?.organization_id || 'demo-org-id';
 
-      const response = await fetch('/api/v1/toxicity/detect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          organization_id: orgId,
-          period_days: 30
-        })
+      const response = await api.post('/toxicity/detect', {
+        organization_id: orgId,
+        period_days: 30
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setAnalysis(data);
-        toast.success(`Analysis complete: ${data.toxicity_level.toUpperCase()} toxicity level detected`);
+      if (response.data) {
+        setAnalysis(response.data);
+        toast.success(`Analysis complete: ${response.data.toxicity_level.toUpperCase()} toxicity level detected`);
         loadDashboardData();
         loadPatterns();
-      } else {
-        const error = await response.json();
-        toast.error(error.detail || 'Analysis failed');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error running analysis:', error);
-      toast.error('Failed to run analysis');
+      toast.error(error.response?.data?.detail || 'Failed to run analysis');
     } finally {
       setAnalyzing(false);
     }
@@ -136,12 +130,11 @@ const ToxicBehaviorDetection: React.FC = () => {
 
   const loadPatterns = async () => {
     try {
-      const orgId = localStorage.getItem('organization_id') || 'demo-org-id';
+      const orgId = user?.organization_id || 'demo-org-id';
 
-      const response = await fetch(`/api/v1/toxicity/patterns?organization_id=${orgId}&limit=50`);
-      if (response.ok) {
-        const data = await response.json();
-        setPatterns(data.patterns || []);
+      const response = await api.get(`/toxicity/patterns?organization_id=${orgId}&limit=50`);
+      if (response.data) {
+        setPatterns(response.data.patterns || []);
       }
     } catch (error) {
       console.error('Error loading patterns:', error);
@@ -151,28 +144,20 @@ const ToxicBehaviorDetection: React.FC = () => {
   const handleSubmitAnonymousReport = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const orgId = localStorage.getItem('organization_id') || 'demo-org-id';
+      const orgId = user?.organization_id || 'demo-org-id';
 
-      const response = await fetch('/api/v1/toxicity/anonymous-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...reportForm,
-          organization_id: orgId
-        })
+      const response = await api.post('/toxicity/anonymous-report', {
+        ...reportForm,
+        organization_id: orgId
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        toast.success(`Report submitted! Tracking ID: ${data.tracking_id}`);
+      if (response.data) {
+        toast.success(`Report submitted! Tracking ID: ${response.data.tracking_id}`);
         setShowReportForm(false);
         setReportForm({ report_type: 'bullying', description: '', perpetrator_hint: '' });
-      } else {
-        const error = await response.json();
-        toast.error(error.detail || 'Failed to submit report');
       }
-    } catch (error) {
-      toast.error('Error submitting report');
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Error submitting report');
     }
   };
 
@@ -312,7 +297,7 @@ const ToxicBehaviorDetection: React.FC = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500">Toxicity Level</p>
-                    <Badge className={getSeverityColor(analysis.toxicity_level)} size="lg">
+                    <Badge className={getSeverityColor(analysis.toxicity_level)} size="sm">
                       {analysis.toxicity_level.toUpperCase()}
                     </Badge>
                   </div>
@@ -349,22 +334,25 @@ const ToxicBehaviorDetection: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {Object.entries(dashboardSummary?.pattern_breakdown || {}).map(([type, count]) => (
-                  <div key={type} className="flex items-center justify-between">
-                    <span className="capitalize">{type.replace(/_/g, ' ')}</span>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-32 bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{
-                            width: `${(count / (dashboardSummary?.total_patterns || 1)) * 100}%`
-                          }}
-                        ></div>
+                {Object.entries(dashboardSummary?.pattern_breakdown || {}).map(([type, count]) => {
+                  const numCount = count as number;
+                  return (
+                    <div key={type} className="flex items-center justify-between">
+                      <span className="capitalize">{type.replace(/_/g, ' ')}</span>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-32 bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full"
+                            style={{
+                              width: `${(numCount / (dashboardSummary?.total_patterns || 1)) * 100}%`
+                            }}
+                          ></div>
+                        </div>
+                        <span className="text-sm font-medium w-8">{numCount}</span>
                       </div>
-                      <span className="text-sm font-medium w-8">{count}</span>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>

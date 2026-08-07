@@ -348,7 +348,7 @@ const PredictiveAnalyticsDashboard: React.FC<PredictiveAnalyticsDashboardProps> 
   ];
 
   // Data preparation for charts
-  const metricsRadarData = [
+  const metricsRadarData = useMemo(() => [
     { metric: 'Growth', value: organizationalMetrics.growthRate * 100, fullMark: 100 },
     { metric: 'Engagement', value: organizationalMetrics.engagementLevel * 100, fullMark: 100 },
     { metric: 'Performance', value: organizationalMetrics.performanceIndex * 100, fullMark: 100 },
@@ -356,31 +356,31 @@ const PredictiveAnalyticsDashboard: React.FC<PredictiveAnalyticsDashboardProps> 
     { metric: 'Retention', value: organizationalMetrics.retentionRate * 100, fullMark: 100 },
     { metric: 'Diversity', value: organizationalMetrics.diversityIndex * 100, fullMark: 100 },
     { metric: 'Collaboration', value: organizationalMetrics.collaborationScore * 100, fullMark: 100 },
-  ];
+  ], [organizationalMetrics]);
 
-  const interventionROIData = interventionEffectiveness.map(intervention => ({
+  const interventionROIData = useMemo(() => interventionEffectiveness.map(intervention => ({
     name: intervention.name.length > 20 ? intervention.name.substring(0, 20) + '...' : intervention.name,
     roi: intervention.roi,
     effectiveness: intervention.effectivenessScore * 100,
     participants: intervention.participantCount,
-  }));
+  })), [interventionEffectiveness]);
 
-  const growthTrajectoryData = growthTrajectories.map(trajectory => ({
+  const growthTrajectoryData = useMemo(() => growthTrajectories.map(trajectory => ({
     name: trajectory.userName.split(' ')[0],
     current: trajectory.currentLevel,
     predicted: trajectory.predictedLevel,
     potential: trajectory.potentialScore * 100,
     velocity: trajectory.growthVelocity * 100,
-  }));
+  })), [growthTrajectories]);
 
-  const riskDistributionData = [
-    { category: 'Critical', value: organizationalRisks.filter(r => r.level === 'critical').length, color: '#ef4444' },
-    { category: 'High', value: organizationalRisks.filter(r => r.level === 'high').length, color: '#f97316' },
-    { category: 'Medium', value: organizationalRisks.filter(r => r.level === 'medium').length, color: '#f59e0b' },
-    { category: 'Low', value: organizationalRisks.filter(r => r.level === 'low').length, color: '#10b981' },
-  ];
+  const riskDistributionData = useMemo(() => [
+    { category: 'Critical', value: organizationalRisks.filter(r => r.level === 'critical').length, color: 'var(--color-error)' },
+    { category: 'High', value: organizationalRisks.filter(r => r.level === 'high').length, color: 'var(--color-clinical-moderate)' },
+    { category: 'Medium', value: organizationalRisks.filter(r => r.level === 'medium').length, color: 'var(--color-warning)' },
+    { category: 'Low', value: organizationalRisks.filter(r => r.level === 'low').length, color: 'var(--color-success)' },
+  ], [organizationalRisks]);
 
-  const insightsByCategory = Object.entries(
+  const insightsByCategory = useMemo(() => Object.entries(
     predictiveInsights.reduce((acc, insight) => {
       acc[insight.category] = (acc[insight.category] || 0) + 1;
       return acc;
@@ -388,7 +388,7 @@ const PredictiveAnalyticsDashboard: React.FC<PredictiveAnalyticsDashboardProps> 
   ).map(([category, count]) => ({
     category: category.charAt(0).toUpperCase() + category.slice(1),
     count,
-  }));
+  })), [predictiveInsights]);
 
   // Helper functions
   const getPriorityColor = (priority: string) => {
@@ -576,7 +576,7 @@ const PredictiveAnalyticsDashboard: React.FC<PredictiveAnalyticsDashboardProps> 
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
+                  label={(props: any) => `${props.category} ${(props.percent * 100).toFixed(0)}%`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
@@ -746,7 +746,7 @@ const PredictiveAnalyticsDashboard: React.FC<PredictiveAnalyticsDashboardProps> 
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">
-                {interventionEffectiveness.reduce((sum, i) => sum + i.roi, 0) / interventionEffectiveness.length.toFixed(1)}x
+                {(interventionEffectiveness.reduce((sum, i) => sum + i.roi, 0) / interventionEffectiveness.length).toFixed(1)}x
               </div>
               <p className="text-sm text-gray-600">Avg. ROI</p>
             </div>
@@ -882,7 +882,7 @@ const PredictiveAnalyticsDashboard: React.FC<PredictiveAnalyticsDashboardProps> 
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h3 className="font-semibold capitalize">{risk.category.replace('_', ' ')} Risk</h3>
-                      <Badge className={getPriorityColor(r.level)}>
+                      <Badge className={getPriorityColor(risk.level)}>
                         {risk.level}
                       </Badge>
                     </div>
@@ -1075,4 +1075,4 @@ const PredictiveAnalyticsDashboard: React.FC<PredictiveAnalyticsDashboardProps> 
   );
 };
 
-export default PredictiveAnalyticsDashboard;
+export default React.memo(PredictiveAnalyticsDashboard);

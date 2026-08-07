@@ -122,7 +122,7 @@ function MentalHealthChatbot() {
     }
 
     try {
-      const response = await api.post('/api/v1/chatbot/message', {
+      const response = await api.post('/chatbot/message', {
         message: userMessage.text,
         session_id: sessionId,
       });
@@ -149,7 +149,7 @@ function MentalHealthChatbot() {
       if (responseData.action === 'escalate_to_human') {
         setEscalated(true);
       }
-    } catch (err: any) {
+    } catch (err) {
       const errorMessage: ChatMessage = {
         id: `error_${Date.now()}`,
         text: "I'm having trouble connecting right now. Please try again, or reach out to crisis resources directly.",
@@ -228,10 +228,10 @@ function MentalHealthChatbot() {
               <div className="p-3 bg-red-100 rounded-lg">
                 <strong>988 Suicide & Crisis Lifeline</strong>
                 <div className="flex gap-2 mt-2">
-                  <Button variant="destructive" size="sm" asChild>
+                  <Button variant="danger" size="sm">
                     <a href="tel:988">Call 988</a>
                   </Button>
-                  <Button variant="outline" size="sm" asChild>
+                  <Button variant="outline" size="sm">
                     <a href="sms:988">Text 988</a>
                   </Button>
                 </div>
@@ -244,7 +244,7 @@ function MentalHealthChatbot() {
 
               <div className="p-3 bg-red-100 rounded-lg">
                 <strong>Emergency</strong>
-                <Button variant="destructive" size="sm" className="w-full mt-2" asChild>
+                <Button variant="danger" size="sm" className="w-full mt-2">
                   <a href="tel:911">Call 911</a>
                 </Button>
               </div>
@@ -290,7 +290,18 @@ function MentalHealthChatbot() {
                             {message.resources.map((resource, idx) => (
                               <div key={idx} className="text-xs flex items-start gap-2">
                                 <ExternalLink className="h-3 w-3 mt-0.5 flex-shrink-0" />
-                                <span>{resource}</span>
+                                {typeof resource === 'string' ? (
+                                  <span>{resource}</span>
+                                ) : (
+                                  <a
+                                    href={(resource as any).url}
+                                    target={(resource as any).url.startsWith('http') ? '_blank' : '_self'}
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:underline font-medium"
+                                  >
+                                    {(resource as any).title}
+                                  </a>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -346,7 +357,7 @@ function MentalHealthChatbot() {
             <Button
               onClick={handleSend}
               disabled={!input.trim() || sending}
-              size="icon"
+              size="sm"
               className="h-10 w-10"
             >
               {sending ? (

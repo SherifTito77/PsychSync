@@ -1,7 +1,9 @@
 // frontend/src/hooks/useExperiment.ts
 // React hook for A/B testing integration
-import { useState, useEffect } from 'react';
+// ✅ MIGRATED: Now uses unified analytics tracker
+import { useState, useEffect, useRef } from 'react';
 import { apiClient } from '../services/api';
+import { getAnalytics } from '../services/analytics/tracker';
 
 export interface ExperimentConfig {
   name: string;
@@ -35,7 +37,19 @@ export const useExperiment = (experimentName: string): ExperimentResult => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ FIXED: Add ref to prevent Strict Mode double-calling
+  const hasAssigned = useRef(false);
+
   useEffect(() => {
+    // ✅ FIXED: Skip second call in Strict Mode (development)
+    if (hasAssigned.current) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[useExperiment] Skipping duplicate assignment for: ${experimentName}`);
+      }
+      return;
+    }
+    hasAssigned.current = true;
+
     const assignVariant = async () => {
       try {
         // Check localStorage first
@@ -49,11 +63,11 @@ export const useExperiment = (experimentName: string): ExperimentResult => {
         }
 
         // Call assignment API
-        const response = await apiClient.post('/api/v1/ab/assign', {
+        const response = await apiClient.post('/ab/assign', {
           experiment: experimentName
         });
 
-        const assignedVariant = response.data.variant;
+        const assignedVariant = (response.data as any).variant;
         setVariant(assignedVariant);
 
         // Cache in localStorage
@@ -74,14 +88,15 @@ export const useExperiment = (experimentName: string): ExperimentResult => {
   }, [experimentName]);
 
   // Track function
+  // ✅ MIGRATED: Now uses unified analytics tracker
   const track = async (eventType: string, properties?: Record<string, any>) => {
     try {
-      await apiClient.post('/api/v1/ab/track', {
-        experiment: experimentName,
-        variant,
-        event_type: eventType,
-        properties,
-        timestamp: new Date().toISOString()
+      const analytics = getAnalytics();
+
+      // Use unified tracker for A/B test events
+      analytics.trackABTest(experimentName, variant, eventType as any, {
+        ...properties,
+        experiment_name: experimentName, // Legacy field for backward compatibility
       });
     } catch (err) {
       console.error('Event tracking failed:', err);
@@ -117,11 +132,11 @@ export const useExperiments = (experimentNames: string[]): Record<string, Experi
             isLoading: false,
             error: null,
             track: async (eventType: string, properties?: Record<string, any>) => {
-              await apiClient.post('/api/v1/ab/track', {
-                experiment: name,
-                variant: cached,
-                event_type: eventType,
-                properties
+              // ✅ MIGRATED: Now uses unified analytics tracker
+              const analytics = getAnalytics();
+              analytics.trackABTest(name, cached, eventType as any, {
+                ...properties,
+                experiment_name: name,
               });
             },
             isControl: cached === 'control'

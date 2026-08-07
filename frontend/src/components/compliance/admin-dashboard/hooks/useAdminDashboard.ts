@@ -165,10 +165,13 @@ export const useAdminDashboard = () => {
   // Auto-refresh effect
   useEffect(() => {
     loadDashboardData();
+    let intervalId: NodeJS.Timeout | undefined;
     if (autoRefresh) {
-      const interval = setInterval(loadDashboardData, 30000); // Refresh every 30 seconds
-      return () => clearInterval(interval);
+      intervalId = setInterval(loadDashboardData, 30000); // Refresh every 30 seconds
     }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [autoRefresh, activeTab]);
 
   return {

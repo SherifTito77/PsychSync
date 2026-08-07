@@ -1,7 +1,7 @@
 // src/components/onboarding/SetupWizardWrapper.tsx - Wrapper to trigger setup wizard
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext';
 import QuickSetupWizard from './QuickSetupWizard';
 
 const SetupWizardWrapper: React.FC = () => {

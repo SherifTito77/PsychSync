@@ -18,9 +18,9 @@ from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 
 # Import analytics modules
 # In production, adjust these imports based on your project structure
-# from ai.predictor import OutcomePredictor, DropoutPredictor, ResponsePredictor
-# from ai.pattern_recognition import BehavioralPatternDetector, AnomalyDetector
-# from ai.longitudinal_analysis import LongitudinalAnalyzer, TimeSeriesForecaster
+# from app.ai.predictor import OutcomePredictor, DropoutPredictor, ResponsePredictor
+# from app.ai.pattern_recognition import BehavioralPatternDetector, AnomalyDetector
+# from app.ai.longitudinal_analysis import LongitudinalAnalyzer, TimeSeriesForecaster
 
 # Initialize routers
 router = APIRouter(prefix="/analytics", tags=["Analytics"])

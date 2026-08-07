@@ -160,20 +160,23 @@ const Reporting: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {Object.entries(analytics.format_distribution).map(([format, count]) => (
-                        <div key={format} className="flex items-center justify-between">
-                          <span className="capitalize">{format}</span>
-                          <div className="flex items-center space-x-2">
-                            <div className="w-32 bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-blue-600 h-2 rounded-full"
-                                style={{ width: `${(count / analytics.generation_stats.total_reports) * 100}%` }}
-                              ></div>
+                      {Object.entries(analytics.format_distribution).map(([format, count]) => {
+                        const numCount = count as number;
+                        return (
+                          <div key={format} className="flex items-center justify-between">
+                            <span className="capitalize">{format}</span>
+                            <div className="flex items-center space-x-2">
+                              <div className="w-32 bg-gray-200 rounded-full h-2">
+                                <div
+                                  className="bg-blue-600 h-2 rounded-full"
+                                  style={{ width: `${(numCount / analytics.generation_stats.total_reports) * 100}%` }}
+                                ></div>
+                              </div>
+                              <span className="text-sm font-medium w-8">{numCount}</span>
                             </div>
-                            <span className="text-sm font-medium w-8">{count}</span>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>

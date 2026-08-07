@@ -9,10 +9,10 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/Input';
+import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
-import { Badge } from '@/components/ui/Badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   CheckCircle,
@@ -71,7 +71,7 @@ export const FeedbackStatusCheck: React.FC<FeedbackStatusCheckProps> = ({
       } else {
         setError(response.message || 'Tracking ID not found');
       }
-    } catch (err: any) {
+    } catch (err) {
       setError(err.message || 'Failed to check status');
     } finally {
       setIsChecking(false);

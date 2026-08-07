@@ -2,8 +2,8 @@
 import api from './api';
 import logger from '@/utils/logger';
 export interface Question {
-  id: number;
-  section_id: number;
+  id: string | number;
+  section_id: string | number;
   question_type: 'multiple_choice' | 'rating_scale' | 'text' | 'yes_no' | 'likert';
   question_text: string;
   help_text?: string;
@@ -14,8 +14,8 @@ export interface Question {
   updated_at: string;
 }
 export interface Section {
-  id: number;
-  assessment_id: number;
+  id: string | number;
+  assessment_id: string | number;
   title: string;
   description?: string;
   order: number;
@@ -24,7 +24,7 @@ export interface Section {
   updated_at: string;
 }
 export interface Assessment {
-  id: number;
+  id: string | number;
   title: string;
   description?: string;
   category: string;
@@ -36,8 +36,8 @@ export interface Assessment {
   allow_anonymous: boolean;
   randomize_questions: boolean;
   show_progress: boolean;
-  created_by_id: number;
-  team_id?: number;
+  created_by_id: string | number;
+  team_id?: string | number;
   created_at: string;
   updated_at: string;
   published_at?: string;
@@ -52,7 +52,7 @@ export interface CreateAssessmentRequest {
   category: string;
   instructions?: string;
   estimated_duration?: number;
-  team_id?: number;
+  team_id?: string | number;
   is_public?: boolean;
   allow_anonymous?: boolean;
   randomize_questions?: boolean;
@@ -86,18 +86,18 @@ export interface UpdateAssessmentRequest {
   show_progress?: boolean;
 }
 export interface Assignment {
-  id: number;
-  assessment_id: number;
-  team_id?: number;
-  assigned_to_user_id?: number;
-  assigned_by_id: number;
+  id: string | number;
+  assessment_id: string | number;
+  team_id?: string | number;
+  assigned_to_user_id?: string | number;
+  assigned_by_id: string | number;
   due_date?: string;
   is_active: boolean;
   created_at: string;
   completed_at?: string;
 }
 export interface ResponseSubmit {
-  assignment_id?: number;
+  assignment_id?: string | number;
   responses: Record<string, any>;
   is_complete: boolean;
 }
@@ -162,7 +162,7 @@ export const assessmentService = {
       throw error;
     }
   },
-  async getAssessment(assessmentId: number): Promise<AssessmentWithSections> {
+  async getAssessment(assessmentId: string | number): Promise<AssessmentWithSections> {
     logger.logApiCall(`/assessments/${assessmentId}`, 'GET', {
       assessment_id: assessmentId,
     });
@@ -188,7 +188,7 @@ export const assessmentService = {
     }
   },
   async updateAssessment(
-    assessmentId: number,
+    assessmentId: string | number,
     data: UpdateAssessmentRequest
   ): Promise<Assessment> {
     logger.logApiCall(`/assessments/${assessmentId}`, 'PUT', {
@@ -218,7 +218,7 @@ export const assessmentService = {
       throw error;
     }
   },
-  async deleteAssessment(assessmentId: number): Promise<void> {
+  async deleteAssessment(assessmentId: string | number): Promise<void> {
     logger.logApiCall(`/assessments/${assessmentId}`, 'DELETE', {
       assessment_id: assessmentId,
     });
@@ -237,7 +237,7 @@ export const assessmentService = {
       throw error;
     }
   },
-  async publishAssessment(assessmentId: number): Promise<Assessment> {
+  async publishAssessment(assessmentId: string | number): Promise<Assessment> {
     logger.logApiCall(`/assessments/${assessmentId}/publish`, 'POST', {
       assessment_id: assessmentId,
     });
@@ -262,13 +262,13 @@ export const assessmentService = {
       throw error;
     }
   },
-  async archiveAssessment(assessmentId: number): Promise<Assessment> {
+  async archiveAssessment(assessmentId: string | number): Promise<Assessment> {
     const response = await api.post<Assessment>(
       `/assessments/${assessmentId}/archive`
     );
     return response.data;
   },
-  async duplicateAssessment(assessmentId: number): Promise<Assessment> {
+  async duplicateAssessment(assessmentId: string | number): Promise<Assessment> {
     const response = await api.post<Assessment>(
       `/assessments/${assessmentId}/duplicate`
     );
@@ -276,7 +276,7 @@ export const assessmentService = {
   },
   // Section Management
   async addSection(
-    assessmentId: number,
+    assessmentId: string | number,
     data: CreateSectionRequest
   ): Promise<Section> {
     const response = await api.post<Section>(
@@ -285,13 +285,13 @@ export const assessmentService = {
     );
     return response.data;
   },
-  async deleteSection(assessmentId: number, sectionId: number): Promise<void> {
+  async deleteSection(assessmentId: string | number, sectionId: string | number): Promise<void> {
     await api.delete(`/assessments/${assessmentId}/sections/${sectionId}`);
   },
   // Question Management
   async addQuestion(
-    assessmentId: number,
-    sectionId: number,
+    assessmentId: string | number,
+    sectionId: string | number,
     data: CreateQuestionRequest
   ): Promise<Question> {
     const response = await api.post<Question>(
@@ -300,15 +300,15 @@ export const assessmentService = {
     );
     return response.data;
   },
-  async deleteQuestion(assessmentId: number, questionId: number): Promise<void> {
+  async deleteQuestion(assessmentId: string | number, questionId: string | number): Promise<void> {
     await api.delete(`/assessments/${assessmentId}/questions/${questionId}`);
   },
   // Assignment Management
   async createAssignment(
-    assessmentId: number,
+    assessmentId: string | number,
     data: {
-      team_id?: number;
-      assigned_to_user_id?: number;
+      team_id?: string | number;
+      assigned_to_user_id?: string | number;
       due_date?: string;
     }
   ): Promise<Assignment> {
@@ -326,7 +326,7 @@ export const assessmentService = {
   },
   // Response Management
   async submitResponse(
-    assessmentId: number,
+    assessmentId: string | number,
     data: ResponseSubmit
   ): Promise<any> {
     const response = await api.post(
@@ -335,7 +335,7 @@ export const assessmentService = {
     );
     return response.data;
   },
-  async getAssessmentResponses(assessmentId: number): Promise<any[]> {
+  async getAssessmentResponses(assessmentId: string | number): Promise<any[]> {
     const response = await api.get<any[]>(`/assessments/${assessmentId}/responses`);
     return response.data;
   },

@@ -9,6 +9,7 @@ import {
   TrashIcon,
   ArchiveBoxIcon
 } from '@heroicons/react/24/outline';
+import { tokens, createStyles, cn } from '@/utils/designTokens';
 
 interface MobileCardProps {
   children: React.ReactNode;
@@ -141,11 +142,13 @@ export const MobileCard: React.FC<MobileCardProps> = ({
   }, [isPressed, onLongPress]);
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       <motion.div
+        layout
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.2 }}
         className={`
           mobile-swipe-card
           mobile-card
@@ -166,7 +169,12 @@ export const MobileCard: React.FC<MobileCardProps> = ({
       >
         {/* Left swipe action */}
         {swipeActions?.left && (
-          <div className="mobile-swipe-actions" style={{ backgroundColor: swipeActions.left.color }}>
+          <div
+            className="mobile-swipe-actions"
+            style={createStyles({
+              backgroundColor: swipeActions.left.color
+            })}
+          >
             <swipeActions.left.icon className="w-5 h-5" />
             <span className="ml-2 text-sm font-medium">{swipeActions.left.label}</span>
           </div>
@@ -174,7 +182,12 @@ export const MobileCard: React.FC<MobileCardProps> = ({
 
         {/* Right swipe action */}
         {swipeActions?.right && (
-          <div className="mobile-swipe-actions" style={{ backgroundColor: swipeActions.right.color }}>
+          <div
+            className="mobile-swipe-actions"
+            style={createStyles({
+              backgroundColor: swipeActions.right.color
+            })}
+          >
             <span className="mr-2 text-sm font-medium">{swipeActions.right.label}</span>
             <swipeActions.right.icon className="w-5 h-5" />
           </div>
@@ -252,6 +265,17 @@ export const MobileCard: React.FC<MobileCardProps> = ({
   );
 };
 
+// Color mapping helper using design tokens
+const getNotificationColor = (type: 'info' | 'success' | 'warning' | 'error'): string => {
+  const colorMap = {
+    info: tokens.color.info(),
+    success: tokens.color.success(),
+    warning: tokens.color.warning(),
+    error: tokens.color.error()
+  };
+  return colorMap[type];
+};
+
 // Specialized card variants
 export const AssessmentCard: React.FC<{
   assessment: {
@@ -282,7 +306,7 @@ export const AssessmentCard: React.FC<{
         right: {
           label: 'View',
           icon: ChevronRightIcon,
-          color: '#3b82f6',
+          color: tokens.color.info(),
           action: onPress || (() => {})
         }
       }}
@@ -317,7 +341,7 @@ export const TeamCard: React.FC<{
         right: {
           label: 'View',
           icon: ChevronRightIcon,
-          color: '#10b981',
+          color: tokens.color.success(),
           action: onPress || (() => {})
         }
       }}
@@ -341,13 +365,6 @@ export const NotificationCard: React.FC<{
   };
   onDismiss?: () => void;
 }> = ({ notification, onDismiss }) => {
-  const typeColors = {
-    info: '#3b82f6',
-    success: '#10b981',
-    warning: '#f59e0b',
-    error: '#ef4444'
-  };
-
   return (
     <MobileCard
       title={notification.title}
@@ -357,7 +374,7 @@ export const NotificationCard: React.FC<{
         left: {
           label: 'Dismiss',
           icon: ArchiveBoxIcon,
-          color: '#6b7280',
+          color: 'var(--color-gray-500)',
           action: onDismiss || (() => {})
         }
       }}
@@ -365,7 +382,9 @@ export const NotificationCard: React.FC<{
       <div className="flex items-start space-x-3">
         <div
           className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
-          style={{ backgroundColor: typeColors[notification.type] }}
+          style={createStyles({
+            backgroundColor: getNotificationColor(notification.type)
+          })}
         />
         <div className="flex-1">
           <p className="mobile-body text-gray-700">
@@ -399,13 +418,13 @@ export const SwipeableListItem: React.FC<{
         left: {
           label: 'Archive',
           icon: ArchiveBoxIcon,
-          color: '#3b82f6',
+          color: tokens.color.info(),
           action: onArchive || (() => {})
         },
         right: {
           label: 'Delete',
           icon: TrashIcon,
-          color: '#ef4444',
+          color: tokens.color.error(),
           action: onDelete || (() => {})
         }
       }}

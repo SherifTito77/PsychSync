@@ -15,7 +15,7 @@ const TeamDetail: React.FC = () => {
   const [showAddMember, setShowAddMember] = useState(false);
   const [showEditTeam, setShowEditTeam] = useState(false);
   const [error, setError] = useState('');
-  const currentMember = team?.members.find((m) => String(m.user_id) === String(user?.id));
+  const currentMember = team?.members?.find((m) => String(m.user_id) === String(user?.id));
   const isAdminOrOwner = currentMember?.role === 'admin' || currentMember?.role === 'owner';
   const isOwner = currentMember?.role === 'owner';
   useEffect(() => {
@@ -26,7 +26,7 @@ const TeamDetail: React.FC = () => {
     setIsLoading(true);
     setError('');
     try {
-      const data = await teamService.getTeam(parseInt(teamId));
+      const data = await teamService.getTeam(teamId);
       setTeam(data);
     } catch (error: any) {
       setError(error.response?.data?.detail || 'Failed to load team');
@@ -40,7 +40,7 @@ const TeamDetail: React.FC = () => {
       return;
     }
     try {
-      await teamService.deleteTeam(parseInt(teamId));
+      await teamService.deleteTeam(teamId);
       navigate('/teams');
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Failed to delete team');
@@ -52,7 +52,7 @@ const TeamDetail: React.FC = () => {
       return;
     }
     try {
-      await teamService.removeMember(parseInt(teamId), memberId);
+      await teamService.removeMember(teamId, memberId);
       loadTeam();
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Failed to remove member');
@@ -64,7 +64,7 @@ const TeamDetail: React.FC = () => {
       return;
     }
     try {
-      await teamService.leaveTeam(parseInt(teamId));
+      await teamService.leaveTeam(teamId);
       navigate('/teams');
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Failed to leave team');
@@ -73,7 +73,7 @@ const TeamDetail: React.FC = () => {
   const handleUpdateRole = async (userId: number, newRole: string) => {
     if (!teamId) return;
     try {
-      await teamService.updateMemberRole(parseInt(teamId), userId, { role: newRole as any });
+      await teamService.updateMemberRole(teamId, userId, { role: newRole as any });
       loadTeam();
     } catch (error: any) {
       alert(error.response?.data?.detail || 'Failed to update role');
@@ -85,6 +85,8 @@ const TeamDetail: React.FC = () => {
         return 'bg-purple-100 text-purple-800';
       case 'admin':
         return 'bg-blue-100 text-blue-800';
+      case 'member':
+        return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -132,6 +134,9 @@ const TeamDetail: React.FC = () => {
           </Link>
           <div className="flex items-center space-x-3">
             <h1 className="text-2xl font-bold text-gray-900">{team.name}</h1>
+            <span className="text-xs font-mono text-gray-400 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
+              ID: {team.id}
+            </span>
             {!team.is_active && (
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                 Inactive
@@ -307,7 +312,7 @@ const TeamDetail: React.FC = () => {
                   {isAdminOrOwner && String(member.user_id) !== String(user?.id) ? (
                     <select
                       value={member.role}
-                      onChange={(e) => handleUpdateRole(member.user_id, e.target.value)}
+                      onChange={(e) => handleUpdateRole(Number(member.user_id), e.target.value)}
                       disabled={member.role === 'owner' && !isOwner}
                       className="text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
                     >
@@ -329,7 +334,7 @@ const TeamDetail: React.FC = () => {
                     (member.role !== 'owner' || isOwner) && (
                       <button
                         onClick={() =>
-                          handleRemoveMember(member.user_id, member.user.full_name)
+                          handleRemoveMember(Number(member.user_id), member.user.full_name)
                         }
                         className="text-red-600 hover:text-red-900 text-sm font-medium"
                       >
@@ -345,7 +350,7 @@ const TeamDetail: React.FC = () => {
       {/* Modals */}
       {showAddMember && teamId && (
         <AddMemberModal
-          teamId={parseInt(teamId)}
+          teamId={teamId}
           onClose={() => setShowAddMember(false)}
           onSuccess={loadTeam}
         />

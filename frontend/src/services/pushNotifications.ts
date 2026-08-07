@@ -110,7 +110,7 @@ class PushNotificationServiceClass {
    */
   async registerToken(request: TokenRegistrationRequest): Promise<NotificationToken> {
     try {
-      const response = await api.post('/api/v1/push-notifications/register-token', request);
+      const response = await api.post('/push-notifications/register-token', request);
       return response.data;
     } catch (error: any) {
       console.error('Failed to register device token:', error);
@@ -123,7 +123,7 @@ class PushNotificationServiceClass {
    */
   async unregisterToken(token: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await api.post('/api/v1/push-notifications/unregister-token', { token });
+      const response = await api.post('/push-notifications/unregister-token', { token });
       return response.data;
     } catch (error: any) {
       console.error('Failed to unregister device token:', error);
@@ -136,7 +136,7 @@ class PushNotificationServiceClass {
    */
   async getMyTokens(): Promise<NotificationToken[]> {
     try {
-      const response = await api.get('/api/v1/push-notifications/my-tokens');
+      const response = await api.get('/push-notifications/my-tokens');
       return response.data;
     } catch (error: any) {
       console.error('Failed to get user tokens:', error);
@@ -149,7 +149,7 @@ class PushNotificationServiceClass {
    */
   async getStatus(): Promise<NotificationStatus> {
     try {
-      const response = await api.get('/api/v1/push-notifications/status');
+      const response = await api.get('/push-notifications/status');
       return response.data;
     } catch (error: any) {
       console.error('Failed to get notification status:', error);
@@ -162,7 +162,7 @@ class PushNotificationServiceClass {
    */
   async sendTestNotification(): Promise<NotificationDelivery> {
     try {
-      const response = await api.get('/api/v1/push-notifications/test-send');
+      const response = await api.get('/push-notifications/test-send');
       return response.data;
     } catch (error: any) {
       console.error('Failed to send test notification:', error);
@@ -175,7 +175,7 @@ class PushNotificationServiceClass {
    */
   async getNotificationTypes(): Promise<{ notification_types: Record<string, NotificationTemplate>; total_types: number }> {
     try {
-      const response = await api.get('/api/v1/push-notifications/types');
+      const response = await api.get('/push-notifications/types');
       return response.data;
     } catch (error: any) {
       console.error('Failed to get notification types:', error);

@@ -62,8 +62,8 @@ class AtomicLockoutTracker:
         if self._redis_client is None:
             try:
                 self._redis_client = await redis.from_url(
-                    f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
-                    decoding="utf-8",
+                    settings.REDIS_URL,
+                    decode_responses=True,
                     health_check_interval=30,
                 )
                 logger.info("Atomic lockout tracker connected to Redis")

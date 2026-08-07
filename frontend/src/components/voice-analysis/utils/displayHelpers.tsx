@@ -83,7 +83,7 @@ export const prepareEmotionDistribution = (facialAnalysis: any[], colors: string
 
   return Object.entries(emotionDistribution).map(([emotion, count]) => ({
     name: emotion.charAt(0).toUpperCase() + emotion.slice(1),
-    value: count,
+    value: count as number,
     fill: colors[Object.keys(emotionDistribution).indexOf(emotion) % colors.length]
   }));
 };

@@ -444,7 +444,7 @@ def log_ai_security_event(
     Convenience function to log AI security event
 
     Usage:
-        from ai.security.ai_security_monitor import (
+        from app.ai.security.ai_security_monitor import (
             log_ai_security_event,
             SecurityEventType,
             SecurityEventSeverity

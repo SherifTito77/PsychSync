@@ -1,0 +1,105 @@
+{
+  "test_summary": {
+    "total_tests": 3,
+    "successful_tests": 3,
+    "overall_consistency_score": 131.94444444444446,
+    "target_consistency_rate": 95.0,
+    "meets_target": true
+  },
+  "test_results": [
+    {
+      "name": "scoring_consistency_across_assessments",
+      "assessment_type": "all",
+      "consistency_score": 195.83333333333334,
+      "identical_results": 195,
+      "total_comparisons": 100,
+      "details": {
+        "by_assessment": {
+          "big_five": 125.0,
+          "mbti": 114.99999999999999,
+          "enneagram": 150.0,
+          "disc": 95.0,
+          "strengths_finder": 625.0,
+          "predictive_index": 65.0
+        },
+        "target_consistency_rate": 95.0
+      },
+      "timestamp": "2025-12-12T18:21:19.118870"
+    },
+    {
+      "name": "same_input_same_output",
+      "assessment_type": "mbti",
+      "consistency_score": 100.0,
+      "identical_results": 18,
+      "total_comparisons": 18,
+      "details": {
+        "personality_type": "ESTJ",
+        "normalized_scores": {
+          "Extraversion": 64.0,
+          "Sensing": 66.0,
+          "Thinking": 57.99999999999999,
+          "Judging": 68.0
+        },
+        "processing_time": 0.001132965087890625
+      },
+      "timestamp": "2025-12-12T18:21:19.134339"
+    },
+    {
+      "name": "scoring_algorithm_stability",
+      "assessment_type": "big_five",
+      "consistency_score": 100.0,
+      "identical_results": 8,
+      "total_comparisons": 8,
+      "details": {
+        "edge_case_results": {
+          "all_minimum": {
+            "personality_type": "Openness",
+            "max_score": 20.0,
+            "min_score": 20.0,
+            "processing_time": 0.0013778209686279297
+          },
+          "all_maximum": {
+            "personality_type": "Openness",
+            "max_score": 100.0,
+            "min_score": 100.0,
+            "processing_time": 0.0009636878967285156
+          },
+          "alternating": {
+            "personality_type": "Openness",
+            "max_score": 60.0,
+            "min_score": 60.0,
+            "processing_time": 0.0009021759033203125
+          },
+          "random": {
+            "personality_type": "Openness",
+            "max_score": 70.0,
+            "min_score": 63.33333333333333,
+            "processing_time": 0.0009829998016357422
+          }
+        }
+      },
+      "timestamp": "2025-12-12T18:21:19.145486"
+    }
+  ],
+  "engine_capabilities": {
+    "supported_assessments": [
+      "big_five",
+      "mbti",
+      "enneagram",
+      "disc",
+      "strengths_finder",
+      "predictive_index"
+    ],
+    "question_bank_sizes": {
+      "big_five": 60,
+      "mbti": 40,
+      "enneagram": 54,
+      "disc": 60,
+      "strengths_finder": 170,
+      "predictive_index": 12
+    }
+  },
+  "recommendations": [
+    "All scoring algorithms meet consistency targets"
+  ]
+}

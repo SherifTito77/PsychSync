@@ -1,0 +1,430 @@
+"""
+Create Analytics Materialized Views
+
+This migration creates materialized views for analytics dashboards to
+optimize real-time analytics queries and improve dashboard performance.
+
+Materialized Views Created:
+- user_analytics_summary: User performance and engagement metrics
+- team_analytics_summary: Team performance analytics
+- assessment_analytics_summary: Assessment completion and scoring metrics
+- organization_growth_metrics: Organization growth and usage trends
+- response_trends_analysis: Response pattern analysis over time
+- user_engagement_metrics: User engagement and activity patterns
+- assessment_performance_metrics: Assessment effectiveness metrics
+
+Performance Benefits:
+- Pre-computed analytics data for instant dashboard loading
+- Automatic refresh strategies for near real-time data
+- Optimized query execution with minimal joins
+- Reduced database load during peak analytics usage
+- Improved user experience with faster dashboard rendering
+"""
+
+# revision identifier, used by Alembic.
+revision = '012_create_analytics_materialized_views'
+down_revision = '011_implement_table_partitioning'
+branch_labels = None
+depends_on = None
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+
+def upgrade() -> None:
+    """Create analytics materialized views for dashboard optimization"""
+
+    # 1. User Analytics Summary Materialized View
+    # ---------------------------------------------------------
+
+    op.execute("""
+        -- Create user analytics summary materialized view
+        CREATE MATERIALIZED VIEW user_analytics_summary AS
+        SELECT
+            u.id as user_id,
+            u.organization_id,
+            u.full_name,
+            u.email,
+            u.role,
+            u.created_at as user_created_at,
+            COUNT(DISTINCT r.id) as total_responses,
+            COUNT(DISTINCT r.assessment_id) as assessments_taken,
+            AVG(r.score) as average_score,
+            AVG(r.confidence_rating) as avg_confidence,
+            AVG(r.response_time_ms) as avg_response_time,
+            COUNT(DISTINCT DATE(r.created_at)) as active_days,
+            MAX(r.created_at) as last_activity_date,
+            -- Performance tiers
+            CASE
+                WHEN AVG(r.score) >= 90 THEN 'Excellent'
+                WHEN AVG(r.score) >= 80 THEN 'Good'
+                WHEN AVG(r.score) >= 70 THEN 'Average'
+                ELSE 'Needs Improvement'
+            END as performance_tier,
+            -- Engagement level
+            CASE
+                WHEN COUNT(DISTINCT DATE(r.created_at)) >= 20 THEN 'Highly Engaged'
+                WHEN COUNT(DISTINCT DATE(r.created_at)) >= 10 THEN 'Moderately Engaged'
+                WHEN COUNT(DISTINCT DATE(r.created_at)) >= 5 THEN 'Slightly Engaged'
+                ELSE 'Minimally Engaged'
+            END as engagement_level,
+            -- Recent activity (last 30 days)
+            COUNT(DISTINCT r.id) FILTER (WHERE r.created_at >= CURRENT_DATE - INTERVAL '30 days') as recent_responses,
+            AVG(r.score) FILTER (WHERE r.created_at >= CURRENT_DATE - INTERVAL '30 days') as recent_avg_score,
+            -- Streak calculations
+            MAX(streak.max_streak) as current_streak
+        FROM users u
+        LEFT JOIN responses r ON u.id = r.user_id
+        LEFT JOIN (
+            SELECT
+                user_id,
+                COUNT(*) as consecutive_days,
+                MAX(consecutive_count) as max_streak
+            FROM (
+                SELECT
+                    user_id,
+                    DATE(created_at) as response_date,
+                    COUNT(*) OVER (PARTITION BY user_id ORDER BY DATE(created_at)
+                                  ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as streak_count
+                FROM responses
+                GROUP BY user_id, DATE(created_at)
+            ) date_groups
+            GROUP BY user_id, consecutive_days
+        ) streak ON u.id = streak.user_id
+        WHERE u.is_active = true
+        GROUP BY u.id, u.organization_id, u.full_name, u.email, u.role, u.created_at
+        WITH DATA;
+    """)
+
+    # 2. Team Analytics Summary Materialized View
+    # ---------------------------------------------------------
+
+    op.execute("""
+        -- Create team analytics summary materialized view
+        CREATE MATERIALIZED VIEW team_analytics_summary AS
+        SELECT
+            t.id as team_id,
+            t.organization_id,
+            t.name as team_name,
+            t.description,
+            COUNT(DISTINCT tm.user_id) as total_members,
+            COUNT(DISTINCT tm.user_id) FILTER (WHERE tm.is_active = true) as active_members,
+            COUNT(DISTINCT r.user_id) as participating_members,
+            COUNT(DISTINCT r.assessment_id) as assessments_completed,
+            AVG(r.score) as team_average_score,
+            STDDEV(r.score) as score_standard_deviation,
+            MIN(r.score) as min_score,
+            MAX(r.score) as max_score,
+            -- Team performance distribution
+            COUNT(DISTINCT r.user_id) FILTER (WHERE r.score >= 90) as excellent_performers,
+            COUNT(DISTINCT r.user_id) FILTER (WHERE r.score >= 80 AND r.score < 90) as good_performers,
+            COUNT(DISTINCT r.user_id) FILTER (WHERE r.score >= 70 AND r.score < 80) as average_performers,
+            COUNT(DISTINCT r.user_id) FILTER (WHERE r.score < 70) as needs_improvement,
+            -- Engagement metrics
+            AVG(r.response_time_ms) as avg_response_time,
+            COUNT(DISTINCT DATE(r.created_at)) as active_days,
+            -- Completion rates
+            COUNT(DISTINCT r.assessment_id) FILTER (WHERE r.score IS NOT NULL) as completed_assessments,
+            CASE
+                WHEN COUNT(DISTINCT r.assessment_id) > 0
+                THEN ROUND((COUNT(DISTINCT r.assessment_id) FILTER (WHERE r.score IS NOT NULL)::numeric /
+                          COUNT(DISTINCT r.assessment_id)) * 100, 2)
+                ELSE 0
+            END as completion_rate,
+            -- Team cohesion (how similar the scores are)
+            CASE
+                WHEN STDDEV(r.score) IS NOT NULL
+                THEN ROUND((1 - (STDDEV(r.score) / 100)) * 100, 2)
+                ELSE 100
+            END as cohesion_score,
+            t.created_at as team_created_at,
+            MAX(r.created_at) as last_activity_date
+        FROM teams t
+        LEFT JOIN team_members tm ON t.id = tm.team_id
+        LEFT JOIN responses r ON tm.user_id = r.user_id
+        WHERE t.is_active = true
+        GROUP BY t.id, t.organization_id, t.name, t.description, t.created_at
+        WITH DATA;
+    """)
+
+    # 3. Assessment Analytics Summary Materialized View
+    # ---------------------------------------------------------
+
+    op.execute("""
+        -- Create assessment analytics summary materialized view
+        CREATE MATERIALIZED VIEW assessment_analytics_summary AS
+        SELECT
+            a.id as assessment_id,
+            a.organization_id,
+            a.title,
+            a.category,
+            a.framework_code,
+            a.status,
+            a.created_at as assessment_created_at,
+            COUNT(DISTINCT r.user_id) as total_participants,
+            COUNT(DISTINCT r.id) as total_responses,
+            AVG(r.score) as average_score,
+            STDDEV(r.score) as score_standard_deviation,
+            MIN(r.score) as min_score,
+            MAX(r.score) as max_score,
+            -- Performance percentiles
+            PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY r.score) as q1_score,
+            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY r.score) as median_score,
+            PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY r.score) as q3_score,
+            -- Completion metrics
+            COUNT(DISTINCT r.user_id) FILTER (WHERE r.score IS NOT NULL) as completed_participants,
+            CASE
+                WHEN COUNT(DISTINCT r.user_id) > 0
+                THEN ROUND((COUNT(DISTINCT r.user_id) FILTER (WHERE r.score IS NOT NULL)::numeric /
+                          COUNT(DISTINCT r.user_id)) * 100, 2)
+                ELSE 0
+            END as completion_rate,
+            -- Time-based metrics
+            AVG(r.response_time_ms) as avg_response_time,
+            MIN(r.response_time_ms) as min_response_time,
+            MAX(r.response_time_ms) as max_response_time,
+            -- Difficulty assessment (based on average score)
+            CASE
+                WHEN AVG(r.score) >= 85 THEN 'Easy'
+                WHEN AVG(r.score) >= 70 THEN 'Moderate'
+                WHEN AVG(r.score) >= 55 THEN 'Challenging'
+                ELSE 'Difficult'
+            END as difficulty_level,
+            -- Quality metrics (based on confidence ratings)
+            AVG(r.confidence_rating) as avg_confidence,
+            COUNT(DISTINCT r.question_id) as questions_answered,
+            MAX(r.created_at) as last_response_date,
+            -- Recent activity (last 30 days)
+            COUNT(DISTINCT r.user_id) FILTER (WHERE r.created_at >= CURRENT_DATE - INTERVAL '30 days') as recent_participants,
+            AVG(r.score) FILTER (WHERE r.created_at >= CURRENT_DATE - INTERVAL '30 days') as recent_avg_score
+        FROM assessments a
+        LEFT JOIN responses r ON a.id = r.assessment_id
+        GROUP BY a.id, a.organization_id, a.title, a.category, a.framework_code, a.status, a.created_at
+        WITH DATA;
+    """)
+
+    # 4. Organization Growth Metrics Materialized View
+    # ---------------------------------------------------------
+
+    op.execute("""
+        -- Create organization growth metrics materialized view
+        CREATE MATERIALIZED VIEW organization_growth_metrics AS
+        SELECT
+            o.id as organization_id,
+            o.name as organization_name,
+            o.created_at as organization_created_at,
+            -- User metrics
+            COUNT(DISTINCT u.id) as total_users,
+            COUNT(DISTINCT u.id) FILTER (WHERE u.is_active = true) as active_users,
+            COUNT(DISTINCT u.id) FILTER (WHERE u.created_at >= CURRENT_DATE - INTERVAL '30 days') as new_users_30d,
+            COUNT(DISTINCT u.id) FILTER (WHERE u.created_at >= CURRENT_DATE - INTERVAL '90 days') as new_users_90d,
+            -- Team metrics
+            COUNT(DISTINCT t.id) as total_teams,
+            COUNT(DISTINCT t.id) FILTER (WHERE t.is_active = true) as active_teams,
+            -- Assessment metrics
+            COUNT(DISTINCT a.id) as total_assessments,
+            COUNT(DISTINCT a.id) FILTER (WHERE a.status = 'active') as active_assessments,
+            COUNT(DISTINCT a.id) FILTER (WHERE a.created_at >= CURRENT_DATE - INTERVAL '30 days') as new_assessments_30d,
+            -- Response metrics
+            COUNT(DISTINCT r.id) as total_responses,
+            COUNT(DISTINCT r.id) FILTER (WHERE r.created_at >= CURRENT_DATE - INTERVAL '30 days') as recent_responses_30d,
+            AVG(r.score) as overall_avg_score,
+            -- Growth rates
+            CASE
+                WHEN COUNT(DISTINCT u.id) FILTER (WHERE u.created_at >= CURRENT_DATE - INTERVAL '30 days') > 0
+                THEN ROUND((COUNT(DISTINCT u.id) FILTER (WHERE u.created_at >= CURRENT_DATE - INTERVAL '30 days')::numeric /
+                          NULLIF(COUNT(DISTINCT u.id) - COUNT(DISTINCT u.id) FILTER (WHERE u.created_at >= CURRENT_DATE - INTERVAL '30 days'), 0)) * 100, 2)
+                ELSE 0
+            END as user_growth_rate_30d,
+            -- Activity levels
+            COUNT(DISTINCT DATE(r.created_at)) as active_days,
+            COUNT(DISTINCT r.user_id) FILTER (WHERE r.created_at >= CURRENT_DATE - INTERVAL '7 days') as active_users_7d,
+            COUNT(DISTINCT r.user_id) FILTER (WHERE r.created_at >= CURRENT_DATE - INTERVAL '30 days') as active_users_30d,
+            -- Engagement quality
+            AVG(r.confidence_rating) as avg_confidence_rating,
+            AVG(r.response_time_ms) as avg_response_time,
+            -- Organization age in days
+            EXTRACT(DAYS FROM CURRENT_DATE - o.created_at) as organization_age_days,
+            -- Maturity level (based on age and usage)
+            CASE
+                WHEN EXTRACT(DAYS FROM CURRENT_DATE - o.created_at) >= 365 AND COUNT(DISTINCT r.id) >= 1000 THEN 'Mature'
+                WHEN EXTRACT(DAYS FROM CURRENT_DATE - o.created_at) >= 90 AND COUNT(DISTINCT r.id) >= 100 THEN 'Growing'
+                WHEN EXTRACT(DAYS FROM CURRENT_DATE - o.created_at) >= 30 THEN 'Developing'
+                ELSE 'New'
+            END as maturity_level
+        FROM organizations o
+        LEFT JOIN users u ON o.id = u.organization_id
+        LEFT JOIN teams t ON o.id = t.organization_id
+        LEFT JOIN assessments a ON o.id = a.organization_id
+        LEFT JOIN responses r ON o.id = r.organization_id
+        WHERE o.is_active = true
+        GROUP BY o.id, o.name, o.created_at
+        WITH DATA;
+    """)
+
+    # 5. Response Trends Analysis Materialized View
+    # ---------------------------------------------------------
+
+    op.execute("""
+        -- Create response trends analysis materialized view
+        CREATE MATERIALIZED VIEW response_trends_analysis AS
+        SELECT
+            DATE_TRUNC('day', r.created_at) as response_date,
+            r.organization_id,
+            a.category as assessment_category,
+            -- Daily metrics
+            COUNT(DISTINCT r.id) as total_responses,
+            COUNT(DISTINCT r.user_id) as unique_users,
+            AVG(r.score) as avg_score,
+            STDDEV(r.score) as score_stddev,
+            AVG(r.confidence_rating) as avg_confidence,
+            AVG(r.response_time_ms) as avg_response_time,
+            -- Hourly distribution (for peak time analysis)
+            EXTRACT(HOUR FROM r.created_at) as response_hour,
+            COUNT(DISTINCT r.id) FILTER (WHERE EXTRACT(HOUR FROM r.created_at) BETWEEN 6 AND 12) as morning_responses,
+            COUNT(DISTINCT r.id) FILTER (WHERE EXTRACT(HOUR FROM r.created_at) BETWEEN 12 AND 18) as afternoon_responses,
+            COUNT(DISTINCT r.id) FILTER (WHERE EXTRACT(HOUR FROM r.created_at) BETWEEN 18 AND 22) as evening_responses,
+            COUNT(DISTINCT r.id) FILTER (WHERE EXTRACT(HOUR FROM r.created_at) BETWEEN 22 AND 6) as night_responses,
+            -- Day of week distribution
+            EXTRACT(DOW FROM r.created_at) as day_of_week,
+            -- Quality metrics
+            COUNT(DISTINCT r.id) FILTER (WHERE r.score >= 90) as excellent_responses,
+            COUNT(DISTINCT r.id) FILTER (WHERE r.score >= 80 AND r.score < 90) as good_responses,
+            COUNT(DISTINCT r.id) FILTER (WHERE r.score < 70) as needs_improvement_responses,
+            -- Trend indicators (compared to previous day)
+            LAG(AVG(r.score), 1) OVER (PARTITION BY r.organization_id ORDER BY DATE_TRUNC('day', r.created_at)) as prev_day_avg_score,
+            LAG(COUNT(DISTINCT r.id), 1) OVER (PARTITION BY r.organization_id ORDER BY DATE_TRUNC('day', r.created_at)) as prev_day_total_responses
+        FROM responses r
+        LEFT JOIN assessments a ON r.assessment_id = a.id
+        GROUP BY
+            DATE_TRUNC('day', r.created_at),
+            r.organization_id,
+            a.category,
+            EXTRACT(HOUR FROM r.created_at),
+            EXTRACT(DOW FROM r.created_at)
+        WITH DATA;
+    """)
+
+    # 6. Create Indexes for Materialized Views
+    # ---------------------------------------------------------
+
+    # Indexes for user_analytics_summary
+    op.execute("""
+        CREATE UNIQUE INDEX idx_user_analytics_summary_user_id ON user_analytics_summary(user_id);
+        CREATE INDEX idx_user_analytics_summary_org_id ON user_analytics_summary(organization_id);
+        CREATE INDEX idx_user_analytics_summary_performance_tier ON user_analytics_summary(performance_tier);
+        CREATE INDEX idx_user_analytics_summary_engagement_level ON user_analytics_summary(engagement_level);
+        CREATE INDEX idx_user_analytics_summary_avg_score ON user_analytics_summary(average_score);
+        CREATE INDEX idx_user_analytics_summary_last_activity ON user_analytics_summary(last_activity_date);
+    """)
+
+    # Indexes for team_analytics_summary
+    op.execute("""
+        CREATE UNIQUE INDEX idx_team_analytics_summary_team_id ON team_analytics_summary(team_id);
+        CREATE INDEX idx_team_analytics_summary_org_id ON team_analytics_summary(organization_id);
+        CREATE INDEX idx_team_analytics_summary_team_avg_score ON team_analytics_summary(team_average_score);
+        CREATE INDEX idx_team_analytics_summary_completion_rate ON team_analytics_summary(completion_rate);
+        CREATE INDEX idx_team_analytics_summary_cohesion_score ON team_analytics_summary(cohesion_score);
+    """)
+
+    # Indexes for assessment_analytics_summary
+    op.execute("""
+        CREATE UNIQUE INDEX idx_assessment_analytics_summary_id ON assessment_analytics_summary(assessment_id);
+        CREATE INDEX idx_assessment_analytics_summary_org_id ON assessment_analytics_summary(organization_id);
+        CREATE INDEX idx_assessment_analytics_summary_category ON assessment_analytics_summary(category);
+        CREATE INDEX idx_assessment_analytics_summary_avg_score ON assessment_analytics_summary(average_score);
+        CREATE INDEX idx_assessment_analytics_summary_completion_rate ON assessment_analytics_summary(completion_rate);
+        CREATE INDEX idx_assessment_analytics_summary_difficulty ON assessment_analytics_summary(difficulty_level);
+    """)
+
+    # Indexes for organization_growth_metrics
+    op.execute("""
+        CREATE UNIQUE INDEX idx_org_growth_metrics_org_id ON organization_growth_metrics(organization_id);
+        CREATE INDEX idx_org_growth_metrics_total_users ON organization_growth_metrics(total_users);
+        CREATE INDEX idx_org_growth_metrics_maturity_level ON organization_growth_metrics(maturity_level);
+        CREATE INDEX idx_org_growth_metrics_active_users ON organization_growth_metrics(active_users);
+    """)
+
+    # Indexes for response_trends_analysis
+    op.execute("""
+        CREATE INDEX idx_response_trends_date ON response_trends_analysis(response_date);
+        CREATE INDEX idx_response_trends_org_id ON response_trends_analysis(organization_id);
+        CREATE INDEX idx_response_trends_category ON response_trends_analysis(assessment_category);
+        CREATE INDEX idx_response_trends_date_org ON response_trends_analysis(response_date, organization_id);
+    """)
+
+    # 7. Create Refresh Functions
+    # ---------------------------------------------------------
+
+    op.execute("""
+        -- Function to refresh all analytics materialized views
+        CREATE OR REPLACE FUNCTION refresh_analytics_materialized_views()
+        RETURNS VOID AS $$
+        BEGIN
+            -- Refresh concurrently to allow reads during refresh
+            REFRESH MATERIALIZED VIEW CONCURRENTLY user_analytics_summary;
+            REFRESH MATERIALIZED VIEW CONCURRENTLY team_analytics_summary;
+            REFRESH MATERIALIZED VIEW CONCURRENTLY assessment_analytics_summary;
+            REFRESH MATERIALIZED VIEW CONCURRENTLY organization_growth_metrics;
+            REFRESH MATERIALIZED VIEW CONCURRENTLY response_trends_analysis;
+        EXCEPTION
+            WHEN OTHERS THEN
+                -- If concurrent refresh fails (due to constraints), try regular refresh
+                REFRESH MATERIALIZED VIEW user_analytics_summary;
+                REFRESH MATERIALIZED VIEW team_analytics_summary;
+                REFRESH MATERIALIZED VIEW assessment_analytics_summary;
+                REFRESH MATERIALIZED VIEW organization_growth_metrics;
+                REFRESH MATERIALIZED VIEW response_trends_analysis;
+        END;
+        $$ LANGUAGE plpgsql;
+    """)
+
+    op.execute("""
+        -- Function to refresh specific materialized view
+        CREATE OR REPLACE FUNCTION refresh_materialized_view(view_name TEXT)
+        RETURNS VOID AS $$
+        BEGIN
+            EXECUTE format('REFRESH MATERIALIZED VIEW CONCURRENTLY %I', view_name);
+        EXCEPTION
+            WHEN OTHERS THEN
+                EXECUTE format('REFRESH MATERIALIZED VIEW %I', view_name);
+        END;
+        $$ LANGUAGE plpgsql;
+    """)
+
+    # 8. Create Automated Refresh Schedule
+    # ---------------------------------------------------------
+
+    op.execute("""
+        -- Create scheduled refresh function (to be called by cron)
+        CREATE OR REPLACE FUNCTION scheduled_analytics_refresh()
+        RETURNS VOID AS $$
+        BEGIN
+            PERFORM refresh_analytics_materialized_views();
+
+            -- Log refresh completion
+            INSERT INTO audit_logs (change_type, entity_type, entity_id, actor_id, organization_id, metadata)
+            VALUES ('refresh', 'materialized_views', gen_random_uuid(),
+                    (SELECT id FROM users WHERE role = 'admin' LIMIT 1),
+                    (SELECT id FROM organizations WHERE name = 'PsychSync' LIMIT 1),
+                    json_build_object('timestamp', NOW(), 'views_refreshed', 5));
+        END;
+        $$ LANGUAGE plpgsql;
+    """)
+
+
+def downgrade() -> None:
+    """Remove analytics materialized views and related objects"""
+
+    # Drop refresh functions
+    op.execute("DROP FUNCTION IF EXISTS refresh_analytics_materialized_views()")
+    op.execute("DROP FUNCTION IF EXISTS refresh_materialized_view(TEXT)")
+    op.execute("DROP FUNCTION IF EXISTS scheduled_analytics_refresh()")
+
+    # Drop materialized views
+    op.execute("DROP MATERIALIZED VIEW IF EXISTS user_analytics_summary")
+    op.execute("DROP MATERIALIZED VIEW IF EXISTS team_analytics_summary")
+    op.execute("DROP MATERIALIZED VIEW IF EXISTS assessment_analytics_summary")
+    op.execute("DROP MATERIALIZED VIEW IF EXISTS organization_growth_metrics")
+    op.execute("DROP MATERIALIZED VIEW IF EXISTS response_trends_analysis")

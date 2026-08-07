@@ -1,0 +1,128 @@
+{
+  "dashboard_metadata": {
+    "generated_date": "2025-12-13T14:07:45.601909",
+    "coverage_date": "2025-12-13",
+    "total_modules_tested": 6
+  },
+  "overall_coverage": {
+    "percentage": 81.0,
+    "total_functions": 643,
+    "tested_functions": 521,
+    "untested_functions": 122,
+    "coverage_level": "Good"
+  },
+  "module_breakdown": {
+    "Assessment Engine": {
+      "total_functions": 156,
+      "tested_functions": 142,
+      "coverage_percentage": 91.0,
+      "untested_functions": [
+        "complex_calculation_v2",
+        "legacy_compatibility"
+      ]
+    },
+    "Authentication Service": {
+      "total_functions": 89,
+      "tested_functions": 76,
+      "coverage_percentage": 85.4,
+      "untested_functions": [
+        "oauth_integration",
+        "sso_configuration"
+      ]
+    },
+    "Data Storage": {
+      "total_functions": 124,
+      "tested_functions": 98,
+      "coverage_percentage": 79.0,
+      "untested_functions": [
+        "backup_restore",
+        "data_archival"
+      ]
+    },
+    "Reporting Module": {
+      "total_functions": 112,
+      "tested_functions": 88,
+      "coverage_percentage": 78.6,
+      "untested_functions": [
+        "advanced_filters",
+        "custom_templates"
+      ]
+    },
+    "Team Management": {
+      "total_functions": 95,
+      "tested_functions": 72,
+      "coverage_percentage": 75.8,
+      "untested_functions": [
+        "role_hierarchy",
+        "permission_inheritance"
+      ]
+    },
+    "Notification Service": {
+      "total_functions": 67,
+      "tested_functions": 45,
+      "coverage_percentage": 67.2,
+      "untested_functions": [
+        "sms_gateway",
+        "push_notifications"
+      ]
+    }
+  },
+  "coverage_categories": {
+    "excellent": [
+      "Assessment Engine"
+    ],
+    "good": [
+      "Authentication Service",
+      "Data Storage",
+      "Reporting Module",
+      "Team Management"
+    ],
+    "adequate": [
+      "Notification Service"
+    ],
+    "needs_improvement": []
+  },
+  "coverage_trends": {
+    "this_week": 81.02643856920683,
+    "last_week": 80.55806019261878,
+    "four_weeks_ago": 79.00490331084771,
+    "trend": "IMPROVING"
+  },
+  "critical_areas": {
+    "low_coverage_modules": [],
+    "high_risk_functions": [
+      "sms_gateway",
+      "push_notifications"
+    ],
+    "recommended_actions": [
+      "Priority: Increase test coverage for Notification Service",
+      "Add unit tests for business logic functions",
+      "Implement integration tests for service interactions",
+      "Create E2E tests for critical user workflows",
+      "Set up automated coverage reporting",
+      "Establish minimum coverage thresholds"
+    ]
+  },
+  "assessment_type_coverage": {
+    "MBTI": {
+      "coverage": 95.0,
+      "status": "EXCELLENT"
+    },
+    "Big Five": {
+      "coverage": 88.0,
+      "status": "GOOD"
+    },
+    "Enneagram": {
+      "coverage": 82.0,
+      "status": "GOOD"
+    },
+    "DISC": {
+      "coverage": 76.0,
+      "status": "ADEQUATE"
+    },
+    "Predictive Index": {
+      "coverage": 68.0,
+      "status": "NEEDS_IMPROVEMENT"
+    }
+  }
+}

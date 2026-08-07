@@ -2,6 +2,17 @@ import React, { createContext, useContext, useState, useCallback, useMemo, React
 
 /**
  * AssessmentUIContext - UI state management for assessments
+ *
+ * This context ONLY manages UI-related state:
+ * - Loading indicators
+ * - Submission state
+ * - Error messages
+ *
+ * Assessment data is in AssessmentDataContext
+ * Actions are in AssessmentActionsContext
+ *
+ * This split prevents unnecessary re-renders of data-only components
+ * when UI state changes (like loading spinners appearing/disappearing).
  */
 
 interface AssessmentUIContextValue {

@@ -19,11 +19,11 @@ import api from '@/services/api';
 
 interface GAD7Response {
   q1_nervous: number;
-  q2_worrying: number;
-  q3_worries: number;
-  q4_relaxing: number;
+  q2_control_worry: number;
+  q3_worry_too_much: number;
+  q4_trouble_relaxing: number;
   q5_restless: number;
-  q6_annoyed: number;
+  q6_irritable: number;
   q7_afraid: number;
 }
 
@@ -50,7 +50,7 @@ const QUESTIONS = [
     ],
   },
   {
-    id: 'q2_worrying',
+    id: 'q2_control_worry',
     text: 'Not being able to stop or control worrying',
     options: [
       { value: 0, label: 'Not at all' },
@@ -60,7 +60,7 @@ const QUESTIONS = [
     ],
   },
   {
-    id: 'q3_worries',
+    id: 'q3_worry_too_much',
     text: 'Worrying too much about different things',
     options: [
       { value: 0, label: 'Not at all' },
@@ -70,7 +70,7 @@ const QUESTIONS = [
     ],
   },
   {
-    id: 'q4_relaxing',
+    id: 'q4_trouble_relaxing',
     text: 'Trouble relaxing',
     options: [
       { value: 0, label: 'Not at all' },
@@ -90,7 +90,7 @@ const QUESTIONS = [
     ],
   },
   {
-    id: 'q6_annoyed',
+    id: 'q6_irritable',
     text: 'Becoming easily annoyed or irritable',
     options: [
       { value: 0, label: 'Not at all' },
@@ -144,9 +144,10 @@ export function GAD7Screening() {
     setError(null);
 
     try {
-      const response = await api.post('/api/v1/screening/gad7', responses);
-      setResult(response.data);
-    } catch (err: any) {
+      // Submit screening
+      const response = await api.post('/screening/gad7', { ...responses });
+      setResult(response.data as ScreeningResult);
+    } catch (err) {
       console.error('Screening submission error:', err);
       const errorMessage = err?.response?.data?.detail || err?.response?.data?.message || 'Failed to submit screening. Please try again.';
       setError(errorMessage);
@@ -175,7 +176,7 @@ export function GAD7Screening() {
         <CardContent className="space-y-6">
           {/* Crisis Alert */}
           {result.crisis_alert && (
-            <Alert variant="destructive">
+            <Alert variant="error">
               <AlertDescription>
                 <div className="space-y-4">
                   <div className="font-semibold text-lg">
@@ -276,7 +277,7 @@ export function GAD7Screening() {
       </CardHeader>
       <CardContent className="space-y-6">
         {error && (
-          <Alert variant="destructive">
+          <Alert variant="error">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -307,8 +308,8 @@ export function GAD7Screening() {
 
           {/* Response options */}
           <RadioGroup
-            value={responses[QUESTIONS[currentQuestion].id as keyof GAD7Response]}
-            onValueChange={(value) =>
+            value={String(responses[QUESTIONS[currentQuestion].id as keyof GAD7Response] || 0)}
+            onChange={(value) =>
               handleResponse(QUESTIONS[currentQuestion].id, parseInt(value))
             }
           >
@@ -353,15 +354,6 @@ export function GAD7Screening() {
             </Button>
           )}
         </div>
-
-        {/* Consent reminder */}
-        <Alert>
-          <AlertDescription className="text-xs">
-            By submitting this screening, you consent to have your responses
-            evaluated by licensed mental health professionals. Your data is
-            protected under HIPAA. You can withdraw consent at any time.
-          </AlertDescription>
-        </Alert>
       </CardContent>
     </Card>
   );

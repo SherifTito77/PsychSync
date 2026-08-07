@@ -12,21 +12,21 @@ Author: Security Team
 Version: 1.0
 """
 
-from ai.security.ai_input_validator import (
+from app.ai.security.ai_input_validator import (
     AIInputValidator,
     ValidationResult,
     ValidationSeverity,
     ai_input_validator,
     validate_ai_input,
 )
-from ai.security.ai_output_sanitizer import (
+from app.ai.security.ai_output_sanitizer import (
     AIOutputSanitizer,
     OutputType,
     SanitizationResult,
     ai_output_sanitizer,
     sanitize_ai_output,
 )
-from ai.security.ai_security_monitoring import (
+from app.ai.security.ai_security_monitoring import (
     AISecurityMonitor,
     SecurityEvent,
     SecurityEventSeverity,
@@ -35,7 +35,7 @@ from ai.security.ai_security_monitoring import (
     get_security_summary,
     log_ai_security_event,
 )
-from ai.security.pii_redaction import (
+from app.ai.security.pii_redaction import (
     PIICategory,
     PIIRedactor,
     RedactionResult,

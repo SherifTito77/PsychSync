@@ -1,4 +1,19 @@
 import React, { useState, useEffect } from 'react';
+
+import {
+  Insights,
+  ModelTraining,
+  Assessment,
+  TrendingUp,
+  Settings,
+  PlayArrow,
+  Stop,
+  Refresh,
+  Delete,
+  CheckCircle,
+  Error,
+  Warning
+} from '@mui/icons-material';
 import {
   Box,
   Card,
@@ -30,30 +45,12 @@ import {
   Switch,
   FormControlLabel,
   Divider,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   Tooltip,
   IconButton
 } from '@mui/material';
-import {
-  Insights,
-  ModelTraining,
-  Assessment,
-  TrendingUp,
-  BarChart,
-  Settings,
-  PlayArrow,
-  Stop,
-  Refresh,
-  Delete,
-  Info,
-  ExpandMore,
-  CheckCircle,
-  Error,
-  Warning
-} from '@mui/icons-material';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart as RechartsBarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart as RechartsBarChart, Bar } from 'recharts';
+
+import api from '../services/api';
 
 // Types for prediction data
 interface ModelInfo {
@@ -90,7 +87,7 @@ interface PredictionResult {
 interface TrainingConfig {
   prediction_type: string;
   target_variable: string;
-  team_ids?: number[];
+  team_ids?: string[];
   model_types?: string[];
   test_size: number;
   cv_folds: number;
@@ -107,7 +104,6 @@ const PredictiveAnalytics: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>('');
-  const [trainingDialogOpen, setTrainingDialogOpen] = useState(false);
   const [predictionDialogOpen, setPredictionDialogOpen] = useState(false);
   const [trainingConfig, setTrainingConfig] = useState<TrainingConfig>({
     prediction_type: 'team_performance',
@@ -119,11 +115,12 @@ const PredictiveAnalytics: React.FC = () => {
     min_data_quality: 0.7
   });
   const [predictionConfig, setPredictionConfig] = useState({
-    team_ids: [] as number[],
+    team_ids: [] as string[],
     include_confidence: true,
     include_feature_importance: true
   });
   const [dataQuality, setDataQuality] = useState<any>(null);
+  const [clinicalScreenings, setClinicalScreenings] = useState<any>(null);
   const [trainingInProgress, setTrainingInProgress] = useState(false);
   const [trainingProgress, setTrainingProgress] = useState(0);
 
@@ -131,18 +128,30 @@ const PredictiveAnalytics: React.FC = () => {
   useEffect(() => {
     loadModels();
     assessDataQuality();
+    loadClinicalScreenings();
   }, []);
 
   const loadModels = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/v1/predictions/models');
-      const data = await response.json();
+      const response = await api.get('/predictions/models');
+      const data = response.data;
 
-      if (data.success) {
-        setModels(data.models);
+      // Defensive check for response structure
+      if (typeof data?.success !== 'undefined') {
+        if (data.success) {
+          setModels(data.models);
+          // Automatically select the first model if none selected
+          if (data.models.length > 0 && !selectedModel) {
+            setSelectedModel(data.models[0].model_id);
+          }
+        } else {
+          setError(data.error_message || 'Failed to load models');
+        }
       } else {
-        setError(data.error_message || 'Failed to load models');
+        // Handle cases where the response is not in the expected format
+        setError('Received an unexpected response from the server.');
+        console.error('Unexpected response format:', data);
       }
     } catch (err) {
       setError('Failed to connect to prediction service');
@@ -153,14 +162,46 @@ const PredictiveAnalytics: React.FC = () => {
 
   const assessDataQuality = async () => {
     try {
-      const response = await fetch('/api/v1/predictions/data/quality');
-      const data = await response.json();
+      const response = await api.get('/predictions/data/quality');
+      const data = response.data;
 
-      if (data.success) {
-        setDataQuality(data.data_quality);
+      if (typeof data?.success !== 'undefined') {
+        if (data.success) {
+          setDataQuality(data.data_quality);
+        } else {
+          setError(data.error_message || 'Failed to assess data quality');
+        }
+      } else {
+        setError('Received an unexpected response from the server.');
+        console.error('Unexpected response format:', data);
       }
     } catch (err) {
+      setError('Failed to assess data quality');
       console.error('Failed to assess data quality:', err);
+    }
+  };
+
+  const loadClinicalScreenings = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/predictions/clinical-screenings');
+      const data = response.data;
+
+      if (typeof data?.success !== 'undefined') {
+        if (data.success) {
+          setClinicalScreenings(data);
+        } else {
+          setError(data.error_message || 'Failed to load clinical screenings');
+        }
+      } else {
+        setError('Received an unexpected response from the server.');
+        console.error('Unexpected response format:', data);
+      }
+    } catch (err) {
+      setError('Failed to load clinical screenings');
+      console.error('Failed to load clinical screenings:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -176,25 +217,23 @@ const PredictiveAnalytics: React.FC = () => {
         setTrainingProgress(prev => Math.min(prev + 10, 90));
       }, 500);
 
-      const response = await fetch('/api/v1/predictions/train', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(trainingConfig),
-      });
+      const response = await api.post('/predictions/train', trainingConfig);
 
       clearInterval(progressInterval);
       setTrainingProgress(100);
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (data.success) {
-        setSuccess(`Model training completed successfully! Best model: ${data.model_comparison?.best_model_name}`);
-        setTrainingDialogOpen(false);
-        await loadModels();
+      if (typeof data?.success !== 'undefined') {
+        if (data.success) {
+          setSuccess(`Model training completed successfully! Best model: ${data.model_comparison?.best_model_name}`);
+          await loadModels();
+        } else {
+          setError(data.error_message || 'Model training failed');
+        }
       } else {
-        setError(data.error_message || 'Model training failed');
+        setError('Received an unexpected response from the server.');
+        console.error('Unexpected response format:', data);
       }
     } catch (err) {
       setError('Failed to train model');
@@ -210,31 +249,35 @@ const PredictiveAnalytics: React.FC = () => {
       setError(null);
       setSuccess(null);
 
-      const response = await fetch('/api/v1/predictions/predict', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prediction_type: 'team_performance',
-          entity_ids: predictionConfig.team_ids,
-          model_id: selectedModel || undefined,
-          include_confidence: predictionConfig.include_confidence,
-          include_feature_importance: predictionConfig.include_feature_importance
-        }),
+      const response = await api.post('/predictions/predict', {
+        prediction_type: 'team_performance',
+        entity_ids: predictionConfig.team_ids,
+        model_id: selectedModel || undefined,
+        include_confidence: predictionConfig.include_confidence,
+        include_feature_importance: predictionConfig.include_feature_importance
       });
 
-      const data = await response.json();
+      const data = response.data;
 
-      if (data.success) {
-        setPredictions(data.predictions);
-        setPredictionDialogOpen(false);
-        setSuccess(`Generated ${data.predictions.length} predictions successfully`);
+      if (typeof data?.success !== 'undefined') {
+        if (data.success) {
+          setPredictions(data.predictions);
+          setPredictionDialogOpen(false);
+          setSuccess(`Generated ${data.predictions.length} predictions successfully`);
+        } else {
+          setError(data.error_message || 'Prediction failed');
+        }
       } else {
-        setError(data.error_message || 'Prediction failed');
+        setError('Received an unexpected response from the server.');
+        console.error('Unexpected response format:', data);
       }
-    } catch (err) {
-      setError('Failed to make predictions');
+    } catch (err: any) {
+      const detail = err.response?.data?.detail;
+      const errorMsg = detail?.message ||
+                     (typeof detail === 'string' ? detail : null) ||
+                     'Failed to make predictions';
+      setError(errorMsg);
+      console.error('Prediction error:', err.response?.data || err);
     } finally {
       setLoading(false);
     }
@@ -246,17 +289,19 @@ const PredictiveAnalytics: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`/api/v1/predictions/models/${modelId}`, {
-        method: 'DELETE',
-      });
+      const response = await api.delete(`/predictions/models/${modelId}`);
+      const data = response.data;
 
-      const data = await response.json();
-
-      if (data.success) {
-        setSuccess('Model deleted successfully');
-        await loadModels();
+      if (typeof data?.success !== 'undefined') {
+        if (data.success) {
+          setSuccess('Model deleted successfully');
+          await loadModels();
+        } else {
+          setError(data.error_message || 'Failed to delete model');
+        }
       } else {
-        setError(data.error_message || 'Failed to delete model');
+        setError('Received an unexpected response from the server.');
+        console.error('Unexpected response format:', data);
       }
     } catch (err) {
       setError('Failed to delete model');
@@ -264,16 +309,16 @@ const PredictiveAnalytics: React.FC = () => {
   };
 
   const getPerformanceColor = (score?: number) => {
-    if (!score) return 'default';
-    if (score >= 0.8) return 'success';
-    if (score >= 0.6) return 'warning';
+    if (!score) {return 'default';}
+    if (score >= 0.8) {return 'success';}
+    if (score >= 0.6) {return 'warning';}
     return 'error';
   };
 
   const getPerformanceIcon = (score?: number) => {
-    if (!score) return <Error />;
-    if (score >= 0.8) return <CheckCircle color="success" />;
-    if (score >= 0.6) return <Warning color="warning" />;
+    if (!score) {return <Error />;}
+    if (score >= 0.8) {return <CheckCircle color="success" />;}
+    if (score >= 0.6) {return <Warning color="warning" />;}
     return <Error color="error" />;
   };
 
@@ -282,7 +327,7 @@ const PredictiveAnalytics: React.FC = () => {
       .filter(([key, value]) => typeof value === 'number' && key !== 'cv_scores')
       .map(([key, value]) => ({
         metric: key.replace(/_/g, ' ').toUpperCase(),
-        value: Number(value.toFixed(3))
+        value: Number((value as number).toFixed(3))
       }));
 
     return (
@@ -303,7 +348,7 @@ const PredictiveAnalytics: React.FC = () => {
       .sort(([, a], [, b]) => b - a)
       .slice(0, 10)
       .map(([feature, importance]) => ({
-        feature: feature.length > 15 ? feature.substring(0, 15) + '...' : feature,
+        feature: feature.length > 15 ? `${feature.substring(0, 15)  }...` : feature,
         importance: Number(importance.toFixed(3))
       }));
 
@@ -350,18 +395,18 @@ const PredictiveAnalytics: React.FC = () => {
                   <Typography variant="body2" fontWeight="bold">
                     {typeof prediction.prediction === 'number'
                       ? prediction.prediction.toFixed(2)
-                      : prediction.prediction}
+                      : (prediction.prediction ?? 'N/A')}
                   </Typography>
                 </TableCell>
                 <TableCell>
                   <Chip
-                    label={`${(prediction.confidence * 100).toFixed(1)}%`}
-                    color={prediction.confidence > 0.8 ? 'success' : prediction.confidence > 0.6 ? 'warning' : 'default'}
+                    label={prediction.confidence !== null ? `${(prediction.confidence * 100).toFixed(1)}%` : 'N/A'}
+                    color={prediction.confidence !== null && prediction.confidence > 0.8 ? 'success' : prediction.confidence !== null && prediction.confidence > 0.6 ? 'warning' : 'default'}
                     size="small"
                   />
                 </TableCell>
                 <TableCell>
-                  {prediction.prediction_interval ? (
+                  {prediction.prediction_interval && prediction.prediction_interval.length >= 2 ? (
                     <Typography variant="caption">
                       [{prediction.prediction_interval[0].toFixed(2)}, {prediction.prediction_interval[1].toFixed(2)}]
                     </Typography>
@@ -374,7 +419,7 @@ const PredictiveAnalytics: React.FC = () => {
                 </TableCell>
                 <TableCell>
                   <Typography variant="caption">
-                    {new Date(prediction.timestamp).toLocaleString()}
+                    {prediction.timestamp ? new Date(prediction.timestamp).toLocaleString() : 'N/A'}
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -407,63 +452,83 @@ const PredictiveAnalytics: React.FC = () => {
       )}
 
       {/* Data Quality Overview */}
-      {dataQuality && (
+      {dataQuality ? (
         <Card sx={{ mb: 3 }}>
           <CardContent>
             <Typography variant="h6" gutterBottom>
               Data Quality Assessment
             </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={3}>
-                <Box textAlign="center">
-                  <Typography variant="h4" color="primary">
-                    {(dataQuality.overall_score * 100).toFixed(1)}%
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Overall Quality
-                  </Typography>
-                </Box>
+            {dataQuality.total_rows !== undefined ? (
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <Box textAlign="center">
+                    <Typography variant="h4" color="primary">
+                      {dataQuality.overall_score !== undefined && dataQuality.overall_score !== null
+                        ? `${(dataQuality.overall_score * 100).toFixed(1)}%`
+                        : 'N/A'}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      Overall Quality
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <Box textAlign="center">
+                    <Typography variant="h4" color="primary">
+                      {dataQuality.total_rows !== undefined && dataQuality.total_rows !== null
+                        ? dataQuality.total_rows.toLocaleString()
+                        : 'N/A'}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      Data Points
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <Box textAlign="center">
+                    <Typography variant="h4" color="primary">
+                      {dataQuality.total_features !== undefined && dataQuality.total_features !== null
+                        ? dataQuality.total_features
+                        : 'N/A'}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      Features
+                    </Typography>
+                  </Box>
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <Box textAlign="center">
+                    <Typography variant="h4" color="primary">
+                      {dataQuality.completeness !== undefined && dataQuality.completeness !== null
+                        ? `${(dataQuality.completeness * 100).toFixed(1)}%`
+                        : 'N/A'}
+                    </Typography>
+                    <Typography variant="body2" color="textSecondary">
+                      Completeness
+                    </Typography>
+                  </Box>
+                </Grid>
               </Grid>
-              <Grid item xs={12} md={3}>
-                <Box textAlign="center">
-                  <Typography variant="h4" color="primary">
-                    {dataQuality.total_rows.toLocaleString()}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Data Points
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <Box textAlign="center">
-                  <Typography variant="h4" color="primary">
-                    {dataQuality.total_features}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Features
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} md={3}>
-                <Box textAlign="center">
-                  <Typography variant="h4" color="primary">
-                    {(dataQuality.completeness * 100).toFixed(1)}%
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Completeness
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-            <Box sx={{ mt: 2 }}>
-              <LinearProgress
-                variant="determinate"
-                value={dataQuality.overall_score * 100}
-                sx={{ height: 8, borderRadius: 4 }}
-              />
-            </Box>
+            ) : (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                No data quality assessment available. Please ensure you have completed assessments.
+              </Alert>
+            )}
+            {dataQuality.total_rows !== undefined && dataQuality.overall_score !== undefined && (
+              <Box sx={{ mt: 2 }}>
+                <LinearProgress
+                  variant="determinate"
+                  value={dataQuality.overall_score * 100}
+                  sx={{ height: 8, borderRadius: 4 }}
+                />
+              </Box>
+            )}
           </CardContent>
         </Card>
+      ) : !loading && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          No data quality information available. Try refreshing the page or check your assessment data.
+        </Alert>
       )}
 
       <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ mb: 3 }}>
@@ -475,7 +540,7 @@ const PredictiveAnalytics: React.FC = () => {
       {/* Models Tab */}
       {activeTab === 0 && (
         <Grid container spacing={3}>
-          <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Grid size={{ xs: 12 }} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6">Trained Models</Typography>
             <Button
               variant="contained"
@@ -488,7 +553,7 @@ const PredictiveAnalytics: React.FC = () => {
           </Grid>
 
           {models.map((model) => (
-            <Grid item xs={12} md={6} lg={4} key={model.model_id}>
+            <Grid size={{ xs: 12, md: 6, lg: 4 }} key={model.model_id}>
               <Card>
                 <CardContent>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
@@ -545,7 +610,7 @@ const PredictiveAnalytics: React.FC = () => {
 
                   <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
                     <Typography variant="caption" color="textSecondary">
-                      Trained: {new Date(model.training_date).toLocaleDateString()}
+                      Trained: {model.training_date ? new Date(model.training_date).toLocaleDateString() : 'Unknown'}
                     </Typography>
                     <Button
                       size="small"
@@ -561,7 +626,7 @@ const PredictiveAnalytics: React.FC = () => {
           ))}
 
           {models.length === 0 && !loading && (
-            <Grid item xs={12}>
+            <Grid size={{ xs: 12 }}>
               <Card>
                 <CardContent sx={{ textAlign: 'center', py: 6 }}>
                   <ModelTraining sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
@@ -574,7 +639,7 @@ const PredictiveAnalytics: React.FC = () => {
                   <Button
                     variant="contained"
                     startIcon={<PlayArrow />}
-                    onClick={() => setTrainingDialogOpen(true)}
+                    onClick={() => setActiveTab(2)}
                   >
                     Train Model
                   </Button>
@@ -588,19 +653,32 @@ const PredictiveAnalytics: React.FC = () => {
       {/* Predictions Tab */}
       {activeTab === 1 && (
         <Grid container spacing={3}>
-          <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Grid size={{ xs: 12 }} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6">Prediction Results</Typography>
-            <Button
-              variant="contained"
-              startIcon={<TrendingUp />}
-              onClick={() => setPredictionDialogOpen(true)}
-              disabled={!selectedModel}
-            >
-              Make Predictions
-            </Button>
+            {!selectedModel ? (
+              <Tooltip title="Please select a model from the Models tab first">
+                <span>
+                  <Button
+                    variant="contained"
+                    startIcon={<TrendingUp />}
+                    disabled
+                  >
+                    Make Predictions
+                  </Button>
+                </span>
+              </Tooltip>
+            ) : (
+              <Button
+                variant="contained"
+                startIcon={<TrendingUp />}
+                onClick={() => setPredictionDialogOpen(true)}
+              >
+                Make Predictions
+              </Button>
+            )}
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             {renderPredictionResults()}
           </Grid>
         </Grid>
@@ -609,7 +687,7 @@ const PredictiveAnalytics: React.FC = () => {
       {/* Training Tab */}
       {activeTab === 2 && (
         <Grid container spacing={3}>
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom>
@@ -620,7 +698,7 @@ const PredictiveAnalytics: React.FC = () => {
                 </Typography>
 
                 <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <FormControl fullWidth sx={{ mb: 2 }}>
                       <InputLabel>Prediction Type</InputLabel>
                       <Select
@@ -650,7 +728,7 @@ const PredictiveAnalytics: React.FC = () => {
                         onChange={(e) => setTrainingConfig({...trainingConfig, model_types: e.target.value as string[]})}
                         renderValue={(selected) => (
                           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                            {(selected as string[]).map((value) => (
+                            {(selected).map((value) => (
                               <Chip key={value} label={value} size="small" />
                             ))}
                           </Box>
@@ -665,7 +743,7 @@ const PredictiveAnalytics: React.FC = () => {
                     </FormControl>
                   </Grid>
 
-                  <Grid item xs={12} md={6}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <TextField
                       fullWidth
                       type="number"
@@ -738,7 +816,13 @@ const PredictiveAnalytics: React.FC = () => {
       )}
 
       {/* Prediction Dialog */}
-      <Dialog open={predictionDialogOpen} onClose={() => setPredictionDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={predictionDialogOpen}
+        onClose={() => setPredictionDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        disableRestoreFocus // Prevents focus conflict with triggering button
+      >
         <DialogTitle>Make Predictions</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
@@ -747,15 +831,16 @@ const PredictiveAnalytics: React.FC = () => {
 
           <TextField
             fullWidth
+            autoFocus
             label="Team IDs (comma-separated)"
-            placeholder="e.g., 1,2,3,4"
+            placeholder="e.g., 550e8400-e29b-41d4-a716-446655440000"
             value={predictionConfig.team_ids.join(',')}
             onChange={(e) => setPredictionConfig({
               ...predictionConfig,
-              team_ids: e.target.value.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
+              team_ids: e.target.value.split(',').map(id => id.trim()).filter(id => id !== '')
             })}
-            sx={{ mb: 2 }}
-            helperText="Enter team IDs separated by commas"
+            sx={{ mb: 2, mt: 1 }} // Added margin top to ensure visibility
+            helperText="Enter team IDs (UUIDs) separated by commas"
           />
 
           <FormControlLabel
@@ -789,6 +874,64 @@ const PredictiveAnalytics: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Clinical Screenings Card */}
+      {clinicalScreenings?.screenings && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <Assessment sx={{ mr: 2, fontSize: 28 }} />
+              <Typography variant="h6">Clinical Assessments</Typography>
+            </Box>
+            <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+              GAD7, PHQ9, and other mental health screening results
+            </Typography>
+            {clinicalScreenings.summary && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Total assessments: {clinicalScreenings.summary.total}
+              </Alert>
+            )}
+            {clinicalScreenings.summary?.by_type && (
+              <TableContainer component={Paper} sx={{ mb: 2 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Assessment Type</TableCell>
+                      <TableCell>Count</TableCell>
+                      <TableCell>Avg Score</TableCell>
+                      <TableCell>Max Score</TableCell>
+                      <TableCell>Min Score</TableCell>
+                      <TableCell>Crisis Alerts</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {Object.entries(clinicalScreenings.summary.by_type).map(([type, stats]) => (
+                      <TableRow key={type}>
+                        <TableCell>{type}</TableCell>
+                        <TableCell>{stats.count}</TableCell>
+                        <TableCell>{stats.avg_score ? stats.avg_score.toFixed(1) : 'N/A'}</TableCell>
+                        <TableCell>{stats.max_score ? stats.max_score.toFixed(1) : 'N/A'}</TableCell>
+                        <TableCell>{stats.min_score ? stats.min_score.toFixed(1) : 'N/A'}</TableCell>
+                        <TableCell>{stats.crisis_count || 0}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+            <Box sx={{ mt: 2, textAlign: 'center' }}>
+              <Button
+                variant="contained"
+                startIcon={<Refresh />}
+                onClick={loadClinicalScreenings}
+                disabled={loading}
+              >
+                Refresh
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
     </Box>
   );
 };

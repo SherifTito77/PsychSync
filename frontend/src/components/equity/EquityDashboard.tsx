@@ -91,7 +91,7 @@ function EquityDashboard() {
       if (reportRes) setEquityReport(reportRes.data);
       if (demoRes) setDemographics(demoRes.data);
 
-    } catch (err: any) {
+    } catch (err) {
       setError(err.response?.data?.detail || 'Failed to load equity data');
     } finally {
       setLoading(false);
@@ -379,22 +379,25 @@ function EquityDashboard() {
                     <div>
                       <h5 className="font-medium mb-3">Gender Distribution</h5>
                       <div className="space-y-2">
-                        {Object.entries(demographics.demographics.gender).map(([gender, count]) => (
-                          <div key={gender} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                            <span className="capitalize">{gender}</span>
-                            <div className="flex items-center gap-3">
-                              <div className="w-48 bg-gray-200 rounded-full h-2">
-                                <div
-                                  className="bg-blue-600 h-2 rounded-full"
-                                  style={{ width: `${(count / demographics.total_employees) * 100}%` }}
-                                />
+                        {Object.entries(demographics.demographics.gender).map(([gender, count]) => {
+                          const numCount = count as number;
+                          return (
+                            <div key={gender} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                              <span className="capitalize">{gender}</span>
+                              <div className="flex items-center gap-3">
+                                <div className="w-48 bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className="bg-blue-600 h-2 rounded-full"
+                                    style={{ width: `${(numCount / demographics.total_employees) * 100}%` }}
+                                  />
+                                </div>
+                                <span className="text-sm font-medium w-16 text-right">
+                                  {numCount} ({Math.round((numCount / demographics.total_employees) * 100)}%)
+                                </span>
                               </div>
-                              <span className="text-sm font-medium w-16 text-right">
-                                {count} ({Math.round((count / demographics.total_employees) * 100)}%)
-                              </span>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -403,22 +406,25 @@ function EquityDashboard() {
                     <div>
                       <h5 className="font-medium mb-3">Racial/Ethnic Distribution</h5>
                       <div className="space-y-2">
-                        {Object.entries(demographics.demographics.race).map(([race, count]) => (
-                          <div key={race} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                            <span className="capitalize">{race}</span>
-                            <div className="flex items-center gap-3">
-                              <div className="w-48 bg-gray-200 rounded-full h-2">
-                                <div
-                                  className="bg-green-600 h-2 rounded-full"
-                                  style={{ width: `${(count / demographics.total_employees) * 100}%` }}
-                                />
+                        {Object.entries(demographics.demographics.race).map(([race, count]) => {
+                          const numCount = count as number;
+                          return (
+                            <div key={race} className="flex items-center justify-between p-3 bg-gray-50 rounded">
+                              <span className="capitalize">{race}</span>
+                              <div className="flex items-center gap-3">
+                                <div className="w-48 bg-gray-200 rounded-full h-2">
+                                  <div
+                                    className="bg-green-600 h-2 rounded-full"
+                                    style={{ width: `${(numCount / demographics.total_employees) * 100}%` }}
+                                  />
+                                </div>
+                                <span className="text-sm font-medium w-16 text-right">
+                                  {numCount} ({Math.round((numCount / demographics.total_employees) * 100)}%)
+                                </span>
                               </div>
-                              <span className="text-sm font-medium w-16 text-right">
-                                {count} ({Math.round((count / demographics.total_employees) * 100)}%)
-                              </span>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -524,7 +530,7 @@ function EquityDashboard() {
                   <h3 className="font-semibold mb-1">Export Equity Report</h3>
                   <p className="text-sm opacity-90">Download comprehensive analysis and data</p>
                 </div>
-                <Button variant="secondary" size="lg">
+                <Button variant="secondary" size="sm">
                   <Download className="h-5 w-5 mr-2" />
                   Export Report
                 </Button>

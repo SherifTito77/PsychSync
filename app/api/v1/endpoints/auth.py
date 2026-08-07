@@ -66,6 +66,7 @@ from app.schemas.auth import (
     VerifyEmailResponse,
 )
 from app.schemas.auth_validation import LoginRequestValidator, MFALoginRequestValidator
+from app.schemas.base import MessageResponse
 from app.services.captcha_service import CaptchaAction, SuspicionLevel, captcha_service
 from app.services.email_service_refactored_v2 import EmailService
 from app.services.mfa_service import mfa_service
@@ -1376,7 +1377,7 @@ async def health_check():
     }
 
 
-@router.post("/register/initiate")
+@router.post("/register/initiate", response_model=MessageResponse)
 async def initiate_biometric_registration(
     request: InitiateRegistrationRequest,
     db: AsyncSession = Depends(get_db),
@@ -1386,7 +1387,7 @@ async def initiate_biometric_registration(
     return {"message": "Biometric registration initiated"}
 
 
-@router.post("/register/complete")
+@router.post("/register/complete", response_model=MessageResponse)
 async def complete_biometric_registration(
     request: CompleteRegistrationRequest,
     db: AsyncSession = Depends(get_db),
@@ -1396,7 +1397,7 @@ async def complete_biometric_registration(
     return {"message": "Biometric registration completed"}
 
 
-@router.post("/authenticate/initiate")
+@router.post("/authenticate/initiate", response_model=MessageResponse)
 async def initiate_biometric_authentication(
     request: InitiateAuthRequest,
     db: AsyncSession = Depends(get_db),
@@ -1405,7 +1406,7 @@ async def initiate_biometric_authentication(
     return {"message": "Biometric authentication initiated"}
 
 
-@router.post("/authenticate/verify")
+@router.post("/authenticate/verify", response_model=MessageResponse)
 async def verify_biometric_authentication(
     request: VerifyAuthRequest,
     db: AsyncSession = Depends(get_db),
@@ -1414,7 +1415,7 @@ async def verify_biometric_authentication(
     return {"message": "Biometric authentication verified"}
 
 
-@router.post("/revoke")
+@router.post("/revoke", response_model=MessageResponse)
 async def revoke_biometric_authentication(
     request: RevokeBiometricRequest,
     current_user: User = Depends(get_current_user),

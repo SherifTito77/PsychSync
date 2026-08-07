@@ -89,8 +89,6 @@ async def get_current_user_async(
     token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_async_db)
 ):
     """Dependency to retrieve the current authenticated user."""
-    from uuid import UUID
-
     from sqlalchemy import select
 
     from app.db.models.user import User
@@ -102,19 +100,34 @@ async def get_current_user_async(
             detail="Could not validate credentials",
         )
 
+    from uuid import UUID
+
+    from sqlalchemy import String, bindparam
+
+    user = None
+
+    # Try UUID lookup first (auth_unified tokens store UUID in sub).
+    # Use a String-typed bind param to bypass postgresql.UUID's bind processor,
+    # which converts uuid.UUID objects to hex — breaking SQLite string comparison.
     try:
-        user_uuid = UUID(user_id_str)
+        UUID(user_id_str)  # validate format only
+        result = await db.execute(
+            select(User).where(User.id == bindparam("uid", user_id_str, type_=String))
+        )
+        user = result.scalar_one_or_none()
     except ValueError:
+        pass  # sub is not a UUID — fall through to email lookup
+
+    # Fallback: email lookup (simple_auth tokens store email in sub)
+    if user is None:
+        result = await db.execute(select(User).where(User.email == user_id_str))
+        user = result.scalar_one_or_none()
+
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid user ID format",
+            detail="Could not validate credentials",
         )
-
-    result = await db.execute(select(User).where(User.id == user_uuid))
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
     return user
 
 

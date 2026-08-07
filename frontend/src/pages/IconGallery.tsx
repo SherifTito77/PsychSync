@@ -22,23 +22,24 @@ const IconGallery: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  // Core Items
+  // Core Items - Updated to match current sidebar
   const coreItems: IconItem[] = [
-    { name: 'Dashboard', path: '/dashboard', icon: '📊' },
-    { name: 'Product Operations', path: '/product-operations', icon: '📈' },
-    { name: 'Icon Gallery', path: '/icon-gallery', icon: '🎨' },
-    { name: 'Settings', path: '/settings', icon: '⚙️' }
+    { name: 'Dashboard', path: '/dashboard', icon: '📊', description: 'Overview of teams, assessments, and analytics' },
+    { name: 'Product Operations', path: '/product-operations', icon: '📈', description: 'Product operations and management dashboard' },
+    { name: 'Icon Gallery', path: '/icon-gallery', icon: '🎨', description: 'Browse all available UI icons and emojis' },
+    { name: 'Teams', path: '/teams', icon: '👥', description: 'Manage and view your teams' },
+    { name: 'Settings', path: '/settings', icon: '⚙️', description: 'Manage your preferences' }
   ];
 
-  // Executive Analytics
+  // Executive Analytics Section
   const executiveAnalyticsItems: IconItem[] = [
-    { name: 'CEO Executive Dashboard', path: '/executive/dashboard', icon: '🎯', description: 'Strategic organizational health, attrition risk, and board-level metrics' },
+    { name: 'CEO Executive Dashboard', path: '/executive/burnout', icon: '🎯', description: 'Executive burnout risk, department analytics, 90-day trends' },
     { name: 'KPI Dashboard', path: '/analytics/kpi', icon: '📈', description: 'Business KPIs, performance metrics, goal tracking' },
     { name: 'Predictive Analytics', path: '/predictive-analytics', icon: '🔮', description: 'AI predictions, forecasting, risk models' },
     { name: 'Population Health', path: '/analytics/population-health', icon: '🏥', description: 'Population-wide health metrics, epidemiological data' }
   ];
 
-  // Early Warning & Risk
+  // Early Warning & Risk Section
   const earlyWarningItems: IconItem[] = [
     { name: 'Radar Dashboard', path: '/radar', icon: '📡', description: '360° organizational health monitoring system' },
     { name: 'Advanced Burnout Analytics', path: '/advanced-burnout', icon: '🎯', description: '14-day early warning with Z-scores & trend detection' },
@@ -51,33 +52,33 @@ const IconGallery: React.FC = () => {
     { name: 'Burnout Prediction', path: '/burnout-prediction', icon: '🔮', description: 'AI-powered risk prediction & analytics' }
   ];
 
-  // Clinical Screening
+  // Clinical Screening Section
   const clinicalScreeningItems: IconItem[] = [
-    { name: 'Depression Screening (PHQ-9)', path: '/clinical/assessment/phq9/take', icon: '💙', description: 'Evidence-based depression screening (α=0.89)' },
-    { name: 'Anxiety Screening (GAD-7)', path: '/clinical/assessment/gad7/take', icon: '💛', description: 'Comprehensive anxiety assessment (α=0.92)' },
-    { name: 'Suicide Risk (C-SSRS)', path: '/clinical/assessment/cssrs/take', icon: '🚨', description: 'Columbia-Suicide Severity Rating Scale (AUC=0.83)' },
-    { name: 'Crisis Resources', path: '/clinical/assessment/crisis-resources/take', icon: '🆘', description: '24/7 crisis support and emergency resources' },
-    { name: 'Social Anxiety (LSAS)', path: '/clinical/assessment/lsas/take', icon: '😰', description: 'Liebowitz Social Anxiety Scale (α=0.95)' },
-    { name: 'Eating Attitudes (EAT-26)', path: '/clinical/assessment/eat26/take', icon: '🍎', description: 'Eating disorder screening (α=0.90)' },
-    { name: 'OCD Severity (Y-BOCS)', path: '/clinical/assessment/ybocs/take', icon: '🔄', description: 'Yale-Brown Obsessive Compulsive Scale (α=0.90)' },
-    { name: 'Depression (BDI-II)', path: '/clinical/assessment/bdi2/take', icon: '😢', description: 'Beck Depression Inventory-II (α=0.91)' },
-    { name: 'Anxiety (BAI)', path: '/clinical/assessment/bai/take', icon: '😰', description: 'Beck Anxiety Inventory (α=0.92)' },
-    { name: 'DASS-21 (Depression/Anxiety/Stress)', path: '/clinical/assessment/dass21/take', icon: '📊', description: '21-item multi-symptom assessment (α=0.84-0.91)' },
-    { name: 'PCL-5 (PTSD Checklist)', path: '/clinical/assessment/pcl5/take', icon: '🎯', description: 'PTSD screening for DSM-5 (α=0.94)' },
-    { name: 'AUDIT (Alcohol Use)', path: '/clinical/assessment/audit/take', icon: '🍺', description: 'Alcohol Use Disorders Identification Test (α=0.92)' },
-    { name: 'PSS-10 (Perceived Stress)', path: '/clinical/assessment/pss10/take', icon: '😰', description: 'Perceived Stress Scale (α=0.78)' },
-    { name: 'ISI (Insomnia Severity)', path: '/clinical/assessment/isi/take', icon: '😴', description: 'Insomnia Severity Index (α=0.91)' },
-    { name: 'CBI (Burnout Inventory)', path: '/clinical/assessment/cbi/take', icon: '🔥', description: 'Copenhagen Burnout Inventory (α=0.87)' },
-    { name: 'MDQ (Mood Disorder)', path: '/clinical/assessment/mdq/take', icon: '🌈', description: 'Bipolar disorder screening (Sens=0.73, Spec=0.90)' },
-    { name: 'DAST-10 (Drug Abuse)', path: '/clinical/assessment/dast10/take', icon: '💊', description: 'Drug Abuse Screening Test (α=0.92)' },
-    { name: 'AQ-10 (Autism Spectrum)', path: '/clinical/assessment/aq10/take', icon: '🧩', description: 'Autism Spectrum Quotient (Sens=0.88, Spec=0.91)' },
-    { name: 'ACE (Adverse Childhood Experiences)', path: '/clinical/assessment/ace/take', icon: '👶', description: 'Childhood trauma screening (10 items)' },
-    { name: 'IES-R (Impact of Event)', path: '/clinical/assessment/iesr/take', icon: '💔', description: 'PTSD symptom assessment (α=0.96)' },
-    { name: 'IAT (Internet Addiction)', path: '/clinical/assessment/iat/take', icon: '📱', description: 'Internet Addiction Test (α=0.90)' },
-    { name: 'ADHD Screening (ASRS)', path: '/clinical/assessment/asrs/take', icon: '⚡', description: 'Adult ADHD Self-Report Scale v1.1 (Sens=68.7%, Spec=72.1%)' }
+    { name: 'Depression Screening (PHQ-9)', path: '/screening/phq9', icon: '💙', description: 'Evidence-based depression screening (α=0.89)' },
+    { name: 'Anxiety Screening (GAD-7)', path: '/screening/gad7', icon: '💛', description: 'Comprehensive anxiety assessment (α=0.92)' },
+    { name: 'Suicide Risk (C-SSRS)', path: '/screening/cssrs', icon: '🚨', description: 'Columbia-Suicide Severity Rating Scale (AUC=0.83)' },
+    { name: 'Crisis Resources', path: '/screening/crisis-resources', icon: '🆘', description: '24/7 crisis support and emergency resources' },
+    { name: 'Social Anxiety (LSAS)', path: '/screening/lsas', icon: '😰', description: 'Liebowitz Social Anxiety Scale (α=0.95)' },
+    { name: 'Eating Attitudes (EAT-26)', path: '/screening/eat26', icon: '🍎', description: 'Eating disorder screening (α=0.90)' },
+    { name: 'OCD Severity (Y-BOCS)', path: '/screening/ybocs', icon: '🔄', description: 'Yale-Brown Obsessive Compulsive Scale (α=0.90)' },
+    { name: 'Depression (BDI-II)', path: '/screening/bdi2', icon: '😢', description: 'Beck Depression Inventory-II (α=0.91)' },
+    { name: 'Anxiety (BAI)', path: '/screening/bai', icon: '😟', description: 'Beck Anxiety Inventory (α=0.92)' },
+    { name: 'DASS-21 (Depression/Anxiety/Stress)', path: '/screening/dass21', icon: '📊', description: '21-item multi-symptom assessment (α=0.84-0.91)' },
+    { name: 'PCL-5 (PTSD Checklist)', path: '/screening/pcl5', icon: '🎯', description: 'PTSD screening for DSM-5 (α=0.94)' },
+    { name: 'AUDIT (Alcohol Use)', path: '/screening/audit', icon: '🍺', description: 'Alcohol Use Disorders Identification Test (α=0.92)' },
+    { name: 'PSS-10 (Perceived Stress)', path: '/screening/pss10', icon: '😰', description: 'Perceived Stress Scale (α=0.78)' },
+    { name: 'ISI (Insomnia Severity)', path: '/screening/isi', icon: '😴', description: 'Insomnia Severity Index (α=0.91)' },
+    { name: 'CBI (Burnout Inventory)', path: '/screening/cbi', icon: '🔥', description: 'Copenhagen Burnout Inventory (α=0.87)' },
+    { name: 'MDQ (Mood Disorder)', path: '/screening/mdq', icon: '🌈', description: 'Bipolar disorder screening (Sens=0.73, Spec=0.90)' },
+    { name: 'DAST-10 (Drug Abuse)', path: '/screening/dast10', icon: '💊', description: 'Drug Abuse Screening Test (α=0.92)' },
+    { name: 'AQ-10 (Autism Spectrum)', path: '/screening/aq10', icon: '🧩', description: 'Autism Spectrum Quotient (Sens=0.88, Spec=0.91)' },
+    { name: 'ACE (Adverse Childhood Experiences)', path: '/screening/ace', icon: '👶', description: 'Childhood trauma screening (10 items)' },
+    { name: 'IES-R (Impact of Event)', path: '/screening/iesr', icon: '💔', description: 'PTSD symptom assessment (α=0.96)' },
+    { name: 'IAT (Internet Addiction)', path: '/screening/iat', icon: '📱', description: 'Internet Addiction Test (α=0.90)' },
+    { name: 'ADHD Screening (ASRS)', path: '/screening/asrs', icon: '⚡', description: 'Adult ADHD Self-Report Scale v1.1 (Sens=68.7%, Spec=72.1%)' }
   ];
 
-  // Email Monitoring
+  // Email Monitoring Section
   const emailMonitoringItems: IconItem[] = [
     { name: 'Email Connector', path: '/email-connector', icon: '🔗', description: 'Email integration services' },
     { name: 'Sentiment Analysis', path: '/sentiment-analysis', icon: '😊', description: 'Email tone and emotion analysis' },
@@ -86,7 +87,7 @@ const IconGallery: React.FC = () => {
     { name: 'Team Dashboard', path: '/team-dashboard', icon: '👥', description: 'Team analytics & performance metrics' }
   ];
 
-  // HRIS Analytics
+  // HRIS Analytics Section
   const hrisItems: IconItem[] = [
     { name: 'Analytics Dashboard', path: '/hris-analytics', icon: '📈', description: '7 charts, KPIs, custom reports with real-time updates' },
     { name: 'HRIS Connector', path: '/hris-connector', icon: '🔗', description: 'Connect Workday, BambooHR, ADP & 30+ HR systems' },
@@ -99,17 +100,8 @@ const IconGallery: React.FC = () => {
     { name: 'Succession Planning', path: '/hris/succession', icon: '🎯', description: 'Leadership pipeline, readiness scores, key positions & successors' }
   ];
 
-  // Admin & Executive
-  const adminItems: IconItem[] = [
-    { name: 'CEO Burnout Analytics', path: '/executive/burnout', icon: '📊', description: 'Organization-level burnout risk, ROI tracking & cost-benefit analysis' },
-    { name: 'Advanced Burnout Analytics', path: '/advanced-burnout', icon: '🎯', description: '14-day early warning with Z-scores, cognitive load & fatigue tracking' },
-    { name: 'Corporate Psychology', path: '/admin/corporate-psychology', icon: '🧠', description: 'System-level organizational psychology intelligence for executives' },
-    { name: 'Security Dashboard', path: '/admin/security', icon: '🛡️', description: 'Security monitoring and threat intelligence' },
-    { name: 'Performance Monitoring', path: '/admin/performance', icon: '⚡', description: 'Real-time system performance metrics and health' }
-  ];
-
-  // Telehealth
-  const telehealthItems: IconItem[] = [
+  // Clinical Services & Resources Section
+  const clinicalServicesItems: IconItem[] = [
     { name: 'Telehealth - Schedule Consultation', path: '/telehealth/schedule', icon: '📹', description: 'Schedule video consultation with clinician' },
     { name: 'AI Chat Support', path: '/support/chat', icon: '🤖', description: '24/7 AI-powered mental health support' },
     { name: 'Clinical Analytics', path: '/analytics/clinical', icon: '📊', description: 'Population health insights dashboard' },
@@ -127,7 +119,16 @@ const IconGallery: React.FC = () => {
     { name: 'Personality Assessments', path: '/personality-assessments', icon: '🧠', description: 'Personality tests and profiles' }
   ];
 
-  // Services & Connectors
+  // Admin & Executive Section
+  const adminItems: IconItem[] = [
+    { name: 'CEO Burnout Analytics', path: '/executive/burnout', icon: '📊', description: 'Organization-level burnout risk, ROI tracking & cost-benefit analysis' },
+    { name: 'Advanced Burnout Analytics', path: '/advanced-burnout', icon: '🎯', description: '14-day early warning with Z-scores, cognitive load & fatigue tracking' },
+    { name: 'Corporate Psychology', path: '/admin/corporate-psychology', icon: '🧠', description: 'System-level organizational psychology intelligence for executives' },
+    { name: 'Security Dashboard', path: '/admin/security', icon: '🛡️', description: 'Security monitoring and threat intelligence' },
+    { name: 'Performance Monitoring', path: '/admin/performance', icon: '⚡', description: 'Real-time system performance metrics and health' }
+  ];
+
+  // Services & Connectors Section
   const servicesItems: IconItem[] = [
     { name: 'Corporate Integrations', path: '/integrations/corporate', icon: '🔗', description: 'Connect 30+ data sources including Slack, HRIS, and more' },
     { name: 'Health Dashboard', path: '/health', icon: '❤️', description: 'Personal health monitoring and stress tracking' },
@@ -135,23 +136,23 @@ const IconGallery: React.FC = () => {
     { name: 'Behavioral Analysis', path: '/behavioral-analysis', icon: '📊', description: 'Behavioral pattern analysis' }
   ];
 
-  // Team Analytics
-  const teamAnalyticsItems: IconItem[] = [
-    { name: 'Teams', path: '/teams', icon: '👥', description: 'Manage and view your teams' },
+  // Analytics & AI Section
+  const analyticsItems: IconItem[] = [
     { name: 'Team Optimizer', path: '/team-optimizer', icon: '⚡', description: 'Optimize team dynamics with department filtering' },
     { name: 'Team Composition', path: '/team-composition', icon: '🧩', description: 'Personality-based team analytics and insights' },
     { name: 'Multi-Framework Synthesis', path: '/multi-framework-synthesis', icon: '🧩', description: 'AI-powered synthesis across personality frameworks' },
+    { name: 'Predictive Analytics', path: '/predictive-analytics', icon: '🤖', description: 'AI-powered predictions' },
     { name: 'Reliability & Validity', path: '/reliability-validity', icon: '🔬', description: 'Research metrics and validation' },
-    { name: 'General Analytics', path: '/analytics', icon: '📈', description: 'Overall analytics dashboard' }
+    { name: 'General Analytics', path: '/analytics/dashboard', icon: '📈', description: 'Overall analytics dashboard' }
   ];
 
-  // Compliance & Legal
+  // Compliance & Legal Section
   const complianceItems: IconItem[] = [
     { name: 'Legal Rights Dashboard', path: '/legal-rights', icon: '⚖️', description: 'Employee legal rights information and resources' },
     { name: 'Equity & Transparency', path: '/equity', icon: '🤝', description: 'Workplace equity metrics and transparency reports' }
   ];
 
-  // Public Access
+  // Public Access Section
   const publicItems: IconItem[] = [
     { name: 'Anonymous Feedback', path: '/anonymous-feedback', icon: '🛡️', description: 'Secure anonymous feedback system' },
     { name: 'Check Status', path: '/feedback-status', icon: '🔍', description: 'Check feedback status' }
@@ -164,10 +165,10 @@ const IconGallery: React.FC = () => {
     { title: 'Clinical Screening', icon: '🏥', color: 'bg-green-50 border-green-200', items: clinicalScreeningItems },
     { title: 'Email Monitoring', icon: '📧', color: 'bg-indigo-50 border-indigo-200', items: emailMonitoringItems },
     { title: 'HRIS Analytics', icon: '📊', color: 'bg-cyan-50 border-cyan-200', items: hrisItems },
-    { title: 'Clinical Services', icon: '🏥', color: 'bg-blue-50 border-blue-200', items: telehealthItems },
+    { title: 'Clinical Services', icon: '🏥', color: 'bg-blue-50 border-blue-200', items: clinicalServicesItems },
     { title: 'Admin & Executive', icon: '🔐', color: 'bg-red-50 border-red-200', items: adminItems },
     { title: 'Services & Connectors', icon: '🔧', color: 'bg-purple-50 border-purple-200', items: servicesItems },
-    { title: 'Team Analytics', icon: '🤖', color: 'bg-orange-50 border-orange-200', items: teamAnalyticsItems },
+    { title: 'Analytics & AI', icon: '🤖', color: 'bg-orange-50 border-orange-200', items: analyticsItems },
     { title: 'Compliance & Legal', icon: '⚖️', color: 'bg-gray-50 border-gray-200', items: complianceItems },
     { title: 'Public Access', icon: '🌐', color: 'bg-green-50 border-green-200', items: publicItems }
   ];

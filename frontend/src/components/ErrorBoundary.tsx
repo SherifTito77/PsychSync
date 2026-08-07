@@ -88,6 +88,8 @@ class ErrorBoundary extends Component<Props, State> {
         buildVersion: import.meta.env.VITE_VERSION || 'unknown'
       };
 
+      // ⚡️ PERFORMANCE: DISABLED - Error reporting to backend causing issues when backend not running
+      /*
       logger.logApiCall('/api/v1/errors/client', 'POST', {
         error_id: this.state.errorId,
         error_message: error.message,
@@ -110,6 +112,7 @@ class ErrorBoundary extends Component<Props, State> {
       logger.info('Error reported to monitoring service', {
         error_id: this.state.errorId,
       });
+      */
     } catch (reportingError) {
       logger.error('Failed to report error to monitoring service', {
         error_id: this.state.errorId,

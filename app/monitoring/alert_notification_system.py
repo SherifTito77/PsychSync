@@ -694,7 +694,7 @@ def create_notification_hook(notification_system: AlertNotificationSystem) -> Ca
     Create a notification hook for AutomatedThreatResponder.
 
     Usage:
-        from ai.security.auto_response import AutomatedThreatResponder
+        from app.ai.security.auto_response import AutomatedThreatResponder
         from app.monitoring.alert_notification_system import create_notification_hook, AlertNotificationSystem
 
         notification_system = AlertNotificationSystem(configs)

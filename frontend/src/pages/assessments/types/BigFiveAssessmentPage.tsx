@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../../components/common/Button';
 import apiClient from '../../../services/api';
@@ -42,44 +42,44 @@ const BigFiveAssessmentPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Load assessment data
+  // ✅ FIXED: Function moved inside useEffect to avoid dependency issues
   useEffect(() => {
-    loadAssessment();
-  }, []);
+    const loadAssessment = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-  const loadAssessment = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
+        const response = await apiClient.get('/assessments/assessment-questions/big-five');
 
-      const response = await apiClient.get('/assessment-questions/big-five');
-
-      if (response.data && response.data.success) {
-        const backendAssessment = response.data.assessment;
-        const bigFiveAssessment: BigFiveAssessment = {
-          id: backendAssessment.id,
-          title: backendAssessment.title,
-          description: backendAssessment.description,
-          questions: backendAssessment.questions.map((q: any) => ({
-            id: q.id,
-            question_text: q.question_text,
-            trait: q.trait,
-            options: q.options.map((opt: any) => ({
-              text: opt.text,
-              value: opt.value
+        if (response.data && (response.data as any).success) {
+          const backendAssessment = (response.data as any).assessment;
+          const bigFiveAssessment: BigFiveAssessment = {
+            id: backendAssessment.id,
+            title: backendAssessment.title,
+            description: backendAssessment.description,
+            questions: backendAssessment.questions.map((q: any) => ({
+              id: q.id,
+              question_text: q.question_text,
+              trait: q.trait,
+              options: q.options.map((opt: any) => ({
+                text: opt.text,
+                value: opt.value
+              }))
             }))
-          }))
-        };
-        setAssessment(bigFiveAssessment);
+          };
+          setAssessment(bigFiveAssessment);
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('❌ Failed to load Big Five assessment:', error);
+        setError('Failed to load assessment. Please refresh the page.');
+      } finally {
         setIsLoading(false);
       }
-    } catch (error) {
-      console.error('❌ Failed to load Big Five assessment:', error);
-      setError('Failed to load assessment. Please refresh the page.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+
+    loadAssessment();
+  }, []); // ✅ Empty deps is correct for one-time initialization
 
   const handleAnswer = (questionId: number, value: string) => {
     setAnswers(prev => ({
@@ -113,8 +113,8 @@ const BigFiveAssessmentPage: React.FC = () => {
         raw_type: 'Big Five'
       });
 
-      if (response.data && response.data.success) {
-        setResults(response.data.result);
+      if (response.data && (response.data as any).success) {
+        setResults((response.data as any).result);
         console.log('✅ Big Five assessment submitted successfully');
       } else {
         throw new Error('Submission failed');
@@ -402,24 +402,27 @@ const BigFiveAssessmentPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {Object.entries(results.descriptions).map(([dimension, desc]) => (
-                <div key={dimension} className="bg-gray-50 rounded-lg p-6">
-                  <h4 className="font-semibold text-gray-800 mb-2">{dimension}</h4>
-                  <div className="mb-2">
-                    <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                      desc.level === 'High' ? 'bg-green-100 text-green-800' :
-                      desc.level === 'Moderate' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {desc.level}
-                    </span>
-                    <span className="ml-2 text-gray-600">
-                      Score: {results.scores[dimension]?.toFixed(1)}/5.0
-                    </span>
+              {Object.entries(results.descriptions).map(([dimension, desc]) => {
+                const descData = desc as { level: string; description: string };
+                return (
+                  <div key={dimension} className="bg-gray-50 rounded-lg p-6">
+                    <h4 className="font-semibold text-gray-800 mb-2">{dimension}</h4>
+                    <div className="mb-2">
+                      <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                        descData.level === 'High' ? 'bg-green-100 text-green-800' :
+                        descData.level === 'Moderate' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {descData.level}
+                      </span>
+                      <span className="ml-2 text-gray-600">
+                        Score: {results.scores[dimension]?.toFixed(1)}/5.0
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600">{descData.description}</p>
                   </div>
-                  <p className="text-sm text-gray-600">{desc.description}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="flex justify-between">

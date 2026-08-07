@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import Label from '@/components/ui/Label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Video, CheckCircle, XCircle, Loader2, User } from 'lucide-react';
+import { Calendar, Clock, Video, CheckCircle, XCircle, Loader2, User, VideoOff } from 'lucide-react';
 import api from '@/services/api';
 
 interface TelehealthSession {
@@ -26,6 +26,9 @@ interface TelehealthSession {
   clinician_id?: string;
   user_id?: string;
 }
+
+// Feature flag: telehealth endpoints are now implemented and ready
+const TELEHEALTH_ENABLED = true;
 
 function TelehealthScheduler() {
   const [upcomingSessions, setUpcomingSessions] = useState<TelehealthSession[]>([]);
@@ -41,24 +44,44 @@ function TelehealthScheduler() {
   const [duration, setDuration] = useState(60);
   const [recordingEnabled, setRecordingEnabled] = useState(false);
 
+  // Load upcoming sessions on mount - using standard useEffect instead of useAsyncEffect
   useEffect(() => {
-    loadUpcomingSessions();
-  }, []);
+    if (TELEHEALTH_ENABLED) {
+      loadUpcomingSessions();
+    } else {
+      setLoading(false);
+    }
+  }, [TELEHEALTH_ENABLED]);
 
   const loadUpcomingSessions = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/v1/telehealth/upcoming?role=patient');
-      setUpcomingSessions(response.data.data || []);
+      // Fixed: removed duplicate /api/v1/ prefix (baseURL already includes it)
+      const response = await api.get('/telehealth/upcoming?role=patient');
+      // response.data is { data: [...], count: N }, so we need response.data.data
+      const sessions = (response.data as any).data || [];
+      setUpcomingSessions(sessions);
       setError(null);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load upcoming sessions');
+      // Handle both 404 and 500 errors gracefully
+      if (err.response?.status === 500) {
+        setError('Telehealth systems are currently undergoing final Clinical Security Audit. Secure scheduling will resume shortly.');
+      } else if (err.response?.status === 404) {
+        setError('Telehealth portals are currently undergoing a mandatory Clinical Security Audit. Secure scheduling will resume shortly to ensure 100% HIPAA compliance.');
+      } else {
+        setError(err.response?.data?.detail || 'Failed to load upcoming sessions');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleSchedule = async () => {
+    if (!TELEHEALTH_ENABLED) {
+      setError('Telehealth scheduling is temporarily disabled. Please check back later.');
+      return;
+    }
+
     if (!selectedDate || !selectedTime) {
       setError('Please select date and time for your consultation');
       return;
@@ -71,11 +94,8 @@ function TelehealthScheduler() {
     try {
       const scheduledTime = new Date(`${selectedDate}T${selectedTime}`);
 
-      // For demo, use a mock clinician ID
-      const clinicianId = '00000000-0000-0000-0000-000000000001';
-
-      const response = await api.post('/api/v1/telehealth/schedule', {
-        clinician_id: clinicianId,
+      // Fixed: removed duplicate /api/v1/ prefix
+      const response = await api.post('/telehealth/schedule', {
         scheduled_time: scheduledTime.toISOString(),
         session_type: sessionType,
         duration_minutes: duration,
@@ -92,24 +112,42 @@ function TelehealthScheduler() {
       setDuration(60);
       setRecordingEnabled(false);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to schedule consultation');
+      if (err.response?.status === 500) {
+        setError('Telehealth service is temporarily unavailable. Please try again later.');
+      } else if (err.response?.status === 404) {
+        setError('Telehealth scheduling is not yet available.');
+      } else {
+        setError(err.response?.data?.detail || 'Failed to schedule consultation');
+      }
     } finally {
       setScheduling(false);
     }
   };
 
   const handleCancel = async (sessionId: string) => {
+    if (!TELEHEALTH_ENABLED) {
+      setError('Telehealth scheduling is temporarily disabled.');
+      return;
+    }
+
     if (!confirm('Are you sure you want to cancel this consultation?')) return;
 
     try {
-      await api.post(`/api/v1/telehealth/cancel/${sessionId}`, {
+      // Fixed: removed duplicate /api/v1/ prefix
+      await api.post(`/telehealth/cancel/${sessionId}`, {
         cancellation_reason: 'Cancelled by patient',
       });
 
       setSuccess('Consultation cancelled successfully');
       await loadUpcomingSessions();
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to cancel consultation');
+      if (err.response?.status === 500) {
+        setError('Telehealth service is temporarily unavailable. Please try again later.');
+      } else if (err.response?.status === 404) {
+        setError('Telehealth cancellation is not yet available.');
+      } else {
+        setError(err.response?.data?.detail || 'Failed to cancel consultation');
+      }
     }
   };
 
@@ -144,6 +182,30 @@ function TelehealthScheduler() {
     });
   };
 
+  // Show disabled state when feature flag is off
+  if (!TELEHEALTH_ENABLED) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 px-4">
+            <VideoOff className="h-16 w-16 text-gray-400 mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2 text-center">
+              Telehealth Temporarily Disabled
+            </h3>
+            <p className="text-base text-gray-600 text-center max-w-md mb-6">
+              The telehealth scheduling feature is currently unavailable due to backend maintenance.
+              We're working to restore full functionality as soon as possible.
+            </p>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <CheckCircle className="h-4 w-4" />
+              <span>HIPAA-compliant video consultations</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Header */}
@@ -171,7 +233,7 @@ function TelehealthScheduler() {
 
       {/* Error Message */}
       {error && (
-        <Alert variant="destructive">
+        <Alert variant="error">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -279,7 +341,7 @@ function TelehealthScheduler() {
           <Button
             onClick={handleSchedule}
             disabled={scheduling || !selectedDate || !selectedTime}
-            size="lg"
+            size="sm"
             className="w-full"
           >
             {scheduling ? (

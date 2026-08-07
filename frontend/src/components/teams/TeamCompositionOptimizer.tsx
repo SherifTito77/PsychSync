@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useAnalytics } from '@/services/analytics/tracker';
 import {
   Card,
   CardContent,
@@ -127,6 +128,8 @@ const TeamCompositionOptimizer: React.FC<TeamCompositionOptimizerProps> = ({
   projectId,
   onOptimizationComplete,
 }) => {
+  const { trackFeatureUsed } = useAnalytics();
+
   const [selectedTab, setSelectedTab] = useState('setup');
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);
@@ -329,6 +332,13 @@ const TeamCompositionOptimizer: React.FC<TeamCompositionOptimizerProps> = ({
   // Handle optimization
   const handleOptimize = async () => {
     setIsOptimizing(true);
+
+    // ✅ NEW: Track team optimizer usage
+    trackFeatureUsed('team_optimizer_used', {
+      feature_category: 'team_analytics',
+      team_size: currentTeam.length,
+      usage_context: 'team_composition_optimization',
+    });
 
     // Simulate optimization process
     await new Promise(resolve => setTimeout(resolve, 2000));

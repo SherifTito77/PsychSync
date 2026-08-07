@@ -216,7 +216,7 @@ class AnonymousFeedbackService {
     feedback_type?: string;
     date_from?: string;
     date_to?: string;
-  }): Promise<FeedbackReviewResponse> {
+  }): Promise<HRFeedbackItem[]> {
     try {
       const params = new URLSearchParams();
       if (filters) {

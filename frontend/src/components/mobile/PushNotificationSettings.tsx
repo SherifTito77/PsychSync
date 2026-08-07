@@ -14,6 +14,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Switch, ScrollView, Alert, Platform } from 'react-native';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { DESIGN_TOKENS } from '@/constants/designTokens';
 
 interface PushNotificationSettingsProps {
   /**
@@ -316,7 +317,7 @@ export const PushNotificationSettings: React.FC<PushNotificationSettingsProps> =
                   <View
                     style={[
                       styles.deviceStatus,
-                      { backgroundColor: device.is_active ? '#10B981' : '#cbd5e1' },
+                      { backgroundColor: device.is_active ? DESIGN_TOKENS.colors.success : DESIGN_TOKENS.colors.gray[300] },
                     ]}
                   >
                     <Text style={styles.deviceStatusText}>
@@ -338,29 +339,32 @@ export const PushNotificationSettings: React.FC<PushNotificationSettingsProps> =
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Notification Preferences</Text>
 
-          {Object.entries(preferencesByCategory).map(([category, prefs]) => (
-            <View key={category} style={styles.category}>
-              <Text style={styles.categoryTitle}>
-                {categoryTitles[category]}
-              </Text>
-              {prefs.map((pref) => (
-                <View key={pref.key} style={styles.preferenceItem}>
-                  <View style={styles.preferenceTextContainer}>
-                    <Text style={styles.preferenceLabel}>{pref.label}</Text>
-                    <Text style={styles.preferenceDescription}>
-                      {pref.description}
-                    </Text>
+          {Object.entries(preferencesByCategory).map(([category, prefs]) => {
+            const prefsArray = prefs as any[];
+            return (
+              <View key={category} style={styles.category}>
+                <Text style={styles.categoryTitle}>
+                  {categoryTitles[category]}
+                </Text>
+                {prefsArray.map((pref) => (
+                  <View key={pref.key} style={styles.preferenceItem}>
+                    <View style={styles.preferenceTextContainer}>
+                      <Text style={styles.preferenceLabel}>{pref.label}</Text>
+                      <Text style={styles.preferenceDescription}>
+                        {pref.description}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={pref.enabled}
+                      onValueChange={() => handleTogglePreference(pref.key)}
+                      trackColor={{ false: '#cbd5e1', true: '#6366F1' }}
+                      thumbColor="#ffffff"
+                    />
                   </View>
-                  <Switch
-                    value={pref.enabled}
-                    onValueChange={() => handleTogglePreference(pref.key)}
-                    trackColor={{ false: '#cbd5e1', true: '#6366F1' }}
-                    thumbColor="#ffffff"
-                  />
-                </View>
-              ))}
-            </View>
-          ))}
+                ))}
+              </View>
+            );
+          })}
         </View>
       )}
 
@@ -406,41 +410,37 @@ export const PushNotificationSettings: React.FC<PushNotificationSettingsProps> =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: DESIGN_TOKENS.colors.gray[50],
   },
   contentContainer: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: DESIGN_TOKENS.spacing.md,
+    paddingBottom: DESIGN_TOKENS.spacing['2xl'],
   },
   header: {
-    marginBottom: 24,
+    marginBottom: DESIGN_TOKENS.spacing.lg,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
+    fontSize: DESIGN_TOKENS.typography.size['3xl'],
+    fontWeight: DESIGN_TOKENS.typography.weight.bold as any,
+    color: DESIGN_TOKENS.colors.gray[900],
+    marginBottom: DESIGN_TOKENS.spacing.xs,
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: '#6b7280',
+    fontSize: DESIGN_TOKENS.typography.size.base,
+    color: DESIGN_TOKENS.colors.gray[500],
   },
   section: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: DESIGN_TOKENS.colors.gray[50],
+    borderRadius: DESIGN_TOKENS.radius.lg,
+    padding: DESIGN_TOKENS.spacing.md,
+    marginBottom: DESIGN_TOKENS.spacing.md,
+    ...DESIGN_TOKENS.shadow.sm,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
+    fontSize: DESIGN_TOKENS.typography.size.lg,
+    fontWeight: DESIGN_TOKENS.typography.weight.semibold as any,
+    color: DESIGN_TOKENS.colors.gray[900],
+    marginBottom: DESIGN_TOKENS.spacing.md,
   },
   enableRow: {
     flexDirection: 'row',
@@ -449,38 +449,38 @@ const styles = StyleSheet.create({
   },
   enableTextContainer: {
     flex: 1,
-    marginRight: 12,
+    marginRight: DESIGN_TOKENS.spacing.md,
   },
   enableLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 4,
+    fontSize: DESIGN_TOKENS.typography.size.base,
+    fontWeight: DESIGN_TOKENS.typography.weight.semibold as any,
+    color: DESIGN_TOKENS.colors.gray[900],
+    marginBottom: DESIGN_TOKENS.spacing.xs,
   },
   enableDescription: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: DESIGN_TOKENS.typography.size.sm,
+    color: DESIGN_TOKENS.colors.gray[500],
     lineHeight: 20,
   },
   statusBanner: {
     backgroundColor: '#FEF3C7',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 12,
+    borderRadius: DESIGN_TOKENS.radius.md,
+    padding: DESIGN_TOKENS.spacing.md,
+    marginTop: DESIGN_TOKENS.spacing.md,
   },
   statusBannerText: {
-    fontSize: 14,
+    fontSize: DESIGN_TOKENS.typography.size.sm,
     color: '#92400E',
     lineHeight: 20,
   },
   errorBanner: {
     backgroundColor: '#FEE2E2',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 12,
+    borderRadius: DESIGN_TOKENS.radius.md,
+    padding: DESIGN_TOKENS.spacing.md,
+    marginTop: DESIGN_TOKENS.spacing.md,
   },
   errorText: {
-    fontSize: 14,
+    fontSize: DESIGN_TOKENS.typography.size.sm,
     color: '#991B1B',
     lineHeight: 20,
   },
@@ -488,128 +488,128 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: DESIGN_TOKENS.colors.gray[50],
+    borderRadius: DESIGN_TOKENS.radius.md,
+    padding: DESIGN_TOKENS.spacing.md,
   },
   deviceCount: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
+    fontSize: DESIGN_TOKENS.typography.size.sm,
+    fontWeight: DESIGN_TOKENS.typography.weight.medium as any,
+    color: DESIGN_TOKENS.colors.gray[700],
   },
   viewDevicesLink: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: DESIGN_TOKENS.typography.size.sm,
+    fontWeight: DESIGN_TOKENS.typography.weight.semibold as any,
     color: '#6366F1',
   },
   deviceList: {
-    marginTop: 12,
+    marginTop: DESIGN_TOKENS.spacing.md,
   },
   deviceItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: DESIGN_TOKENS.colors.gray[50],
+    borderRadius: DESIGN_TOKENS.radius.md,
+    padding: DESIGN_TOKENS.spacing.md,
+    marginBottom: DESIGN_TOKENS.spacing.sm,
   },
   deviceName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 2,
+    fontSize: DESIGN_TOKENS.typography.size.base,
+    fontWeight: DESIGN_TOKENS.typography.weight.semibold as any,
+    color: DESIGN_TOKENS.colors.gray[900],
+    marginBottom: DESIGN_TOKENS.spacing.xs,
   },
   deviceDetails: {
-    fontSize: 13,
-    color: '#6b7280',
+    fontSize: DESIGN_TOKENS.typography.size.xs,
+    color: DESIGN_TOKENS.colors.gray[500],
   },
   deviceStatus: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: DESIGN_TOKENS.spacing.sm,
+    paddingVertical: DESIGN_TOKENS.spacing.xs,
+    borderRadius: DESIGN_TOKENS.radius.lg,
   },
   deviceStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontSize: DESIGN_TOKENS.typography.size.xs,
+    fontWeight: DESIGN_TOKENS.typography.weight.semibold as any,
+    color: DESIGN_TOKENS.colors.gray[50],
   },
   noDevicesText: {
-    fontSize: 14,
-    color: '#6b7280',
+    fontSize: DESIGN_TOKENS.typography.size.sm,
+    color: DESIGN_TOKENS.colors.gray[500],
     textAlign: 'center',
-    padding: 16,
+    padding: DESIGN_TOKENS.spacing.md,
   },
   category: {
-    marginBottom: 16,
+    marginBottom: DESIGN_TOKENS.spacing.md,
   },
   categoryTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontSize: DESIGN_TOKENS.typography.size.sm,
+    fontWeight: DESIGN_TOKENS.typography.weight.semibold as any,
+    color: DESIGN_TOKENS.colors.gray[700],
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 8,
+    marginBottom: DESIGN_TOKENS.spacing.sm,
   },
   preferenceItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: DESIGN_TOKENS.colors.gray[50],
+    borderRadius: DESIGN_TOKENS.radius.md,
+    padding: DESIGN_TOKENS.spacing.md,
+    marginBottom: DESIGN_TOKENS.spacing.sm,
   },
   preferenceTextContainer: {
     flex: 1,
-    marginRight: 12,
+    marginRight: DESIGN_TOKENS.spacing.md,
   },
   preferenceLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#111827',
-    marginBottom: 2,
+    fontSize: DESIGN_TOKENS.typography.size.base,
+    fontWeight: DESIGN_TOKENS.typography.weight.medium as any,
+    color: DESIGN_TOKENS.colors.gray[900],
+    marginBottom: DESIGN_TOKENS.spacing.xs,
   },
   preferenceDescription: {
-    fontSize: 13,
-    color: '#6b7280',
+    fontSize: DESIGN_TOKENS.typography.size.xs,
+    color: DESIGN_TOKENS.colors.gray[500],
     lineHeight: 18,
   },
   testDescription: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginBottom: 12,
+    fontSize: DESIGN_TOKENS.typography.size.sm,
+    color: DESIGN_TOKENS.colors.gray[500],
+    marginBottom: DESIGN_TOKENS.spacing.md,
     lineHeight: 20,
   },
   testButton: {
     backgroundColor: '#6366F1',
-    borderRadius: 8,
-    padding: 14,
+    borderRadius: DESIGN_TOKENS.radius.md,
+    padding: DESIGN_TOKENS.spacing.md,
     alignItems: 'center',
   },
   testButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontSize: DESIGN_TOKENS.typography.size.base,
+    fontWeight: DESIGN_TOKENS.typography.weight.semibold as any,
+    color: DESIGN_TOKENS.colors.gray[50],
   },
   infoSection: {
     backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: DESIGN_TOKENS.radius.lg,
+    padding: DESIGN_TOKENS.spacing.md,
     borderLeftWidth: 4,
     borderLeftColor: '#6366F1',
   },
   infoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E40AF',
-    marginBottom: 8,
+    fontSize: DESIGN_TOKENS.typography.size.base,
+    fontWeight: DESIGN_TOKENS.typography.weight.semibold as any,
+    color: DESIGN_TOKENS.colors.primary[800],
+    marginBottom: DESIGN_TOKENS.spacing.sm,
   },
   infoText: {
-    fontSize: 14,
-    color: '#1E40AF',
+    fontSize: DESIGN_TOKENS.typography.size.sm,
+    color: DESIGN_TOKENS.colors.primary[800],
     lineHeight: 20,
-    marginBottom: 8,
+    marginBottom: DESIGN_TOKENS.spacing.sm,
   },
 });
 

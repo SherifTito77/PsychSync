@@ -10,10 +10,10 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import AI processors
-from ai.processors.big_five import BigFiveProcessor
-from ai.processors.enneagram_processor import EnneagramProcessor
-from ai.processors.mbti_processor import MBTIProcessor
-from ai.processors.predictive_index import PredictiveIndexProcessor
+from app.ai.processors.big_five import BigFiveProcessor
+from app.ai.processors.enneagram_processor import EnneagramProcessor
+from app.ai.processors.mbti_processor import MBTIProcessor
+from app.ai.processors.predictive_index import PredictiveIndexProcessor
 from app.services.anomaly_detection import AdvancedAnomalyDetector
 
 # Import behavioral services

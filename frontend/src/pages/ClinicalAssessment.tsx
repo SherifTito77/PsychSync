@@ -8,7 +8,6 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
-import api from '@/services/api';
 import { Question as QuestionType, getRandomQuestions as getRandomQuestionsFn, getPreviousQuestionIds as getPreviousQuestionIdsFn, saveQuestionIds as saveQuestionIdsFn } from './data/phq9-question-bank';
 import { BASE_ASSESSMENTS, getAssessmentConfig, AssessmentData as AssessmentDataType } from './config/assessment-configs';
 
@@ -853,7 +852,6 @@ const ClinicalAssessment: React.FC = () => {
         if (tool && assessments[tool as keyof typeof assessments]) {
           const baseAssessment = assessments[tool as keyof typeof assessments];
           console.log('ClinicalAssessment: Base assessment found:', baseAssessment.title);
-          console.log('ClinicalAssessment: Base questions length:', baseAssessment.questions?.length);
 
           if (tool === 'phq9') {
             // Generate random questions for PHQ-9 to prevent memorization
@@ -867,17 +865,16 @@ const ClinicalAssessment: React.FC = () => {
             saveQuestionIds(randomQuestions.map(q => q.id));
 
             // Create assessment data with random questions
-            const enhancedQuestions = randomQuestions.length > 0 ? randomQuestions : assessments['phq9'].questions.length > 0 ? assessments['phq9'].questions : PHQ9_QUESTION_BANK.slice(0, 9);
             const enhancedAssessment = {
               ...baseAssessment,
-              questions: enhancedQuestions,
+              questions: randomQuestions,
               scoring: {
                 ...baseAssessment.scoring,
-                max: enhancedQuestions.length * 3
+                max: 50 * 3 // Adjust max score for 50 questions (3 points max per question)
               }
             };
 
-            console.log('ClinicalAssessment: Enhanced assessment created. Questions count:', enhancedQuestions.length);
+            console.log('ClinicalAssessment: Enhanced assessment created');
             setAssessmentData(enhancedAssessment);
           } else if (tool === 'stress') {
             // Create PSS-10 questions (standard Perceived Stress Scale)
@@ -973,7 +970,7 @@ const ClinicalAssessment: React.FC = () => {
     }
   }, [currentQuestion]);
 
-  const calculateScore = useCallback((): number => {
+  const calculateScore = useMemo((): number => {
     if (!assessmentData) return 0;
 
     return assessmentData.questions.reduce((total, question) => {
@@ -1010,36 +1007,50 @@ const ClinicalAssessment: React.FC = () => {
         const suicidalQuestions = assessmentData.questions.filter(q => q.category === 'suicidal');
         const hasCriticalResponse = suicidalQuestions.some(q => responses[q.id] === 'Nearly every day');
 
-        await api.post('/clinical/crisis/alert', {
-          alert_type: 'suicide_risk',
-          severity: hasCriticalResponse ? 'critical' : 'high',
-          alert_message: 'User reported suicidal ideation in PHQ-9 assessment',
-          screening_data: {
-            tool,
-            responses,
-            score,
-            severity_level: severity?.label,
-            suicidal_responses: suicidalQuestions.map(q => ({
-              question: q.text,
-              response: responses[q.id]
-            }))
+        await fetch('/api/v1/clinical/alerts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
           },
+          body: JSON.stringify({
+            alert_type: 'suicide_risk',
+            severity: hasCriticalResponse ? 'critical' : 'high',
+            alert_message: 'User reported suicidal ideation in PHQ-9 assessment',
+            screening_data: {
+              tool,
+              responses,
+              score,
+              severity_level: severity?.label,
+              suicidal_responses: suicidalQuestions.map(q => ({
+                question: q.text,
+                response: responses[q.id]
+              }))
+            },
+          }),
         });
       }
 
       // Save assessment results
-      const response = await api.post('/clinical/screening/submit', {
-        assessment_type: tool.toLowerCase(),
-        responses,
-        total_score: score,
-        severity_level: severity?.label,
-        risk_level: showCrisisWarning ? 'high' : 'low',
-        crisis_alert: showCrisisWarning,
-        completed_at: new Date().toISOString(),
+      const response = await fetch('/api/v1/clinical/screenings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        },
+        body: JSON.stringify({
+          screening_type: tool.toUpperCase(),
+          responses,
+          total_score: score,
+          severity_level: severity?.label,
+          risk_level: showCrisisWarning ? 'high' : 'low',
+          crisis_alert: showCrisisWarning,
+          completed_at: new Date().toISOString(),
+        }),
       });
 
-      if (response.status === 200 || response.status === 201) {
-        const result = response.data;
+      if (response.ok) {
+        const result = await response.json();
         navigate(`/clinical/assessment/${tool}/complete`, {
           state: { result, score, severity, crisisAlert: showCrisisWarning }
         });

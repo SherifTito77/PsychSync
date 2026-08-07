@@ -59,7 +59,14 @@
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   }
 
-  /* Custom scrollbar */
+  /* Custom scrollbar - Firefox support */
+  .custom-scrollbar {
+    /* Firefox scrollbar styling */
+    scrollbar-width: thin;
+    scrollbar-color: rgb(209 213 219) rgb(243 244 246); /* thumb: track */
+  }
+
+  /* Custom scrollbar - WebKit browsers (Chrome, Safari, Edge) */
   .custom-scrollbar::-webkit-scrollbar {
     @apply w-2;
   }
@@ -148,5 +155,37 @@
 
   .mobile-text-responsive {
     @apply text-base leading-6;
+  }
+
+  /* Accessibility: Skip to main content link */
+  .skip-link {
+    @apply absolute top-0 left-0 -mt-16 px-4 py-2 bg-black text-white z-50 transition-transform duration-300;
+    clip-path: polygon(0 0, 0 0, 0 0, 0 0);
+  }
+
+  .skip-link:focus {
+    @apply mt-4;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
+  }
+
+  /* Accessibility: Screen reader only content */
+  .sr-only {
+    @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
+  }
+
+  .sr-only-focusable:focus {
+    @apply static w-auto h-auto p-auto m-auto overflow-auto whitespace-normal;
+  }
+}
+
+/* Accessibility: Respect reduced motion preference globally */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

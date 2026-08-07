@@ -143,9 +143,12 @@ const CBIScreening: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.post('/api/v1/screening/cbi', finalResponses);
-      setResult(response.data);
-    } catch (err: any) {
+      const response = await api.post('/clinical/screening/submit', {
+        assessment_type: 'cbi',
+        responses: responses
+      }
+      setResult(response.data as ScreeningResult);
+    } catch (err) {
       setError(err.response?.data?.detail || 'Failed to submit screening. Please try again.');
     } finally {
       setLoading(false);
@@ -214,7 +217,7 @@ const CBIScreening: React.FC = () => {
           <p className="text-sm text-gray-500 mt-2">Question {currentQuestionIndex + 1} of {QUESTIONS.length} ({currentQuestion.category})</p>
         </CardHeader>
         <CardContent className="space-y-6">
-          {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
+          {error && <Alert variant="error"><AlertDescription>{error}</AlertDescription></Alert>}
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-4" />
@@ -223,7 +226,11 @@ const CBIScreening: React.FC = () => {
           ) : (
             <>
               <Label className="text-lg font-medium">{currentQuestion.text}</Label>
-              <RadioGroup onValueChange={(value) => handleResponse(parseInt(value))} className="space-y-3">
+              <RadioGroup
+                value={String(responses[currentQuestion.id as keyof CBIResponse] || 0)}
+                onChange={(value) => handleResponse(parseInt(value))}
+                className="space-y-3"
+              >
                 {currentQuestion.options.map((option) => (
                   <div key={option.value} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50 transition-colors">
                     <RadioGroupItem value={option.value.toString()} id={`${currentQuestion.id}-${option.value}`} />

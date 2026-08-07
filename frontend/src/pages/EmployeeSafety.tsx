@@ -18,6 +18,7 @@ import {
   Eye
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import api from '@/services/api';
 
 interface SafetyIncident {
   id: string;
@@ -105,18 +106,14 @@ const EmployeeSafety: React.FC = () => {
     setLoading(true);
     try {
       const [incidentsResponse, metricsResponse, wellnessResponse] = await Promise.all([
-        fetch('/api/v1/safety/incidents?limit=50'),
-        fetch('/api/v1/safety/incidents/dashboard'),
-        fetch('/api/v1/safety/wellness/dashboard')
+        api.get('/safety/incidents?limit=50'),
+        api.get('/safety/incidents/dashboard'),
+        api.get('/safety/wellness/dashboard')
       ]);
 
-      const incidentsData = await incidentsResponse.json();
-      const metricsData = await metricsResponse.json();
-      const wellnessData = await wellnessResponse.json();
-
-      setIncidents(incidentsData.incidents || []);
-      setSafetyMetrics(metricsData.statistics || null);
-      setWellnessMetrics(wellnessData);
+      setIncidents(incidentsResponse.data.incidents || []);
+      setSafetyMetrics(metricsResponse.data.statistics || null);
+      setWellnessMetrics(wellnessResponse.data);
 
     } catch (error) {
       console.error('Error loading safety data:', error);
@@ -129,67 +126,49 @@ const EmployeeSafety: React.FC = () => {
   const handleReportIncident = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/v1/safety/incidents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(incidentForm)
-      });
+      await api.post('/safety/incidents', incidentForm);
 
-      if (response.ok) {
-        toast.success('Incident reported successfully');
-        setShowIncidentForm(false);
-        setIncidentForm({
-          incident_type: '',
-          severity: '',
-          title: '',
-          description: '',
-          location: '',
-          date_occurred: '',
-          affected_user_id: ''
-        });
-        loadSafetyData();
-      } else {
-        const error = await response.json();
-        toast.error(error.detail || 'Failed to report incident');
-      }
-    } catch (error) {
-      toast.error('Error reporting incident');
+      toast.success('Incident reported successfully');
+      setShowIncidentForm(false);
+      setIncidentForm({
+        incident_type: '',
+        severity: '',
+        title: '',
+        description: '',
+        location: '',
+        date_occurred: '',
+        affected_user_id: ''
+      });
+      loadSafetyData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Failed to report incident');
     }
   };
 
   const handleWellnessAssessment = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/v1/safety/wellness/assessments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...wellnessForm,
-          user_id: 'current-user-id', // Would get from auth context
-          assessment_type: 'self_reported'
-        })
+      await api.post('/safety/wellness/assessments', {
+        ...wellnessForm,
+        user_id: 'current-user-id', // Would get from auth context
+        assessment_type: 'self_reported'
       });
 
-      if (response.ok) {
-        toast.success('Wellness assessment completed');
-        setShowWellnessForm(false);
-        setWellnessForm({
-          stress_level: '',
-          burnout_risk: '',
-          work_life_balance: '',
-          mental_health_score: '',
-          sleep_quality: '',
-          job_satisfaction: '',
-          engagement_level: '',
-          work_hours_per_week: ''
-        });
-        loadSafetyData();
-      } else {
-        const error = await response.json();
-        toast.error(error.detail || 'Failed to complete assessment');
-      }
-    } catch (error) {
-      toast.error('Error completing wellness assessment');
+      toast.success('Wellness assessment completed');
+      setShowWellnessForm(false);
+      setWellnessForm({
+        stress_level: '',
+        burnout_risk: '',
+        work_life_balance: '',
+        mental_health_score: '',
+        sleep_quality: '',
+        job_satisfaction: '',
+        engagement_level: '',
+        work_hours_per_week: ''
+      });
+      loadSafetyData();
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Failed to complete assessment');
     }
   };
 
@@ -271,7 +250,7 @@ const EmployeeSafety: React.FC = () => {
               <CardContent>
                 <div className="text-2xl font-bold">{safetyMetrics?.total_incidents || 0}</div>
                 <p className="text-xs text-gray-500">
-                  {safetyMetrics?.incident_rate.toFixed(1) || '0.0'} per 100 employees/month
+                  {safetyMetrics?.incident_rate?.toFixed(1) || '0.0'} per 100 employees/month
                 </p>
               </CardContent>
             </Card>
@@ -282,7 +261,7 @@ const EmployeeSafety: React.FC = () => {
                 <TrendingUp className="h-4 w-4 text-green-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{wellnessMetrics?.average_wellness_score.toFixed(1) || '0.0'}</div>
+                <div className="text-2xl font-bold">{wellnessMetrics?.average_wellness_score?.toFixed(1) || '0.0'}</div>
                 <p className="text-xs text-gray-500">
                   {wellnessMetrics?.trend_direction || 'Unknown'} trend
                 </p>
@@ -295,7 +274,7 @@ const EmployeeSafety: React.FC = () => {
                 <FileText className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{safetyMetrics?.compliance_rate.toFixed(1) || '0.0'}%</div>
+                <div className="text-2xl font-bold">{safetyMetrics?.compliance_rate?.toFixed(1) || '0.0'}%</div>
                 <p className="text-xs text-gray-500">Reporting compliance</p>
               </CardContent>
             </Card>
@@ -306,7 +285,7 @@ const EmployeeSafety: React.FC = () => {
                 <Users className="h-4 w-4 text-orange-600" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{wellnessMetrics?.high_risk_percentage.toFixed(1) || '0.0'}%</div>
+                <div className="text-2xl font-bold">{wellnessMetrics?.high_risk_percentage?.toFixed(1) || '0.0'}%</div>
                 <p className="text-xs text-gray-500">Require attention</p>
               </CardContent>
             </Card>
@@ -319,7 +298,7 @@ const EmployeeSafety: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {filteredIncidents.slice(0, 5).map((incident) => (
+                  {(filteredIncidents || []).slice(0, 5).map((incident) => (
                     <div key={incident.id} className="flex items-center justify-between p-3 border rounded-lg">
                       <div className="flex-1">
                         <div className="font-medium">{incident.title}</div>
@@ -343,7 +322,7 @@ const EmployeeSafety: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {wellnessMetrics?.key_risk_factors.slice(0, 5).map((factor, index) => (
+                  {(wellnessMetrics?.key_risk_factors || []).slice(0, 5).map((factor, index) => (
                     <Alert key={index}>
                       <AlertTriangle className="h-4 w-4" />
                       <AlertDescription>{factor}</AlertDescription>
@@ -411,7 +390,7 @@ const EmployeeSafety: React.FC = () => {
 
         <TabsContent value="wellness" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {wellnessMetrics?.key_risk_factors.slice(0, 6).map((factor, index) => (
+            {(wellnessMetrics?.key_risk_factors || []).slice(0, 6).map((factor, index) => (
               <Card key={index}>
                 <CardHeader>
                   <CardTitle className="text-lg">{factor}</CardTitle>
@@ -462,27 +441,30 @@ const EmployeeSafety: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {Object.entries(safetyMetrics?.severity_distribution || {}).map(([severity, count]) => (
-                    <div key={severity} className="flex items-center justify-between">
-                      <span className="capitalize">{severity}</span>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-32 bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full ${
-                              severity === 'critical' ? 'bg-red-600' :
-                              severity === 'high' ? 'bg-orange-600' :
-                              severity === 'medium' ? 'bg-yellow-600' :
-                              'bg-green-600'
-                            }`}
-                            style={{
-                              width: `${(count / (safetyMetrics?.total_incidents || 1)) * 100}%`
-                            }}
-                          ></div>
+                  {Object.entries(safetyMetrics?.severity_distribution || {}).map(([severity, count]) => {
+                    const numCount = count as number;
+                    return (
+                      <div key={severity} className="flex items-center justify-between">
+                        <span className="capitalize">{severity}</span>
+                        <div className="flex items-center space-x-2">
+                          <div className="w-32 bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full ${
+                                severity === 'critical' ? 'bg-red-600' :
+                                severity === 'high' ? 'bg-orange-600' :
+                                severity === 'medium' ? 'bg-yellow-600' :
+                                'bg-green-600'
+                              }`}
+                              style={{
+                                width: `${(numCount / (safetyMetrics?.total_incidents || 1)) * 100}%`
+                              }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-medium w-8">{numCount}</span>
                         </div>
-                        <span className="text-sm font-medium w-8">{count}</span>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

@@ -37,7 +37,8 @@ import {
   Shield,
   Calendar,
   Phone,
-  ExternalLink
+  ExternalLink,
+  Info
 } from 'lucide-react';
 
 // Types
@@ -118,10 +119,12 @@ export const HealthDashboard: React.FC = () => {
   const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch health analysis
   const analyzeHealth = async () => {
     setAnalyzing(true);
+    setError(null);
     try {
       const response = await fetch('/api/v1/health-monitoring/analyze', {
         method: 'POST',
@@ -138,8 +141,15 @@ export const HealthDashboard: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         setHealthData(data);
+      } else {
+        // Handle error response
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+        setError(errorData.detail || `Error ${response.status}: ${response.statusText}`);
+        console.error('Health analysis failed:', errorData);
       }
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Failed to connect to health monitoring service';
+      setError(errorMsg);
       console.error('Failed to analyze health:', error);
     } finally {
       setAnalyzing(false);
@@ -171,6 +181,49 @@ export const HealthDashboard: React.FC = () => {
     }
   };
 
+  // Load demo data for testing/preview
+  const loadDemoData = () => {
+    const demoData: HealthRiskData = {
+      stress_level: 'elevated',
+      burnout_stage: 'stress_onset',
+      cardiovascular_risk_score: 0.35,
+      mental_health_risk: 0.42,
+      work_life_imbalance: 0.55,
+      sleep_disruption_score: 0.48,
+      social_isolation_score: 0.30,
+      urgent_intervention_needed: false,
+      recommend_medical_evaluation: false,
+      recommend_immediate_break: true,
+      recommend_workload_reduction: false,
+      primary_risk_factors: [
+        'Working after 9 PM on 3+ days per week',
+        'Weekend email activity detected',
+        'Average work week: 48 hours',
+      ],
+      warning_signs: [
+        'Increased after-hours communication',
+        'Elevated stress in written communication',
+        'Reduced sleep quality',
+      ],
+      protective_factors: [
+        'Regular exercise patterns detected',
+        'Good social connectivity',
+        'Takes lunch breaks regularly',
+      ],
+      data_sources: ['demo_data'],
+      confidence_level: 0.75,
+      recommended_actions: [
+        'Set clear work hours and stick to them',
+        'Enable after-hours email blocking',
+        'Practice daily mindfulness or meditation',
+        'Exercise for at least 30 minutes',
+      ],
+    };
+
+    setHealthData(demoData);
+    setError(null);
+  };
+
   useEffect(() => {
     analyzeHealth();
   }, []);
@@ -193,13 +246,45 @@ export const HealthDashboard: React.FC = () => {
 
   if (!healthData) {
     return (
-      <Alert>
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Unable to Load Health Data</AlertTitle>
-        <AlertDescription>
-          Please ensure you have connected your email and/or wearable devices.
-        </AlertDescription>
-      </Alert>
+      <div className="space-y-4">
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Unable to Load Health Data</AlertTitle>
+          <AlertDescription>
+            {error ? (
+              <div className="space-y-2">
+                <p>Error: {error}</p>
+                <p className="text-sm text-muted-foreground">
+                  This could be because:
+                </p>
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  <li>No health data has been collected yet</li>
+                  <li>Email/wearable devices haven't been connected</li>
+                  <li>The health monitoring service is temporarily unavailable</li>
+                </ul>
+              </div>
+            ) : (
+              "Please ensure you have connected your email and/or wearable devices."
+            )}
+          </AlertDescription>
+        </Alert>
+
+        <Alert className="border-blue-500 bg-blue-50 dark:bg-blue-950">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-900 dark:text-blue-100">Demo Mode Available</AlertTitle>
+          <AlertDescription className="text-blue-800 dark:text-blue-200">
+            <p className="mb-2">Would you like to see a demo of the Health Dashboard with sample data?</p>
+            <Button
+              onClick={loadDemoData}
+              variant="outline"
+              size="sm"
+              className="mt-2"
+            >
+              Load Demo Data
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
@@ -234,6 +319,34 @@ export const HealthDashboard: React.FC = () => {
             {healthData.recommend_medical_evaluation
               ? 'Medical evaluation is recommended. Please review the interventions below.'
               : 'Your stress levels are critically high. Please take immediate action.'}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* No Data Alert */}
+      {healthData.confidence_level === 0 && (
+        <Alert className="border-blue-500 bg-blue-50 dark:bg-blue-950">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-900 dark:text-blue-100">
+            No Health Data Available Yet
+          </AlertTitle>
+          <AlertDescription className="text-blue-800 dark:text-blue-200">
+            <div className="space-y-2">
+              <p>
+                Your health dashboard is showing a baseline healthy state because no data sources are connected yet.
+              </p>
+              <p className="text-sm">
+                To enable personalized health insights, consider connecting:
+              </p>
+              <ul className="list-disc list-inside text-sm space-y-1 ml-2">
+                <li>Email integration for work pattern analysis</li>
+                <li>Wearable devices for biometric data</li>
+                <li>Regular wellness assessments</li>
+              </ul>
+              <p className="text-sm mt-2">
+                <strong>Current Status:</strong> All health indicators show normal/healthy baseline values
+              </p>
+            </div>
           </AlertDescription>
         </Alert>
       )}
@@ -422,7 +535,7 @@ export const HealthDashboard: React.FC = () => {
                           key={i}
                           variant="outline"
                           size="sm"
-                          asChild
+
                           className="text-xs"
                         >
                           <a

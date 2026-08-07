@@ -48,6 +48,7 @@ class PWAManager {
   private isOnline = navigator.onLine;
   private connection: any = null;
   private cleanupCallbacks: Array<() => void> = [];
+  private isInitialized = false; // Guard to prevent multiple initializations
 
   private constructor() {
     this.initializeConnectionMonitoring();
@@ -66,11 +67,18 @@ class PWAManager {
    * Initialize PWA functionality
    */
   public async initialize(): Promise<void> {
+    // Guard: Prevent multiple initializations
+    if (this.isInitialized) {
+      console.log('ℹ️ PWA Manager already initialized, skipping...');
+      return;
+    }
+
     try {
       await this.registerServiceWorker();
       this.setupNetworkListeners();
       this.setupVisibilityChangeListeners();
 
+      this.isInitialized = true;
       console.log('🚀 PWA Manager initialized successfully');
     } catch (error) {
       console.error('PWA initialization failed:', error);
@@ -407,7 +415,7 @@ class PWAManager {
         applicationServerKey: this.urlBase64ToUint8Array(
           // This would be your VAPID public key
           'BM_xFTJtKhMkYaHAKnBk1r5J9KpFbChfJ3gHqKjX4zqkX9xLrM7n8qPpQrSsTuVwXyZbNcLmVdKnQpStRqNpK'
-        )
+        ) as BufferSource
       });
 
       console.log('✅ Push notification subscription successful');

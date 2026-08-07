@@ -44,9 +44,16 @@ const ClinicalDashboard: React.FC = () => {
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>();
   const [timeframe, setTimeframe] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
 
+  // Feature flag: clinical alerts endpoints not implemented yet
+  const CLINICAL_ALERTS_ENABLED = false;
+
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (CLINICAL_ALERTS_ENABLED) {
+      fetchDashboardData();
+    } else {
+      setLoading(false);
+    }
+  }, [CLINICAL_ALERTS_ENABLED]);
 
   const fetchDashboardData = async () => {
     try {
@@ -63,14 +70,20 @@ const ClinicalDashboard: React.FC = () => {
         }),
       ]);
 
+      // Handle alerts response - silently ignore 404 (endpoint not implemented)
       if (alertsResponse.ok) {
         const alertsData = await alertsResponse.json();
         setAlerts(alertsData);
+      } else if (alertsResponse.status !== 404) {
+        console.error('Failed to fetch alerts:', alertsResponse.status);
       }
 
+      // Handle stats response - silently ignore 404 (endpoint not implemented)
       if (statsResponse.ok) {
         const statsData = await statsResponse.json();
         setStats(statsData);
+      } else if (statsResponse.status !== 404) {
+        console.error('Failed to fetch stats:', statsResponse.status);
       }
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -80,6 +93,16 @@ const ClinicalDashboard: React.FC = () => {
   };
 
   const handleAcknowledgeAlert = async (alertId: string) => {
+    // Feature disabled - update local state only
+    if (!CLINICAL_ALERTS_ENABLED) {
+      setAlerts(prev =>
+        prev.map(alert =>
+          alert.id === alertId ? { ...alert, acknowledged: true } : alert
+        )
+      );
+      return;
+    }
+
     try {
       const response = await fetch(`/api/v1/clinical/alerts/${alertId}/acknowledge`, {
         method: 'POST',
@@ -95,6 +118,8 @@ const ClinicalDashboard: React.FC = () => {
             alert.id === alertId ? { ...alert, acknowledged: true } : alert
           )
         );
+      } else if (response.status !== 404) {
+        console.error('Failed to acknowledge alert:', response.status);
       }
     } catch (error) {
       console.error('Error acknowledging alert:', error);
@@ -102,6 +127,16 @@ const ClinicalDashboard: React.FC = () => {
   };
 
   const handleResolveAlert = async (alertId: string) => {
+    // Feature disabled - update local state only
+    if (!CLINICAL_ALERTS_ENABLED) {
+      setAlerts(prev =>
+        prev.map(alert =>
+          alert.id === alertId ? { ...alert, resolution_status: 'resolved' } : alert
+        )
+      );
+      return;
+    }
+
     try {
       const response = await fetch(`/api/v1/clinical/alerts/${alertId}/resolve`, {
         method: 'POST',
@@ -120,6 +155,8 @@ const ClinicalDashboard: React.FC = () => {
             alert.id === alertId ? { ...alert, resolution_status: 'resolved' } : alert
           )
         );
+      } else if (response.status !== 404) {
+        console.error('Failed to resolve alert:', response.status);
       }
     } catch (error) {
       console.error('Error resolving alert:', error);

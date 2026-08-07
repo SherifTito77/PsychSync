@@ -12,6 +12,7 @@
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, Building, AlertCircle, CheckCircle } from 'lucide-react';
+import { useAnalytics } from '../../services/analytics/tracker';
 
 // Types
 interface LoginData {
@@ -695,6 +696,17 @@ SignupForm.displayName = 'SignupForm';
 
 // Main Component
 const LoginSignupRefactored: React.FC = () => {
+  // Analytics tracking
+  const { track, trackFunnel, trackPage } = useAnalytics();
+
+  // Track page view on mount
+  useEffect(() => {
+    trackPage('auth', {
+      view: isLogin ? 'login' : 'signup',
+      referrer: document.referrer
+    });
+  }, []);
+
   // Form state
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
@@ -755,8 +767,23 @@ const LoginSignupRefactored: React.FC = () => {
     setErrors({});
     setSuccessMessage('');
 
+    // Track login funnel start
+    track('user_button_clicked', {
+      button_id: 'login_submit',
+      page: 'auth'
+    });
+    trackFunnel('login', 'started', {
+      email_domain: loginData.email.split('@')[1]
+    });
+
     try {
       const response = await login(loginData);
+
+      // Track successful login
+      trackFunnel('login', 'completed', {
+        user_id: response.user.id,
+        email_domain: loginData.email.split('@')[1]
+      });
 
       // Use secure storage instead of localStorage
       // In production, this would be http-only secure cookies
@@ -770,12 +797,19 @@ const LoginSignupRefactored: React.FC = () => {
       }, VALIDATION_RULES.FORM_TIMEOUTS.REDIRECT_DELAY);
 
     } catch (error) {
+      // Track login failure
+      track('system_error_occurred', {
+        error_type: 'login_failed',
+        error_message: error instanceof Error ? error.message : 'Authentication failed',
+        funnel_step: 'login'
+      });
+
       const errorMessage = error instanceof Error ? error.message : 'Login failed';
       setErrors({ form: errorMessage });
     } finally {
       setLoading(false);
     }
-  }, [loginData, validateLoginForm, login]);
+  }, [loginData, validateLoginForm, login, track, trackFunnel]);
 
   const handleSignup = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -790,8 +824,24 @@ const LoginSignupRefactored: React.FC = () => {
     setErrors({});
     setSuccessMessage('');
 
+    // Track signup funnel start
+    track('user_button_clicked', {
+      button_id: 'signup_submit',
+      page: 'auth'
+    });
+    trackFunnel('signup', 'started', {
+      has_organization: !!signupData.organization_name,
+      email_domain: signupData.email.split('@')[1]
+    });
+
     try {
       await signup(signupData);
+
+      // Track successful signup
+      trackFunnel('signup', 'completed', {
+        has_organization: !!signupData.organization_name,
+        email_domain: signupData.email.split('@')[1]
+      });
 
       setSuccessMessage('Account created successfully! Please check your email to verify your account.');
 
@@ -811,12 +861,19 @@ const LoginSignupRefactored: React.FC = () => {
       }, VALIDATION_RULES.FORM_TIMEOUTS.SWITCH_FORM_DELAY);
 
     } catch (error) {
+      // Track signup failure
+      track('system_error_occurred', {
+        error_type: 'signup_failed',
+        error_message: error instanceof Error ? error.message : 'Account creation failed',
+        funnel_step: 'signup'
+      });
+
       const errorMessage = error instanceof Error ? error.message : 'Signup failed';
       setErrors({ form: errorMessage });
     } finally {
       setLoading(false);
     }
-  }, [signupData, validateSignupForm, signup]);
+  }, [signupData, validateSignupForm, signup, track, trackFunnel]);
 
   // Tab switching with focus management
   const handleTabSwitch = useCallback((loginMode: boolean) => {
@@ -826,22 +883,32 @@ const LoginSignupRefactored: React.FC = () => {
     setShowPassword(false);
     setShowConfirmPassword(false);
 
+    // Track tab switch
+    track('user_button_clicked', {
+      button_id: loginMode ? 'switch_to_login' : 'switch_to_signup',
+      page: 'auth',
+      previous_view: loginMode ? 'signup' : 'login',
+      new_view: loginMode ? 'login' : 'signup'
+    });
+
     // Focus management for accessibility
     if (tabContainerRef.current) {
       const tabButton = tabContainerRef.current.querySelector(`[role="tab"][aria-selected="${loginMode}"]`) as HTMLButtonElement;
       tabButton?.focus();
     }
-  }, []);
+  }, [track]);
 
   // Clear success message after delay
   useEffect(() => {
+    let timerId: NodeJS.Timeout | undefined;
     if (successMessage) {
-      const timer = setTimeout(() => {
+      timerId = setTimeout(() => {
         setSuccessMessage('');
       }, VALIDATION_RULES.FORM_TIMEOUTS.SUCCESS_MESSAGE_DELAY);
-
-      return () => clearTimeout(timer);
     }
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
   }, [successMessage]);
 
   return (
@@ -960,6 +1027,11 @@ const LoginSignupRefactored: React.FC = () => {
               <button
                 className="flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 aria-label="Sign in with Google"
+                onClick={() => track('user_button_clicked', {
+                  button_id: 'social_login_google',
+                  page: 'auth',
+                  auth_type: isLogin ? 'login' : 'signup'
+                })}
               >
                 {/* Google SVG */}
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -974,6 +1046,11 @@ const LoginSignupRefactored: React.FC = () => {
               <button
                 className="flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 aria-label="Sign in with GitHub"
+                onClick={() => track('user_button_clicked', {
+                  button_id: 'social_login_github',
+                  page: 'auth',
+                  auth_type: isLogin ? 'login' : 'signup'
+                })}
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clipRule="evenodd"/>

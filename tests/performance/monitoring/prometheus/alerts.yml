@@ -1,0 +1,180 @@
+# Prometheus Alert Rules for PsychSync Load Testing
+
+groups:
+  - name: api_performance
+    interval: 10s
+    rules:
+      # High error rate alert
+      - alert: HighErrorRate
+        expr: |
+          rate(http_requests_total{status=~"5.."}[5m]) /
+          rate(http_requests_total[5m]) > 0.01
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High API error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for endpoint {{ $labels.endpoint }}"
+
+      # Slow response time alert
+      - alert: SlowResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_seconds_bucket[5m])
+          ) > 1.0
+        for: 2m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "API response time degraded"
+          description: "p95 response time is {{ $value }}s for endpoint {{ $labels.endpoint }}"
+
+      # Low throughput alert
+      - alert: LowThroughput
+        expr: |
+          rate(http_requests_total[5m]) < 10
+        for: 3m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "API throughput below expected"
+          description: "Request rate is {{ $value }} req/s (expected > 10 req/s)"
+
+  - name: database_performance
+    interval: 15s
+    rules:
+      # High database connection usage
+      - alert: HighDatabaseConnections
+        expr: |
+          pg_stat_database_numbackends / pg_settings_max_connections > 0.8
+        for: 2m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "{{ $value | humanizePercentage }} of connections in use"
+
+      # Slow database queries
+      - alert: SlowDatabaseQueries
+        expr: |
+          rate(pg_stat_statements_mean_exec_time_ms[5m]) > 100
+        for: 1m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Database query performance degraded"
+          description: "Average query time is {{ $value }}ms"
+
+      # High database lock contention
+      - alert: DatabaseLockContention
+        expr: |
+          rate(pg_stat_database_blks_hit[5m]) /
+          (rate(pg_stat_database_blks_hit[5m]) + rate(pg_stat_database_blks_read[5m])) < 0.9
+        for: 2m
+        labels:
+          severity: warning
+          component: database
+        annotations:
+          summary: "Low database cache hit ratio"
+          description: "Cache hit ratio is {{ $value | humanizePercentage }}"
+
+  - name: cache_performance
+    interval: 15s
+    rules:
+      # Low Redis hit rate
+      - alert: LowCacheHitRate
+        expr: |
+          rate(redis_keyspace_hits[5m]) /
+          (rate(redis_keyspace_hits[5m]) + rate(redis_keyspace_misses[5m])) < 0.7
+        for: 2m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Redis cache hit rate low"
+          description: "Cache hit rate is {{ $value | humanizePercentage }}"
+
+      # High Redis memory usage
+      - alert: HighRedisMemory
+        expr: |
+          redis_memory_used_bytes / redis_memory_max_bytes > 0.8
+        for: 1m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Redis memory usage high"
+          description: "{{ $value | humanizePercentage }} of memory in use"
+
+  - name: system_resources
+    interval: 30s
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 3m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 2m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}"
+
+      # Disk space low
+      - alert: LowDiskSpace
+        expr: |
+          (node_filesystem_avail_bytes{mountpoint="/"} /
+           node_filesystem_size_bytes{mountpoint="/"}) * 100 < 20
+        for: 1m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Low disk space"
+          description: "Only {{ $value }}% disk space remaining"
+
+  - name: load_test_specific
+    interval: 5s
+    rules:
+      # Load test not generating enough traffic
+      - alert: LowLoadTestTraffic
+        expr: |
+          rate(http_requests_total[1m]) < 5
+        for: 2m
+        labels:
+          severity: info
+          component: loadtest
+        annotations:
+          summary: "Load test traffic low"
+          description: "Request rate is only {{ $value }} req/s"
+
+      # Load test error rate spike
+      - alert: LoadTestErrorSpike
+        expr: |
+          rate(http_requests_total{status=~"5.."}[30s]) /
+          rate(http_requests_total[30s]) > 0.05
+        for: 30s
+        labels:
+          severity: critical
+          component: loadtest
+        annotations:
+          summary: "Load test error rate spike"
+          description: "Error rate jumped to {{ $value | humanizePercentage }}"

@@ -86,11 +86,13 @@ const ClinicalAssessment: React.FC = () => {
 
   // Load assessment data
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout | undefined;
+
     const loadAssessmentData = async () => {
       console.log('ClinicalAssessment: Loading assessment for tool:', tool);
 
       // Add timeout to prevent infinite loading
-      const timeoutId = setTimeout(() => {
+      timeoutId = setTimeout(() => {
         console.warn('ClinicalAssessment: Loading timeout, forcing loading to false');
         setLoading(false);
       }, 5000);
@@ -115,12 +117,16 @@ const ClinicalAssessment: React.FC = () => {
       } catch (error) {
         console.error('ClinicalAssessment: Error loading assessment:', error);
       } finally {
-        clearTimeout(timeoutId);
+        if (timeoutId) clearTimeout(timeoutId);
         setLoading(false);
       }
     };
 
     loadAssessmentData();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [tool]);
 
   // Assessment flow hook

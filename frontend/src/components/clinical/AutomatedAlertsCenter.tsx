@@ -16,7 +16,7 @@
  * Access: Clinicians and Administrators only
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -36,6 +36,8 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import api from '@/services/api';
+import { useAsyncEffect } from '@/hooks/useAsyncEffect';
+import { useDebouncedCallback } from '@/hooks/usePerformanceOptimizations';
 
 // =============================================================================
 // Types
@@ -331,6 +333,9 @@ function AlertStatisticsCard({ stats }: { stats: AlertStatistics }) {
 // =============================================================================
 
 export default function AutomatedAlertsCenter() {
+  // Feature flag: automated alerts endpoint has backend issues (500 errors)
+  const AUTOMATED_ALERTS_ENABLED = true;
+
   const [unresolvedAlerts, setUnresolvedAlerts] = useState<AlertItem[]>([]);
   const [statistics, setStatistics] = useState<AlertStatistics | null>(null);
   const [loading, setLoading] = useState(true);
@@ -338,77 +343,165 @@ export default function AutomatedAlertsCenter() {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'unresolved' | 'history'>('unresolved');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Track if we're currently fetching to prevent concurrent requests
+  const isFetchingRef = useRef(false);
 
-  const fetchData = async () => {
+  // Safe data fetching with race condition protection
+  const fetchData = useCallback(async () => {
+    // Skip fetch if disabled
+    if (!AUTOMATED_ALERTS_ENABLED) {
+      setLoading(false);
+      return;
+    }
+
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      return;
+    }
+
+    isFetchingRef.current = true;
     setLoading(true);
     setError(null);
 
     try {
       // Fetch unresolved alerts and statistics in parallel
       const [alertsRes, statsRes] = await Promise.all([
-        api.get('/api/v1/automated-alerts/unresolved?limit=50'),
-        api.get('/api/v1/automated-alerts/stats/overview?days_back=30'),
+        api.get('/automated-alerts/unresolved?limit=50'),
+        api.get('/automated-alerts/stats/overview?days_back=30'),
       ]);
 
-      setUnresolvedAlerts(alertsRes.data.alerts);
-      setStatistics(statsRes.data);
+      const alertsData = alertsRes.data as { alerts?: any[] };
+      setUnresolvedAlerts(alertsData.alerts || []);
+      setStatistics(statsRes.data as any);
     } catch (err: any) {
       console.error('Error fetching alert data:', err);
-      setError(
-        err.response?.data?.detail || 'Failed to load alert data'
-      );
+
+      // Handle different error types
+      if (err.response?.status === 500) {
+        setError('Automated alerts service is temporarily unavailable. Please try again later.');
+      } else if (err.response?.status === 404) {
+        setError('Automated alerts feature is not yet available.');
+      } else {
+        setError(
+          err.response?.data?.detail || 'Failed to load alert data'
+        );
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
+      isFetchingRef.current = false;
     }
-  };
+  }, [AUTOMATED_ALERTS_ENABLED]);
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchData();
-  };
+  // Initial data load with race condition protection
+  useAsyncEffect(async (signal, isMounted) => {
+    if (!isMounted()) return;
+    await fetchData();
+  }, []);
+
+  // Debounced refresh handler (500ms debounce)
+  const handleRefresh = useDebouncedCallback(() => {
+    if (!isFetchingRef.current) {
+      setRefreshing(true);
+      fetchData();
+    }
+  }, 500, []);
 
   const handleAcknowledge = async (alertId: string, notes?: string) => {
+    if (!AUTOMATED_ALERTS_ENABLED) {
+      alert('Automated alerts feature is currently disabled.');
+      return;
+    }
+
     try {
-      await api.post(`/api/v1/automated-alerts/${alertId}/acknowledge`, { notes });
-      // Refresh data
-      fetchData();
-    } catch (err: any) {
+      await api.post(`/automated-alerts/${alertId}/acknowledge`, { notes });
+      // Refresh data only if not already fetching
+      if (!isFetchingRef.current) {
+        fetchData();
+      }
+    } catch (err) {
       console.error('Error acknowledging alert:', err);
-      alert(`Failed to acknowledge: ${err.response?.data?.detail || 'Unknown error'}`);
+      const errorMsg = err.response?.data?.detail || err.response?.status === 500
+        ? 'Service temporarily unavailable'
+        : 'Unknown error';
+      alert(`Failed to acknowledge: ${errorMsg}`);
     }
   };
 
   const handleResolve = async (alertId: string, notes: string) => {
+    if (!AUTOMATED_ALERTS_ENABLED) {
+      alert('Automated alerts feature is currently disabled.');
+      return;
+    }
+
     try {
-      await api.post(`/api/v1/automated-alerts/${alertId}/resolve`, {
+      await api.post(`/automated-alerts/${alertId}/resolve`, {
         resolution_notes: notes,
       });
-      // Refresh data
-      fetchData();
-    } catch (err: any) {
+      // Refresh data only if not already fetching
+      if (!isFetchingRef.current) {
+        fetchData();
+      }
+    } catch (err) {
       console.error('Error resolving alert:', err);
-      alert(`Failed to resolve: ${err.response?.data?.detail || 'Unknown error'}`);
+      const errorMsg = err.response?.data?.detail || err.response?.status === 500
+        ? 'Service temporarily unavailable'
+        : 'Unknown error';
+      alert(`Failed to resolve: ${errorMsg}`);
     }
   };
 
   const handleTriggerChecks = async (type: 'predictions' | 'trends') => {
+    if (!AUTOMATED_ALERTS_ENABLED) {
+      alert('Automated alerts feature is currently disabled.');
+      return;
+    }
+
     try {
       const endpoint = type === 'predictions'
-        ? '/api/v1/automated-alerts/check-predictions'
-        : '/api/v1/automated-alerts/check-trends';
+        ? '/automated-alerts/check-predictions'
+        : '/automated-alerts/check-trends';
 
       const response = await api.post(endpoint);
-      alert(`${type === 'predictions' ? 'ML prediction' : 'Trend'} check completed: ${response.data.alerts_triggered} alerts generated`);
-      fetchData();
-    } catch (err: any) {
+      const responseData = response.data as { alerts_triggered?: number };
+      alert(`${type === 'predictions' ? 'ML prediction' : 'Trend'} check completed: ${responseData.alerts_triggered || 0} alerts generated`);
+      // Refresh data only if not already fetching
+      if (!isFetchingRef.current) {
+        fetchData();
+      }
+    } catch (err) {
       console.error(`Error triggering ${type} check:`, err);
-      alert(`Failed to trigger check: ${err.response?.data?.detail || 'Unknown error'}`);
+      const errorMsg = err.response?.data?.detail || err.response?.status === 500
+        ? 'Service temporarily unavailable'
+        : 'Unknown error';
+      alert(`Failed to trigger check: ${errorMsg}`);
     }
   };
+
+  // Disabled state
+  if (!AUTOMATED_ALERTS_ENABLED) {
+    return (
+      <div className="max-w-7xl mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5" />
+              Automated Alerts Center
+            </CardTitle>
+            <CardDescription>Clinical alert monitoring and management</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-12 pb-12 text-center">
+            <AlertCircle className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">Automated Alerts Temporarily Disabled</h3>
+            <p className="text-gray-600 max-w-md mx-auto">
+              The automated alerts feature is currently unavailable due to backend maintenance.
+              Please check back later or contact your administrator for more information.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Loading state
   if (loading) {
@@ -428,7 +521,7 @@ export default function AutomatedAlertsCenter() {
   if (error && !statistics) {
     return (
       <div className="max-w-7xl mx-auto p-6">
-        <Alert variant="destructive">
+        <Alert variant="error">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>{error}</AlertDescription>
         </Alert>

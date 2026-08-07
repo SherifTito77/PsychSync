@@ -402,9 +402,17 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   };
   return <Badge color={config.color as 'blue' | 'gray' | 'indigo' | 'green' | 'orange' | 'purple' | 'red' | 'yellow'} size="sm">{config.label}</Badge>;
 };
+// Define proper type for feedback update
+interface FeedbackUpdate {
+  new_status: string;
+  internal_notes: string;
+  public_notes: string;
+  actions_taken: string;
+}
+
 interface FeedbackDetailPanelProps {
   feedback: AnonymousFeedback;
-  onUpdate: (update: any) => void;
+  onUpdate: (update: FeedbackUpdate) => void;
   updating: boolean;
 }
 const FeedbackDetailPanel: React.FC<FeedbackDetailPanelProps> = ({

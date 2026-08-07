@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { clsx, type ClassValue } from 'clsx';
 import {
   Card,
   CardHeader,
@@ -8,6 +9,11 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertTitle } from '@/components/ui/alert';
+
+// Helper function for conditional classes
+function cn(...inputs: ClassValue[]) {
+  return clsx(inputs);
+}
 
 // Import ClinicalAssessment component for inline rendering
 import ClinicalAssessment from './ClinicalAssessment';
@@ -369,24 +375,13 @@ const ClinicalConsent: React.FC = () => {
                 window.location.href = targetUrl;
               }}
               disabled={!requiredAgreed || loading}
-              style={{
-                padding: '16px 40px',
-                backgroundColor: '#2563eb',
-                color: 'white',
-                border: '3px solid red',
-                borderRadius: '8px',
-                fontSize: '18px',
-                fontWeight: 'bold',
-                cursor: (!requiredAgreed || loading) ? 'not-allowed' : 'pointer',
-                opacity: (!requiredAgreed || loading) ? 0.5 : 1,
-                position: 'relative',
-                zIndex: 99999,
-                pointerEvents: 'auto !important',
-                display: 'block',
-                width: '100%',
-                height: '60px',
-                outline: '5px solid green'
-              }}
+              className={cn(
+                'py-4 px-10 bg-blue-600 text-white border-[3px] border-red-500',
+                'rounded-lg text-lg font-bold relative z-[99999]',
+                'pointer-events-auto !important block w-full h-[60px]',
+                'outline-[5px] outline-green-500',
+                (!requiredAgreed || loading) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+              )}
             >
               {loading ? 'Saving Consent...' : `⚡ PROCEED TO ${assessmentTool.toUpperCase()} ASSESSMENT (No Login!)`}
             </button>
@@ -417,18 +412,7 @@ const ClinicalConsent: React.FC = () => {
                   console.log('Validation failed');
                 }
               }}
-              style={{
-                marginTop: '10px',
-                padding: '10px 20px',
-                backgroundColor: '#f59e0b',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                position: 'relative',
-                zIndex: 100000,
-                pointerEvents: 'auto'
-              }}
+              className="mt-2.5 py-2.5 px-5 bg-orange-500 text-white border-0 rounded cursor-pointer relative z-[100000] pointer-events-auto"
             >
               🟠 ORANGE BUTTON (Also No Login Required!)
             </button>

@@ -27,7 +27,7 @@ export const FeatureGate: React.FC<FeatureGateProps> = ({
   showBlur = true,
 }) => {
   const { canAccess, subscription } = useSubscription();
-  const hasAccess = canAccess(feature);
+  const hasAccess = canAccess(feature as any);
 
   if (hasAccess) {
     return <>{children}</>;

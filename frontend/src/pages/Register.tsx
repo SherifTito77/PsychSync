@@ -1,15 +1,25 @@
 // frontend/src/pages/Register.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import Button from '../components/common/Button';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { useAnalytics } from '../services/analytics/tracker';
+
 const Register: React.FC = () => {
   const navigate = useNavigate();
   const { register } = useAuth();
   const { showNotification } = useNotification();
+  const { trackFunnel, track, trackPage } = useAnalytics();
   const [isLoading, setIsLoading] = useState(false);
+
+  // Track page view on mount
+  useEffect(() => {
+    trackPage('register', {
+      referrer: document.referrer
+    });
+  }, [trackPage]);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -17,41 +27,71 @@ const Register: React.FC = () => {
     email: '',
     password: '',
     confirmPassword: '',
+    agreedToTerms: false,
   });
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const value = e.target.type === 'checkbox'
+      ? e.target.checked
+      : e.target.value;
+    setFormData({ ...formData, [e.target.name]: value });
     setError('');
   };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setIsLoading(true);
+
+    // ✅ FIXED: Validate BEFORE setting loading state
     // Validation
+    if (!formData.agreedToTerms) {
+      setError('You must agree to the Terms of Service and Privacy Policy');
+      showNotification('You must agree to the Terms of Service and Privacy Policy', 'error');
+      return;
+    }
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       showNotification('Passwords do not match', 'error');
-      setIsLoading(false);
       return;
     }
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      showNotification('Password must be at least 8 characters long', 'error');
-      setIsLoading(false);
+    if (formData.password.length < 12) {
+      setError('Password must be at least 12 characters long');
+      showNotification('Password must be at least 12 characters long', 'error');
       return;
     }
     // Password complexity check
     const hasUpperCase = /[A-Z]/.test(formData.password);
     const hasLowerCase = /[a-z]/.test(formData.password);
     const hasNumbers = /\d/.test(formData.password);
-    if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
-      setError('Password must contain uppercase, lowercase, and numbers');
-      showNotification('Password must contain uppercase, lowercase, and numbers', 'error');
-      setIsLoading(false);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(formData.password);
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers || !hasSpecial) {
+      setError('Password must contain uppercase, lowercase, numbers, and special characters (!@#$%^&*(),.?":{}|<>)');
+      showNotification('Password must contain uppercase, lowercase, numbers, and special characters', 'error');
       return;
     }
+
+    // ✅ Only set loading state after validation passes
+    setIsLoading(true);
+
+    // Track button click and funnel start
+    track('user_button_clicked', {
+      button_id: 'create_account',
+      page: 'register',
+      form_completed: true
+    });
+
+    trackFunnel('signup', 'started', {
+      has_full_name: !!formData.full_name,
+      email_domain: formData.email.split('@')[1]
+    });
+
     try {
       const result = await register(formData);
       if (result.success) {
+        // Track successful registration completion
+        trackFunnel('signup', 'completed', {
+          email_verified: false,
+          timestamp: Date.now()
+        });
+
         setShowSuccess(true);
         showNotification('Registration successful! Please check your email to verify your account.', 'success');
         // Redirect to login after 5 seconds
@@ -59,10 +99,24 @@ const Register: React.FC = () => {
           navigate('/login');
         }, 5000);
       } else {
+        // Track registration failure
+        track('system_error_occurred', {
+          error_type: 'registration_failed',
+          error_message: result.error,
+          funnel_step: 'signup'
+        });
+
         setError(result.error || 'Registration failed');
         showNotification(result.error || 'Registration failed', 'error');
       }
     } catch (err) {
+      // Track unexpected registration error
+      track('system_error_occurred', {
+        error_type: 'registration_exception',
+        error_message: err instanceof Error ? err.message : 'Unknown error',
+        funnel_step: 'signup'
+      });
+
       setError('An unexpected error occurred. Please try again.');
       showNotification('An unexpected error occurred. Please try again.', 'error');
     } finally {
@@ -240,7 +294,7 @@ const Register: React.FC = () => {
                 autoComplete="new-password"
               />
               <p className="mt-1 text-xs text-gray-500">
-                Must be at least 8 characters with uppercase, lowercase, and numbers
+                Must be at least 12 characters with uppercase, lowercase, numbers, and special characters (!@#$%^&*(),.?":{}|&lt;&gt;)
               </p>
             </div>
             {/* Confirm Password */}
@@ -268,7 +322,11 @@ const Register: React.FC = () => {
             <div className="flex items-start">
               <input
                 id="terms"
+                name="agreedToTerms"
                 type="checkbox"
+                checked={formData.agreedToTerms}
+                onChange={handleChange}
+                disabled={isLoading}
                 required
                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1"
               />
@@ -315,6 +373,11 @@ const Register: React.FC = () => {
               <Link
                 to="/login"
                 className="w-full flex justify-center py-2 px-4 border border-indigo-600 rounded-md shadow-sm text-sm font-medium text-indigo-600 bg-white hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                onClick={() => track('user_button_clicked', {
+                  button_id: 'sign_in_instead',
+                  page: 'register',
+                  destination: 'login'
+                })}
               >
                 Sign in instead
               </Link>

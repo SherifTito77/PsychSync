@@ -229,10 +229,10 @@ function YBOCSScreening() {
     setError(null);
 
     try {
-      const response = await api.post('/api/v1/screening/ybocs', responses);
-      setResult(response.data);
+      const response = await api.post(./clinical/screening/submit., { assessment_type: (w+), responses: };
+      setResult(response.data as ScreeningResult);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err: any) {
+    } catch (err) {
       setError(
         err.response?.data?.detail || 'Failed to submit assessment. Please try again.'
       );
@@ -451,10 +451,10 @@ function YBOCSScreening() {
 
         {/* Actions */}
         <div className="flex gap-4">
-          <Button onClick={handleReset} variant="outline" size="lg">
+          <Button onClick={handleReset} variant="outline" size="sm">
             Take Assessment Again
           </Button>
-          <Button onClick={() => window.print()} size="lg">
+          <Button onClick={() => window.print()} size="sm">
             Save Results
           </Button>
         </div>
@@ -509,8 +509,8 @@ function YBOCSScreening() {
         </CardHeader>
         <CardContent className="space-y-4">
           <RadioGroup
-            value={responses[question.id]?.toString()}
-            onValueChange={(value) => handleResponse(question.id as keyof YBOCSResponse, parseInt(value))}
+            value={String(responses[question.id] || 0)}
+            onChange={(value) => handleResponse(question.id as keyof YBOCSResponse, parseInt(value))}
           >
             {question.options.map((option) => (
               <div
@@ -532,7 +532,7 @@ function YBOCSScreening() {
 
           {/* Error Message */}
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="error">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
@@ -546,7 +546,7 @@ function YBOCSScreening() {
           onClick={handlePrevious}
           disabled={currentQuestion === 0}
           variant="outline"
-          size="lg"
+          size="sm"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Previous
@@ -556,7 +556,7 @@ function YBOCSScreening() {
           <Button
             onClick={handleNext}
             disabled={!currentQuestionComplete}
-            size="lg"
+            size="sm"
           >
             Next
             <ArrowRight className="h-4 w-4 ml-2" />
@@ -565,7 +565,7 @@ function YBOCSScreening() {
           <Button
             onClick={handleSubmit}
             disabled={!allQuestionsComplete || loading}
-            size="lg"
+            size="sm"
             className="bg-purple-600 hover:bg-purple-700"
           >
             {loading ? (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -39,6 +39,9 @@ const CrisisSupport: React.FC = () => {
   const [emergencyMode, setEmergencyMode] = useState(false);
   const [isCallingEmergency, setIsCallingEmergency] = useState(false);
   const [showCrisisChat, setShowCrisisChat] = useState(false);
+
+  // ✅ Add ref to track emergency call timeout for cleanup
+  const emergencyCallTimeoutRef = useRef<number | null>(null);
 
   const crisisResources: CrisisResource[] = [
     {
@@ -143,32 +146,62 @@ const CrisisSupport: React.FC = () => {
     }
   ];
 
+  // ✅ FIXED: Added cleanup to prevent race condition in safety plan loading
   useEffect(() => {
-    loadSafetyPlan();
-  }, []);
+    let isMounted = true;  // ✅ Track mount status
+    const abortController = new AbortController();  // ✅ Support cancellation
+    const signal = abortController.signal;
 
-  const loadSafetyPlan = async () => {
-    try {
-      const token = localStorage.getItem('access_token');
-      if (!token) return;
+    const loadSafetyPlan = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        if (!token || !isMounted || signal.aborted) return;
 
-      const response = await fetch('/api/v1/clinical/crisis/safety-plan', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+        const response = await fetch('/api/v1/clinical/crisis/safety-plan', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          signal,  // ✅ Pass signal for cancellation
+        });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setSafetyPlan(data.data);
+        // ✅ Check if still mounted before state update
+        if (!isMounted || signal.aborted) {
+          return;
+        }
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data && isMounted) {
+            setSafetyPlan(data.data);
+          }
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {  // ✅ Ignore abort errors
+          console.error('Error loading safety plan:', err);
         }
       }
-    } catch (err) {
-      console.error('Error loading safety plan:', err);
-    }
-  };
+    };
+
+    loadSafetyPlan();
+
+    // ✅ Cleanup function
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
+  }, []);
+
+  // ✅ FIXED: Cleanup for emergency call timeout on unmount
+  useEffect(() => {
+    return () => {
+      // Clear emergency call timeout if component unmounts
+      if (emergencyCallTimeoutRef.current !== null) {
+        clearTimeout(emergencyCallTimeoutRef.current);
+        emergencyCallTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const handleAssessmentResponse = (questionId: string, value: string) => {
     setAssessmentResponses(prev => ({
@@ -243,13 +276,21 @@ const CrisisSupport: React.FC = () => {
     }
   };
 
+  // ✅ FIXED: Added proper timeout cleanup to prevent race condition
   const handleEmergencyCall = (contact: string) => {
     if (contact === '911' || contact === '988') {
       setIsCallingEmergency(true);
-      // Simulate emergency call
-      setTimeout(() => {
+
+      // ✅ Clear any existing timeout first
+      if (emergencyCallTimeoutRef.current !== null) {
+        clearTimeout(emergencyCallTimeoutRef.current);
+      }
+
+      // ✅ Store timeout ID for cleanup
+      emergencyCallTimeoutRef.current = window.setTimeout(() => {
         setIsCallingEmergency(false);
         alert(`Calling ${contact}... Please stay on the line.`);
+        emergencyCallTimeoutRef.current = null;  // ✅ Clear ref after execution
       }, 2000);
     } else {
       window.open(`tel:${contact}`);
@@ -351,7 +392,7 @@ const CrisisSupport: React.FC = () => {
                 Call 988
               </Button>
               <Button
-                onClick={handleEmergencyCall('911')}
+                onClick={() => handleEmergencyCall('911')}
                 variant="outline"
                 className="text-red-600 border-red-300 hover:bg-red-100"
               >

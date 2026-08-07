@@ -7,6 +7,7 @@ interface EnneagramQuestion {
   id: number;
   question_text: string;
   type: string;
+  dimension?: string;
   options: Array<{
     text: string;
     value: string;
@@ -61,10 +62,10 @@ const EnneagramAssessmentPage: React.FC = () => {
       setIsLoading(true);
       setError(null);
 
-      const response = await apiClient.get('/assessment-questions/enneagram');
+      const response = await apiClient.get('/assessments/assessment-questions/enneagram');
 
-      if (response.data && response.data.success) {
-        const backendAssessment = response.data.assessment;
+      if (response.data && (response.data as any).success) {
+        const backendAssessment = (response.data as any).assessment;
         const enneagramAssessment: EnneagramAssessment = {
           id: backendAssessment.id,
           title: backendAssessment.title,
@@ -122,8 +123,8 @@ const EnneagramAssessmentPage: React.FC = () => {
         raw_type: 'Enneagram'
       });
 
-      if (response.data && response.data.success) {
-        setResults(response.data.result);
+      if (response.data && (response.data as any).success) {
+        setResults((response.data as any).result);
         console.log('✅ Enneagram assessment submitted successfully');
       } else {
         throw new Error('Submission failed');

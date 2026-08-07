@@ -119,7 +119,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ classNam
             className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-[500px] overflow-hidden">
+          <div className="absolute right-0 left-0 sm:left-auto mt-2 w-full max-w-md sm:w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-[500px] overflow-hidden sm:mx-0 mx-4">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <div className="flex items-center space-x-2">

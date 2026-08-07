@@ -31,7 +31,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from '@/components/ui/Select';
 import {
   Table,
   TableBody,
@@ -290,7 +290,7 @@ const VoiceVideoAnalysis: React.FC = () => {
 
   const emotionChartData = Object.entries(emotionDistribution).map(([emotion, count]) => ({
     name: emotion.charAt(0).toUpperCase() + emotion.slice(1),
-    value: count,
+    value: count as number,
     fill: COLORS[Object.keys(emotionDistribution).indexOf(emotion) % COLORS.length]
   }));
 
@@ -343,7 +343,7 @@ const VoiceVideoAnalysis: React.FC = () => {
       chunksRef.current = [];
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        if (event.data as any.size > 0) {
           chunksRef.current.push(event.data);
         }
       };
@@ -641,7 +641,7 @@ const VoiceVideoAnalysis: React.FC = () => {
                   {!isRecording ? (
                     <Button
                       onClick={startRecording}
-                      size="lg"
+                      size="sm"
                       className="gap-2 h-16 w-16 rounded-full"
                     >
                       <Video className="h-6 w-6" />
@@ -649,8 +649,8 @@ const VoiceVideoAnalysis: React.FC = () => {
                   ) : (
                     <Button
                       onClick={stopRecording}
-                      size="lg"
-                      variant="destructive"
+                      size="sm"
+                      variant="danger"
                       className="gap-2 h-16 w-16 rounded-full"
                     >
                       <Square className="h-6 w-6" />
@@ -736,7 +736,7 @@ const VoiceVideoAnalysis: React.FC = () => {
                     className="hidden"
                     id="video-upload"
                   />
-                  <Button asChild>
+                  <Button >
                     <label htmlFor="video-upload" className="cursor-pointer">
                       Select File
                     </label>

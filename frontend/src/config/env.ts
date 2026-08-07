@@ -27,6 +27,11 @@ const getApiBaseUrl = (): string => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
+
+  if (IS_DEV) {
+    console.warn('VITE_API_URL is not set in environment, defaulting to http://localhost:8000');
+  }
+
   // Fallback based on environment
   switch (ENV) {
     case 'production':
@@ -35,7 +40,7 @@ const getApiBaseUrl = (): string => {
       return 'https://api.staging.psychsync.com';
     case 'development':
     default:
-      return '';
+      return 'http://localhost:8000';
   }
 };
 export const API_URL = getApiBaseUrl();

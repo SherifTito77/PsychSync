@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/Alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Progress from '@/components/ui/progress';
 import {
   LineChart,
@@ -184,11 +184,13 @@ const ProductionMonitoringDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchMonitoringData();
-
+    let intervalId: NodeJS.Timeout | undefined;
     if (autoRefresh) {
-      const interval = setInterval(fetchMonitoringData, 30000); // Refresh every 30 seconds
-      return () => clearInterval(interval);
+      intervalId = setInterval(fetchMonitoringData, 30000); // Refresh every 30 seconds
     }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [fetchMonitoringData, autoRefresh]);
 
   // Calculate overall system health score
@@ -215,12 +217,12 @@ const ProductionMonitoringDashboard: React.FC = () => {
     }
   };
 
-  const getAlertColor = (level: string) => {
+  const getAlertColor = (level: string): 'info' | 'success' | 'warning' | 'error' => {
     switch (level) {
-      case 'critical': return 'destructive';
-      case 'warning': return 'default';
-      case 'info': return 'secondary';
-      default: return 'default';
+      case 'critical': return 'error';
+      case 'warning': return 'warning';
+      case 'info': return 'info';
+      default: return 'info';
     }
   };
 
@@ -369,7 +371,7 @@ const ProductionMonitoringDashboard: React.FC = () => {
                           </p>
                         </div>
                       </div>
-                      <Badge variant={service.status === 'healthy' ? 'default' : 'destructive'}>
+                      <Badge variant={service.status === 'healthy' ? 'default' : 'error'}>
                         {service.status}
                       </Badge>
                     </div>
@@ -442,7 +444,7 @@ const ProductionMonitoringDashboard: React.FC = () => {
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-500">Status</span>
-                      <Badge variant={service.status === 'healthy' ? 'default' : 'destructive'}>
+                      <Badge variant={service.status === 'healthy' ? 'default' : 'error'}>
                         {service.status}
                       </Badge>
                     </div>
@@ -541,7 +543,7 @@ const ProductionMonitoringDashboard: React.FC = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2 mb-1">
-                        <Badge variant={getAlertColor(alert.level)}>{alert.level.toUpperCase()}</Badge>
+                        <Badge variant={getAlertColor(alert.level) as any}>{alert.level.toUpperCase()}</Badge>
                         <span className="text-sm text-gray-500">{alert.service}</span>
                         <span className="text-sm text-gray-500">
                           {new Date(alert.timestamp).toLocaleString()}
@@ -577,7 +579,7 @@ const ProductionMonitoringDashboard: React.FC = () => {
                       <CardTitle className="text-lg">{deployment.version}</CardTitle>
                       <CardDescription>Deployment ID: {deployment.id}</CardDescription>
                     </div>
-                    <Badge variant={deployment.status === 'success' ? 'default' : 'destructive'}>
+                    <Badge variant={deployment.status === 'success' ? 'default' : 'error'}>
                       {deployment.status}
                     </Badge>
                   </div>

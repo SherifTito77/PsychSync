@@ -317,10 +317,10 @@ function BAIScreening() {
     setError(null);
 
     try {
-      const response = await api.post('/api/v1/clinical/BAI/submit', responses);
-      setResult(response.data);
+      const response = await api.post('/clinical/BAI/submit', responses);
+      setResult(response.data as ScreeningResult);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err: any) {
+    } catch (err) {
       setError(
         err.response?.data?.detail || 'Failed to submit assessment. Please try again.'
       );
@@ -515,10 +515,10 @@ function BAIScreening() {
 
         {/* Actions */}
         <div className='flex gap-4'>
-          <Button onClick={handleReset} variant='outline' size='lg'>
+          <Button onClick={handleReset} variant='outline' size='large'>
             Take Assessment Again
           </Button>
-          <Button onClick={() => window.print()} size='lg'>
+          <Button onClick={() => window.print()} size='large'>
             Save Results
           </Button>
         </div>
@@ -598,7 +598,7 @@ function BAIScreening() {
         <CardContent className='space-y-4'>
           <RadioGroup
             value={currentResponse?.toString()}
-            onValueChange={(value) => handleResponse(question.id, parseInt(value))}
+            onChange={(value) => handleResponse(question.id, parseInt(value))}
           >
             {question.options.map((option) => (
               <div
@@ -620,7 +620,7 @@ function BAIScreening() {
 
           {/* Error Message */}
           {error && (
-            <Alert variant='destructive'>
+            <Alert variant='error'>
               <AlertTriangle className='h-4 w-4' />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
@@ -634,14 +634,14 @@ function BAIScreening() {
           onClick={handlePrevious}
           disabled={currentQuestion === 0}
           variant='outline'
-          size='lg'
+          size='large'
         >
           <ArrowLeft className='h-4 w-4 mr-2' />
           Previous
         </Button>
 
         {currentQuestion < BAI_QUESTIONS.length - 1 ? (
-          <Button onClick={handleNext} disabled={!currentQuestionComplete} size='lg'>
+          <Button onClick={handleNext} disabled={!currentQuestionComplete} size='large'>
             Next
             <ArrowRight className='h-4 w-4 ml-2' />
           </Button>
@@ -649,7 +649,7 @@ function BAIScreening() {
           <Button
             onClick={handleSubmit}
             disabled={!allQuestionsComplete || loading}
-            size='lg'
+            size='large'
             className={allQuestionsComplete ? 'bg-purple-600 hover:bg-purple-700' : ''}
           >
             {loading ? (

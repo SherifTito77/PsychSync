@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AlertCircle, Clock, CheckCircle, Filter, Download, TrendingUp, Shield, AlertOctagon } from 'lucide-react';
 import { useError } from '../contexts/ErrorContext';
 import { handleError } from '../utils/errorHandler';
+import { useAsyncEffect } from '../hooks/useAsyncEffect';
 interface FeedbackItem {
   id: string;
   feedback_type: string;
@@ -45,9 +46,67 @@ const AnonymousFeedbackHRDashboard: React.FC = () => {
   });
   // Mock organization ID - in real app this would come from context/props
   const organizationId = 'mock-org-id';
-  useEffect(() => {
-    loadFeedbackData();
-  }, [filters]);
+
+  // ✅ FIXED: Memory leak prevention - uses useAsyncEffect with cleanup
+  useAsyncEffect(async (signal, isMounted) => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const queryParams = new URLSearchParams({
+        organization_id: organizationId,
+        ...(filters.status && { status_filter: filters.status }),
+        ...(filters.severity && { severity_filter: filters.severity }),
+        ...(filters.category && { category_filter: filters.category })
+      });
+
+      const response = await fetch(`/api/v1/anonymous-feedback/review?${queryParams}`, {
+        signal,
+      });
+      const data = await response.json();
+
+      if (!isMounted()) {
+        return;
+      }
+
+      if (!response.ok) {
+        // Handle error response from API
+        const errorInfo = handleError({
+          response: { status: response.status, data: data },
+          message: data.detail || data.message || 'Failed to load feedback'
+        }, 'Load feedback data');
+
+        if (isMounted()) {
+          setLoadError(errorInfo.userMessage);
+          setFeedbacks([]);
+          setSummary(null);
+        }
+        return;
+      }
+
+      if (isMounted()) {
+        setFeedbacks(data.feedbacks || []);
+        setSummary(data.summary || {});
+      }
+    } catch (error: any) {
+      // Handle network or unexpected errors
+      if (isMounted() && error.name !== 'AbortError') {
+        const errorInfo = handleError(error, 'Load feedback data');
+        setLoadError(errorInfo.userMessage);
+        showError(errorInfo.userMessage, {
+          retryable: errorInfo.retryable,
+          onRetry: errorInfo.retryable ? loadFeedbackData : undefined,
+        });
+        setFeedbacks([]);
+        setSummary(null);
+      }
+    } finally {
+      if (isMounted()) {
+        setLoading(false);
+      }
+    }
+  }, [filters, organizationId]);
+
+  // Separate function for manual reload (used by buttons and retry logic)
   const loadFeedbackData = async () => {
     setLoading(true);
     setLoadError(null);
@@ -62,7 +121,6 @@ const AnonymousFeedbackHRDashboard: React.FC = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        // Handle error response from API
         const errorInfo = handleError({
           response: { status: response.status, data: data },
           message: data.detail || data.message || 'Failed to load feedback'
@@ -77,7 +135,6 @@ const AnonymousFeedbackHRDashboard: React.FC = () => {
       setFeedbacks(data.feedbacks || []);
       setSummary(data.summary || {});
     } catch (error: any) {
-      // Handle network or unexpected errors
       const errorInfo = handleError(error, 'Load feedback data');
       setLoadError(errorInfo.userMessage);
       showError(errorInfo.userMessage, {
@@ -90,6 +147,7 @@ const AnonymousFeedbackHRDashboard: React.FC = () => {
       setLoading(false);
     }
   };
+
   const updateFeedbackStatus = async (feedbackId: string) => {
     try {
       const response = await fetch(`/api/v1/anonymous-feedback/${feedbackId}/status`, {

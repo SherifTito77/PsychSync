@@ -201,7 +201,7 @@ const LSASForm: React.FC = () => {
 
       // Scroll to top to show results
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (err: any) {
+    } catch (err) {
       // Handle error with user-friendly message
       const errorInfo = handleError(err, 'Submit LSAS assessment');
       const errorMessage = errorInfo.userMessage;
@@ -388,9 +388,9 @@ const LSASForm: React.FC = () => {
                 {index + 1}. {item}
               </Typography>
 
-              <Grid container spacing={3}>
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3 }}>
                 {/* Fear Rating */}
-                <Grid item xs={12} md={6}>
+                <Box sx={{ flex: 1 }}>
                   <Typography variant="subtitle2" gutterBottom fontWeight="bold">
                     Fear:
                   </Typography>
@@ -398,7 +398,6 @@ const LSASForm: React.FC = () => {
                     {[0, 1, 2, 3].map((value) => (
                       <RatingButton
                         key={value}
-                        variant={responses[index].fear === value ? 'contained' : 'outlined'}
                         selected={responses[index].fear === value}
                         onClick={() => handleRatingChange(index + 1, 'fear', value)}
                       >
@@ -409,14 +408,12 @@ const LSASForm: React.FC = () => {
                   <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
                     {RATING_LABELS[responses[index].fear as keyof typeof RATING_LABELS]}
                   </Typography>
-                </Grid>
+                </Box>
 
-                <Grid item xs={12}>
-                  <Divider sx={{ my: 1 }} />
-                </Grid>
+                <Divider sx={{ my: 1, display: { xs: 'block', md: 'none' } }} />
 
                 {/* Avoidance Rating */}
-                <Grid item xs={12} md={6}>
+                <Box sx={{ flex: 1 }}>
                   <Typography variant="subtitle2" gutterBottom fontWeight="bold">
                     Avoidance:
                   </Typography>
@@ -424,7 +421,6 @@ const LSASForm: React.FC = () => {
                     {[0, 1, 2, 3].map((value) => (
                       <RatingButton
                         key={value}
-                        variant={responses[index].avoidance === value ? 'contained' : 'outlined'}
                         selected={responses[index].avoidance === value}
                         onClick={() => handleRatingChange(index + 1, 'avoidance', value)}
                       >
@@ -435,8 +431,8 @@ const LSASForm: React.FC = () => {
                   <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
                     {RATING_LABELS[responses[index].avoidance as keyof typeof RATING_LABELS]}
                   </Typography>
-                </Grid>
-              </Grid>
+                </Box>
+              </Box>
             </CardContent>
           </StyledCard>
         ))}

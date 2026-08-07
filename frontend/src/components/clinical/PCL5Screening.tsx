@@ -333,9 +333,12 @@ const PCL5Screening: React.FC = () => {
     setError(null);
 
     try {
-      const response = await api.post('/api/v1/screening/pcl5', finalResponses);
-      setResult(response.data);
-    } catch (err: any) {
+      const response = await api.post('/clinical/screening/submit', {
+        assessment_type: 'pcl5',
+        responses: responses
+      }
+      setResult(response.data as ScreeningResult);
+    } catch (err) {
       setError(err.response?.data?.detail || 'Failed to submit screening. Please try again.');
       console.error('PCL-5 submission error:', err);
     } finally {
@@ -360,7 +363,7 @@ const PCL5Screening: React.FC = () => {
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         {result.crisis_alert && (
-          <Alert variant="destructive" className="border-red-600">
+          <Alert variant="error" className="border-red-600">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               <strong>Important:</strong> Your responses indicate significant distress. Please consider
@@ -451,7 +454,7 @@ const PCL5Screening: React.FC = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           {error && (
-            <Alert variant="destructive">
+            <Alert variant="error">
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
@@ -469,7 +472,8 @@ const PCL5Screening: React.FC = () => {
               </div>
 
               <RadioGroup
-                onValueChange={(value) => handleResponse(parseInt(value))}
+                value={String(responses[currentQuestion.id as keyof PCL5Response] || 0)}
+                onChange={(value) => handleResponse(parseInt(value))}
                 className="space-y-3"
               >
                 {currentQuestion.options.map((option) => (

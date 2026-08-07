@@ -60,7 +60,7 @@ export const PsychologyAnalysisButton: React.FC<PsychologyAnalysisButtonProps> =
         onClick={runAnalysis}
         disabled={isLoading}
         className="w-full"
-        size="large"
+        size="lg"
       >
         {isLoading ? (
           <>

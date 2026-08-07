@@ -1,6 +1,6 @@
 // frontend/src/pages/Login.tsx
 // frontend/src/pages/Login.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -9,6 +9,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 const Login: React.FC = () => {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [rememberMe, setRememberMe] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const { login } = useAuth();
@@ -17,16 +18,36 @@ const Login: React.FC = () => {
   const location = useLocation();
 
   // Get the path the user was trying to access, or default to dashboard
-  const from = (location.state as any)?.from || '/dashboard';
+  // Check if user was redirected from RequireAuth or directly accessing a protected route
+  const from = (location.state as any)?.from ||
+               (location.pathname !== '/login' && location.pathname !== '/register' ? location.pathname : '/dashboard');
+
+  // Log once on mount instead of every render
+  useEffect(() => {
+    console.log('[Login] location.state:', location.state);
+    console.log('[Login] location.pathname:', location.pathname);
+    console.log('[Login] Will redirect to after login:', from);
+  }, [location.state, location.pathname, from]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
+
+    // Save remember me preference
+    if (rememberMe) {
+      localStorage.setItem('rememberMe', 'true');
+      localStorage.setItem('rememberedEmail', email);
+    } else {
+      localStorage.removeItem('rememberMe');
+      localStorage.removeItem('rememberedEmail');
+    }
+
     try {
       const result = await login(email, password);
       if (result.success) {
         showNotification('Login successful!', 'success');
+        console.log('[Login] Login successful, navigating to:', from);
         // Redirect to the page the user was trying to access
         navigate(from, { replace: true });
       } else {
@@ -136,6 +157,9 @@ const Login: React.FC = () => {
               <input
                 id="remember-me"
                 type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                disabled={isLoading}
                 className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mobile-touch-target"
               />
               <label

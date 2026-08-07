@@ -22,16 +22,18 @@ from nltk.corpus import stopwords
 from nltk.sentiment import SentimentIntensityAnalyzer
 from nltk.tokenize import sent_tokenize, word_tokenize
 
+logger = logging.getLogger(__name__)
+
 # AI Security imports
 try:
-    from ai.security.ai_input_validator import validate_ai_input
-    from ai.security.ai_output_sanitizer import OutputType, sanitize_ai_output
-    from ai.security.ai_security_monitoring import (
+    from app.ai.security.ai_input_validator import validate_ai_input
+    from app.ai.security.ai_output_sanitizer import OutputType, sanitize_ai_output
+    from app.ai.security.ai_security_monitoring import (
         SecurityEventSeverity,
         SecurityEventType,
         log_ai_security_event,
     )
-    from ai.security.pii_redaction import redact_pii
+    from app.ai.security.pii_redaction import redact_pii
 
     AI_SECURITY_AVAILABLE = True
 except ImportError:
@@ -40,21 +42,31 @@ except ImportError:
         "AI security controls not available - NLP service will run without security protection"
     )
 
+# Patch SSL for macOS where system certs may be missing
+import ssl as _ssl
+
+try:
+    _ssl.create_default_context()
+except Exception:
+    _ssl._create_default_https_context = _ssl._create_unverified_context  # type: ignore[attr-defined]
+
 # Download required NLTK data (one-time setup)
+_orig_ssl = getattr(_ssl, "_create_default_https_context", None)
 try:
-    nltk.data.find("tokenizers/punkt")
-except LookupError:
-    nltk.download("punkt", quiet=True, raise_on_error=False)
-
-try:
-    nltk.data.find("corpora/stopwords")
-except LookupError:
-    nltk.download("stopwords", quiet=True, raise_on_error=False)
-
-try:
-    nltk.data.find("sentiment/vader_lexicon")
-except LookupError:
-    nltk.download("vader_lexicon", quiet=True, raise_on_error=False)
+    _ssl._create_default_https_context = _ssl._create_unverified_context  # type: ignore[attr-defined]
+    for _corpus, _path in [
+        ("punkt", "tokenizers/punkt"),
+        ("stopwords", "corpora/stopwords"),
+        ("vader_lexicon", "sentiment/vader_lexicon"),
+        ("punkt_tab", "tokenizers/punkt_tab"),
+    ]:
+        try:
+            nltk.data.find(_path)
+        except LookupError:
+            nltk.download(_corpus, quiet=True, raise_on_error=False)
+finally:
+    if _orig_ssl is not None:
+        _ssl._create_default_https_context = _orig_ssl  # type: ignore[attr-defined]
 
 from app.core.logging_config import logger
 

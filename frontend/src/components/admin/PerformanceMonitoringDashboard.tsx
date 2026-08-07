@@ -16,7 +16,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/Badge';
 
 interface QueryMetric {
   execution_count: number;
@@ -79,7 +79,7 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [isDemoData, setIsDemoData] = useState(false);
 
-  const fetchMetrics = React.useCallback(async () => {
+  const fetchMetrics = async () => {
     console.log('🔄 fetchMetrics called');
     try {
       setError(null);
@@ -170,7 +170,7 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
       setLoading(false);
       console.log('🔄 Loading state set to false');
     }
-  }, []);
+  };
 
   useEffect(() => {
     fetchMetrics();
@@ -179,7 +179,7 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
       const interval = setInterval(fetchMetrics, 5000); // Refresh every 5 seconds
       return () => clearInterval(interval);
     }
-  }, [fetchMetrics, autoRefresh]);
+  }, [autoRefresh]);
 
   if (loading) {
     return (
@@ -295,7 +295,7 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
                           {alert.type.replace(/_/g, ' ')}
                         </h4>
                         <Badge
-                          variant={alert.severity === 'critical' ? 'error' : 'warning'}
+                          variant={alert.severity === 'critical' ? 'danger' : 'warning'}
                           className="text-xs"
                         >
                           {alert.severity.toUpperCase()}
@@ -370,7 +370,7 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
                         {query.query}
                       </td>
                       <td className="py-3 px-4">
-                        <Badge variant="error">{query.execution_time.toFixed(3)}s</Badge>
+                        <Badge variant="danger">{query.execution_time.toFixed(3)}s</Badge>
                       </td>
                       <td className="py-3 px-4">{query.result_size.toLocaleString()}</td>
                       <td className="py-3 px-4 text-gray-600">
@@ -398,7 +398,7 @@ export const PerformanceMonitoringDashboard: React.FC = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <code className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">{query}</code>
-                      <Badge variant="default" className="text-xs">
+                      <Badge variant="info" className="text-xs">
                         {metric.execution_count} execs
                       </Badge>
                     </div>

@@ -14,14 +14,14 @@ import logging
 from contextlib import contextmanager
 from typing import Any, Callable, Dict, Optional, Tuple
 
-from ai.security.ai_input_validator import ValidationSeverity, validate_ai_input
-from ai.security.ai_output_sanitizer import OutputType, sanitize_ai_output
-from ai.security.ai_security_monitoring import (
+from app.ai.security.ai_input_validator import ValidationSeverity, validate_ai_input
+from app.ai.security.ai_output_sanitizer import OutputType, sanitize_ai_output
+from app.ai.security.ai_security_monitoring import (
     SecurityEventSeverity,
     SecurityEventType,
     log_ai_security_event,
 )
-from ai.security.pii_redaction import assess_privacy_risk, redact_pii
+from app.ai.security.pii_redaction import assess_privacy_risk, redact_pii
 
 logger = logging.getLogger("app.ai.security.wrapper")
 

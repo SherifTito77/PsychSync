@@ -4,7 +4,7 @@ Wrapper that adds uncertainty detection to existing AI services.
 
 Usage:
     ```python
-    from ai.services.uncertainty_guard import with_uncertainty_check
+    from app.ai.services.uncertainty_guard import with_uncertainty_check
 
     @with_uncertainty_check(task_category=TaskCategory.CLINICAL_ASSESSMENT)
     def process_assessment(patient_data):
@@ -24,7 +24,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, TypeVar
 
-from ai.security.uncertainty_detection import (
+from app.ai.security.uncertainty_detection import (
     HumanReviewQueue,
     SemanticUncertaintyDetector,
     TaskCategory,
@@ -361,8 +361,8 @@ def with_uncertainty_check(
 
     Example:
         ```python
-        from ai.services.uncertainty_guard import with_uncertainty_check
-        from ai.security.uncertainty_detection import TaskCategory
+        from app.ai.services.uncertainty_guard import with_uncertainty_check
+        from app.ai.security.uncertainty_detection import TaskCategory
 
         @with_uncertainty_check(task_category=TaskCategory.CLINICAL_ASSESSMENT)
         def generate_diagnosis(patient_data):

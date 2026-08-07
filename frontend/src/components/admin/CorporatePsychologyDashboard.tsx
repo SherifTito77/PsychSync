@@ -49,7 +49,7 @@ import {
   ArrowUpDown,
 } from 'lucide-react';
 import corporatePsychologyService from '@/services/corporatePsychologyService';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 // ═══════════════════════════════════════════════════════════════
 // Types
@@ -119,12 +119,16 @@ const CorporatePsychologyDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
 
-  // Get organization ID from authenticated user, fallback to demo if missing
-  const organizationId = user?.organization_id || '550e8400-e29b-41d4-a716-446655440000';
+  // Get organization ID from authenticated user
+  const organizationId = user?.organization_id;
 
   useEffect(() => {
-    // We no longer error out for missing org ID in development mode,
-    // we use the demo-org-id as a fallback.
+    if (!organizationId) {
+      setError('No organization ID found. Please ensure you are assigned to an organization.');
+      setLoading(false);
+      return;
+    }
+
     loadPsychologyData();
     // Refresh every 5 minutes
     const interval = setInterval(loadPsychologyData, 300000);
@@ -132,30 +136,36 @@ const CorporatePsychologyDashboard: React.FC = () => {
   }, [selectedTeam, organizationId]);
 
   const loadPsychologyData = async () => {
+    if (!organizationId) {
+      setError('No organization ID found.');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
 
       // Try to fetch real data from API
-      const [metricsData, signalsData, interventionsData] = await Promise.all([
-        corporatePsychologyService.getMetrics(organizationId, selectedTeam || undefined),
-        corporatePsychologyService.getSignals(organizationId, { team_id: selectedTeam || undefined, limit: 50 }),
-        corporatePsychologyService.getInterventions(organizationId, { team_id: selectedTeam || undefined }),
-      ]);
+      try {
+        const [metricsData, signalsData, interventionsData] = await Promise.all([
+          corporatePsychologyService.getMetrics(organizationId, selectedTeam || undefined),
+          corporatePsychologyService.getSignals(organizationId, { team_id: selectedTeam || undefined, limit: 50 }),
+          corporatePsychologyService.getInterventions(organizationId, { team_id: selectedTeam || undefined }),
+        ]);
 
-      setMetrics(metricsData);
-      setSignals(signalsData);
-      setInterventions(interventionsData);
-    } catch (apiError) {
-      // If API fails, show a helpful message
-      console.warn('API data not available, showing empty state:', apiError);
-      setMetrics(null);
-      setSignals([]);
-      setInterventions([]);
-      // Only set error if it's not just a missing data issue
-      if (organizationId !== 'demo-org-id') {
-         setError('Failed to load psychology data');
+        setMetrics(metricsData);
+        setSignals(signalsData);
+        setInterventions(interventionsData);
+      } catch (apiError) {
+        // If API fails (e.g., no data yet), show empty state
+        console.warn('API data not available, showing empty state:', apiError);
+        setMetrics(null);
+        setSignals([]);
+        setInterventions([]);
       }
+    } catch (err) {
+      setError('Failed to load psychology data');
+      console.error('Error loading psychology data:', err);
     } finally {
       setLoading(false);
     }

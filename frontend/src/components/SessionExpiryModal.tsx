@@ -4,7 +4,7 @@
  * Allows users to save work before being redirected to login
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { AlertCircle, LogOut } from 'lucide-react';
 
 interface SessionExpiryModalProps {
@@ -18,21 +18,38 @@ export const SessionExpiryModal: React.FC<SessionExpiryModalProps> = ({
 }) => {
   const [countdown, setCountdown] = useState(countdownSeconds);
 
+  // ✅ FIXED: Use ref to store latest onLogout callback without causing interval restart
+  const onLogoutRef = useRef(onLogout);
+
+  // Keep ref in sync with latest callback
   useEffect(() => {
-    const timer = setInterval(() => {
+    onLogoutRef.current = onLogout;
+  }, [onLogout]);
+
+  useEffect(() => {
+    let isMounted = true;
+    let timerId: number;
+
+    const tick = () => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(timer);
-          // Auto-redirect after countdown
-          onLogout();
+          if (isMounted) {
+            // ✅ Use ref to get latest callback without depending on it
+            onLogoutRef.current();
+          }
           return 0;
         }
         return prev - 1;
       });
-    }, 1000);
+    };
 
-    return () => clearInterval(timer);
-  }, [onLogout]);
+    timerId = window.setInterval(tick, 1000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(timerId);
+    };
+  }, []); // ✅ Empty deps - interval never restarts
 
   const handleLogoutNow = () => {
     onLogout();

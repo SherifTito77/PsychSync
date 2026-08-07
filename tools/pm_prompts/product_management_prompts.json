@@ -1,0 +1,574 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2025-01-17",
+    "description": "Comprehensive collection of 50 product management prompts for PsychSync platform",
+    "total_prompts": 50,
+    "categories": 5
+  },
+  "categories": {
+    "roadmap_strategy": {
+      "name": "Roadmap & Strategy",
+      "description": "Strategic planning, prioritization, and vision-setting prompts",
+      "icon": "roadmap",
+      "prompts": [
+        {
+          "id": "rs_001",
+          "prompt": "Create a roadmap based on user value vs complexity.",
+          "type": "strategic",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Prioritized feature matrix", "Timeline visualization", "Resource allocation plan"],
+          "related_prompts": ["rs_003", "gm_003"],
+          "use_cases": ["Quarterly planning", "Product strategy reviews", "Stakeholder alignment"]
+        },
+        {
+          "id": "rs_002",
+          "prompt": "Generate a feature brief for team analytics.",
+          "type": "tactical",
+          "complexity": "low",
+          "estimated_time": "1-2 hours",
+          "outputs": ["Feature specification", "User stories", "Acceptance criteria"],
+          "related_prompts": ["ux_004", "gm_002"],
+          "use_cases": ["Feature development", "Engineering handoff", "Design briefs"]
+        },
+        {
+          "id": "rs_003",
+          "prompt": "Create a product strategy for enterprise adoption.",
+          "type": "strategic",
+          "complexity": "high",
+          "estimated_time": "4-6 hours",
+          "outputs": ["Enterprise strategy document", "Go-to-market plan", "Competitive analysis"],
+          "related_prompts": ["rs_001", "gm_005"],
+          "use_cases": ["Enterprise expansion", "B2B strategy", "Market positioning"]
+        },
+        {
+          "id": "rs_004",
+          "prompt": "Draft 2-year product vision.",
+          "type": "strategic",
+          "complexity": "high",
+          "estimated_time": "3-4 hours",
+          "outputs": ["Product vision statement", "OKR framework", "Milestone roadmap"],
+          "related_prompts": ["rs_003", "an_003"],
+          "use_cases": ["Executive presentations", "Board meetings", "Team alignment"]
+        },
+        {
+          "id": "rs_005",
+          "prompt": "Create quarterly innovation roadmap.",
+          "type": "strategic",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Innovation pipeline", "Experiment plan", "Resource allocation"],
+          "related_prompts": ["rs_001", "op_006"],
+          "use_cases": ["Innovation planning", "R&D strategy", "Experiment design"]
+        },
+        {
+          "id": "rs_006",
+          "prompt": "Generate product differentiation strategy.",
+          "type": "strategic",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Differentiation framework", "Value proposition", "Competitive positioning"],
+          "related_prompts": ["rs_003", "an_002"],
+          "use_cases": ["Market positioning", "Sales enablement", "Brand strategy"]
+        },
+        {
+          "id": "rs_007",
+          "prompt": "Outline competitive advantages vs alternatives.",
+          "type": "analytical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Competitive matrix", "Feature comparison", "Value differentiation"],
+          "related_prompts": ["rs_006", "gm_004"],
+          "use_cases": ["Sales training", "Marketing materials", "Product positioning"]
+        },
+        {
+          "id": "rs_008",
+          "prompt": "Define upcoming AI capabilities for roadmap.",
+          "type": "technical",
+          "complexity": "high",
+          "estimated_time": "3-4 hours",
+          "outputs": ["AI capability roadmap", "Technical requirements", "Implementation timeline"],
+          "related_prompts": ["rs_004", "ux_003"],
+          "use_cases": ["AI product planning", "Technical strategy", "Innovation pipeline"]
+        },
+        {
+          "id": "rs_009",
+          "prompt": "Create a strong narrative for sales enablement.",
+          "type": "tactical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Sales narrative", "Presentation deck", "Battle cards"],
+          "related_prompts": ["gm_005", "rs_006"],
+          "use_cases": ["Sales training", "Customer presentations", "Marketing collateral"]
+        },
+        {
+          "id": "rs_010",
+          "prompt": "Create North Star Metric for PsychSync.",
+          "type": "strategic",
+          "complexity": "high",
+          "estimated_time": "2-3 hours",
+          "outputs": ["North Star definition", "Metric framework", "Alignment plan"],
+          "related_prompts": ["an_001", "gm_002"],
+          "use_cases": ["Product strategy", "Team alignment", "Success measurement"]
+        }
+      ]
+    },
+    "user_experience": {
+      "name": "User Experience & Engagement",
+      "description": "User journey, onboarding, and experience optimization prompts",
+      "icon": "users",
+      "prompts": [
+        {
+          "id": "ux_001",
+          "prompt": "Define the ideal PsychSync user journey.",
+          "type": "analytical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["User journey map", "Touchpoint analysis", "Experience optimization plan"],
+          "related_prompts": ["ux_002", "an_005"],
+          "use_cases": ["UX design", "Process optimization", "Customer experience"]
+        },
+        {
+          "id": "ux_002",
+          "prompt": "Define activation milestones for user onboarding.",
+          "type": "tactical",
+          "complexity": "medium",
+          "estimated_time": "1-2 hours",
+          "outputs": ["Activation framework", "Milestone definitions", "Tracking plan"],
+          "related_prompts": ["ux_004", "an_003"],
+          "use_cases": ["Onboarding design", "Conversion optimization", "User activation"]
+        },
+        {
+          "id": "ux_003",
+          "prompt": "Develop AI-driven personal insights roadmap.",
+          "type": "technical",
+          "complexity": "high",
+          "estimated_time": "3-4 hours",
+          "outputs": ["AI insights roadmap", "Feature specifications", "Personalization strategy"],
+          "related_prompts": ["rs_008", "gm_001"],
+          "use_cases": ["AI product development", "Personalization strategy", "Feature planning"]
+        },
+        {
+          "id": "ux_004",
+          "prompt": "Develop a freemium-to-paid upgrade journey.",
+          "type": "tactical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Upgrade journey map", "Conversion funnel", "Feature gating strategy"],
+          "related_prompts": ["gm_003", "an_004"],
+          "use_cases": ["Monetization strategy", "Conversion optimization", "Product design"]
+        },
+        {
+          "id": "ux_005",
+          "prompt": "Define roles/personas for PsychSync users.",
+          "type": "analytical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["User personas", "Role definitions", "Use case scenarios"],
+          "related_prompts": ["ux_001", "an_005"],
+          "use_cases": ["Product design", "Marketing strategy", "Sales targeting"]
+        },
+        {
+          "id": "ux_006",
+          "prompt": "Generate mapping from UX flow to backend endpoints.",
+          "type": "technical",
+          "complexity": "high",
+          "estimated_time": "2-3 hours",
+          "outputs": ["UX-endpoint map", "API requirements", "Integration documentation"],
+          "related_prompts": ["op_002", "rs_002"],
+          "use_cases": ["Engineering handoff", "API design", "System architecture"]
+        },
+        {
+          "id": "ux_007",
+          "prompt": "Define customer lifecycle and touchpoints.",
+          "type": "analytical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Lifecycle framework", "Touchpoint map", "Engagement strategy"],
+          "related_prompts": ["ux_001", "gm_001"],
+          "use_cases": ["Lifecycle marketing", "Retention strategy", "Customer success"]
+        },
+        {
+          "id": "ux_008",
+          "prompt": "Generate cross-platform consistency checklist.",
+          "type": "tactical",
+          "complexity": "low",
+          "estimated_time": "1-2 hours",
+          "outputs": ["Consistency checklist", "Platform standards", "QA guidelines"],
+          "related_prompts": ["ux_009", "op_003"],
+          "use_cases": ["QA testing", "Design system", "Platform parity"]
+        },
+        {
+          "id": "ux_009",
+          "prompt": "Design satisfaction scoring model.",
+          "type": "analytical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Satisfaction model", "Scoring framework", "Measurement plan"],
+          "related_prompts": ["an_001", "ux_004"],
+          "use_cases": ["User research", "Product analytics", "Customer feedback"]
+        },
+        {
+          "id": "ux_010",
+          "prompt": "Generate in-app microcopy for onboarding.",
+          "type": "creative",
+          "complexity": "low",
+          "estimated_time": "1-2 hours",
+          "outputs": ["Microcopy library", "Tone guidelines", "Localization guide"],
+          "related_prompts": ["ux_002", "op_004"],
+          "use_cases": ["Content creation", "UX writing", "Onboarding design"]
+        }
+      ]
+    },
+    "growth_monetization": {
+      "name": "Growth & Monetization",
+      "description": "Revenue generation, pricing, and growth optimization prompts",
+      "icon": "trending-up",
+      "prompts": [
+        {
+          "id": "gm_001",
+          "prompt": "Generate new revenue-generating features.",
+          "type": "creative",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Feature concepts", "Revenue projections", "Prioritization matrix"],
+          "related_prompts": ["gm_003", "rs_001"],
+          "use_cases": ["Revenue strategy", "Feature planning", "Growth initiatives"]
+        },
+        {
+          "id": "gm_002",
+          "prompt": "Produce retention levers for B2B SaaS teams.",
+          "type": "analytical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Retention framework", "Lever identification", "Implementation plan"],
+          "related_prompts": ["an_004", "ux_007"],
+          "use_cases": ["Retention strategy", "Churn reduction", "Customer success"]
+        },
+        {
+          "id": "gm_003",
+          "prompt": "Turn customer pain points into product opportunities.",
+          "type": "analytical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Pain point analysis", "Opportunity map", "Feature concepts"],
+          "related_prompts": ["rs_006", "an_005"],
+          "use_cases": ["Product discovery", "Customer research", "Feature ideation"]
+        },
+        {
+          "id": "gm_004",
+          "prompt": "Generate upsell opportunities inside the app.",
+          "type": "tactical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Upsell strategy", "Placement map", "Messaging framework"],
+          "related_prompts": ["gm_005", "ux_004"],
+          "use_cases": ["Revenue optimization", "Feature monetization", "Growth hacking"]
+        },
+        {
+          "id": "gm_005",
+          "prompt": "Create pricing experiment frameworks.",
+          "type": "tactical",
+          "complexity": "high",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Experiment design", "Pricing scenarios", "Success metrics"],
+          "related_prompts": ["gm_006", "an_003"],
+          "use_cases": ["Pricing strategy", "Revenue optimization", "Market testing"]
+        },
+        {
+          "id": "gm_006",
+          "prompt": "Generate 'good/better/best' pricing tiers.",
+          "type": "tactical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Pricing tiers", "Feature packaging", "Value ladder"],
+          "related_prompts": ["gm_005", "rs_007"],
+          "use_cases": ["Pricing strategy", "Product packaging", "Sales enablement"]
+        },
+        {
+          "id": "gm_007",
+          "prompt": "Map features to psychological outcomes.",
+          "type": "analytical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Feature-outcome map", "Value framework", "Measurement strategy"],
+          "related_prompts": ["rs_010", "an_001"],
+          "use_cases": ["Value proposition", "Clinical validation", "Marketing messaging"]
+        },
+        {
+          "id": "gm_008",
+          "prompt": "Prioritize roadmap based on retention impact.",
+          "type": "analytical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Retention matrix", "Prioritized roadmap", "Impact projections"],
+          "related_prompts": ["rs_001", "gm_002"],
+          "use_cases": ["Roadmap planning", "Retention strategy", "Resource allocation"]
+        }
+      ]
+    },
+    "analytics_metrics": {
+      "name": "Analytics & Metrics",
+      "description": "KPIs, dashboards, and performance measurement prompts",
+      "icon": "chart-bar",
+      "prompts": [
+        {
+          "id": "an_001",
+          "prompt": "Create a monthly product KPI dashboard.",
+          "type": "analytical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["KPI framework", "Dashboard design", "Reporting template"],
+          "related_prompts": ["an_002", "rs_010"],
+          "use_cases": ["Performance tracking", "Executive reporting", "Product health"]
+        },
+        {
+          "id": "an_002",
+          "prompt": "Define product inputs for engineering specs.",
+          "type": "technical",
+          "complexity": "medium",
+          "estimated_time": "1-2 hours",
+          "outputs": ["Product requirements", "Engineering specs", "Acceptance criteria"],
+          "related_prompts": ["rs_002", "ux_006"],
+          "use_cases": ["Engineering handoff", "Spec writing", "Development planning"]
+        },
+        {
+          "id": "an_003",
+          "prompt": "Define product activation thresholds.",
+          "type": "analytical",
+          "complexity": "medium",
+          "estimated_time": "1-2 hours",
+          "outputs": ["Threshold framework", "Activation metrics", "Monitoring plan"],
+          "related_prompts": ["ux_002", "gm_002"],
+          "use_cases": ["Activation tracking", "Funnel optimization", "User engagement"]
+        },
+        {
+          "id": "an_004",
+          "prompt": "Create KPIs for new feature success.",
+          "type": "analytical",
+          "complexity": "medium",
+          "estimated_time": "1-2 hours",
+          "outputs": ["Success framework", "Metric definitions", "Evaluation plan"],
+          "related_prompts": ["an_001", "rs_005"],
+          "use_cases": ["Feature evaluation", "Product performance", "Success measurement"]
+        },
+        {
+          "id": "an_005",
+          "prompt": "Generate churn prediction signals and triggers.",
+          "type": "analytical",
+          "complexity": "high",
+          "estimated_time": "3-4 hours",
+          "outputs": ["Prediction model", "Signal framework", "Intervention strategy"],
+          "related_prompts": ["gm_002", "an_006"],
+          "use_cases": ["Churn prevention", "Retention strategy", "Predictive analytics"]
+        },
+        {
+          "id": "an_006",
+          "prompt": "Define monthly executive product reports.",
+          "type": "tactical",
+          "complexity": "medium",
+          "estimated_time": "1-2 hours",
+          "outputs": ["Report template", "Metric selection", "Presentation deck"],
+          "related_prompts": ["an_001", "rs_004"],
+          "use_cases": ["Executive reporting", "Board meetings", "Stakeholder updates"]
+        },
+        {
+          "id": "an_007",
+          "prompt": "Build quarterly OKRs for product team.",
+          "type": "strategic",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["OKR framework", "Quarterly objectives", "Success metrics"],
+          "related_prompts": ["rs_001", "an_001"],
+          "use_cases": ["Team planning", "Goal setting", "Performance management"]
+        },
+        {
+          "id": "an_008",
+          "prompt": "Outline feature telemetry requirements.",
+          "type": "technical",
+          "complexity": "high",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Telemetry spec", "Event tracking plan", "Data schema"],
+          "related_prompts": ["ux_006", "an_001"],
+          "use_cases": ["Analytics implementation", "Data collection", "Feature tracking"]
+        },
+        {
+          "id": "an_009",
+          "prompt": "Classify feature requests into themes.",
+          "type": "analytical",
+          "complexity": "low",
+          "estimated_time": "1-2 hours",
+          "outputs": ["Request taxonomy", "Theme framework", "Analysis report"],
+          "related_prompts": ["rs_001", "gm_003"],
+          "use_cases": ["Request management", "Roadmap planning", "Customer feedback"]
+        },
+        {
+          "id": "an_010",
+          "prompt": "Perform product risk analysis.",
+          "type": "strategic",
+          "complexity": "high",
+          "estimated_time": "3-4 hours",
+          "outputs": ["Risk framework", "Mitigation plan", "Monitoring strategy"],
+          "related_prompts": ["rs_003", "op_001"],
+          "use_cases": ["Risk management", "Strategic planning", "Product governance"]
+        }
+      ]
+    },
+    "operations_processes": {
+      "name": "Operations & Processes",
+      "description": "Workflows, testing, and operational management prompts",
+      "icon": "cog",
+      "prompts": [
+        {
+          "id": "op_001",
+          "prompt": "Create requirements for the assessment engine.",
+          "type": "technical",
+          "complexity": "high",
+          "estimated_time": "3-4 hours",
+          "outputs": ["Technical specs", "Functional requirements", "Test cases"],
+          "related_prompts": ["rs_002", "an_002"],
+          "use_cases": ["Feature development", "Engineering handoff", "QA planning"]
+        },
+        {
+          "id": "op_002",
+          "prompt": "Define user permissions & roles matrix.",
+          "type": "technical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Permission matrix", "Role definitions", "Access model"],
+          "related_prompts": ["ux_005", "an_010"],
+          "use_cases": ["Security design", "Access control", "Enterprise features"]
+        },
+        {
+          "id": "op_003",
+          "prompt": "Design cross-team collaboration workflows.",
+          "type": "tactical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Workflow design", "Process documentation", "Integration plan"],
+          "related_prompts": ["rs_005", "an_007"],
+          "use_cases": ["Team optimization", "Process improvement", "Collaboration tools"]
+        },
+        {
+          "id": "op_004",
+          "prompt": "Write UX acceptance criteria.",
+          "type": "tactical",
+          "complexity": "low",
+          "estimated_time": "1-2 hours",
+          "outputs": ["Acceptance criteria", "QA checklist", "Test scenarios"],
+          "related_prompts": ["ux_008", "an_004"],
+          "use_cases": ["QA testing", "Design validation", "Feature acceptance"]
+        },
+        {
+          "id": "op_005",
+          "prompt": "Define feature sunset process.",
+          "type": "tactical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Sunset framework", "Communication plan", "Migration strategy"],
+          "related_prompts": ["rs_001", "an_010"],
+          "use_cases": ["Feature management", "Product lifecycle", "Customer communication"]
+        },
+        {
+          "id": "op_006",
+          "prompt": "Generate onboarding experiments.",
+          "type": "experimental",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Experiment designs", "Hypothesis framework", "Testing plan"],
+          "related_prompts": ["ux_002", "an_003"],
+          "use_cases": ["A/B testing", "Onboarding optimization", "Conversion rate optimization"]
+        },
+        {
+          "id": "op_007",
+          "prompt": "Build A/B experiment script for UI changes.",
+          "type": "experimental",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Experiment script", "Variant designs", "Success metrics"],
+          "related_prompts": ["op_006", "an_004"],
+          "use_cases": ["A/B testing", "UI optimization", "Conversion optimization"]
+        },
+        {
+          "id": "op_008",
+          "prompt": "Create beta-testing program plan.",
+          "type": "tactical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Beta program", "Testing framework", "Feedback system"],
+          "related_prompts": ["rs_005", "an_009"],
+          "use_cases": ["Beta testing", "User feedback", "Quality assurance"]
+        },
+        {
+          "id": "op_009",
+          "prompt": "Develop customer feedback loop system.",
+          "type": "tactical",
+          "complexity": "medium",
+          "estimated_time": "2-3 hours",
+          "outputs": ["Feedback framework", "Collection system", "Analysis process"],
+          "related_prompts": ["gm_003", "an_009"],
+          "use_cases": ["Voice of customer", "Product discovery", "Continuous improvement"]
+        },
+        {
+          "id": "op_010",
+          "prompt": "Design a product-announcement playbook.",
+          "type": "tactical",
+          "complexity": "low",
+          "estimated_time": "1-2 hours",
+          "outputs": ["Announcement playbook", "Communication templates", "Launch checklist"],
+          "related_prompts": ["rs_009", "op_005"],
+          "use_cases": ["Product launches", "Feature announcements", "Customer communications"]
+        },
+        {
+          "id": "op_011",
+          "prompt": "Generate SLAs and SLOs for enterprise.",
+          "type": "technical",
+          "complexity": "high",
+          "estimated_time": "2-3 hours",
+          "outputs": ["SLA definitions", "SLO framework", "Monitoring plan"],
+          "related_prompts": ["rs_003", "an_001"],
+          "use_cases": ["Enterprise sales", "Service commitments", "Performance monitoring"]
+        },
+        {
+          "id": "op_012",
+          "prompt": "Write product FAQ for enterprise customers.",
+          "type": "creative",
+          "complexity": "low",
+          "estimated_time": "1-2 hours",
+          "outputs": ["FAQ document", "Answer templates", "Knowledge base"],
+          "related_prompts": ["rs_003", "op_010"],
+          "use_cases": ["Customer support", "Sales enablement", "Self-service"]
+        }
+      ]
+    }
+  },
+  "usage_guidelines": {
+    "prompt_selection": "Select prompts based on current product phase and strategic priorities",
+    "customization": "Adapt prompts to specific context, team size, and market conditions",
+    "output_format": "Use consistent templates for deliverables to ensure comparability",
+    "collaboration": "Involve cross-functional stakeholders in prompt execution",
+    "iteration": "Revisit prompts quarterly to refine and optimize outputs"
+  },
+  "integration_points": {
+    "ai_agents": ["product_strategy_agent", "market_analysis_agent", "customer_insights_agent"],
+    "database": "product_management_prompts",
+    "api_endpoints": [
+      "/api/v1/product-management/prompts",
+      "/api/v1/product-management/categories",
+      "/api/v1/product-management/execute"
+    ],
+    "frontend_components": [
+      "ProductAssistant",
+      "PromptLibrary",
+      "StrategyGenerator"
+    ]
+  },
+  "version_history": [
+    {
+      "version": "1.0.0",
+      "date": "2025-01-17",
+      "changes": ["Initial release with 50 prompts across 5 categories"]
+    }
+  ]
+}

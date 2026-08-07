@@ -14,8 +14,10 @@
  * - Query Performance Optimization (slow query analysis, index recommendations)
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
+import { useAsyncEffect } from '../hooks/useAsyncEffect';
+import { useDebouncedCallback } from '../hooks/usePerformanceOptimizations';
 
 // New interfaces for SQL Audit
 interface SQLSecuritySummary {
@@ -248,6 +250,9 @@ const ProductOperationsDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Track if we're currently fetching to prevent concurrent requests
+  const isFetchingRef = useRef(false);
+
   // Data states
   const [qualitySummary, setQualitySummary] = useState<CodeQualitySummary | null>(null);
   const [bugSummaries, setBugSummaries] = useState<BugSummary[]>([]);
@@ -269,12 +274,88 @@ const ProductOperationsDashboard: React.FC = () => {
   const [breakingChangesSummary, setBreakingChangesSummary] = useState<BreakingChangesSummary | null>(null);
   const [breakingChanges, setBreakingChanges] = useState<BreakingChange[]>([]);
 
-  // Fetch all data on mount
-  useEffect(() => {
-    fetchAllData();
+  // ✅ FIXED: Memory leak prevention - uses useAsyncEffect with AbortController for parallel fetches
+  useAsyncEffect(async (signal, isMounted) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch data in parallel using the configured api service with AbortSignal
+      const [
+        qualityRes,
+        bugsRes,
+        prsRes,
+        reportRes,
+        sprintsRes,
+        sqlSummaryRes,
+        sqlQueriesRes,
+        queryPerfSummaryRes,
+        slowQueriesRes,
+        buildSummaryRes,
+        buildFailuresRes,
+        cacheSummaryRes,
+        cacheEntriesRes,
+        breakingChangesSummaryRes,
+        breakingChangesRes,
+      ] = await Promise.all([
+        api.get('/metrics/summary', { signal } as any).catch(() => ({ data: null })),
+        api.get('/jira_integration/bugs/summary?project_key=PROJ&days=14', { signal } as any).catch(() => ({ data: [] })),
+        api.get('/pull-requests?limit=10', { signal } as any).catch(() => ({ data: [] })),
+        api.get('/jira_integration/reports/performance?project_key=PROJ&days=7', { signal } as any).catch(() => ({ data: null })),
+        api.get('/jira_integration/sprints?project_key=PROJ', { signal } as any).catch(() => ({ data: [] })),
+        // AI agent endpoints
+        api.get('/sql_audit/queries/summary', { signal } as any).catch(() => ({ data: null })),
+        api.get('/sql_audit/queries?limit=5', { signal } as any).catch(() => ({ data: [] })),
+        api.get('/query_performance/queries/summary', { signal } as any).catch(() => ({ data: null })),
+        api.get('/query_performance/queries?limit=5', { signal } as any).catch(() => ({ data: [] })),
+        // New AI agent endpoints
+        api.get('/build_analysis/failures/summary', { signal } as any).catch(() => ({ data: null })),
+        api.get('/build_analysis/failures/unresolved?limit=5', { signal } as any).catch(() => ({ data: [] })),
+        api.get('/caching_config/entries/summary', { signal } as any).catch(() => ({ data: null })),
+        api.get('/caching_config/entries/low_hit_rate?limit=5', { signal } as any).catch(() => ({ data: [] })),
+        api.get('/breaking_changes/changes/summary', { signal } as any).catch(() => ({ data: null })),
+        api.get('/breaking_changes/changes/unapproved?limit=5', { signal } as any).catch(() => ({ data: [] })),
+      ]);
+
+      if (!isMounted()) return;
+
+      setQualitySummary(qualityRes.data as any);
+      setBugSummaries(bugsRes.data as any);
+      setPullRequests(prsRes.data as any);
+      setPerformanceReport(reportRes.data as any);
+      setSprints(sprintsRes.data as any);
+
+      // Set AI agent data
+      setSqlSummary(sqlSummaryRes.data);
+      setSqlQueries(sqlQueriesRes.data || []);
+      setQueryPerfSummary(queryPerfSummaryRes.data);
+      setSlowQueries(slowQueriesRes.data || []);
+      setBuildSummary(buildSummaryRes.data);
+      setBuildFailures(buildFailuresRes.data || []);
+      setCacheSummary(cacheSummaryRes.data);
+      setCacheEntries(cacheEntriesRes.data || []);
+      setBreakingChangesSummary(breakingChangesSummaryRes.data);
+      setBreakingChanges(breakingChangesRes.data || []);
+    } catch (err) {
+      if (isMounted() && err.name !== 'AbortError') {
+        console.error('Error fetching dashboard data:', err);
+        setError(err.response?.data?.message || 'Failed to load dashboard data');
+      }
+    } finally {
+      if (isMounted()) {
+        setLoading(false);
+      }
+    }
   }, []);
 
-  const fetchAllData = async () => {
+  // Separate function for manual reload (with race condition protection)
+  const fetchAllData = useCallback(async (signal?: AbortSignal) => {
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) {
+      return;
+    }
+
+    isFetchingRef.current = true;
     try {
       setLoading(true);
       setError(null);
@@ -297,30 +378,35 @@ const ProductOperationsDashboard: React.FC = () => {
         breakingChangesSummaryRes,
         breakingChangesRes,
       ] = await Promise.all([
-        api.get('/metrics/summary'),
-        api.get('/jira_integration/bugs/summary?project_key=PROJ&days=14'),
-        api.get('/pull-requests?limit=10'),
-        api.get('/jira_integration/reports/performance?project_key=PROJ&days=7'),
-        api.get('/jira_integration/sprints?project_key=PROJ'),
+        api.get('/metrics/summary', { signal } as any).catch(() => ({ data: null })),
+        api.get('/jira_integration/bugs/summary?project_key=PROJ&days=14', { signal } as any).catch(() => ({ data: [] })),
+        api.get('/pull-requests?limit=10', { signal } as any).catch(() => ({ data: [] })),
+        api.get('/jira_integration/reports/performance?project_key=PROJ&days=7', { signal } as any).catch(() => ({ data: null })),
+        api.get('/jira_integration/sprints?project_key=PROJ', { signal } as any).catch(() => ({ data: [] })),
         // AI agent endpoints
-        api.get('/sql_audit/queries/summary').catch(() => ({ data: null })),
-        api.get('/sql_audit/queries?limit=5').catch(() => ({ data: [] })),
-        api.get('/query_performance/queries/summary').catch(() => ({ data: null })),
-        api.get('/query_performance/queries?limit=5').catch(() => ({ data: [] })),
+        api.get('/sql_audit/queries/summary', { signal } as any).catch(() => ({ data: null })),
+        api.get('/sql_audit/queries?limit=5', { signal } as any).catch(() => ({ data: [] })),
+        api.get('/query_performance/queries/summary', { signal } as any).catch(() => ({ data: null })),
+        api.get('/query_performance/queries?limit=5', { signal } as any).catch(() => ({ data: [] })),
         // New AI agent endpoints
-        api.get('/build_analysis/failures/summary').catch(() => ({ data: null })),
-        api.get('/build_analysis/failures/unresolved?limit=5').catch(() => ({ data: [] })),
-        api.get('/caching_config/entries/summary').catch(() => ({ data: null })),
-        api.get('/caching_config/entries/low_hit_rate?limit=5').catch(() => ({ data: [] })),
-        api.get('/breaking_changes/changes/summary').catch(() => ({ data: null })),
-        api.get('/breaking_changes/changes/unapproved?limit=5').catch(() => ({ data: [] })),
+        api.get('/build_analysis/failures/summary', { signal } as any).catch(() => ({ data: null })),
+        api.get('/build_analysis/failures/unresolved?limit=5', { signal } as any).catch(() => ({ data: [] })),
+        api.get('/caching_config/entries/summary', { signal } as any).catch(() => ({ data: null })),
+        api.get('/caching_config/entries/low_hit_rate?limit=5', { signal } as any).catch(() => ({ data: [] })),
+        api.get('/breaking_changes/changes/summary', { signal } as any).catch(() => ({ data: null })),
+        api.get('/breaking_changes/changes/unapproved?limit=5', { signal } as any).catch(() => ({ data: [] })),
       ]);
 
-      setQualitySummary(qualityRes.data);
-      setBugSummaries(bugsRes.data);
-      setPullRequests(prsRes.data);
-      setPerformanceReport(reportRes.data);
-      setSprints(sprintsRes.data);
+      // Check if request was aborted
+      if (signal?.aborted) {
+        return;
+      }
+
+      setQualitySummary(qualityRes.data as any);
+      setBugSummaries(bugsRes.data as any);
+      setPullRequests(prsRes.data as any);
+      setPerformanceReport(reportRes.data as any);
+      setSprints(sprintsRes.data as any);
 
       // Set AI agent data
       setSqlSummary(sqlSummaryRes.data);
@@ -334,21 +420,39 @@ const ProductOperationsDashboard: React.FC = () => {
       setBreakingChangesSummary(breakingChangesSummaryRes.data);
       setBreakingChanges(breakingChangesRes.data || []);
     } catch (err: any) {
+      // Don't update state if request was aborted
+      if (err.name === 'AbortError' || signal?.aborted) {
+        return;
+      }
+
       console.error('Error fetching dashboard data:', err);
       setError(err.response?.data?.message || 'Failed to load dashboard data');
     } finally {
-      setLoading(false);
+      // Only update loading state if request wasn't aborted
+      if (!signal?.aborted) {
+        setLoading(false);
+        isFetchingRef.current = false;
+      }
     }
-  };
+  }, []);
 
-  const getGradeColor = (grade: string) => {
+  // Debounced version for onClick handlers (500ms debounce)
+  const handleRefresh = useDebouncedCallback(() => {
+    if (!isFetchingRef.current) {
+      fetchAllData();
+    }
+  }, 500, []);
+
+  const getGradeColor = (grade: string | undefined) => {
+    if (!grade) return 'text-gray-600';
     if (grade.startsWith('A')) return 'text-green-600';
     if (grade.startsWith('B')) return 'text-blue-600';
     if (grade.startsWith('C')) return 'text-yellow-600';
     return 'text-red-600';
   };
 
-  const getGradeBgColor = (grade: string) => {
+  const getGradeBgColor = (grade: string | undefined) => {
+    if (!grade) return 'bg-gray-100 border-gray-200';
     if (grade.startsWith('A')) return 'bg-green-100 border-green-200';
     if (grade.startsWith('B')) return 'bg-blue-100 border-blue-200';
     if (grade.startsWith('C')) return 'bg-yellow-100 border-yellow-200';
@@ -391,7 +495,7 @@ const ProductOperationsDashboard: React.FC = () => {
           <h3 className="text-red-800 font-semibold mb-2">Error Loading Dashboard</h3>
           <p className="text-red-600 mb-4">{error}</p>
           <button
-            onClick={fetchAllData}
+            onClick={handleRefresh}
             className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
           >
             Retry
@@ -412,7 +516,7 @@ const ProductOperationsDashboard: React.FC = () => {
               <p className="text-gray-600 mt-1">AI-Powered Engineering Intelligence</p>
             </div>
             <button
-              onClick={fetchAllData}
+              onClick={handleRefresh}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
             >
               <span>🔄</span>
@@ -570,7 +674,9 @@ const OverviewTab: React.FC<{
   getRiskColor,
   getTrendIcon,
 }) => {
-  const latestBugSummary = bugSummaries[0];
+  // Safety: Use optional chaining to handle empty arrays
+  const latestBugSummary = bugSummaries && bugSummaries.length > 0 ? bugSummaries[0] : null;
+  const latestPR = pullRequests && pullRequests.length > 0 ? pullRequests[0] : null;
 
   return (
     <div className="space-y-6">
@@ -587,13 +693,13 @@ const OverviewTab: React.FC<{
                   {qualitySummary.current_grade}
                 </p>
                 <p className="text-gray-600 mt-1">
-                  Score: {qualitySummary.current_score.toFixed(1)}/100
+                  Score: {(qualitySummary.current_score ?? 0).toFixed(1)}/100
                 </p>
               </div>
               <div className="text-right">
                 <span className="text-4xl">{getTrendIcon(qualitySummary.trend)}</span>
                 <p className="text-sm text-gray-600 mt-2">
-                  {qualitySummary.trend_percentage > 0 ? '+' : ''}{qualitySummary.trend_percentage.toFixed(1)}%
+                  {qualitySummary.trend_percentage > 0 ? '+' : ''}{(qualitySummary.trend_percentage ?? 0).toFixed(1)}%
                 </p>
               </div>
             </div>
@@ -633,7 +739,7 @@ const OverviewTab: React.FC<{
             <div className="mt-4 pt-4 border-t">
               <p className="text-sm text-gray-600">Completion Rate</p>
               <p className="text-2xl font-bold text-green-600">
-                {performanceReport.completion_rate.toFixed(1)}%
+                {(performanceReport.completion_rate ?? 0).toFixed(1)}%
               </p>
             </div>
           </div>
@@ -748,7 +854,7 @@ const QualityTab: React.FC<{
                 {qualitySummary.current_grade}
               </p>
               <p className="text-gray-600 mt-2 text-xl">
-                {qualitySummary.current_score.toFixed(1)}/100
+                {(qualitySummary.current_score ?? 0).toFixed(1)}/100
               </p>
             </div>
             <div className="text-left">
@@ -789,11 +895,11 @@ const QualityTab: React.FC<{
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="font-semibold text-gray-900 mb-4">Test Coverage</h3>
           <div className="text-center">
-            <p className="text-5xl font-bold text-blue-600">{qualitySummary.test_coverage.toFixed(1)}%</p>
+            <p className="text-5xl font-bold text-blue-600">{(qualitySummary.test_coverage ?? 0).toFixed(1)}%</p>
             <div className="mt-4 bg-gray-200 rounded-full h-3">
               <div
                 className="bg-blue-600 h-3 rounded-full"
-                style={{ width: `${qualitySummary.test_coverage}%` }}
+                style={{ width: `${qualitySummary.test_coverage ?? 0}%` }}
               ></div>
             </div>
           </div>
@@ -802,7 +908,7 @@ const QualityTab: React.FC<{
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="font-semibold text-gray-900 mb-4">Technical Debt</h3>
           <div className="text-center">
-            <p className="text-5xl font-bold text-purple-600">{qualitySummary.technical_debt_hours.toFixed(0)}h</p>
+            <p className="text-5xl font-bold text-purple-600">{(qualitySummary.technical_debt_hours ?? 0).toFixed(0)}h</p>
             <p className="text-gray-600 mt-2">Estimated remediation time</p>
           </div>
         </div>
@@ -1085,7 +1191,7 @@ const ReportsTab: React.FC<{
           </div>
           <div className="text-center">
             <p className="text-4xl font-bold text-orange-600">
-              {performanceReport.avg_resolution_time_hours.toFixed(1)}h
+              {(performanceReport.avg_resolution_time_hours ?? 0).toFixed(1)}h
             </p>
             <p className="text-gray-600 mt-1">Avg Resolution Time</p>
           </div>
@@ -1123,7 +1229,7 @@ const ReportsTab: React.FC<{
             <p className="text-gray-600 mt-1">Avg Velocity</p>
           </div>
           <div className="text-center">
-            <p className="text-4xl font-bold text-green-600">{performanceReport.completion_rate.toFixed(1)}%</p>
+            <p className="text-4xl font-bold text-green-600">{(performanceReport.completion_rate ?? 0).toFixed(1)}%</p>
             <p className="text-gray-600 mt-1">Completion Rate</p>
           </div>
         </div>
@@ -1284,7 +1390,7 @@ const SQLAuditTab: React.FC<{
               {sqlSummary.security_grade}
             </p>
             <p className="text-gray-600 mt-2 text-xl">
-              Risk Score: {sqlSummary.overall_risk_score.toFixed(1)}/100
+              Risk Score: {(sqlSummary.overall_risk_score ?? 0).toFixed(1)}/100
             </p>
           </div>
         </div>
@@ -1302,11 +1408,11 @@ const SQLAuditTab: React.FC<{
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-gray-600 text-sm font-medium">Parameterized</p>
-          <p className="text-4xl font-bold text-green-600 mt-2">{sqlSummary.parameterization_rate.toFixed(1)}%</p>
+          <p className="text-4xl font-bold text-green-600 mt-2">{(sqlSummary.parameterization_rate ?? 0).toFixed(1)}%</p>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-gray-600 text-sm font-medium">ORM Usage</p>
-          <p className="text-4xl font-bold text-blue-600 mt-2">{sqlSummary.orm_usage_rate.toFixed(1)}%</p>
+          <p className="text-4xl font-bold text-blue-600 mt-2">{(sqlSummary.orm_usage_rate ?? 0).toFixed(1)}%</p>
         </div>
       </div>
 
@@ -1337,7 +1443,7 @@ const SQLAuditTab: React.FC<{
                         {query.risk_level}
                       </span>
                       <span className="text-sm text-gray-600">
-                        Risk Score: {query.risk_score.toFixed(1)}/100
+                        Risk Score: {(query.risk_score ?? 0).toFixed(1)}/100
                       </span>
                     </div>
                     <code className="block bg-gray-100 rounded p-3 text-sm font-mono overflow-x-auto">
@@ -1429,7 +1535,7 @@ const QueryPerformanceTab: React.FC<{
               {queryPerfSummary.overall_performance_grade}
             </p>
             <p className="text-gray-600 mt-2 text-xl">
-              Avg: {queryPerfSummary.avg_query_time_ms.toFixed(1)}ms per query
+              Avg: {(queryPerfSummary.avg_query_time_ms ?? 0).toFixed(1)}ms per query
             </p>
           </div>
         </div>
@@ -1452,7 +1558,7 @@ const QueryPerformanceTab: React.FC<{
         <div className="bg-white rounded-lg shadow p-6">
           <p className="text-gray-600 text-sm font-medium">Optimization Potential</p>
           <p className="text-4xl font-bold text-blue-600 mt-2">
-            {queryPerfSummary.optimization_potential_ms.toFixed(0)}ms
+            {(queryPerfSummary.optimization_potential_ms ?? 0).toFixed(0)}ms
           </p>
         </div>
       </div>
@@ -1464,7 +1570,7 @@ const QueryPerformanceTab: React.FC<{
           <div>
             <p className="text-sm text-blue-700">
               <span className="font-medium">Estimated Improvement:</span>{' '}
-              {queryPerfSummary.estimated_improvement_percentage.toFixed(1)}% faster with optimization
+              {(queryPerfSummary.estimated_improvement_percentage ?? 0).toFixed(1)}% faster with optimization
             </p>
           </div>
           <div>

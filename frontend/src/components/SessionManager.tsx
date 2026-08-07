@@ -11,7 +11,7 @@
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { SessionExpiryModal } from './SessionExpiryModal';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../contexts/AuthContext';
 
 // Global state accessible across components
 interface SessionState {

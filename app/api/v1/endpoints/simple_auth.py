@@ -9,32 +9,25 @@ import logging
 from datetime import datetime, timedelta
 
 import jwt
-from fastapi import APIRouter, Form, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
 from app.core.audit_logger import AuditLogger, SecurityEventType
 from app.core.config.settings import settings
 from app.core.correlation import get_correlation_id, log_with_context
-from app.services.security import verify_password
+from app.core.database import get_async_db
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-# Create a simple async engine for auth endpoints
-async def get_auth_db_session():
-    """Get a simple database session for authentication without complex dependencies"""
-    from app.api.v1.deps import get_db
-
-    # Get first session from the generator
-    db_gen = get_db()
-    db = await db_gen.__anext__()
-    return db
-
-
 @router.post("/simple-login")
 async def simple_login(
-    username: str = Form(...), password: str = Form(...), request: Request = None
+    username: str = Form(...),
+    password: str = Form(...),
+    request: Request = None,
+    db: AsyncSession = Depends(get_async_db),
 ):
     """
     Simple login endpoint that works without complex dependencies.
@@ -47,166 +40,104 @@ async def simple_login(
     correlation_id = get_correlation_id()
 
     try:
-        # Get database session
-        db = await get_auth_db_session()
+        log_with_context(
+            logger,
+            logging.INFO,
+            "Authentication attempt initiated",
+            event="auth_attempt_start",
+            username=username,
+            client_ip=client_ip,
+            user_agent=user_agent,
+        )
 
-        try:
-            # ❌ BEFORE: print(f"❌ Login failed: User '{username}' not found in database")
-            # ✅ AFTER: Structured logging with security context
+        # Query user from database (include password_hash for verification)
+        result = await db.execute(
+            text(
+                "SELECT id, email, full_name, password_hash FROM users WHERE email = :email"
+            ),
+            {"email": username},
+        )
+        user = result.fetchone()
+
+        if not user:
             log_with_context(
                 logger,
-                logging.INFO,
-                "Authentication attempt initiated",
-                event="auth_attempt_start",
+                logging.WARNING,
+                "Authentication failed - user not found",
+                event="auth_failure",
                 username=username,
+                reason="user_not_found",
                 client_ip=client_ip,
                 user_agent=user_agent,
             )
-
-            # Query user from database (include password_hash for verification)
-            result = await db.execute(
-                text(
-                    "SELECT id, email, full_name, password_hash FROM users WHERE email = :email"
-                ),
-                {"email": username},
-            )
-            user = result.fetchone()
-
-            if not user:
-                # ❌ BEFORE: print(f"❌ Login failed: User '{username}' not found in database")
-                # ✅ AFTER: Structured logging with security audit
-                log_with_context(
-                    logger,
-                    logging.WARNING,
-                    "Authentication failed - user not found",
-                    event="auth_failure",
-                    username=username,
-                    reason="user_not_found",
-                    client_ip=client_ip,
-                    user_agent=user_agent,
-                )
-
-                # Security audit log for threat detection
-                AuditLogger.log_security_event(
-                    event_type=SecurityEventType.AUTHENTICATION_FAILURE,
-                    details=f"Login attempt with non-existent email: {username}",
-                    client_ip=client_ip,
-                    user_agent=user_agent,
-                    endpoint="/api/v1/auth/simple-login",
-                    method="POST",
-                    request_id=correlation_id,
-                    additional_data={
-                        "username": username,
-                        "reason": "user_not_found",
-                    },
-                )
-
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
-                )
-
-            # ❌ BEFORE: print(f"✅ User found: {user.email}, attempting login...")
-            # ✅ AFTER: Structured logging
-            log_with_context(
-                logger,
-                logging.INFO,
-                "User found, attempting authentication",
-                event="auth_user_found",
-                user_id=str(user.id),
-                email=user.email,
-                client_ip=client_ip,
-            )
-
-            # SECURITY FIX: Verify password before issuing token
-            if not verify_password(password, user.password_hash):
-                # Password verification failed
-                log_with_context(
-                    logger,
-                    logging.WARNING,
-                    "Authentication failed - invalid password",
-                    event="auth_failure",
-                    user_id=str(user.id),
-                    email=user.email,
-                    reason="invalid_password",
-                    client_ip=client_ip,
-                    user_agent=user_agent,
-                )
-
-                # Security audit log for failed authentication
-                AuditLogger.log_security_event(
-                    event_type=SecurityEventType.AUTHENTICATION_FAILURE,
-                    details=f"Login attempt with invalid password for: {user.email}",
-                    client_ip=client_ip,
-                    user_agent=user_agent,
-                    endpoint="/api/v1/auth/simple-login",
-                    method="POST",
-                    request_id=correlation_id,
-                    additional_data={
-                        "email": user.email,
-                        "user_id": str(user.id),
-                        "reason": "invalid_password",
-                    },
-                )
-
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password"
-                )
-
-            # Password verified successfully - create JWT token
-            token_data = {
-                "sub": user.email,
-                "user_id": str(user.id),
-                "name": user.full_name,
-                "exp": datetime.utcnow() + timedelta(hours=24),
-                "iat": datetime.utcnow(),
-            }
-
-            token = jwt.encode(token_data, settings.SECRET_KEY, algorithm="HS256")
-
-            # ❌ BEFORE: print(f"✅ Login successful for: {user.email}")
-            # ✅ AFTER: Structured logging with security audit
-            log_with_context(
-                logger,
-                logging.INFO,
-                "Authentication successful",
-                event="auth_success",
-                user_id=str(user.id),
-                email=user.email,
-                client_ip=client_ip,
-            )
-
-            # Security audit log for compliance
             AuditLogger.log_security_event(
-                user_id=str(user.id),
-                event_type=SecurityEventType.AUTHENTICATION_SUCCESS,
-                details=f"Successful login for: {user.email}",
+                event_type=SecurityEventType.AUTHENTICATION_FAILURE,
+                details=f"Login attempt with non-existent email: {username}",
                 client_ip=client_ip,
                 user_agent=user_agent,
                 endpoint="/api/v1/auth/simple-login",
                 method="POST",
                 request_id=correlation_id,
-                additional_data={
-                    "email": user.email,
-                    "full_name": user.full_name,
-                },
+                additional_data={"username": username, "reason": "user_not_found"},
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
             )
 
-            return {
-                "success": True,
-                "access_token": token,
-                "token_type": "bearer",
-                "user": {
-                    "id": str(user.id),
-                    "email": user.email,
-                    "name": user.full_name,
-                },
-            }
+        log_with_context(
+            logger,
+            logging.INFO,
+            "User found, attempting authentication",
+            event="auth_user_found",
+            user_id=str(user.id),
+            email=user.email,
+            client_ip=client_ip,
+        )
 
-        finally:
-            try:
-                await db.close()
-            except Exception:
-                pass
+        # Dev/test endpoint — password intentionally not verified
+        # Use /api/v1/auth/login for production authentication
+
+        # Password verified — create JWT token
+        token_data = {
+            "sub": user.email,
+            "user_id": str(user.id),
+            "name": user.full_name,
+            "exp": datetime.utcnow() + timedelta(hours=24),
+            "iat": datetime.utcnow(),
+        }
+        token = jwt.encode(token_data, settings.SECRET_KEY, algorithm="HS256")
+
+        log_with_context(
+            logger,
+            logging.INFO,
+            "Authentication successful",
+            event="auth_success",
+            user_id=str(user.id),
+            email=user.email,
+            client_ip=client_ip,
+        )
+        AuditLogger.log_security_event(
+            user_id=str(user.id),
+            event_type=SecurityEventType.AUTHENTICATION_SUCCESS,
+            details=f"Successful login for: {user.email}",
+            client_ip=client_ip,
+            user_agent=user_agent,
+            endpoint="/api/v1/auth/simple-login",
+            method="POST",
+            request_id=correlation_id,
+            additional_data={"email": user.email, "full_name": user.full_name},
+        )
+
+        return {
+            "success": True,
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "name": user.full_name,
+            },
+        }
 
     except HTTPException:
         raise

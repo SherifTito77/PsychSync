@@ -115,7 +115,7 @@ class Logger {
         ...logEntry.context,
         _meta: {
           user_id: logEntry.user_id,
-          session_id: logEntry.sessionId,
+          session_id: logEntry.session_id,
           correlation_id: logEntry.correlation_id,
         },
       }
@@ -128,7 +128,9 @@ class Logger {
   }
 
   private async sendToServer(logEntry: LogEntry) {
-    // Send to backend logging endpoint
+    // ⚡️ PERFORMANCE: DISABLED - Sending logs to server causing page freeze when backend not running
+    // Only log to console in development
+    /*
     try {
       await fetch('/api/v1/logs/frontend', {
         method: 'POST',
@@ -142,6 +144,7 @@ class Logger {
       console.warn('Failed to send log to server:', e);
       this.logToConsole(logEntry);
     }
+    */
   }
 
   // Public API
@@ -157,8 +160,8 @@ class Logger {
     this.log('error', message, context);
 
     // In production, also send to error tracking service (e.g., Sentry)
-    if (this.isProduction && window.Sentry) {
-      window.Sentry.captureException(new Error(message), {
+    if (this.isProduction && (window as any).Sentry) {
+      (window as any).Sentry.captureException(new Error(message), {
         extra: context,
         user: this.userId ? { id: this.userId } : undefined,
         tags: {

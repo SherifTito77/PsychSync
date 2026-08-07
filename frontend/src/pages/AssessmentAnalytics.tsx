@@ -41,7 +41,7 @@ const AssessmentAnalytics: React.FC = () => {
     setError('');
     try {
       const data = await analyticsService.getAssessmentAnalytics(
-        parseInt(assessmentId)
+        assessmentId
       );
       setAnalytics(data);
     } catch (error: any) {

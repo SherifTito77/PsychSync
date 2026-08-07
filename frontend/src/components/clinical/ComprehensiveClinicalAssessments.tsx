@@ -544,7 +544,7 @@ const AssessmentConsent: React.FC<{
 
     setLoading(true);
     try {
-      const response = await fetch('/api/v1/clinical/screening/consent', {
+      const response = await fetch('/api/v1/screening/consent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -692,7 +692,7 @@ export const ClinicalAssessment: React.FC<AssessmentProps> = ({
 
     setLoading(true);
     try {
-      const endpoint = `/api/v1/clinical/screening/${assessmentType.toLowerCase()}`;
+      const endpoint = `/api/v1/screening/${assessmentType.toLowerCase()}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -956,7 +956,7 @@ const AssessmentResults: React.FC<{
                 {Object.entries(result.subscale_scores).map(([key, value]) => (
                   <div key={key} className="bg-white p-4 rounded-lg">
                     <p className="text-sm text-gray-600 capitalize">{key.replace(/_/g, ' ')}</p>
-                    <p className="text-2xl font-bold text-blue-600">{Math.round(value)}</p>
+                    <p className="text-2xl font-bold text-blue-600">{Math.round(value as number)}</p>
                   </div>
                 ))}
               </div>

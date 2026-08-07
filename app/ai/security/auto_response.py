@@ -595,7 +595,7 @@ async def execute_response(
     Convenience function to execute automated response.
 
     Usage:
-        from ai.security.auto_response import execute_response
+        from app.ai.security.auto_response import execute_response
 
         threat_report = {
             "overall_threat_level": "high",

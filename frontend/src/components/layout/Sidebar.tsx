@@ -1,12 +1,15 @@
-// // // src/components/layout/Sidebar.tsx - Sidebar Component
+// // // src/components/layout/Sidebar.tsx - Sidebar Component with Role-Based Navigation
 // src/components/layout/Sidebar.tsx - Fixed with React Router
-import React, { useState } from 'react';
+import React, { useState, memo, useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { useRoleNavigation } from '../../hooks/useRoleNavigation';
 
 interface MenuItem {
   name: string;
   path: string;
   icon: string;
+  requiredRoles?: string[];
 }
 
 interface SubMenuItem {
@@ -21,41 +24,211 @@ interface MenuSection {
   path: string;
   icon: string;
   items?: SubMenuItem[];
+  requiredRoles?: string[]; // Add role requirements
 }
 
 interface SidebarProps {
   isOpen: boolean;
   onToggle: () => void;
 }
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
-  const [expandedSections, setExpandedSections] = useState<string[]>(['clinical-screening']);
+// ⚡️ PERFORMANCE: Memoized to prevent unnecessary re-renders
+const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
+  const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { isHR, isAdmin, filterItems } = useRoleNavigation();
 
-  // Auto-collapse all sections when sidebar is closed, re-expand when opened
-  React.useEffect(() => {
-    if (!isOpen) {
-      setExpandedSections([]);
-    } else {
-      // Re-expand clinical screening section when sidebar opens
-      setExpandedSections(['clinical-screening']);
-    }
-  }, [isOpen]);
+  const userRole = user?.role || 'user';
 
+  // Core navigation items - Main navigation always visible
   const coreItems: MenuItem[] = [
     { name: 'Dashboard', path: '/dashboard', icon: '📊' },
-    { name: 'Teams', path: '/teams', icon: '👥' },
-    { name: 'Toxic Behavior Detection', path: '/toxic-behavior-detection', icon: '🛡️' },
-    { name: 'Burnout Prevention', path: '/burnout-prevention', icon: '🔥' },
-    { name: 'Anonymous Feedback', path: '/anonymous-feedback', icon: '🔒' },
-    { name: 'Behavioral Analytics', path: '/behavioral-analytics', icon: '🧠' },
-    { name: 'Multi-Framework Synthesis', path: '/multi-framework-synthesis', icon: '🧩' },
-    { name: 'Legal Rights', path: '/legal-rights', icon: '⚖️' },
-    { name: 'Equity Dashboard', path: '/equity', icon: '📈' },
+    { name: 'Product Operations', path: '/product-operations', icon: '📈' },
+    { name: 'Icon Gallery', path: '/icon-gallery', icon: '🎨' },
     { name: 'Settings', path: '/settings', icon: '⚙️' }
   ];
 
-  // Clinical Screening Section with Enhanced Tools
+  // Filter core items based on role
+  const visibleCoreItems = useMemo(() => {
+    return coreItems.filter(item => {
+      // All users can see core items
+      return true;
+    });
+  }, [userRole]);
+
+  // Executive & Business Analytics Section
+  const executiveAnalyticsSection: MenuSection = {
+    name: 'Executive Analytics',
+    path: '/executive-analytics',
+    icon: '📊',
+    items: [
+      {
+        name: 'CEO Executive Dashboard',
+        path: '/executive/burnout',
+        icon: '🎯',
+        description: 'Executive burnout risk, department analytics, 90-day trends'
+      },
+      {
+        name: 'KPI Dashboard',
+        path: '/analytics/kpi',
+        icon: '📈',
+        description: 'Business KPIs, performance metrics, goal tracking'
+      },
+      {
+        name: 'Predictive Analytics',
+        path: '/predictive-analytics',
+        icon: '🔮',
+        description: 'AI predictions, forecasting, risk models'
+      },
+      {
+        name: 'Population Health',
+        path: '/analytics/population-health',
+        icon: '🏥',
+        description: 'Population-wide health metrics, epidemiological data'
+      }
+    ]
+  };
+
+  // ⚡ EARLY WARNING & RISK SECTION - Critical Features (Promoted to Top)
+  const earlyWarningSection: MenuSection = {
+    name: 'Early Warning & Risk',
+    path: '/early-warning',
+    icon: '⚡',
+    requiredRoles: ['hr', 'admin', 'super_admin', 'manager'], // HR/Manager only
+    items: [
+      { name: 'Radar Dashboard', path: '/radar', icon: '📡', description: '360° organizational health monitoring system' },
+      { name: 'Advanced Burnout Analytics', path: '/advanced-burnout', icon: '🎯', description: '14-day early warning with Z-scores & trend detection' },
+      { name: 'Burnout Prevention', path: '/burnout-prevention', icon: '🔥', description: '7-90 day burnout prediction & prevention' },
+      { name: 'Behavioral Analytics', path: '/behavioral-analytics', icon: '🧠', description: 'Communication patterns & sentiment analysis' },
+      { name: 'Toxic Behavior Detection', path: '/toxic-behavior-detection', icon: '🛡️', description: 'Harassment & toxic pattern monitoring' },
+      { name: 'Employee Safety', path: '/employee-safety', icon: '⚠️', description: 'Workplace safety & incident tracking' },
+      { name: 'Anomaly Detection', path: '/anomaly-detection', icon: '🚨', description: 'ML-powered pattern detection & alerts' },
+      { name: 'Team Risk Dashboard', path: '/team-dashboard', icon: '👥', description: 'Team-level risk indicators & heatmap' },
+      { name: 'Burnout Prediction', path: '/burnout-prediction', icon: '🔮', description: 'AI-powered risk prediction & analytics' }
+    ]
+  };
+
+  // Email Monitoring Section
+  const emailMonitoringSection: MenuSection = {
+    name: 'Email Monitoring',
+    path: '/email-monitoring',
+    icon: '📧',
+    requiredRoles: ['hr', 'admin', 'super_admin', 'manager'], // HR/Manager only
+    items: [
+      { name: 'Email Connector', path: '/email-connector', icon: '🔗', description: 'Email integration services' },
+      { name: 'Sentiment Analysis', path: '/sentiment-analysis', icon: '😊', description: 'Email tone and emotion analysis' },
+      { name: 'Scheduled Reports', path: '/scheduled-reports', icon: '📅', description: 'Automated weekly/monthly email reports' },
+      { name: 'Anomaly Detection', path: '/anomaly-detection', icon: '🚨', description: 'ML-powered pattern detection & alerts' },
+      { name: 'Team Dashboard', path: '/team-dashboard', icon: '👥', description: 'Team analytics & performance metrics' }
+    ]
+  };
+
+  // HRIS Analytics Section
+  const hrisSection: MenuSection = {
+    name: 'HRIS Analytics',
+    path: '/hris-analytics',
+    icon: '📊',
+    requiredRoles: ['hr', 'admin', 'super_admin', 'manager'], // HR/Manager only
+    items: [
+      {
+        name: 'Analytics Dashboard',
+        path: '/hris-analytics',
+        icon: '📈',
+        description: '7 charts, KPIs, custom reports with real-time updates'
+      },
+      {
+        name: 'HRIS Connector',
+        path: '/hris-connector',
+        icon: '🔗',
+        description: 'Connect Workday, BambooHR, ADP & 30+ HR systems'
+      },
+      {
+        name: 'Workforce Demographics',
+        path: '/hris/demographics',
+        icon: '👥',
+        description: 'Employee composition, diversity analysis, age distribution & tenure trends'
+      },
+      {
+        name: 'Performance Analytics',
+        path: '/hris/performance',
+        icon: '⭐',
+        description: 'Performance reviews, goals completion, top performers & trends'
+      },
+      {
+        name: 'Turnover Analysis',
+        path: '/hris/turnover',
+        icon: '📉',
+        description: 'Turnover patterns, retention risks, exit reasons & predictions'
+      },
+      {
+        name: 'Compensation Analysis',
+        path: '/hris/compensation',
+        icon: '💰',
+        description: 'Pay equity, salary benchmarks, compensation gaps & total rewards'
+      },
+      {
+        name: 'Engagement Analytics',
+        path: '/hris/engagement',
+        icon: '😊',
+        description: 'Employee satisfaction, engagement scores, sentiment & workplace pulse'
+      },
+      {
+        name: 'Learning & Development',
+        path: '/hris/learning',
+        icon: '📚',
+        description: 'Training effectiveness, skill gaps, certifications & development programs'
+      },
+      {
+        name: 'Succession Planning',
+        path: '/hris/succession',
+        icon: '🎯',
+        description: 'Leadership pipeline, readiness scores, key positions & successors'
+      }
+    ]
+  };
+
+  // Admin Section
+  const adminSection: MenuSection = {
+    name: 'Admin & Executive',
+    path: '/admin',
+    icon: '🔐',
+    requiredRoles: ['admin', 'super_admin'],
+    items: [
+      {
+        name: 'CEO Burnout Analytics',
+        path: '/executive/burnout',
+        icon: '📊',
+        description: 'Organization-level burnout risk, ROI tracking & cost-benefit analysis'
+      },
+      {
+        name: 'Advanced Burnout Analytics',
+        path: '/advanced-burnout',
+        icon: '🎯',
+        description: '14-day early warning with Z-scores, cognitive load & fatigue tracking'
+      },
+      {
+        name: 'Corporate Psychology',
+        path: '/admin/corporate-psychology',
+        icon: '🧠',
+        description: 'System-level organizational psychology intelligence for executives'
+      },
+      {
+        name: 'Security Dashboard',
+        path: '/admin/security',
+        icon: '🛡️',
+        description: 'Security monitoring and threat intelligence'
+      },
+      {
+        name: 'Performance Monitoring',
+        path: '/admin/performance',
+        icon: '⚡',  // Options: 📊 📈 ⚡ 🎯 🔧 🖥️ 📉
+        description: 'Real-time system performance metrics and health'
+      }
+    ]
+  };
+
+  // Clinical Screening Section - Assessment Tools Only
   const clinicalSection: MenuSection = {
     name: 'Clinical Screening',
     path: '/screening',
@@ -192,9 +365,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         path: '/screening/asrs',
         icon: '⚡',
         description: 'Adult ADHD Self-Report Scale v1.1 (Sens=68.7%, Spec=72.1%)'
-      },
+      }
+    ]
+  };
+
+  // Clinical Services & Resources Section
+  const telehealthSection: MenuSection = {
+    name: 'Clinical Services & Resources',
+    path: '/telehealth/schedule',
+    icon: '🏥',
+    items: [
       {
-        name: 'Telehealth',
+        name: 'Telehealth - Schedule Consultation',
         path: '/telehealth/schedule',
         icon: '📹',
         description: 'Schedule video consultation with clinician'
@@ -248,6 +430,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         description: 'Comprehensive coping strategies'
       },
       {
+        name: 'Clinical Resources',
+        path: '/clinical/resources',
+        icon: '🏥',
+        description: 'Therapists, support groups & mental health tools'
+      },
+      {
         name: 'Emergency Resources',
         path: '/clinical/emergency',
         icon: '🚨',
@@ -264,6 +452,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         path: '/enhanced-assessments',
         icon: '⭐',
         description: 'Advanced assessments with dark mode, animations & offline support'
+      },
+      {
+        name: 'Mental Health',
+        path: '/mental-health-wellness',
+        icon: '🧘',
+        description: 'Mental health and wellness resources'
+      },
+      {
+        name: 'Personality Assessments',
+        path: '/personality-assessments',
+        icon: '🧠',
+        description: 'Personality tests and profiles'
       }
     ]
   };
@@ -273,12 +473,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     name: 'Services & Connectors',
     path: '/services',
     icon: '🔧',
+    requiredRoles: ['hr', 'admin', 'super_admin', 'manager'], // HR/Manager only
     items: [
       {
         name: 'Corporate Integrations',
         path: '/integrations/corporate',
         icon: '🔗',
-        description: 'Connect 30+ data sources for behavioral intelligence'
+        description: 'Connect 30+ data sources including Slack, HRIS, and more'
       },
       {
         name: 'Health Dashboard',
@@ -293,55 +494,43 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         description: 'Manager view of team wellness (anonymized)'
       },
       {
-        name: 'Mental Health',
-        path: '/mental-health-wellness',
-        icon: '🧘',
-        description: 'Mental health and wellness resources'
-      },
-      {
-        name: 'Personality Assessments',
-        path: '/personality-assessments',
-        icon: '🧠',
-        description: 'Personality tests and profiles'
-      },
-      {
         name: 'Behavioral Analysis',
         path: '/behavioral-analysis',
         icon: '📊',
         description: 'Behavioral pattern analysis'
-      },
-      {
-        name: 'Email Connector',
-        path: '/email-connector',
-        icon: '📧',
-        description: 'Email integration services'
-      },
-      {
-        name: 'HRIS Connector',
-        path: '/hris-connector',
-        icon: '🏢',
-        description: 'HR system integration'
       }
     ]
   };
 
-  // Analytics & Features Section - Collapsible
+  // Teams Analytics Section - Collapsible
   const featuresSection: MenuSection = {
-    name: 'Analytics & AI',
+    name: 'Teams Analytics',
     path: '/analytics',
     icon: '🤖',
     items: [
       {
+        name: 'Teams',
+        path: '/teams',
+        icon: '👥',
+        description: 'Manage and view your teams'
+      },
+      {
         name: 'Team Optimizer',
         path: '/team-optimizer',
         icon: '⚡',
-        description: 'Optimize team dynamics'
+        description: 'Optimize team dynamics with department filtering'
       },
       {
-        name: 'Predictive Analytics',
-        path: '/predictive-analytics',
-        icon: '🤖',
-        description: 'AI-powered predictions'
+        name: 'Team Composition',
+        path: '/team-composition',
+        icon: '🧩',
+        description: 'Personality-based team analytics and insights'
+      },
+      {
+        name: 'Multi-Framework Synthesis',
+        path: '/multi-framework-synthesis',
+        icon: '🧩',
+        description: 'AI-powered synthesis across personality frameworks'
       },
       {
         name: 'Reliability & Validity',
@@ -354,6 +543,27 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         path: '/analytics/dashboard',
         icon: '📈',
         description: 'Overall analytics dashboard'
+      }
+    ]
+  };
+
+  // Compliance & Legal Section - Collapsible
+  const complianceSection: MenuSection = {
+    name: 'Compliance & Legal',
+    path: '/compliance',
+    icon: '⚖️',
+    items: [
+      {
+        name: 'Legal Rights Dashboard',
+        path: '/legal-rights',
+        icon: '⚖️',
+        description: 'Employee legal rights information and resources'
+      },
+      {
+        name: 'Equity & Transparency',
+        path: '/equity',
+        icon: '🤝',
+        description: 'Workplace equity metrics and transparency reports'
       }
     ]
   };
@@ -371,13 +581,51 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
     location.pathname.startsWith(item.path)
   );
 
+  const isTelehealthActive = telehealthSection.items?.some(item =>
+    location.pathname.startsWith(item.path)
+  );
+
   const isServicesActive = servicesSection.items?.some(item =>
+    location.pathname.startsWith(item.path)
+  );
+
+  const isExecutiveAnalyticsActive = executiveAnalyticsSection.items?.some(item =>
     location.pathname.startsWith(item.path)
   );
 
   const isFeaturesActive = featuresSection.items?.some(item =>
     location.pathname.startsWith(item.path)
   );
+
+  const isEmailMonitoringActive = emailMonitoringSection.items?.some(item =>
+    location.pathname.startsWith(item.path)
+  );
+
+  const isHRISActive = hrisSection.items?.some(item =>
+    location.pathname.startsWith(item.path)
+  );
+
+  const isEarlyWarningActive = earlyWarningSection.items?.some(item =>
+    location.pathname.startsWith(item.path)
+  );
+
+  const isComplianceActive = complianceSection.items?.some(item =>
+    location.pathname.startsWith(item.path)
+  );
+
+  // Helper function to check if section should be visible based on role
+  const isSectionVisible = (section: MenuSection): boolean => {
+    // Admin and superuser see everything
+    if (isAdmin || user?.is_superuser) {
+      return true;
+    }
+    if (!section.requiredRoles || section.requiredRoles.length === 0) {
+      return true; // No role requirements = visible to all
+    }
+    // Check if user has any of the required roles
+    return section.requiredRoles.some(role => userRole.toLowerCase().includes(role.toLowerCase()));
+  };
+
   return (
     <aside
       className={`fixed left-0 top-0 h-full bg-gray-900 text-white transition-all duration-300 z-40 flex flex-col ${
@@ -415,14 +663,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         {/* Core Routes */}
         <div className="mb-8">
           {isOpen && (
-            <div className="px-4 py-2 text-xs text-gray-500 uppercase tracking-wider">
-              Core
+            <div className="px-4 py-2 text-xs text-gray-500 uppercase tracking-wider flex items-center justify-between">
+              <span>Core</span>
+              {/* Role Badge */}
+              {isAdmin && (
+                <span className="px-2 py-0.5 text-xs bg-orange-500/20 text-orange-400 rounded-full">
+                  Admin
+                </span>
+              )}
+              {isHR && !isAdmin && (
+                <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded-full">
+                  HR
+                </span>
+              )}
             </div>
           )}
-          {coreItems.map((item) => (
+          {visibleCoreItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
+              end
               className={({ isActive }) => `
                 flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors
                 ${isActive ? 'bg-gray-800 text-white border-r-2 border-blue-500' : ''}
@@ -434,14 +694,165 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           ))}
         </div>
 
+        {/* 📊 VISUAL SEPARATOR - Executive Analytics */}
+        <div className="relative flex items-center py-4">
+          <div className="flex-grow border-t border-blue-500/30"></div>
+          {isOpen && (
+            <span className="flex-shrink-0 mx-4 text-blue-400 text-xs font-semibold uppercase tracking-wider">
+              📊 Executive
+            </span>
+          )}
+          <div className="flex-grow border-t border-blue-500/30"></div>
+        </div>
+
+        {/* Executive Analytics Section - Collapsible */}
+        <div className="mb-8">
+          <button
+            onClick={() => toggleSection('executive-analytics-section')}
+            className={`
+              w-full flex items-center px-4 py-3 text-blue-400 hover:bg-blue-900/20 hover:text-blue-300 transition-colors cursor-pointer text-left rounded-lg
+              ${isExecutiveAnalyticsActive ? 'bg-blue-900/30 text-blue-300 border-r-2 border-blue-400' : ''}
+            `}
+          >
+            <span className="text-2xl">{executiveAnalyticsSection.icon}</span>
+            {isOpen && (
+              <>
+                <span className="ml-3 flex-1 text-left font-semibold">{executiveAnalyticsSection.name}</span>
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSection('executive-analytics-section');
+                  }}
+                  className="p-1 hover:bg-blue-900/40 rounded cursor-pointer"
+                  role="button"
+                  aria-label="Toggle executive analytics section"
+                  tabIndex={0}
+                >
+                  <svg
+                    className={`w-4 h-4 transition-transform ${
+                      expandedSections.includes('executive-analytics-section') ? 'rotate-180' : ''
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
+              </>
+            )}
+          </button>
+
+          {expandedSections.includes('executive-analytics-section') && isOpen && (
+            <div className="mt-2 space-y-1">
+              {executiveAnalyticsSection.items?.map((item, index) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) => `
+                    flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors
+                    ${isActive ? 'bg-gray-800 text-white border-r-2 border-blue-500' : ''}
+                    ${index !== executiveAnalyticsSection.items!.length - 1 ? 'border-b border-blue-500/10' : ''}
+                  `}
+                  title={item.description}
+                >
+                  <span className="text-xl">{item.icon}</span>
+                  {isOpen && <span className="ml-3">{item.name}</span>}
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ⚡ VISUAL SEPARATOR - Early Warning & Risk */}
+        {isSectionVisible(earlyWarningSection) && (
+          <>
+            <div className="relative flex items-center py-4">
+              <div className="flex-grow border-t border-yellow-500/30"></div>
+              {isOpen && (
+                <span className="flex-shrink-0 mx-4 text-yellow-400 text-xs font-semibold uppercase tracking-wider">
+                  ⚡ Risk Detection
+                </span>
+              )}
+              <div className="flex-grow border-t border-yellow-500/30"></div>
+            </div>
+
+            {/* Early Warning & Risk Section - Collapsible */}
+            <div className="mb-8">
+          <button
+            onClick={() => toggleSection('early-warning-section')}
+            className={`
+              w-full flex items-center px-4 py-3 text-yellow-400 hover:bg-yellow-900/20 hover:text-yellow-300 transition-colors cursor-pointer text-left rounded-lg
+              ${isEarlyWarningActive ? 'bg-yellow-900/30 text-yellow-300 border-r-2 border-yellow-400' : ''}
+            `}
+          >
+            <span className="text-2xl">{earlyWarningSection.icon}</span>
+            {isOpen && (
+              <>
+                <span className="ml-3 flex-1 text-left font-semibold">{earlyWarningSection.name}</span>
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSection('early-warning-section');
+                  }}
+                  className="p-1 hover:bg-yellow-900/40 rounded cursor-pointer"
+                  role="button"
+                  aria-label="Toggle early warning section"
+                  tabIndex={0}
+                >
+                  <svg
+                    className={`w-4 h-4 transition-transform ${
+                      expandedSections.includes('early-warning-section') ? 'rotate-180' : ''
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
+              </>
+            )}
+          </button>
+
+          {/* Collapsible Early Warning Sub-items */}
+          {isOpen && expandedSections.includes('early-warning-section') && (
+            <div className="mt-2 bg-yellow-900/10 border-l-2 border-yellow-500 rounded-lg overflow-hidden">
+              {earlyWarningSection.items?.map((item, index) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) => `
+                    flex items-center px-4 py-3 pl-8 text-sm text-gray-300 hover:bg-yellow-900/20 hover:text-white transition-colors
+                    ${isActive ? 'bg-yellow-900/30 text-yellow-200 border-l-4 border-yellow-400' : ''}
+                    ${index !== earlyWarningSection.items!.length - 1 ? 'border-b border-yellow-500/10' : ''}
+                  `}
+                  title={item.description}
+                >
+                  <span className="text-xl mr-3">{item.icon}</span>
+                  <div className="flex-1">
+                    <div className="font-medium">{item.name}</div>
+                    {item.description && isOpen && (
+                      <div className="text-xs text-gray-400 mt-0.5">{item.description}</div>
+                    )}
+                  </div>
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+          </>
+        )}
+
+        {/* 📧 VISUAL SEPARATOR - Integrations */}
+        <div className="relative flex items-center py-3">
+          <div className="flex-grow border-t border-gray-700"></div>
+        </div>
+
         {/* Clinical Screening Section - Collapsible */}
         <div className="mb-8">
           <button
-            onClick={() => {
-              // Navigate to section page AND toggle expansion
-              navigate(clinicalSection.path);
-              toggleSection('clinical-screening');
-            }}
+            onClick={() => toggleSection('clinical-screening')}
             className={`
               w-full flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer text-left
               ${isClinicalActive ? 'bg-gray-800 text-white border-r-2 border-green-500' : ''}
@@ -502,14 +913,264 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           )}
         </div>
 
-        {/* Services & Connectors Section - Collapsible */}
+        {/* Email Monitoring Section - Collapsible */}
+        {isSectionVisible(emailMonitoringSection) && (
+          <div className="mb-8">
+          <button
+            onClick={() => toggleSection('email-monitoring')}
+            className={`
+              w-full flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer text-left
+              ${isEmailMonitoringActive ? 'bg-gray-800 text-white border-r-2 border-indigo-500' : ''}
+            `}
+          >
+            <span className="text-xl text-indigo-400">{emailMonitoringSection.icon}</span>
+            {isOpen && (
+              <>
+                <span className="ml-3 flex-1 text-left">{emailMonitoringSection.name}</span>
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent double toggle
+                    toggleSection('email-monitoring');
+                  }}
+                  className="p-1 hover:bg-gray-700 rounded cursor-pointer"
+                  role="button"
+                  aria-label="Toggle email monitoring section"
+                  tabIndex={0}
+                >
+                  <svg
+                    className={`w-4 h-4 transition-transform ${
+                      expandedSections.includes('email-monitoring') ? 'rotate-180' : ''
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
+              </>
+            )}
+          </button>
+
+          {/* Collapsible Email Monitoring Sub-items */}
+          {isOpen && expandedSections.includes('email-monitoring') && (
+            <div className="bg-gray-800 border-l-2 border-indigo-500">
+              {emailMonitoringSection.items?.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) => `
+                    flex items-center px-4 py-2 pl-8 text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition-colors
+                    ${isActive ? 'bg-gray-700 text-white' : ''}
+                  `}
+                  title={item.description}
+                >
+                  <span className="text-lg mr-3">{item.icon}</span>
+                  <div className="flex-1">
+                    <div>{item.name}</div>
+                    {item.description && (
+                      <div className="text-xs text-gray-500">{item.description}</div>
+                    )}
+                  </div>
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+        )}
+
+        {/* HRIS Analytics Section - Collapsible */}
+        {isSectionVisible(hrisSection) && (
+          <div className="mb-8">
+          <button
+            onClick={() => toggleSection('hris-analytics-section')}
+            className={`
+              w-full flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer text-left
+              ${isHRISActive ? 'bg-gray-800 text-white border-r-2 border-cyan-500' : ''}
+            `}
+          >
+            <span className="text-xl text-cyan-400">{hrisSection.icon}</span>
+            {isOpen && (
+              <>
+                <span className="ml-3 flex-1 text-left">{hrisSection.name}</span>
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent double toggle
+                    toggleSection('hris-analytics-section');
+                  }}
+                  className="p-1 hover:bg-gray-700 rounded cursor-pointer"
+                  role="button"
+                  aria-label="Toggle HRIS analytics section"
+                  tabIndex={0}
+                >
+                  <svg
+                    className={`w-4 h-4 transition-transform ${
+                      expandedSections.includes('hris-analytics-section') ? 'rotate-180' : ''
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
+              </>
+            )}
+          </button>
+
+          {/* Collapsible HRIS Analytics Sub-items */}
+          {isOpen && expandedSections.includes('hris-analytics-section') && (
+            <div className="bg-gray-800 border-l-2 border-cyan-500">
+              {hrisSection.items?.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) => `
+                    flex items-center px-4 py-2 pl-8 text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition-colors
+                    ${isActive ? 'bg-gray-700 text-white' : ''}
+                  `}
+                  title={item.description}
+                >
+                  <span className="text-lg mr-3">{item.icon}</span>
+                  <div className="flex-1">
+                    <div>{item.name}</div>
+                    {item.description && (
+                      <div className="text-xs text-gray-500">{item.description}</div>
+                    )}
+                  </div>
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+        )}
+
+        {/* Admin & Executive Section - Collapsible */}
+        {isSectionVisible(adminSection) && (
+          <div className="mb-8">
+            <button
+              onClick={() => toggleSection('admin-section')}
+              className={`
+                w-full flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer text-left
+                ${location.pathname.startsWith('/admin') ? 'bg-gray-800 text-white border-r-2 border-orange-500' : ''}
+              `}
+            >
+              <span className="text-xl text-orange-400">{adminSection.icon}</span>
+              {isOpen && (
+                <>
+                  <span className="ml-3 flex-1 text-left font-medium">{adminSection.name}</span>
+                  <span className="ml-2">
+                    <svg
+                      className={`w-4 h-4 transition-transform ${expandedSections.includes('admin-section') ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </span>
+                </>
+              )}
+            </button>
+
+            {/* Collapsible Admin Sub-items */}
+            {isOpen && expandedSections.includes('admin-section') && (
+              <div className="bg-gray-800 border-l-2 border-orange-500">
+                {adminSection.items?.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) => `
+                      flex items-center px-4 py-2 pl-8 text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition-colors
+                      ${isActive ? 'bg-gray-700 text-white' : ''}
+                    `}
+                    title={item.description}
+                  >
+                    <span className="text-lg mr-3">{item.icon}</span>
+                    <div className="flex-1">
+                      <div>{item.name}</div>
+                      {item.description && (
+                        <div className="text-xs text-gray-500">{item.description}</div>
+                      )}
+                    </div>
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Telehealth Section - Collapsible */}
         <div className="mb-8">
           <button
-            onClick={() => {
-              // Navigate to section page AND toggle expansion
-              navigate(servicesSection.path);
-              toggleSection('services-section');
-            }}
+            onClick={() => toggleSection('telehealth-section')}
+            className={`
+              w-full flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer text-left
+              ${isTelehealthActive ? 'bg-gray-800 text-white border-r-2 border-blue-400' : ''}
+            `}
+          >
+            <span className="text-xl text-blue-400">{telehealthSection.icon}</span>
+            {isOpen && (
+              <>
+                <span className="ml-3 flex-1 text-left">{telehealthSection.name}</span>
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent double toggle
+                    toggleSection('telehealth-section');
+                  }}
+                  className="p-1 hover:bg-gray-700 rounded cursor-pointer"
+                  role="button"
+                  aria-label="Toggle telehealth section"
+                  tabIndex={0}
+                >
+                  <svg
+                    className={`w-4 h-4 transition-transform ${
+                      expandedSections.includes('telehealth-section') ? 'rotate-180' : ''
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
+              </>
+            )}
+          </button>
+
+          {/* Collapsible Telehealth Sub-items */}
+          {isOpen && expandedSections.includes('telehealth-section') && (
+            <div className="bg-gray-800 border-l-2 border-blue-400">
+              {telehealthSection.items?.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  onClick={() => console.log('[Sidebar] Clicked navigation item:', item.name, 'path:', item.path)}
+                  className={({ isActive }) => `
+                    flex items-center px-4 py-2 pl-8 text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition-colors
+                    ${isActive ? 'bg-gray-700 text-white' : ''}
+                  `}
+                  title={item.description}
+                >
+                  <span className="text-lg mr-3">{item.icon}</span>
+                  <div className="flex-1">
+                    <div>{item.name}</div>
+                    {item.description && (
+                      <div className="text-xs text-gray-500">{item.description}</div>
+                    )}
+                  </div>
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Services & Connectors Section - Collapsible */}
+        {isSectionVisible(servicesSection) && (
+          <>
+          <div className="mb-8">
+          <button
+            onClick={() => toggleSection('services-section')}
             className={`
               w-full flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer text-left
               ${isServicesActive ? 'bg-gray-800 text-white border-r-2 border-blue-500' : ''}
@@ -569,15 +1230,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             </div>
           )}
         </div>
+        </>
+        )}
 
         {/* Analytics & AI Section - Collapsible */}
         <div className="mb-8">
           <button
-            onClick={() => {
-              // Navigate to section page AND toggle expansion
-              navigate(featuresSection.path);
-              toggleSection('features-section');
-            }}
+            onClick={() => toggleSection('features-section')}
             className={`
               w-full flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer text-left
               ${isFeaturesActive ? 'bg-gray-800 text-white border-r-2 border-orange-500' : ''}
@@ -638,6 +1297,70 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           )}
         </div>
 
+        {/* Compliance & Legal Section - Collapsible */}
+        <div className="mb-8">
+          <button
+            onClick={() => toggleSection('compliance-section')}
+            className={`
+              w-full flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer text-left
+              ${isComplianceActive ? 'bg-gray-800 text-white border-r-2 border-blue-500' : ''}
+            `}
+          >
+            <span className="text-xl text-blue-400">{complianceSection.icon}</span>
+            {isOpen && (
+              <>
+                <span className="ml-3 flex-1 text-left">{complianceSection.name}</span>
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent double toggle
+                    toggleSection('compliance-section');
+                  }}
+                  className="p-1 hover:bg-gray-700 rounded cursor-pointer"
+                  role="button"
+                  aria-label="Toggle compliance section"
+                  tabIndex={0}
+                >
+                  <svg
+                    className={`w-4 h-4 transition-transform ${
+                      expandedSections.includes('compliance-section') ? 'rotate-180' : ''
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
+              </>
+            )}
+          </button>
+
+          {/* Collapsible Compliance Sub-items */}
+          {isOpen && expandedSections.includes('compliance-section') && (
+            <div className="bg-gray-800 border-l-2 border-blue-500">
+              {complianceSection.items?.map((item) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) => `
+                    flex items-center px-4 py-2 pl-8 text-sm text-gray-400 hover:bg-gray-700 hover:text-white transition-colors
+                    ${isActive ? 'bg-gray-700 text-white' : ''}
+                  `}
+                  title={item.description}
+                >
+                  <span className="text-lg mr-3">{item.icon}</span>
+                  <div className="flex-1">
+                    <div>{item.name}</div>
+                    {item.description && (
+                      <div className="text-xs text-gray-500">{item.description}</div>
+                    )}
+                  </div>
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Public Access Routes */}
         <div className="border-t border-gray-700 pt-4">
           {isOpen && (
@@ -669,5 +1392,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       </nav>
     </aside>
   );
-};
+});
+
+Sidebar.displayName = 'Sidebar';
+
 export default Sidebar;

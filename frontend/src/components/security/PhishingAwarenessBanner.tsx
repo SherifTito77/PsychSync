@@ -301,7 +301,7 @@ export const PhishingQuiz: React.FC = () => {
     return (
       <Alert
         variant={
-          percentage >= 75 ? 'default' : percentage >= 50 ? 'default' : 'destructive'
+          percentage >= 75 ? 'success' as any : percentage >= 50 ? 'default' as any : 'destructive' as any
         }
         className={`border-l-4 ${
           percentage >= 75 ? 'border-l-green-500 bg-green-50 dark:bg-green-950' :
@@ -406,7 +406,7 @@ export const DomainVerificationWarning: React.FC = () => {
   if (!showWarning) return null;
 
   return (
-    <Alert variant="destructive" className="border-l-4 border-l-red-500">
+    <Alert variant="error" className="border-l-4 border-l-red-500">
       <AlertTriangle className="h-5 w-5" />
       <AlertTitle>⚠️ Security Warning: Unrecognized Domain</AlertTitle>
       <AlertDescription className="space-y-2">

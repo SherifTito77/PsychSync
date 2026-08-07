@@ -46,6 +46,13 @@
   --color-clinical-mild: #d97706;
   --color-clinical-stable: #10b981;
 
+  /* Colors - Gamification Tiers */
+  --color-tier-bronze: #CD7F32;
+  --color-tier-silver: #C0C0C0;
+  --color-tier-gold: #FFD700;
+  --color-tier-platinum: #E5E4E2;
+  --color-tier-diamond: #B9F2FF;
+
   /* Spacing Scale (4px base unit) */
   --spacing-xs: 0.25rem;    /* 4px */
   --spacing-sm: 0.5rem;     /* 8px */
@@ -55,6 +62,7 @@
   --spacing-2xl: 3rem;      /* 48px */
   --spacing-3xl: 4rem;      /* 64px */
   --spacing-4xl: 6rem;      /* 96px */
+  --spacing-5xl: 1.25rem;   /* 20px - 5 units of 4px */
 
   /* Typography */
   --font-size-xs: 0.75rem;   /* 12px */

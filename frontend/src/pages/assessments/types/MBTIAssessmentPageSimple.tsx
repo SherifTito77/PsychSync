@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '@/services/api';
 
@@ -29,22 +29,18 @@ export default function MBTIAssessmentPageSimple() {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  // Simple, clean loading without timeout complications
-  useEffect(() => {
-    loadAssessment();
-  }, []);
-
-  const loadAssessment = async () => {
+  // ✅ FIXED: Wrapped in useCallback for stable reference
+  const loadAssessment = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
 
       console.log('🚀 Loading MBTI Assessment from API...');
 
-      const response = await apiClient.get('/assessment-questions/mbti');
+      const response = await apiClient.get('/assessments/assessment-questions/mbti');
 
-      if (response.data && response.data.success) {
-        const backendAssessment = response.data.assessment;
+      if (response.data && (response.data as any).success) {
+        const backendAssessment = (response.data as any).assessment;
 
         const mbtiAssessment: MBTIAssessment = {
           id: backendAssessment.id,
@@ -73,7 +69,12 @@ export default function MBTIAssessmentPageSimple() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []); // ✅ Empty deps - only runs on mount/callback
+
+  // Simple, clean loading without timeout complications
+  useEffect(() => {
+    loadAssessment();
+  }, [loadAssessment]); // ✅ Now includes loadAssessment in deps
 
   const handleAnswer = (questionId: number, value: string) => {
     setAnswers(prev => ({
@@ -122,8 +123,8 @@ export default function MBTIAssessmentPageSimple() {
         raw_type: mbtiType
       });
 
-      if (response.data && response.data.success) {
-        setResults(response.data.result);
+      if (response.data && (response.data as any).success) {
+        setResults((response.data as any).result);
         console.log('✅ Assessment submitted successfully');
       } else {
         throw new Error('Submission failed');

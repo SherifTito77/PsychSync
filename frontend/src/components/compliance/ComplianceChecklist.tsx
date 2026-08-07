@@ -35,9 +35,13 @@ interface ComplianceResult {
       check: string;
       status: string;
       severity: string;
-      violations?: any[];
+      violations?: string[];
     }>;
-    violations: any[];
+    violations: Array<{
+      check: string;
+      violations: string[];
+      severity?: string;
+    }>;
     recommendations: string[];
   }>;
   priority_actions: Array<{
@@ -75,7 +79,12 @@ export const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ classN
     try {
       setRunning(true);
       const result = await complianceService.runComplianceCheck(checkType);
-      setCheckResults(result as unknown as ComplianceResult);
+      // Validate the result structure before setting
+      if ('compliance_score' in result && 'categories' in result) {
+        setCheckResults(result as unknown as ComplianceResult);
+      } else {
+        showNotification('Invalid compliance check result received', 'error');
+      }
       showNotification(`Compliance check completed. Score: ${result.compliance_score}/100`, 'success');
     } catch (error) {
       showNotification('Failed to run compliance check', 'error');
@@ -340,7 +349,7 @@ export const ComplianceChecklist: React.FC<ComplianceChecklistProps> = ({ classN
                                   <p className="text-sm font-medium text-red-900">{violation.check}</p>
                                   {violation.violations && (
                                     <ul className="text-xs text-red-700 mt-1 list-disc list-inside">
-                                      {violation.violations.map((v: any, i: number) => (
+                                      {violation.violations.map((v: string, i: number) => (
                                         <li key={i}>{v}</li>
                                       ))}
                                     </ul>

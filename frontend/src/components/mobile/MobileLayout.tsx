@@ -1,7 +1,7 @@
 // frontend/src/components/mobile/MobileLayout.tsx
 import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   HomeIcon,
   UserIcon,
@@ -30,6 +30,12 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({ children }) => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const location = useLocation();
   const { user } = useAuth();
+  const shouldReduceMotion = useReducedMotion();
+
+  // Animation configs based on motion preference
+  const springConfig = shouldReduceMotion
+    ? { type: 'spring', damping: 50, stiffness: 400 } // Stiffer, less bounce
+    : { type: 'spring', damping: 40, stiffness: 300 }; // Improved from 30/300
 
   // Navigation items
   const navigationItems: NavigationItem[] = [
@@ -62,8 +68,13 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({ children }) => {
 
     if (isSheetOpen) {
       document.addEventListener('click', handleSheetClick);
-      return () => document.removeEventListener('click', handleSheetClick);
     }
+
+    return () => {
+      if (isSheetOpen) {
+        document.removeEventListener('click', handleSheetClick);
+      }
+    };
   }, [isSheetOpen]);
 
   // Handle pull-to-refresh
@@ -165,9 +176,11 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({ children }) => {
         <AnimatePresence>
           {(isPulling || isRefreshing) && (
             <motion.div
+              layout
               initial={{ height: 0 }}
               animate={{ height: isPulling ? pullDistance : 60 }}
               exit={{ height: 0 }}
+              transition={shouldReduceMotion ? { duration: 0 } : undefined}
               className="mobile-pull-refresh"
               onTouchStart={handlePullStart}
               onTouchMove={handlePullMove}
@@ -194,20 +207,24 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({ children }) => {
       </header>
 
       {/* Side Menu */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {isMenuOpen && (
           <>
             <motion.div
+              layout
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={shouldReduceMotion ? { duration: 0.1 } : undefined}
               className="fixed inset-0 bg-black bg-opacity-50 z-50"
               onClick={() => setIsMenuOpen(false)}
             />
             <motion.nav
+              layout
               initial={{ x: -300 }}
               animate={{ x: 0 }}
               exit={{ x: -300 }}
+              transition={shouldReduceMotion ? { duration: 0.2 } : springConfig as any}
               className="fixed top-0 left-0 bottom-0 w-64 bg-white shadow-lg z-50 mobile-safe-area"
             >
               <div className="p-4 border-b border-gray-200">
@@ -318,25 +335,28 @@ export const MobileLayout: React.FC<MobileLayoutProps> = ({ children }) => {
       </nav>
 
       {/* Bottom Sheet */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {isSheetOpen && (
           <motion.div
+            layout
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={shouldReduceMotion ? { duration: 0.1 } : undefined}
             className="fixed inset-0 bg-black bg-opacity-50 z-50"
             onClick={() => setIsSheetOpen(false)}
           />
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {isSheetOpen && (
           <motion.div
+            layout
             initial={{ y: 400 }}
             animate={{ y: 0 }}
             exit={{ y: 400 }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            transition={shouldReduceMotion ? { duration: 0.2 } : (springConfig as any)}
             className="mobile-sheet open"
           >
             <div className="mobile-sheet-handle" />

@@ -1,4 +1,7 @@
 // frontend/src/main.tsx
+// Load polyfills first, before any other code
+import './polyfills';
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';

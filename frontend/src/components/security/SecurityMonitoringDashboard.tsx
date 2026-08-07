@@ -94,7 +94,7 @@ interface SecurityAlert {
 interface AlertAction {
   label: string;
   action: () => void;
-  variant?: 'destructive' | 'default' | 'outline';
+  variant?: 'danger' | 'default' | 'outline';
 }
 
 // =============================================================================
@@ -399,7 +399,7 @@ export const SecurityMonitoringDashboard: React.FC = () => {
           <StatBox
             label="Suspicious Activity"
             value={metrics.authentication.suspicious_activity.toString()}
-            color="amber"
+            color="orange"
           />
           <StatBox
             label="Active Sessions"

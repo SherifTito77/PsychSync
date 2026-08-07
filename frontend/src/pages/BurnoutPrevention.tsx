@@ -232,7 +232,7 @@ const BurnoutPrevention: React.FC = () => {
               <CardContent>
                 <div className="text-center">
                   <div className="text-5xl font-bold mb-2">{burnoutRisk?.overall_score || 0}/100</div>
-                  <Badge className={getRiskColor(burnoutRisk?.risk_level || 'low')} size="lg">
+                  <Badge className={getRiskColor(burnoutRisk?.risk_level || 'low')} size="sm">
                     {burnoutRisk?.risk_level?.toUpperCase()} RISK
                   </Badge>
                   <p className="text-sm text-gray-600 mt-3">Stage: {burnoutRisk?.burnout_stage}</p>

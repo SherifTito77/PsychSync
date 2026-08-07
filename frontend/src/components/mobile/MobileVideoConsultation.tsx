@@ -31,6 +31,7 @@ import {
   MoreVertical,
   ChevronsUp,
   Signal,
+  Loader2,
 } from 'lucide-react';
 import * as rtcp from 'twilio-video';
 import api from '@/services/api';
@@ -178,7 +179,7 @@ export function MobileVideoConsultation({ sessionId, userRole, onEnd }: MobileVi
 
       // Get access token from backend
       const response = await api.get(`/api/v1/telehealth/join/${sessionId}`);
-      const { access_token, room_name, session_type, recording_enabled } = response.data;
+      const { access_token, room_name, session_type, recording_enabled } = response.data as any;
 
       // Load Twilio Video dynamically
       const Video = require('twilio-video').default;
@@ -207,15 +208,16 @@ export function MobileVideoConsultation({ sessionId, userRole, onEnd }: MobileVi
       const localAudioPublication = Array.from(localParticipant.audioTracks.values())[0];
 
       if (localVideoPublication) {
-        setLocalVideoTrack(localVideoPublication.track as rtcp.LocalVideoTrack);
-        const videoTrack = localVideoPublication.track as rtcp.LocalVideoTrack;
+        const videoTrack = (localVideoPublication as any).track;
+        setLocalVideoTrack(videoTrack as rtcp.LocalVideoTrack);
         if (videoTrack && pipRef.current) {
-          videoTrack.attach(pipRef.current);
+          (videoTrack as any).attach(pipRef.current);
         }
       }
 
       if (localAudioPublication) {
-        setLocalAudioTrack(localAudioPublication.track as rtcp.LocalAudioTrack);
+        const audioTrack = (localAudioPublication as any).track;
+        setLocalAudioTrack(audioTrack as rtcp.LocalAudioTrack);
       }
 
       // Handle network quality changes
@@ -235,7 +237,7 @@ export function MobileVideoConsultation({ sessionId, userRole, onEnd }: MobileVi
 
         participant.on('trackSubscribed', (track: rtcp.Track) => {
           if (track.kind === 'video' && remoteVideoRef.current) {
-            track.attach(remoteVideoRef.current);
+            (track as any).attach(remoteVideoRef.current);
           }
         });
       });
@@ -246,7 +248,7 @@ export function MobileVideoConsultation({ sessionId, userRole, onEnd }: MobileVi
 
         participant.on('trackSubscribed', (track: rtcp.Track) => {
           if (track.kind === 'video' && remoteVideoRef.current) {
-            track.attach(remoteVideoRef.current);
+            (track as any).attach(remoteVideoRef.current);
           }
         });
 
@@ -274,7 +276,7 @@ export function MobileVideoConsultation({ sessionId, userRole, onEnd }: MobileVi
         setRemoteParticipants(new Map());
       });
 
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to join video room:', err);
       setError(err.message || 'Failed to connect to video room. Please check your internet connection.');
       setConnecting(false);
@@ -429,7 +431,7 @@ export function MobileVideoConsultation({ sessionId, userRole, onEnd }: MobileVi
       if (onEnd) {
         onEnd({ duration });
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error('Failed to end session:', err);
       setError('Failed to end session properly. Please try again.');
       setEnding(false);
@@ -592,7 +594,7 @@ export function MobileVideoConsultation({ sessionId, userRole, onEnd }: MobileVi
           <div className="flex justify-center items-center gap-3 mb-4">
             {/* Switch camera button */}
             <Button
-              size="lg"
+              size="sm"
               onClick={switchCamera}
               variant="secondary"
               className="w-14 h-14 rounded-full bg-gray-700 hover:bg-gray-600 border-2 border-white"
@@ -602,9 +604,9 @@ export function MobileVideoConsultation({ sessionId, userRole, onEnd }: MobileVi
 
             {/* Toggle video button */}
             <Button
-              size="lg"
+              size="sm"
               onClick={toggleVideo}
-              variant={isVideoOff ? 'destructive' : 'secondary'}
+              variant={isVideoOff ? 'danger' : 'secondary'}
               className="w-16 h-16 rounded-full bg-gray-700 hover:bg-gray-600 border-2 border-white"
             >
               {isVideoOff ? <VideoOff className="w-7 h-7" /> : <Video className="w-7 h-7" />}
@@ -612,9 +614,9 @@ export function MobileVideoConsultation({ sessionId, userRole, onEnd }: MobileVi
 
             {/* Toggle audio button */}
             <Button
-              size="lg"
+              size="sm"
               onClick={toggleAudio}
-              variant={isMuted ? 'destructive' : 'secondary'}
+              variant={isMuted ? 'danger' : 'secondary'}
               className="w-16 h-16 rounded-full bg-gray-700 hover:bg-gray-600 border-2 border-white"
             >
               {isMuted ? <MicOff className="w-7 h-7" /> : <Mic className="w-7 h-7" />}
@@ -622,10 +624,10 @@ export function MobileVideoConsultation({ sessionId, userRole, onEnd }: MobileVi
 
             {/* End call button */}
             <Button
-              size="lg"
+              size="sm"
               onClick={endCall}
               disabled={ending}
-              variant="destructive"
+              variant="danger"
               className="w-16 h-16 rounded-full bg-red-600 hover:bg-red-700 border-2 border-white"
             >
               <PhoneOff className="w-7 h-7" />

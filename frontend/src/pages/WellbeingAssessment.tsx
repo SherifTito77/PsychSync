@@ -116,7 +116,7 @@ const WellbeingAssessment: React.FC = () => {
   // New state for enhanced features
   const [scoreFilter, setScoreFilter] = useState<'all' | 'low' | 'medium' | 'high'>('all');
   const [showGoalModal, setShowGoalModal] = useState(false);
-  const [selectedGoalCategory, setSelectedGoalCategory] = useState<string | null>(null);
+  const [selectedGoalCategory, setSelectedGoalCategory] = useState<{ category: string; currentScore: number } | null>(null);
   const [assessmentHistory, setAssessmentHistory] = useState<StoredAssessmentResult[]>([]);
   const [previousResult, setPreviousResult] = useState<StoredAssessmentResult | null>(null);
   const [streak, setStreak] = useState<WellnessStreak>(getStreak());
@@ -134,13 +134,15 @@ const WellbeingAssessment: React.FC = () => {
     const progress = getActionProgress();
     const progressMap: Record<string, boolean> = {};
     Object.values(progress).forEach(p => {
-      progressMap[`${p.category}-${p.actionIndex}`] = p.completed;
+      const item = p as any;
+      progressMap[`${item.category}-${item.actionIndex}`] = item.completed;
     });
     setActionProgress(progressMap);
   }, []);
 
   // Save result when assessment is completed
   useEffect(() => {
+    let timerId: NodeJS.Timeout | undefined;
     if (showResults) {
       const { categoryScores, overallPercentage } = calculateScores();
       const result = {
@@ -156,8 +158,11 @@ const WellbeingAssessment: React.FC = () => {
       setPreviousResult(getPreviousAssessment());
       setStreak(getStreak());
       setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 3000);
+      timerId = setTimeout(() => setShowConfetti(false), 3000);
     }
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
   }, [showResults]);
 
   const currentCategory = CATEGORIES[currentCategoryIndex];
@@ -325,8 +330,8 @@ const WellbeingAssessment: React.FC = () => {
     });
 
     // Calculate overall score
-    const totalScore = Object.values(categoryScores).reduce((sum, cat) => sum + cat.score, 0);
-    const maxScore = Object.values(categoryScores).reduce((sum, cat) => sum + cat.max, 0);
+    const totalScore = Object.values(categoryScores).reduce((sum, cat) => sum + (cat as any).score, 0);
+    const maxScore = Object.values(categoryScores).reduce((sum, cat) => sum + (cat as any).max, 0);
     const overallPercentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
 
     return { categoryScores, overallPercentage, totalScore, maxScore };
@@ -522,7 +527,7 @@ const WellbeingAssessment: React.FC = () => {
   // Handler for action item checkbox toggles
   const handleActionToggle = (category: string, actionIndex: number) => {
     const key = `${category}-${actionIndex}`;
-    const newState = { ...actionProgress };
+    const newState: Record<string, boolean> = { ...actionProgress };
     newState[key] = !newState[key];
     setActionProgress(newState);
 
@@ -606,6 +611,7 @@ const WellbeingAssessment: React.FC = () => {
 
   // Save assessment result to history when completed
   useEffect(() => {
+    let timerId: NodeJS.Timeout | undefined;
     if (showResults) {
       const { categoryScores, overallPercentage, totalScore, maxScore } = calculateScores();
 
@@ -633,10 +639,13 @@ const WellbeingAssessment: React.FC = () => {
         // Trigger confetti for good scores
         if (overallPercentage >= 70) {
           setShowConfetti(true);
-          setTimeout(() => setShowConfetti(false), 5000);
+          timerId = setTimeout(() => setShowConfetti(false), 5000);
         }
       }
     }
+    return () => {
+      if (timerId) clearTimeout(timerId);
+    };
   }, [showResults]);
 
   if (showResults) {

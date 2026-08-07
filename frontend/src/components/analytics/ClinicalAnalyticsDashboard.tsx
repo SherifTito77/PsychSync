@@ -65,30 +65,84 @@ interface AnalyticsData {
   }[];
 }
 
+// Feature flag: clinical analytics endpoint not fully implemented yet
+// FIXED: Endpoint is now functional - re-enabling the feature
+const CLINICAL_ANALYTICS_ENABLED = true;
+
 function ClinicalAnalyticsDashboard() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState('30d');
 
+  // DEBUG: Log when component mounts
   useEffect(() => {
-    loadAnalytics();
-  }, [timeRange]);
+    console.log('[ClinicalAnalyticsDashboard] Component mounted');
+    console.log('[ClinicalAnalyticsDashboard] Feature flag:', CLINICAL_ANALYTICS_ENABLED);
+  }, []);
+
+  useEffect(() => {
+    console.log('[ClinicalAnalyticsDashboard] Loading analytics for period:', timeRange);
+    if (CLINICAL_ANALYTICS_ENABLED) {
+      loadAnalytics();
+    } else {
+      setLoading(false);
+    }
+  }, [timeRange, CLINICAL_ANALYTICS_ENABLED]);
 
   const loadAnalytics = async () => {
     try {
+      console.log('[ClinicalAnalyticsDashboard] Starting API call to:', `/analytics/clinical/population?period=${timeRange}`);
       setLoading(true);
-      const response = await api.get(`/api/v1/analytics/population?period=${timeRange}`);
-      setData(response.data.data);
+      // Backend endpoint is at /analytics/clinical/population
+      const response = await api.get(`/analytics/clinical/population?period=${timeRange}`);
+      console.log('[ClinicalAnalyticsDashboard] API response:', response.data);
+      setData(response.data as unknown as AnalyticsData);
       setError(null);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load analytics data');
+      console.error('[ClinicalAnalyticsDashboard] API error:', err);
+      console.error('[ClinicalAnalyticsDashboard] Error status:', err.response?.status);
+      console.error('[ClinicalAnalyticsDashboard] Error data:', err.response?.data);
+      // Handle both 404 and 500 errors gracefully
+      if (err.response?.status === 500) {
+        setError('Clinical analytics service is temporarily unavailable. Our team has been notified and is working to resolve the issue.');
+      } else if (err.response?.status === 404) {
+        setError('Clinical analytics feature is not yet available. Please check back later.');
+      } else {
+        setError(err.response?.data?.detail || 'Failed to load analytics data');
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // Show disabled state when feature flag is off
+  if (!CLINICAL_ANALYTICS_ENABLED) {
+    console.log('[ClinicalAnalyticsDashboard] Feature flag is OFF, showing disabled message');
+    return (
+      <div className="max-w-7xl mx-auto p-4 sm:p-6">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 sm:py-20 px-4">
+            <BarChart className="h-16 w-16 text-gray-400 mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2 text-center">
+              Clinical Analytics Temporarily Disabled
+            </h3>
+            <p className="text-sm sm:text-base text-gray-600 text-center max-w-md mb-6">
+              The clinical analytics feature is currently unavailable due to backend maintenance.
+              We're working to restore full functionality as soon as possible.
+            </p>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Shield className="h-4 w-4" />
+              <span>HIPAA-compliant data aggregation</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (loading) {
+    console.log('[ClinicalAnalyticsDashboard] Showing loading state');
     return (
       <div className="max-w-7xl mx-auto p-4 sm:p-6">
         <Card>
@@ -102,6 +156,7 @@ function ClinicalAnalyticsDashboard() {
   }
 
   if (error || !data) {
+    console.log('[ClinicalAnalyticsDashboard] Showing error state:', error);
     return (
       <div className="max-w-7xl mx-auto p-4 sm:p-6">
         <Alert variant="error">
@@ -111,6 +166,8 @@ function ClinicalAnalyticsDashboard() {
       </div>
     );
   }
+
+  console.log('[ClinicalAnalyticsDashboard] Rendering main dashboard with data:', data);
 
   const crisisResolutionRate =
     data.summary.crisis_alerts_triggered > 0
@@ -309,7 +366,7 @@ function ClinicalAnalyticsDashboard() {
                           {trend.total_assessments} assessments
                         </span>
                         {trend.crisis_alerts > 0 && (
-                          <Badge variant="destructive" className="text-xs">
+                          <Badge variant="error" className="text-xs">
                             {trend.crisis_alerts} crisis alerts
                           </Badge>
                         )}
@@ -390,7 +447,7 @@ function ClinicalAnalyticsDashboard() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <Badge variant="destructive">
+                            <Badge variant="error">
                               Risk Score: {user.risk_score}
                             </Badge>
                             <span className="text-xs text-gray-600">

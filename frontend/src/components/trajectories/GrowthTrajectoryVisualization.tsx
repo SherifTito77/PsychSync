@@ -35,6 +35,7 @@ import {
   ReferenceArea,
   ComposedChart,
   Bar,
+  BarChart,
 } from 'recharts';
 import {
   TrendingUp,
@@ -506,7 +507,7 @@ const GrowthTrajectoryVisualization: React.FC<GrowthTrajectoryVisualizationProps
                   variant={
                     milestone.status === 'achieved' ? 'default' :
                     milestone.status === 'in_progress' ? 'secondary' :
-                    milestone.status === 'delayed' ? 'destructive' : 'outline'
+                    milestone.status === 'delayed' ? 'error' : 'outline'
                   }
                 >
                   {milestone.status}
@@ -528,7 +529,7 @@ const GrowthTrajectoryVisualization: React.FC<GrowthTrajectoryVisualizationProps
                 </div>
                 <div>
                   <span className="text-gray-600">Priority: </span>
-                  <Badge variant={milestone.priority === 'critical' ? 'destructive' : 'secondary'}>
+                  <Badge variant={milestone.priority === 'critical' ? 'error' : 'secondary'}>
                     {milestone.priority}
                   </Badge>
                 </div>

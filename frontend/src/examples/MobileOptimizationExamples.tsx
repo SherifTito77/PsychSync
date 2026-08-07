@@ -16,7 +16,7 @@ import {
 } from '../utils/crossPlatform/mobileBrowserCompatibility';
 import {
   UXUsabilityDefectDetector,
-  type DefectReport
+  type UXDefect
 } from '../utils/ux/usabilityDefectDetector';
 
 // Example data sets for different scenarios

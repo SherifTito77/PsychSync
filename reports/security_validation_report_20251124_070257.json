@@ -1,0 +1,110 @@
+{
+  "timestamp": "2025-11-24T07:02:57.047692",
+  "summary": {
+    "total_tests": 14,
+    "passed_tests": 7,
+    "pass_rate": 50.0,
+    "grade": "F (Critical)",
+    "status": "NOT PRODUCTION READY"
+  },
+  "results": [
+    {
+      "name": "Security Config Test",
+      "passed": false,
+      "message": "Error testing security config: 1 validation error for SecureSettings\nSECRET_KEY\n  Value error, SECRET_KEY lacks sufficient entropy (33.92% < 75%). Use high-entropy random characters only. [type=value_error, input_value='8B4yxHjW6EvNM3nsnUcQXNny...Ir9ozJXQ6rzgPKLy-ZwoO30', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error",
+      "details": "",
+      "timestamp": "2025-11-24T07:02:55.165278"
+    },
+    {
+      "name": "Password Policy Test",
+      "passed": false,
+      "message": "Error testing password policy: 1 validation error for SecureSettings\nSECRET_KEY\n  Value error, SECRET_KEY lacks sufficient entropy (33.92% < 75%). Use high-entropy random characters only. [type=value_error, input_value='8B4yxHjW6EvNM3nsnUcQXNny...Ir9ozJXQ6rzgPKLy-ZwoO30', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error",
+      "details": "",
+      "timestamp": "2025-11-24T07:02:56.773672"
+    },
+    {
+      "name": "JWT Security Test",
+      "passed": false,
+      "message": "Error testing JWT security: 1 validation error for SecureSettings\nSECRET_KEY\n  Value error, SECRET_KEY lacks sufficient entropy (33.92% < 75%). Use high-entropy random characters only. [type=value_error, input_value='8B4yxHjW6EvNM3nsnUcQXNny...Ir9ozJXQ6rzgPKLy-ZwoO30', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error",
+      "details": "",
+      "timestamp": "2025-11-24T07:02:56.817900"
+    },
+    {
+      "name": "Security Middleware Import",
+      "passed": false,
+      "message": "Cannot import security middleware: No module named 'fastapi.middleware.base'",
+      "details": "",
+      "timestamp": "2025-11-24T07:02:56.822103"
+    },
+    {
+      "name": "Input Validation Framework",
+      "passed": true,
+      "message": "Input validation framework is implemented",
+      "details": "",
+      "timestamp": "2025-11-24T07:02:56.824332"
+    },
+    {
+      "name": "Input Validation Test",
+      "passed": false,
+      "message": "Error testing input validation: 'InputValidator' object has no attribute 'validate_text_input'",
+      "details": "",
+      "timestamp": "2025-11-24T07:02:56.824354"
+    },
+    {
+      "name": "Database Security Test",
+      "passed": false,
+      "message": "Error testing database security: 1 validation error for SecureSettings\nSECRET_KEY\n  Value error, SECRET_KEY lacks sufficient entropy (33.92% < 75%). Use high-entropy random characters only. [type=value_error, input_value='8B4yxHjW6EvNM3nsnUcQXNny...Ir9ozJXQ6rzgPKLy-ZwoO30', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error",
+      "details": "",
+      "timestamp": "2025-11-24T07:02:56.866999"
+    },
+    {
+      "name": "CORS Middleware",
+      "passed": true,
+      "message": "CORS middleware is available",
+      "details": "",
+      "timestamp": "2025-11-24T07:02:56.870445"
+    },
+    {
+      "name": "Security Headers",
+      "passed": true,
+      "message": "4 critical security headers identified",
+      "details": "",
+      "timestamp": "2025-11-24T07:02:56.870463"
+    },
+    {
+      "name": "Rate Limiting Test",
+      "passed": false,
+      "message": "Error testing rate limiting: 1 validation error for SecureSettings\nSECRET_KEY\n  Value error, SECRET_KEY lacks sufficient entropy (33.92% < 75%). Use high-entropy random characters only. [type=value_error, input_value='8B4yxHjW6EvNM3nsnUcQXNny...Ir9ozJXQ6rzgPKLy-ZwoO30', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.12/v/value_error",
+      "details": "",
+      "timestamp": "2025-11-24T07:02:57.018634"
+    },
+    {
+      "name": "Error Response Framework",
+      "passed": true,
+      "message": "Secure error response framework is implemented",
+      "details": "",
+      "timestamp": "2025-11-24T07:02:57.043530"
+    },
+    {
+      "name": "Error Response Sanitization",
+      "passed": true,
+      "message": "Error responses are properly sanitized",
+      "details": "",
+      "timestamp": "2025-11-24T07:02:57.043624"
+    },
+    {
+      "name": "Security Logging",
+      "passed": true,
+      "message": "Security logging framework is implemented",
+      "details": "",
+      "timestamp": "2025-11-24T07:02:57.045195"
+    },
+    {
+      "name": "Audit Logging",
+      "passed": true,
+      "message": "Audit logging framework is implemented",
+      "details": "",
+      "timestamp": "2025-11-24T07:02:57.047582"
+    }
+  ]
+}

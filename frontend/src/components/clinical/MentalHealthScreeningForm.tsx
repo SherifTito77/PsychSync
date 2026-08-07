@@ -97,8 +97,8 @@ const validateAnswerScore = (question: Question, answerIndex: number): number | 
     typeof score !== 'number' ||
     !isFinite(score) ||
     // Additional check to ensure it's not a boolean (boolean values can be converted to numbers)
-    score === true ||
-    score === false ||
+    score === 1 as any ||
+    score === 0 as any ||
     // Explicit NaN check (isFinite already handles this, but keeping for clarity)
     Number.isNaN(score)
   ) {
@@ -122,8 +122,8 @@ const validateCompleteResponses = (toolQuestions: Question[], responses: Screeni
     if (
       typeof response.score !== 'number' ||
       !isFinite(response.score) ||
-      response.score === true ||
-      response.score === false ||
+      response.score === 1 as any ||
+      response.score === 0 as any ||
       Number.isNaN(response.score)
     ) {
       console.warn(`Invalid score ${response.score} for response to question ${response.question_id}`);
@@ -143,8 +143,8 @@ const calculateSafeTotalScore = (responses: ScreeningResponse[]): { score: numbe
     if (
       typeof response.score === 'number' &&
       isFinite(response.score) &&
-      response.score !== true &&
-      response.score !== false &&
+      response.score !== 1 as any &&
+      response.score !== 0 as any &&
       !Number.isNaN(response.score)
     ) {
       validScores.push(response.score);

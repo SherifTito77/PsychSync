@@ -10,7 +10,7 @@ from typing import Any
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai.processors.wellness_processor import WellnessProcessor
+from app.ai.processors.wellness_processor import WellnessProcessor
 from app.db.models.response import Response
 from app.services.ai_enhanced_analytics import AIEnhancedAnalyticsService
 from app.services.trend_analysis import TrendAnalysisService

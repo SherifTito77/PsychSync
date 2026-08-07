@@ -10,8 +10,8 @@ import logging
 from typing import Any, Dict
 from uuid import UUID
 
-from ai.models.processing_result import ProcessingResult
-from ai.processors import get_processor
+from app.ai.models.processing_result import ProcessingResult
+from app.ai.processors import get_processor
 from app.core.cache import cache_get, cache_set
 from app.core.config import settings
 

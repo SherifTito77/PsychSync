@@ -7,20 +7,13 @@ All access is logged and requires proper authorization
 """
 
 import logging
-from datetime import datetime
 from typing import List
-from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_user, get_db
-from app.db.models.clinical_screening import (
-    ClinicalConsent,
-    ClinicalScreening,
-)
 from app.db.models.user import User
 from app.schemas.clinical import (
     ASRSRequest,
@@ -36,7 +29,7 @@ from app.services.clinical.additional_scorers import (
     DAST10Scorer,
     MDQScorer,
 )
-from app.services.clinical.crisis_intervention import CrisisInterventionService
+from app.services.clinical.screening_service import ScreeningService
 from app.services.clinical.scoring_algorithms import (
     CSSRSScorer,
     GAD7Scorer,
@@ -66,21 +59,14 @@ async def submit_consent(
 
     HIPAA Requirement: Must obtain explicit consent before collecting PHI
     """
-    consent = ClinicalConsent(
+    svc = ScreeningService(db)
+    consent = await svc.submit_consent(
         user_id=current_user.id,
         org_id=current_user.org_id,
         consent_type=consent_type,
-        consent_version="2.0",
-        consented=True,
-        consent_text=_get_consent_text(consent_type),
         screening_types=screening_types,
-        consented_at=datetime.utcnow(),
-        expires_at=datetime.utcnow().replace(year=datetime.utcnow().year + 1),  # 1 year
+        consent_text=_get_consent_text(consent_type),
     )
-
-    db.add(consent)
-    await db.commit()
-
     return {
         "message": "Consent recorded successfully",
         "consent_id": str(consent.id),
@@ -88,27 +74,13 @@ async def submit_consent(
     }
 
 
-async def verify_consent(user_id: UUID, screening_type: str, db: AsyncSession) -> bool:
-    """Verify user has valid consent for screening"""
-    result = await db.execute(
-        select(ClinicalConsent).where(
-            ClinicalConsent.user_id == user_id,
-            ClinicalConsent.consent_type == "screening",
-            ClinicalConsent.consented == True,
-            ClinicalConsent.withdrawn == False,
-            ClinicalConsent.expires_at > datetime.utcnow(),
+async def _require_consent(user_id, screening_type: str, svc: ScreeningService) -> None:
+    """Raise 403 if valid consent is missing."""
+    if not await svc.verify_consent(user_id, screening_type):
+        raise HTTPException(
+            403,
+            "Clinical screening consent required. Please complete consent form first.",
         )
-    )
-    consent = result.scalar_one_or_none()
-
-    if not consent:
-        return False
-
-    # Check if screening type is covered
-    if screening_type not in (consent.screening_types or []):
-        return False
-
-    return True
 
 
 # ============================================================================
@@ -132,16 +104,9 @@ async def submit_phq9(
     CRITICAL: Item 9 assesses suicide ideation
     """
     screening_type = "PHQ9"
+    svc = ScreeningService(db)
+    await _require_consent(current_user.id, screening_type, svc)
 
-    # Verify consent
-    has_consent = await verify_consent(current_user.id, screening_type, db)
-    if not has_consent:
-        raise HTTPException(
-            403,
-            "Clinical screening consent required. Please complete consent form first.",
-        )
-
-    # Convert Pydantic model to dict for scorer
     response_dict = {
         1: responses.q1_interest,
         2: responses.q2_depressed,
@@ -153,71 +118,18 @@ async def submit_phq9(
         8: responses.q8_motor,
         9: responses.q9_suicide,
     }
-
-    # Score the assessment
-    scorer = PHQ9Scorer()
-    result = scorer.score(response_dict)
-
-    # Save screening results
-    screening = ClinicalScreening(
+    result = PHQ9Scorer.score(response_dict)
+    screening = await svc.save_and_escalate(
         user_id=current_user.id,
         org_id=current_user.org_id,
         screening_type=screening_type,
         version="2.0",
-        responses=response_dict,
-        total_score=result.total_score,
-        severity_level=result.severity_level,
-        risk_level=result.risk_level,
-        risk_flags=result.risk_flags,
-        crisis_alert=result.crisis_alert,
-        informed_consent=True,
-        consent_timestamp=datetime.utcnow(),
-        completed_at=datetime.utcnow(),
+        response_dict=response_dict,
+        result=result,
+        background_tasks=background_tasks,
+        user_email=current_user.email,
+        user_name=current_user.full_name,
     )
-
-    db.add(screening)
-    await db.commit()
-    await db.refresh(screening)
-
-    # CRISIS INTERVENTION - Trigger if needed
-    if result.crisis_alert:
-        crisis_service = CrisisInterventionService(db)
-        alert = await crisis_service.create_alert(
-            screening_id=screening.id,
-            user_id=current_user.id,
-            org_id=current_user.org_id,
-            risk_level=result.risk_level,
-            risk_flags=result.risk_flags,
-            screening_data={"screening_type": screening_type},
-        )
-
-        # Activate crisis protocol
-        await crisis_service.activate_crisis_protocol(
-            alert=alert,
-            background_tasks=background_tasks,
-            user_email=current_user.email,
-            user_name=current_user.full_name,
-        )
-
-        # Notify clinicians of crisis alert
-        from app.services.clinical.notification_service import (
-            ClinicianNotificationService,
-        )
-
-        notification_service = ClinicianNotificationService(db)
-        await notification_service.notify_clinicians_of_alert(
-            alert_id=str(alert.id),
-            alert_type=alert.alert_type,
-            severity=alert.severity,
-            screening_id=str(screening.id),
-            org_id=str(current_user.org_id),
-            alert_message=alert.alert_message,
-        )
-
-        logger.critical(
-            f"PHQ-9 Crisis alert triggered for user {current_user.id} and clinicians notified"
-        )
-
     return ScreeningResponse(
         id=screening.id,
         screening_type=screening_type,
@@ -252,13 +164,9 @@ async def submit_gad7(
     Reliability: α = 0.92
     """
     screening_type = "GAD7"
+    svc = ScreeningService(db)
+    await _require_consent(current_user.id, screening_type, svc)
 
-    # Verify consent
-    has_consent = await verify_consent(current_user.id, screening_type, db)
-    if not has_consent:
-        raise HTTPException(403, "Clinical screening consent required")
-
-    # Convert to dict
     response_dict = {
         1: responses.q1_nervous,
         2: responses.q2_control_worry,
@@ -268,70 +176,18 @@ async def submit_gad7(
         6: responses.q6_irritable,
         7: responses.q7_afraid,
     }
-
-    # Score
-    scorer = GAD7Scorer()
-    result = scorer.score(response_dict)
-
-    # Save
-    screening = ClinicalScreening(
+    result = GAD7Scorer.score(response_dict)
+    screening = await svc.save_and_escalate(
         user_id=current_user.id,
         org_id=current_user.org_id,
         screening_type=screening_type,
         version="2.0",
-        responses=response_dict,
-        total_score=result.total_score,
-        severity_level=result.severity_level,
-        risk_level=result.risk_level,
-        risk_flags=result.risk_flags,
-        crisis_alert=result.crisis_alert,
-        informed_consent=True,
-        consent_timestamp=datetime.utcnow(),
-        completed_at=datetime.utcnow(),
+        response_dict=response_dict,
+        result=result,
+        background_tasks=background_tasks,
+        user_email=current_user.email,
+        user_name=current_user.full_name,
     )
-
-    db.add(screening)
-    await db.commit()
-    await db.refresh(screening)
-
-    # Crisis intervention if needed
-    if result.crisis_alert:
-        crisis_service = CrisisInterventionService(db)
-        alert = await crisis_service.create_alert(
-            screening_id=screening.id,
-            user_id=current_user.id,
-            org_id=current_user.org_id,
-            risk_level=result.risk_level,
-            risk_flags=result.risk_flags,
-            screening_data={"screening_type": screening_type},
-        )
-
-        await crisis_service.activate_crisis_protocol(
-            alert=alert,
-            background_tasks=background_tasks,
-            user_email=current_user.email,
-            user_name=current_user.full_name,
-        )
-
-        # Notify clinicians of crisis alert
-        from app.services.clinical.notification_service import (
-            ClinicianNotificationService,
-        )
-
-        notification_service = ClinicianNotificationService(db)
-        await notification_service.notify_clinicians_of_alert(
-            alert_id=str(alert.id),
-            alert_type=alert.alert_type,
-            severity=alert.severity,
-            screening_id=str(screening.id),
-            org_id=str(current_user.org_id),
-            alert_message=alert.alert_message,
-        )
-
-        logger.critical(
-            f"Crisis alert triggered for {screening_type} screening user {current_user.id} and clinicians notified"
-        )
-
     return ScreeningResponse(
         id=screening.id,
         screening_type=screening_type,
@@ -366,13 +222,9 @@ async def submit_cssrs(
     Columbia-Suicide Severity Rating Scale
     """
     screening_type = "CSSRS"
+    svc = ScreeningService(db)
+    await _require_consent(current_user.id, screening_type, svc)
 
-    # Verify consent
-    has_consent = await verify_consent(current_user.id, screening_type, db)
-    if not has_consent:
-        raise HTTPException(403, "Clinical screening consent required")
-
-    # Convert to dict
     response_dict = {
         "q1": responses.q1_wish_dead,
         "q2": responses.q2_nonspecific_thoughts,
@@ -383,53 +235,19 @@ async def submit_cssrs(
         "q12": responses.q12_preparatory_acts,
         "q13": responses.q13_aborted_attempt,
     }
-
-    # Score
-    scorer = CSSRSScorer()
-    result = scorer.score(response_dict)
-
-    # Save
-    screening = ClinicalScreening(
+    result = CSSRSScorer.score(response_dict)
+    screening = await svc.save_and_escalate(
         user_id=current_user.id,
         org_id=current_user.org_id,
         screening_type=screening_type,
         version="2.0",
-        responses=response_dict,
-        total_score=result.total_score,
-        severity_level=result.severity_level,
-        risk_level=result.risk_level,
-        risk_flags=result.risk_flags,
-        crisis_alert=result.crisis_alert,
-        informed_consent=True,
-        consent_timestamp=datetime.utcnow(),
-        completed_at=datetime.utcnow(),
+        response_dict=response_dict,
+        result=result,
+        background_tasks=background_tasks,
+        user_email=current_user.email,
+        user_name=current_user.full_name,
+        notify_clinicians=False,  # C-SSRS crisis is handled by crisis protocol itself
     )
-
-    db.add(screening)
-    await db.commit()
-    await db.refresh(screening)
-
-    # CRISIS INTERVENTION - ALWAYS triggered for C-SSRS
-    if result.crisis_alert:
-        crisis_service = CrisisInterventionService(db)
-        alert = await crisis_service.create_alert(
-            screening_id=screening.id,
-            user_id=current_user.id,
-            org_id=current_user.org_id,
-            risk_level=result.risk_level,
-            risk_flags=result.risk_flags,
-            screening_data={"screening_type": screening_type},
-        )
-
-        await crisis_service.activate_crisis_protocol(
-            alert=alert,
-            background_tasks=background_tasks,
-            user_email=current_user.email,
-            user_name=current_user.full_name,
-        )
-
-        logger.critical(f"C-SSRS Crisis alert triggered for user {current_user.id}")
-
     return ScreeningResponse(
         id=screening.id,
         screening_type=screening_type,
@@ -484,63 +302,25 @@ async def submit_mdq(
     13 symptom items + clustering + impairment assessment
     """
     screening_type = "MDQ"
+    svc = ScreeningService(db)
+    await _require_consent(current_user.id, screening_type, svc)
 
-    # Verify consent
-    has_consent = await verify_consent(current_user.id, screening_type, db)
-    if not has_consent:
-        raise HTTPException(403, "Clinical screening consent required")
-
-    # Convert to dict format
     response_dict = {f"q{i}": getattr(responses, f"q{i}") for i in range(1, 14)}
     response_dict["q14_clustered"] = responses.q14_clustered
     response_dict["q15_impairment"] = responses.q15_impairment
-
-    # Score the assessment
-    scorer = MDQScorer()
-    result = scorer.score(response_dict)
-
-    # Save screening results
-    screening = ClinicalScreening(
+    result = MDQScorer().score(response_dict)
+    screening = await svc.save_and_escalate(
         user_id=current_user.id,
         org_id=getattr(current_user, "org_id", None),
         screening_type=screening_type,
         version="1.0",
-        responses=response_dict,
-        total_score=result.total_score,
-        severity_level=result.severity_level,
-        risk_level=result.risk_level,
-        risk_flags=result.risk_flags,
-        crisis_alert=result.crisis_alert,
-        informed_consent=True,
-        consent_timestamp=datetime.utcnow(),
-        completed_at=datetime.utcnow(),
+        response_dict=response_dict,
+        result=result,
+        background_tasks=background_tasks,
+        user_email=current_user.email,
+        user_name=current_user.full_name,
+        notify_clinicians=False,
     )
-
-    db.add(screening)
-    await db.commit()
-    await db.refresh(screening)
-
-    # Crisis intervention if needed
-    if result.crisis_alert:
-        crisis_service = CrisisInterventionService(db)
-        alert = await crisis_service.create_alert(
-            screening_id=screening.id,
-            user_id=current_user.id,
-            org_id=getattr(current_user, "org_id", None),
-            risk_level=result.risk_level,
-            risk_flags=result.risk_flags,
-            screening_data={"screening_type": screening_type},
-        )
-
-        await crisis_service.activate_crisis_protocol(
-            alert=alert,
-            background_tasks=background_tasks,
-            user_email=current_user.email,
-            user_name=current_user.full_name,
-        )
-
-        logger.critical(f"MDQ Crisis alert triggered for user {current_user.id}")
-
     return ScreeningResponse(
         id=screening.id,
         screening_type=screening_type,
@@ -590,61 +370,23 @@ async def submit_dast10(
     Substance use disorder screening
     """
     screening_type = "DAST10"
+    svc = ScreeningService(db)
+    await _require_consent(current_user.id, screening_type, svc)
 
-    # Verify consent
-    has_consent = await verify_consent(current_user.id, screening_type, db)
-    if not has_consent:
-        raise HTTPException(403, "Clinical screening consent required")
-
-    # Convert to dict format
     response_dict = {i: getattr(responses, f"q{i}") for i in range(1, 11)}
-
-    # Score the assessment
-    scorer = DAST10Scorer()
-    result = scorer.score(response_dict)
-
-    # Save screening results
-    screening = ClinicalScreening(
+    result = DAST10Scorer().score(response_dict)
+    screening = await svc.save_and_escalate(
         user_id=current_user.id,
         org_id=getattr(current_user, "org_id", None),
         screening_type=screening_type,
         version="1.0",
-        responses=response_dict,
-        total_score=result.total_score,
-        severity_level=result.severity_level,
-        risk_level=result.risk_level,
-        risk_flags=result.risk_flags,
-        crisis_alert=result.crisis_alert,
-        informed_consent=True,
-        consent_timestamp=datetime.utcnow(),
-        completed_at=datetime.utcnow(),
+        response_dict=response_dict,
+        result=result,
+        background_tasks=background_tasks,
+        user_email=current_user.email,
+        user_name=current_user.full_name,
+        notify_clinicians=False,
     )
-
-    db.add(screening)
-    await db.commit()
-    await db.refresh(screening)
-
-    # Crisis intervention if needed
-    if result.crisis_alert:
-        crisis_service = CrisisInterventionService(db)
-        alert = await crisis_service.create_alert(
-            screening_id=screening.id,
-            user_id=current_user.id,
-            org_id=getattr(current_user, "org_id", None),
-            risk_level=result.risk_level,
-            risk_flags=result.risk_flags,
-            screening_data={"screening_type": screening_type},
-        )
-
-        await crisis_service.activate_crisis_protocol(
-            alert=alert,
-            background_tasks=background_tasks,
-            user_email=current_user.email,
-            user_name=current_user.full_name,
-        )
-
-        logger.critical(f"DAST-10 Crisis alert triggered for user {current_user.id}")
-
     return ScreeningResponse(
         id=screening.id,
         screening_type=screening_type,
@@ -683,6 +425,7 @@ class AQ10Request(BaseModel):
 @router.post("/aq10", response_model=ScreeningResponse)
 async def submit_aq10(
     responses: AQ10Request,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -693,40 +436,23 @@ async def submit_aq10(
     Adult autism screening
     """
     screening_type = "AQ10"
+    svc = ScreeningService(db)
+    await _require_consent(current_user.id, screening_type, svc)
 
-    # Verify consent
-    has_consent = await verify_consent(current_user.id, screening_type, db)
-    if not has_consent:
-        raise HTTPException(403, "Clinical screening consent required")
-
-    # Convert to dict format
     response_dict = {i: getattr(responses, f"q{i}") for i in range(1, 11)}
-
-    # Score the assessment
-    scorer = AQ10Scorer()
-    result = scorer.score(response_dict)
-
-    # Save screening results
-    screening = ClinicalScreening(
+    result = AQ10Scorer().score(response_dict)
+    screening = await svc.save_and_escalate(
         user_id=current_user.id,
         org_id=getattr(current_user, "org_id", None),
         screening_type=screening_type,
         version="1.0",
-        responses=response_dict,
-        total_score=result.total_score,
-        severity_level=result.severity_level,
-        risk_level=result.risk_level,
-        risk_flags=result.risk_flags,
-        crisis_alert=result.crisis_alert,
-        informed_consent=True,
-        consent_timestamp=datetime.utcnow(),
-        completed_at=datetime.utcnow(),
+        response_dict=response_dict,
+        result=result,
+        background_tasks=background_tasks,
+        user_email=current_user.email,
+        user_name=current_user.full_name,
+        notify_clinicians=False,
     )
-
-    db.add(screening)
-    await db.commit()
-    await db.refresh(screening)
-
     return ScreeningResponse(
         id=screening.id,
         screening_type=screening_type,
@@ -765,6 +491,7 @@ class ACERequest(BaseModel):
 @router.post("/ace", response_model=ScreeningResponse)
 async def submit_ace(
     responses: ACERequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -775,40 +502,23 @@ async def submit_ace(
     Predictive validity for adult health outcomes
     """
     screening_type = "ACE"
+    svc = ScreeningService(db)
+    await _require_consent(current_user.id, screening_type, svc)
 
-    # Verify consent
-    has_consent = await verify_consent(current_user.id, screening_type, db)
-    if not has_consent:
-        raise HTTPException(403, "Clinical screening consent required")
-
-    # Convert to dict format
     response_dict = {i: getattr(responses, f"q{i}") for i in range(1, 11)}
-
-    # Score the assessment
-    scorer = ACEScorer()
-    result = scorer.score(response_dict)
-
-    # Save screening results
-    screening = ClinicalScreening(
+    result = ACEScorer().score(response_dict)
+    screening = await svc.save_and_escalate(
         user_id=current_user.id,
         org_id=getattr(current_user, "org_id", None),
         screening_type=screening_type,
         version="1.0",
-        responses=response_dict,
-        total_score=result.total_score,
-        severity_level=result.severity_level,
-        risk_level=result.risk_level,
-        risk_flags=result.risk_flags,
-        crisis_alert=result.crisis_alert,
-        informed_consent=True,
-        consent_timestamp=datetime.utcnow(),
-        completed_at=datetime.utcnow(),
+        response_dict=response_dict,
+        result=result,
+        background_tasks=background_tasks,
+        user_email=current_user.email,
+        user_name=current_user.full_name,
+        notify_clinicians=False,
     )
-
-    db.add(screening)
-    await db.commit()
-    await db.refresh(screening)
-
     return ScreeningResponse(
         id=screening.id,
         screening_type=screening_type,
@@ -870,13 +580,9 @@ async def submit_lsas(
     from app.services.clinical.advanced_scorers import LSASScorer
 
     screening_type = "LSAS"
+    svc = ScreeningService(db)
+    await _require_consent(current_user.id, screening_type, svc)
 
-    # Verify consent
-    has_consent = await verify_consent(current_user.id, screening_type, db)
-    if not has_consent:
-        raise HTTPException(403, "Clinical screening consent required")
-
-    # Convert responses to dict format
     response_dict = {}
     for i in range(1, 25):
         item_key = f"item_{i}"
@@ -885,72 +591,18 @@ async def submit_lsas(
                 "fear": responses[item_key].get("fear", 0),
                 "avoidance": responses[item_key].get("avoidance", 0),
             }
-
-    # Score the assessment
-    scorer = LSASScorer()
-    result = scorer.score(response_dict)
-
-    # Save screening results
-    screening = ClinicalScreening(
+    result = LSASScorer().score(response_dict)
+    screening = await svc.save_and_escalate(
         user_id=current_user.id,
         org_id=current_user.org_id,
         screening_type=screening_type,
         version="1.0",
-        responses=response_dict,
-        total_score=result.total_score,
-        severity_level=result.severity_level,
-        risk_level=result.risk_level,
-        risk_flags=result.risk_flags,
-        crisis_alert=result.crisis_alert,
-        informed_consent=True,
-        consent_timestamp=datetime.utcnow(),
-        completed_at=datetime.utcnow(),
+        response_dict=response_dict,
+        result=result,
+        background_tasks=background_tasks,
+        user_email=current_user.email,
+        user_name=current_user.full_name,
     )
-
-    db.add(screening)
-    await db.commit()
-    await db.refresh(screening)
-
-    # Crisis intervention if needed
-    if result.crisis_alert:
-        crisis_service = CrisisInterventionService(db)
-        alert = await crisis_service.create_alert(
-            screening_id=screening.id,
-            user_id=current_user.id,
-            org_id=current_user.org_id,
-            risk_level=result.risk_level,
-            risk_flags=result.risk_flags,
-            screening_data={"screening_type": screening_type},
-        )
-
-        await crisis_service.activate_crisis_protocol(
-            alert=alert,
-            background_tasks=background_tasks,
-            user_email=current_user.email,
-            user_name=current_user.full_name,
-        )
-
-        # Notify clinicians of crisis alert
-        from app.services.clinical.notification_service import (
-            ClinicianNotificationService,
-        )
-
-        notification_service = ClinicianNotificationService(db)
-        await notification_service.notify_clinicians_of_alert(
-            alert_id=str(alert.id),
-            alert_type=alert.alert_type,
-            severity=alert.severity,
-            screening_id=str(screening.id),
-            org_id=str(current_user.org_id),
-            alert_message=alert.alert_message,
-        )
-
-        logger.critical(
-            f"Crisis alert triggered for {screening_type} screening user {current_user.id} and clinicians notified"
-        )
-
-        logger.critical(f"LSAS Crisis alert triggered for user {current_user.id}")
-
     return ScreeningResponse(
         id=screening.id,
         screening_type=screening_type,
@@ -987,65 +639,28 @@ async def submit_eat26(
     from app.services.clinical.advanced_scorers import EAT26Scorer
 
     screening_type = "EAT26"
+    svc = ScreeningService(db)
+    await _require_consent(current_user.id, screening_type, svc)
 
-    # Verify consent
-    has_consent = await verify_consent(current_user.id, screening_type, db)
-    if not has_consent:
-        raise HTTPException(403, "Clinical screening consent required")
-
-    # Extract responses and behavioral questions
     response_items = responses.get("responses", {})
     behavioral_questions = responses.get("behavioral_questions", {})
-
-    # Score the assessment
-    scorer = EAT26Scorer()
-    result = scorer.score(response_items, behavioral_questions)
-
-    # Save screening results
-    screening = ClinicalScreening(
+    result = EAT26Scorer().score(response_items, behavioral_questions)
+    response_dict = {
+        "item_responses": response_items,
+        "behavioral_questions": behavioral_questions,
+    }
+    screening = await svc.save_and_escalate(
         user_id=current_user.id,
         org_id=current_user.org_id,
         screening_type=screening_type,
         version="1.0",
-        responses={
-            "item_responses": response_items,
-            "behavioral_questions": behavioral_questions,
-        },
-        total_score=result.total_score,
-        severity_level=result.severity_level,
-        risk_level=result.risk_level,
-        risk_flags=result.risk_flags,
-        crisis_alert=result.crisis_alert,
-        informed_consent=True,
-        consent_timestamp=datetime.utcnow(),
-        completed_at=datetime.utcnow(),
+        response_dict=response_dict,
+        result=result,
+        background_tasks=background_tasks,
+        user_email=current_user.email,
+        user_name=current_user.full_name,
+        notify_clinicians=False,
     )
-
-    db.add(screening)
-    await db.commit()
-    await db.refresh(screening)
-
-    # Crisis intervention if needed (eating disorders can be life-threatening)
-    if result.crisis_alert:
-        crisis_service = CrisisInterventionService(db)
-        alert = await crisis_service.create_alert(
-            screening_id=screening.id,
-            user_id=current_user.id,
-            org_id=current_user.org_id,
-            risk_level=result.risk_level,
-            risk_flags=result.risk_flags,
-            screening_data={"screening_type": screening_type},
-        )
-
-        await crisis_service.activate_crisis_protocol(
-            alert=alert,
-            background_tasks=background_tasks,
-            user_email=current_user.email,
-            user_name=current_user.full_name,
-        )
-
-        logger.critical(f"EAT-26 Crisis alert triggered for user {current_user.id}")
-
     return ScreeningResponse(
         id=screening.id,
         screening_type=screening_type,
@@ -1082,13 +697,9 @@ async def submit_ybocs(
     from app.services.clinical.advanced_scorers import YBOCSScorer
 
     screening_type = "YBOCS"
+    svc = ScreeningService(db)
+    await _require_consent(current_user.id, screening_type, svc)
 
-    # Verify consent
-    has_consent = await verify_consent(current_user.id, screening_type, db)
-    if not has_consent:
-        raise HTTPException(403, "Clinical screening consent required")
-
-    # Convert to dict format
     response_dict = {
         1: responses.get("item_1_time_obsessions", 0),
         2: responses.get("item_2_interference_obsessions", 0),
@@ -1101,72 +712,18 @@ async def submit_ybocs(
         9: responses.get("item_9_resistance_compulsions", 0),
         10: responses.get("item_10_control_compulsions", 0),
     }
-
-    # Score the assessment
-    scorer = YBOCSScorer()
-    result = scorer.score(response_dict)
-
-    # Save screening results
-    screening = ClinicalScreening(
+    result = YBOCSScorer().score(response_dict)
+    screening = await svc.save_and_escalate(
         user_id=current_user.id,
         org_id=current_user.org_id,
         screening_type=screening_type,
         version="1.0",
-        responses=response_dict,
-        total_score=result.total_score,
-        severity_level=result.severity_level,
-        risk_level=result.risk_level,
-        risk_flags=result.risk_flags,
-        crisis_alert=result.crisis_alert,
-        informed_consent=True,
-        consent_timestamp=datetime.utcnow(),
-        completed_at=datetime.utcnow(),
+        response_dict=response_dict,
+        result=result,
+        background_tasks=background_tasks,
+        user_email=current_user.email,
+        user_name=current_user.full_name,
     )
-
-    db.add(screening)
-    await db.commit()
-    await db.refresh(screening)
-
-    # Crisis intervention if needed
-    if result.crisis_alert:
-        crisis_service = CrisisInterventionService(db)
-        alert = await crisis_service.create_alert(
-            screening_id=screening.id,
-            user_id=current_user.id,
-            org_id=current_user.org_id,
-            risk_level=result.risk_level,
-            risk_flags=result.risk_flags,
-            screening_data={"screening_type": screening_type},
-        )
-
-        await crisis_service.activate_crisis_protocol(
-            alert=alert,
-            background_tasks=background_tasks,
-            user_email=current_user.email,
-            user_name=current_user.full_name,
-        )
-
-        # Notify clinicians of crisis alert
-        from app.services.clinical.notification_service import (
-            ClinicianNotificationService,
-        )
-
-        notification_service = ClinicianNotificationService(db)
-        await notification_service.notify_clinicians_of_alert(
-            alert_id=str(alert.id),
-            alert_type=alert.alert_type,
-            severity=alert.severity,
-            screening_id=str(screening.id),
-            org_id=str(current_user.org_id),
-            alert_message=alert.alert_message,
-        )
-
-        logger.critical(
-            f"Crisis alert triggered for {screening_type} screening user {current_user.id} and clinicians notified"
-        )
-
-        logger.critical(f"Y-BOCS Crisis alert triggered for user {current_user.id}")
-
     return ScreeningResponse(
         id=screening.id,
         screening_type=screening_type,
@@ -1210,16 +767,9 @@ async def submit_asrs(
     Validated for adult populations (18+ years)
     """
     screening_type = "ASRS"
+    svc = ScreeningService(db)
+    await _require_consent(current_user.id, screening_type, svc)
 
-    # Verify consent
-    has_consent = await verify_consent(current_user.id, screening_type, db)
-    if not has_consent:
-        raise HTTPException(
-            403,
-            "Clinical screening consent required. Please complete consent form first.",
-        )
-
-    # Convert Pydantic model to dict for scorer
     response_dict = {
         "1": responses.q1,
         "2": responses.q2,
@@ -1240,52 +790,19 @@ async def submit_asrs(
         "17": responses.q17,
         "18": responses.q18,
     }
-
-    # Score the assessment using the wrapper function
-    result = score_asrs(response_dict)
-
-    # Save screening results
-    screening = ClinicalScreening(
+    result = score_asrs(response_dict)  # returns dict
+    screening = await svc.save_and_escalate(
         user_id=current_user.id,
         org_id=current_user.org_id,
         screening_type=screening_type,
         version="1.1",
-        responses=response_dict,
-        total_score=result["total_score"],
-        severity_level=result["severity_level"],
-        risk_level=result["risk_level"],
-        risk_flags=result["risk_flags"],
-        crisis_alert=result["crisis_alert"],
-        informed_consent=True,
-        consent_timestamp=datetime.utcnow(),
-        completed_at=datetime.utcnow(),
+        response_dict=response_dict,
+        result=result,
+        background_tasks=background_tasks,
+        user_email=current_user.email,
+        user_name=current_user.full_name,
+        notify_clinicians=False,
     )
-
-    db.add(screening)
-    await db.commit()
-    await db.refresh(screening)
-
-    # Crisis intervention if needed (though ASRS rarely triggers)
-    if result["crisis_alert"]:
-        crisis_service = CrisisInterventionService(db)
-        alert = await crisis_service.create_alert(
-            screening_id=screening.id,
-            user_id=current_user.id,
-            org_id=current_user.org_id,
-            risk_level=result["risk_level"],
-            risk_flags=result["risk_flags"],
-            screening_data={"screening_type": screening_type},
-        )
-
-        await crisis_service.activate_crisis_protocol(
-            alert=alert,
-            background_tasks=background_tasks,
-            user_email=current_user.email,
-            user_name=current_user.full_name,
-        )
-
-        logger.critical(f"ASRS Crisis alert triggered for user {current_user.id}")
-
     return ScreeningResponse(
         id=screening.id,
         screening_type=screening_type,
@@ -1333,16 +850,9 @@ async def submit_isi(
     Validated for assessing insomnia severity and treatment outcomes
     """
     screening_type = "ISI"
+    svc = ScreeningService(db)
+    await _require_consent(current_user.id, screening_type, svc)
 
-    # Verify consent
-    has_consent = await verify_consent(current_user.id, screening_type, db)
-    if not has_consent:
-        raise HTTPException(
-            403,
-            "Clinical screening consent required. Please complete consent form first.",
-        )
-
-    # Convert Pydantic model to dict for scorer
     response_dict = {
         "1": responses.q1,
         "2": responses.q2,
@@ -1352,52 +862,19 @@ async def submit_isi(
         "6": responses.q6,
         "7": responses.q7,
     }
-
-    # Score the assessment using the wrapper function
-    result = score_isi(response_dict)
-
-    # Save screening results
-    screening = ClinicalScreening(
+    result = score_isi(response_dict)  # returns dict
+    screening = await svc.save_and_escalate(
         user_id=current_user.id,
         org_id=current_user.org_id,
         screening_type=screening_type,
         version="1.0",
-        responses=response_dict,
-        total_score=result["total_score"],
-        severity_level=result["severity_level"],
-        risk_level=result["risk_level"],
-        risk_flags=result["risk_flags"],
-        crisis_alert=result["crisis_alert"],
-        informed_consent=True,
-        consent_timestamp=datetime.utcnow(),
-        completed_at=datetime.utcnow(),
+        response_dict=response_dict,
+        result=result,
+        background_tasks=background_tasks,
+        user_email=current_user.email,
+        user_name=current_user.full_name,
+        notify_clinicians=False,
     )
-
-    db.add(screening)
-    await db.commit()
-    await db.refresh(screening)
-
-    # Crisis intervention if needed (though insomnia rarely triggers)
-    if result["crisis_alert"]:
-        crisis_service = CrisisInterventionService(db)
-        alert = await crisis_service.create_alert(
-            screening_id=screening.id,
-            user_id=current_user.id,
-            org_id=current_user.org_id,
-            risk_level=result["risk_level"],
-            risk_flags=result["risk_flags"],
-            screening_data={"screening_type": screening_type},
-        )
-
-        await crisis_service.activate_crisis_protocol(
-            alert=alert,
-            background_tasks=background_tasks,
-            user_email=current_user.email,
-            user_name=current_user.full_name,
-        )
-
-        logger.critical(f"ISI Crisis alert triggered for user {current_user.id}")
-
     return ScreeningResponse(
         id=screening.id,
         screening_type=screening_type,

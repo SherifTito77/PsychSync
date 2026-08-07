@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai.clinical.scoring_algorithms import (
+from app.ai.clinical.scoring_algorithms import (
     CSSRSScorer,
     GAD7Scorer,
     PHQ9Scorer,

@@ -411,3 +411,5 @@ frontend/src/components/security/*.bak2
 docs/archive/reports/database_security_test_suite_report.json
 reports/test_coverage_audit.json
 .!*
+backups_data/
+reports/postman_rate_limiting_collection.json

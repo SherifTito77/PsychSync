@@ -20,7 +20,7 @@ class KPIService {
    */
   async getCurrentKPIs(): Promise<ProductKPIs> {
     // TODO: Replace with actual API call
-    // const response = await api.get('/api/v1/analytics/kpi');
+    // const response = await api.get('/analytics/kpi');
     // return response.data;
 
     // Mock data for now
@@ -57,7 +57,7 @@ class KPIService {
    */
   async getCohortData(): Promise<CohortData[]> {
     // TODO: Replace with actual API call
-    // const response = await api.get('/api/v1/analytics/cohorts');
+    // const response = await api.get('/analytics/cohorts');
     // return response.data;
 
     // Mock cohort data
@@ -85,7 +85,7 @@ class KPIService {
    */
   async getConversionFunnel(): Promise<ConversionFunnel> {
     // TODO: Replace with actual API call
-    // const response = await api.get('/api/v1/analytics/funnel');
+    // const response = await api.get('/analytics/funnel');
     // return response.data;
 
     return {
@@ -103,7 +103,7 @@ class KPIService {
    */
   async getRevenueBreakdown(): Promise<RevenueBreakdown> {
     // TODO: Replace with actual API call
-    // const response = await api.get('/api/v1/analytics/revenue');
+    // const response = await api.get('/analytics/revenue');
     // return response.data;
 
     return {

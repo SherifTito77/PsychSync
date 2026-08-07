@@ -1,7 +1,8 @@
 // src/services/abTestingService.ts
 // Frontend A/B testing service for onboarding optimization
 import { apiClient } from './api';
-import { safeJSONParse } from '@/utils/safeJSON';
+import { safeJSONParse } from '../utils/safeJSON';
+import { getAnalytics, EVENT_CATALOG } from './analytics/tracker';
 
 export interface UserSegments {
   role?: 'manager' | 'hr' | 'lead' | 'member' | 'executive';
@@ -35,10 +36,15 @@ class ABTestingService {
   private sessionId: string;
   private syncInterval: NodeJS.Timeout | null = null;
 
+  // ✅ FIXED: Add event deduplication cache to prevent double counting
+  private trackedEvents: Map<string, number> = new Map(); // eventKey -> timestamp
+  private readonly DEDUPLICATION_WINDOW = 5 * 60 * 1000; // 5 minutes
+
   constructor() {
     this.sessionId = this.getOrCreateSessionId();
     this.loadCachedAssignments();
     this.startPeriodicSync();
+    this.startEventCacheCleanup(); // ✅ FIXED: Periodic cleanup of event cache
   }
 
   /**
@@ -71,7 +77,45 @@ class ABTestingService {
    */
   destroy(): void {
     this.stopPeriodicSync();
+    this.stopEventCacheCleanup(); // ✅ FIXED: Stop event cleanup interval
     this.currentAssignments.clear();
+    this.trackedEvents.clear(); // ✅ FIXED: Clear event cache
+  }
+
+  /**
+   * ✅ FIXED: Start periodic event cache cleanup
+   * Removes old event entries to prevent memory leaks
+   */
+  private startEventCacheCleanup(): void {
+    // Clean up old events every minute
+    const cleanupInterval = setInterval(() => {
+      const now = Date.now();
+      let cleanedCount = 0;
+
+      this.trackedEvents.forEach((timestamp, eventKey) => {
+        if (now - timestamp > this.DEDUPLICATION_WINDOW) {
+          this.trackedEvents.delete(eventKey);
+          cleanedCount++;
+        }
+      });
+
+      if (process.env.NODE_ENV === 'development' && cleanedCount > 0) {
+        console.log(`[ABTesting] Cleaned up ${cleanedCount} old event entries`);
+      }
+    }, 60 * 1000); // Every minute
+
+    // Store interval for cleanup (not exposed publicly)
+    (this as any).eventCleanupInterval = cleanupInterval;
+  }
+
+  /**
+   * ✅ FIXED: Stop periodic event cache cleanup
+   */
+  private stopEventCacheCleanup(): void {
+    if ((this as any).eventCleanupInterval) {
+      clearInterval((this as any).eventCleanupInterval);
+      (this as any).eventCleanupInterval = null;
+    }
   }
 
   private getOrCreateSessionId(): string {
@@ -273,6 +317,8 @@ class ABTestingService {
 
   /**
    * Track conversion events for A/B test analysis
+   * ✅ MIGRATED: Now uses unified analytics tracker with standard schema
+   * ✅ FIXED: Added deduplication to prevent double counting
    */
   async trackEvent(
     eventType: string,
@@ -287,21 +333,80 @@ class ABTestingService {
       return;
     }
 
-    const event: ConversionEvent = {
-      test_name: testToTrack,
-      variant: assignment.variant,
-      event_type: eventType,
-      timestamp: new Date().toISOString(),
-      data: eventData
-    };
+    // ✅ FIXED: Check for duplicate events within deduplication window
+    const eventKey = `${testToTrack}_${eventType}`;
+    const now = Date.now();
+    const lastTracked = this.trackedEvents.get(eventKey);
+
+    if (lastTracked && (now - lastTracked < this.DEDUPLICATION_WINDOW)) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[ABTesting] Skipping duplicate event: ${eventKey} (${Math.round((now - lastTracked) / 1000)}s ago)`);
+      }
+      return; // Skip duplicate event
+    }
+
+    // Mark event as tracked
+    this.trackedEvents.set(eventKey, now);
 
     try {
-      await apiClient.post('/ab-testing/track-event', event);
+      // ✅ NEW: Use unified analytics tracker
+      const analytics = getAnalytics();
+
+      // Map legacy event types to standard catalog
+      const standardEventType = this.mapEventTypeToStandard(eventType);
+
+      // Track using unified schema
+      analytics.trackABTest(
+        testToTrack,
+        assignment.variant,
+        standardEventType as any,
+        {
+          ...eventData,
+          segments: assignment.segments,
+          assignment_method: assignment.assignment_method,
+          test_name: testToTrack, // Legacy field for backward compatibility
+        }
+      );
+
+      // Also store locally for backup
+      const event: ConversionEvent = {
+        test_name: testToTrack,
+        variant: assignment.variant,
+        event_type: eventType,
+        timestamp: new Date().toISOString(),
+        data: eventData
+      };
+      this.trackEventLocally(event);
+
     } catch (error) {
       // Don't fail user experience for analytics tracking
       console.warn('Failed to track A/B test event:', error);
+
+      // Fallback to local storage only
+      const event: ConversionEvent = {
+        test_name: testToTrack,
+        variant: assignment.variant,
+        event_type: eventType,
+        timestamp: new Date().toISOString(),
+        data: eventData
+      };
       this.trackEventLocally(event);
     }
+  }
+
+  /**
+   * Map legacy event types to standard catalog names
+   */
+  private mapEventTypeToStandard(eventType: string): string {
+    const eventMap: Record<string, string> = {
+      'variant_assigned': 'assigned',
+      'variant_forced': 'assigned',
+      'conversion': 'conversion',
+      'click': 'click',
+      'view': 'view',
+    };
+
+    return eventMap[eventType] || eventType;
   }
 
   private trackEventLocally(event: ConversionEvent): void {
@@ -423,17 +528,21 @@ class ABTestingService {
 
   /**
    * Cleanup and reset all test data
+   * ✅ FIXED: Also clears event deduplication cache
    */
   reset(): void {
     this.stopPeriodicSync();
+    this.stopEventCacheCleanup(); // ✅ FIXED: Stop cleanup interval
     this.currentAssignments.clear();
+    this.trackedEvents.clear(); // ✅ FIXED: Clear event cache
     localStorage.removeItem('psychsync_ab_assignments');
     localStorage.removeItem('psychsync_ab_events');
     sessionStorage.removeItem('psychsync_ab_session_id');
   }
 }
 
-// Export singleton instance
-export const abTestingService = new ABTestingService();
-
-export default abTestingService;
+// ✅ FIXED: Export singleton instance to prevent multiple instances
+// This prevents multiple periodic sync intervals and event duplication
+const abTestingServiceInstance = new ABTestingService();
+export default abTestingServiceInstance;
+export { abTestingServiceInstance as abTestingService };

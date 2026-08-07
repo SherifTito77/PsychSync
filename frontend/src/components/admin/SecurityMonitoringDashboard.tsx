@@ -11,10 +11,27 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card } from './common/card';
-import { securityService } from '../../services/securityService';
+import { Card } from '@/components/ui/card';
+import axios from 'axios';
 
-interface SecurityMetrics {
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+
+const securityService = {
+  getSecurityMetrics: async (timeRange: string) => {
+    const response = await axios.get(`${API_BASE}/security/metrics?range=${timeRange}`);
+    return response.data;
+  },
+  getSecurityTimeline: async (timeRange: string) => {
+    const response = await axios.get(`${API_BASE}/security/timeline?range=${timeRange}`);
+    return response.data;
+  },
+  sendTestAlert: async (alert: any) => {
+    const response = await axios.post(`${API_BASE}/security/test-alert`, alert);
+    return response.data;
+  }
+};
+
+interface DashboardSecurityData {
   authentication: {
     total_login_attempts: number;
     successful_logins: number;
@@ -67,7 +84,7 @@ interface TimelineEvent {
 }
 
 export const SecurityMonitoringDashboard: React.FC = () => {
-  const [metrics, setMetrics] = useState<SecurityMetrics | null>(null);
+  const [metrics, setMetrics] = useState<DashboardSecurityData | null>(null);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,12 +104,12 @@ export const SecurityMonitoringDashboard: React.FC = () => {
       setLoading(true);
 
       // Load metrics
-      const metricsData = await securityService.getSecurityMetrics(selectedTimeRange);
-      setMetrics(metricsData);
+      const metricsData = await securityService.getSecurityMetrics(String(selectedTimeRange));
+      setMetrics(metricsData as DashboardSecurityData);
 
       // Load timeline
-      const timelineData = await securityService.getSecurityTimeline(selectedTimeRange);
-      setTimeline(timelineData);
+      const timelineData = await securityService.getSecurityTimeline(String(selectedTimeRange));
+      setTimeline(timelineData as TimelineEvent[]);
 
       setError(null);
     } catch (err) {
