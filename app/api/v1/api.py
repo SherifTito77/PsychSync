@@ -130,6 +130,7 @@ _FEATURE_ENDPOINTS = [
     "behavioral_patterns",
     "burnout_predictions",
     "backups",
+    "voice_video_analysis",
 ]
 
 _SEPARATED_SERVICE_ENDPOINTS = [

@@ -11,12 +11,25 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-import cv2
-import librosa
-import numpy as np
-import speech_recognition as sr
 from sqlalchemy.orm import Session
-from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
+
+try:
+    import cv2
+    import librosa
+    import numpy as np
+    import speech_recognition as sr
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
+
+    ML_LIBRARIES_AVAILABLE = True
+except ImportError:
+    ML_LIBRARIES_AVAILABLE = False
+    cv2 = None
+    librosa = None
+    np = None
+    sr = None
+    AutoModelForSequenceClassification = None
+    AutoTokenizer = None
+    pipeline = None
 
 logger = logging.getLogger(__name__)
 

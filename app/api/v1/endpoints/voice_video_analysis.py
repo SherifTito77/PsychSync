@@ -14,14 +14,39 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_async_db, get_current_active_user
 from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
-from app.services.voice_video_analysis import (
-    ComprehensiveAnalysisResult,
-    TranscriptionConfig,
-    VideoRecordingConfig,
-    VoiceVideoAnalysisEngine,
+
+try:
+    from app.services.voice_video_analysis import (
+        ComprehensiveAnalysisResult,
+        TranscriptionConfig,
+        VideoRecordingConfig,
+        VoiceVideoAnalysisEngine,
+        ML_LIBRARIES_AVAILABLE,
+    )
+except ImportError:
+    ML_LIBRARIES_AVAILABLE = False
+    VoiceVideoAnalysisEngine = None
+    VideoRecordingConfig = None
+    TranscriptionConfig = None
+    ComprehensiveAnalysisResult = None
+
+_INSTALL_MSG = (
+    "Voice/video analysis requires ML libraries not currently installed. "
+    "To enable: pip install opencv-python librosa SpeechRecognition transformers"
 )
 
-router = APIRouter()
+
+async def _require_ml_libraries():
+    """Router-level dependency: blocks all endpoints when ML libs are missing."""
+    if not ML_LIBRARIES_AVAILABLE:
+        raise HTTPException(status_code=503, detail=_INSTALL_MSG)
+
+
+router = APIRouter(
+    prefix="/voice-video",
+    tags=["Voice & Video Analysis"],
+    dependencies=[Depends(_require_ml_libraries)],
+)
 
 
 # Request/Response Models
