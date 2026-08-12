@@ -318,6 +318,24 @@ const SuccessionPlanning: React.FC = () => {
     }
   ]);
 
+  useEffect(() => {
+    const loadPipeline = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const res = await fetch('/api/v1/succession/pipeline', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.pipeline?.length) setPipelineAnalysis(data.pipeline);
+        }
+      } catch {
+        // Keep mock initial state on error
+      }
+    };
+    loadPipeline();
+  }, []);
+
   const pipelineChartData = pipelineAnalysis.map(pipeline => ({
     name: pipeline.pipeline_level,
     total: pipeline.total_positions,

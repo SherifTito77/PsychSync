@@ -51,7 +51,6 @@ const ClinicalResources: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data for demonstration - in production this would fetch from API
     const mockTherapists: Therapist[] = [
       {
         id: '1',
@@ -193,10 +192,35 @@ const ClinicalResources: React.FC = () => {
       }
     ];
 
-    setTherapists(mockTherapists);
-    setSupportGroups(mockSupportGroups);
-    setResources(mockResources);
-    setLoading(false);
+    const loadFromApi = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const res = await fetch('/api/v1/clinical/resources', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // Use API data when the DB has been seeded; otherwise fall back to mock
+          if (data.therapists?.length) setTherapists(data.therapists);
+          else setTherapists(mockTherapists);
+          if (data.support_groups?.length) setSupportGroups(data.support_groups);
+          else setSupportGroups(mockSupportGroups);
+          if (data.resources?.length) setResources(data.resources);
+          else setResources(mockResources);
+        } else {
+          setTherapists(mockTherapists);
+          setSupportGroups(mockSupportGroups);
+          setResources(mockResources);
+        }
+      } catch {
+        setTherapists(mockTherapists);
+        setSupportGroups(mockSupportGroups);
+        setResources(mockResources);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadFromApi();
   }, []);
 
   const filteredTherapists = therapists.filter(therapist =>

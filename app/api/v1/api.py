@@ -122,6 +122,8 @@ _FEATURE_ENDPOINTS = [
     "calendar_integration",
     "communication_analytics",
     "scheduled_reports",
+    "clinical_resources",
+    "succession_planning",
 ]
 
 _SEPARATED_SERVICE_ENDPOINTS = [

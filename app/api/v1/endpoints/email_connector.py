@@ -12,7 +12,16 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import uuid
+
+from sqlalchemy import select, and_
+
 from app.api.v1.deps import get_current_user, get_db
+from app.db.models.email_connection import (
+    ConnectionStatus,
+    EmailConnection,
+    EmailProvider,
+)
 from app.db.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -89,12 +98,29 @@ async def get_available_providers(
 @router.get("/connections")
 async def get_email_connections(
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
+    result = await db.execute(
+        select(EmailConnection).where(EmailConnection.user_id == current_user.id)
+    )
+    rows = result.scalars().all()
+    connections = [
+        {
+            "id": str(r.id),
+            "provider": r.provider.value if r.provider else None,
+            "email_address": r.email_address,
+            "connection_status": (
+                r.connection_status.value if r.connection_status else "INACTIVE"
+            ),
+            "last_sync": r.last_sync_at.isoformat() if r.last_sync_at else None,
+        }
+        for r in rows
+    ]
     return {
         "success": True,
         "user_id": str(current_user.id),
-        "total_connections": 0,
-        "connections": [],
+        "total_connections": len(connections),
+        "connections": connections,
         "last_updated": datetime.utcnow().isoformat(),
     }
 
@@ -105,10 +131,36 @@ async def setup_email_connection(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if not body:
+        return {"success": False, "error_message": "Request body required"}
+
+    provider_str = (body.get("provider") or "imap").lower()
+    try:
+        provider = EmailProvider(provider_str)
+    except ValueError:
+        provider = EmailProvider.IMAP
+
+    email_address = body.get("email_address") or body.get("email") or ""
+    if not email_address:
+        return {"success": False, "error_message": "email_address is required"}
+
+    conn = EmailConnection(
+        user_id=current_user.id,
+        provider=provider,
+        email_address=email_address,
+        connection_status=ConnectionStatus.ACTIVE,
+        connection_parameters=body.get("connection_parameters") or body.get("params"),
+    )
+    db.add(conn)
+    await db.commit()
+    await db.refresh(conn)
+
     return {
-        "success": False,
-        "connection_status": "not_implemented",
-        "error_message": "Email connection setup is not yet available.",
+        "success": True,
+        "connection_id": str(conn.id),
+        "connection_status": conn.connection_status.value,
+        "provider": conn.provider.value,
+        "email_address": conn.email_address,
     }
 
 
@@ -118,11 +170,26 @@ async def disconnect_email(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    try:
+        cid = uuid.UUID(connection_id)
+    except ValueError:
+        return {"success": False, "error": "Invalid connection ID"}
+
+    result = await db.execute(
+        select(EmailConnection).where(
+            and_(EmailConnection.id == cid, EmailConnection.user_id == current_user.id)
+        )
+    )
+    row = result.scalar_one_or_none()
+    if row:
+        await db.delete(row)
+        await db.commit()
+
     return {
         "success": True,
         "connection_id": connection_id,
         "disconnected_at": datetime.utcnow().isoformat(),
-        "data_removed": False,
+        "data_removed": True,
     }
 
 
@@ -196,13 +263,30 @@ async def trigger_manual_sync(
 async def get_sync_status(
     connection_id: str,
     current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
+    try:
+        cid = uuid.UUID(connection_id)
+        result = await db.execute(
+            select(EmailConnection).where(
+                and_(
+                    EmailConnection.id == cid,
+                    EmailConnection.user_id == current_user.id,
+                )
+            )
+        )
+        row = result.scalar_one_or_none()
+    except ValueError:
+        row = None
+
     return {
         "success": True,
         "connection_id": connection_id,
         "sync_status": {
-            "status": "idle",
-            "last_sync": None,
+            "status": row.connection_status.value.lower() if row else "not_found",
+            "last_sync": (
+                row.last_sync_at.isoformat() if row and row.last_sync_at else None
+            ),
             "emails_synced": 0,
         },
     }

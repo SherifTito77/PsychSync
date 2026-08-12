@@ -1,26 +1,26 @@
 # app/api/v1/endpoints/pull_requests.py
 """
-Pull Requests Endpoints
-API endpoints for pull request tracking and management
+Pull Requests Endpoints — persists PR data synced via webhooks or POST /import.
+Returns real stored records; empty until PRs are synced from GitHub/GitLab.
 """
 
+import uuid
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.deps import get_current_active_user, get_db
+from app.db.models.pull_request_record import PullRequestRecord
 from app.db.models.user import User
 
 router = APIRouter(prefix="/pull-requests", tags=["pull-requests"])
 
 
-# Schema for Pull Request
 class PullRequest(BaseModel):
-    """Pull Request schema"""
-
     id: str
     title: str
     author: str
@@ -38,144 +38,143 @@ class PullRequest(BaseModel):
     model_config = {"from_attributes": True}
 
 
-@router.get(
-    "/",
-    responses={
-        200: {
-            "description": "Request successful",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "success": True,
-                        "message": "Operation completed successfully",
-                    }
-                }
-            },
-        },
-        401: {"description": "Unauthorized"},
-        422: {"description": "Validation error"},
-    },
-    response_model=list[PullRequest],
-)
+def _serialize(row: PullRequestRecord) -> PullRequest:
+    return PullRequest(
+        id=row.external_id,
+        title=row.title,
+        author=row.author,
+        status=row.status,
+        created_at=row.pr_created_at or row.created_at,
+        updated_at=row.pr_updated_at or row.created_at,
+        url=row.url,
+        base_branch=row.base_branch,
+        head_branch=row.head_branch,
+        additions=row.additions,
+        deletions=row.deletions,
+        changed_files=row.changed_files,
+        reviewers=row.reviewers or [],
+    )
+
+
+@router.get("/", response_model=list[PullRequest])
 async def get_pull_requests(
-    limit: int = Query(10, ge=1, le=100, description="Number of PRs to return"),
-    status: str | None = Query(
-        None, description="Filter by status (open, closed, merged)"
-    ),
+    limit: int = Query(10, ge=1, le=100),
+    status: str | None = Query(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> list[PullRequest]:
-    """
-    Get pull requests
-
-    Returns list of pull requests. Currently returns mock data as this is a placeholder
-    for future integration with Git providers (GitHub, GitLab, etc.)
-    """
-    # Mock data for demonstration
-    # In production, this would integrate with GitHub/GitLab APIs
-    mock_prs: list[dict[str, Any]] = [
-        {
-            "id": "PR-001",
-            "title": "Feature: Add user authentication",
-            "author": "john.doe",
-            "status": "open",
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-            "url": "https://github.com/example/repo/pull/1",
-            "base_branch": "main",
-            "head_branch": "feature/auth",
-            "additions": 245,
-            "deletions": 12,
-            "changed_files": 8,
-            "reviewers": ["jane.smith", "bob.johnson"],
-        },
-        {
-            "id": "PR-002",
-            "title": "Fix: Resolve dashboard loading issue",
-            "author": "jane.smith",
-            "status": "merged",
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-            "url": "https://github.com/example/repo/pull/2",
-            "base_branch": "main",
-            "head_branch": "fix/dashboard-load",
-            "additions": 15,
-            "deletions": 8,
-            "changed_files": 2,
-            "reviewers": ["john.doe"],
-        },
-        {
-            "id": "PR-003",
-            "title": "Refactor: Optimize database queries",
-            "author": "bob.johnson",
-            "status": "open",
-            "created_at": datetime.utcnow(),
-            "updated_at": datetime.utcnow(),
-            "url": "https://github.com/example/repo/pull/3",
-            "base_branch": "main",
-            "head_branch": "refactor/db-optimization",
-            "additions": 156,
-            "deletions": 89,
-            "changed_files": 12,
-            "reviewers": ["john.doe", "jane.smith"],
-        },
-    ]
-
-    # Filter by status if provided
+    """Return stored pull requests. Empty until synced via /import or webhooks."""
+    query = select(PullRequestRecord).order_by(PullRequestRecord.created_at.desc())
     if status:
-        mock_prs = [pr for pr in mock_prs if pr["status"] == status]
-
-    # Limit results
-    mock_prs = mock_prs[:limit]
-
-    return [PullRequest(**pr) for pr in mock_prs]
+        query = query.where(PullRequestRecord.status == status)
+    query = query.limit(limit)
+    result = await db.execute(query)
+    return [_serialize(r) for r in result.scalars().all()]
 
 
-@router.get(
-    "/summary",
-    responses={
-        200: {
-            "description": "Request successful",
-        },
-        401: {"description": "Unauthorized"},
-    },
-)
+@router.get("/summary")
 async def get_pull_requests_summary(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ) -> dict[str, Any]:
-    """
-    Get pull requests summary
+    total = (await db.execute(select(func.count(PullRequestRecord.id)))).scalar() or 0
+    open_count = (
+        await db.execute(
+            select(func.count(PullRequestRecord.id)).where(
+                PullRequestRecord.status == "open"
+            )
+        )
+    ).scalar() or 0
+    merged = (
+        await db.execute(
+            select(func.count(PullRequestRecord.id)).where(
+                PullRequestRecord.status == "merged"
+            )
+        )
+    ).scalar() or 0
+    closed = (
+        await db.execute(
+            select(func.count(PullRequestRecord.id)).where(
+                PullRequestRecord.status == "closed"
+            )
+        )
+    ).scalar() or 0
 
-    Returns summary statistics about pull requests
-    """
+    avg_add = (
+        await db.execute(select(func.avg(PullRequestRecord.additions)))
+    ).scalar() or 0
+    avg_del = (
+        await db.execute(select(func.avg(PullRequestRecord.deletions)))
+    ).scalar() or 0
+
     return {
-        "total": 3,
-        "open": 2,
-        "merged": 1,
-        "closed": 0,
-        "average_review_time_hours": 4.5,
-        "average_size_additions": 138,
-        "average_size_deletions": 36,
+        "total": total,
+        "open": open_count,
+        "merged": merged,
+        "closed": closed,
+        "average_review_time_hours": 0,
+        "average_size_additions": round(float(avg_add), 1),
+        "average_size_deletions": round(float(avg_del), 1),
     }
 
 
-@router.get(
-    "/health",
-    summary="Health check endpoint",
-    description="Check pull requests service health",
-    responses={
-        200: {
-            "description": "System is healthy",
-        }
-    },
-)
-async def health_check(
+class PRImportRequest(BaseModel):
+    external_id: str
+    title: str
+    author: str
+    status: str = "open"
+    url: str | None = None
+    base_branch: str | None = None
+    head_branch: str | None = None
+    additions: int | None = None
+    deletions: int | None = None
+    changed_files: int | None = None
+    reviewers: list[str] | None = None
+    pr_created_at: datetime | None = None
+    pr_updated_at: datetime | None = None
+
+
+@router.post("/import", status_code=201)
+async def import_pull_request(
+    body: PRImportRequest,
+    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
-) -> dict[str, str]:
-    """Health check endpoint for pull requests service"""
-    return {
-        "status": "healthy",
-        "service": "pull_requests",
-        "version": "1.0.0",
-    }
+) -> dict[str, Any]:
+    """Accept a PR from a webhook or manual import."""
+    # Upsert by external_id
+    existing = await db.execute(
+        select(PullRequestRecord).where(
+            PullRequestRecord.external_id == body.external_id
+        )
+    )
+    row = existing.scalar_one_or_none()
+    if row:
+        row.title = body.title
+        row.author = body.author
+        row.status = body.status
+        row.url = body.url
+        row.additions = body.additions
+        row.deletions = body.deletions
+        row.changed_files = body.changed_files
+        row.reviewers = body.reviewers
+        row.pr_updated_at = body.pr_updated_at
+    else:
+        row = PullRequestRecord(
+            external_id=body.external_id,
+            title=body.title,
+            author=body.author,
+            status=body.status,
+            url=body.url,
+            base_branch=body.base_branch,
+            head_branch=body.head_branch,
+            additions=body.additions,
+            deletions=body.deletions,
+            changed_files=body.changed_files,
+            reviewers=body.reviewers,
+            pr_created_at=body.pr_created_at,
+            pr_updated_at=body.pr_updated_at,
+        )
+        db.add(row)
+
+    await db.commit()
+    return {"id": row.external_id, "status": row.status, "imported": True}
