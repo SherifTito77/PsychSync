@@ -25,6 +25,7 @@ import {
   Download
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 interface FrameworkData {
   name: string;
@@ -68,6 +69,7 @@ const MultiFrameworkSynthesis: React.FC = () => {
   const [frameworks, setFrameworks] = useState<FrameworkData[]>([]);
   const [synthesisResult, setSynthesisResult] = useState<SynthesisResult | null>(null);
   const [selectedUser, setSelectedUser] = useState<string>('self');
+  const { user } = useAuth();
 
   useEffect(() => {
     loadFrameworks();
@@ -76,17 +78,44 @@ const MultiFrameworkSynthesis: React.FC = () => {
   const loadFrameworks = async () => {
     setLoading(true);
     try {
-      // Mock data - in production, fetch from API
-      const mockFrameworks: FrameworkData[] = [
-        { name: 'Big Five (OCEAN)', type: 'big_five', result: 'OPEN: 78, CON: 82, EXT: 45, AGR: 72, NEU: 35', confidence: 0.89, completed: true },
-        { name: 'MBTI', type: 'mbti', result: 'INTJ-A (Architect)', confidence: 0.82, completed: true },
-        { name: 'Enneagram', type: 'enneagram', result: 'Type 5 (Investigator) - Wing 6', confidence: 0.76, completed: true },
-        { name: 'DISC', type: 'disc', result: 'C (Conscientious) - Analytical, precise', confidence: 0.91, completed: true },
-        { name: 'Predictive Index', type: 'predictive_index', result: 'A+B+ (Analytical & Structured)', confidence: 0.84, completed: false },
-        { name: 'StrengthsFinder', type: 'strengths', result: 'Strategic, Learner, Analytical, Focus, Intellection', confidence: 0.88, completed: false },
-        { name: 'Social Styles', type: 'social_styles', result: 'Analytical (Driver-Analytical)', confidence: 0.79, completed: false }
+      const token = localStorage.getItem('auth_token');
+      const userId = selectedUser === 'self' ? user?.id : selectedUser;
+      if (!userId) return;
+
+      const res = await fetch(`/api/v1/personality/user-assessments/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to fetch assessments');
+      const data = await res.json();
+
+      // All known frameworks; mark completed ones from API data
+      const completedSet = new Set<string>(data.frameworks_completed ?? []);
+      const allFrameworks = [
+        { name: 'Big Five (OCEAN)', type: 'big_five' },
+        { name: 'MBTI', type: 'mbti' },
+        { name: 'Enneagram', type: 'enneagram' },
+        { name: 'DISC', type: 'disct' },
+        { name: 'Predictive Index', type: 'predictive_index' },
+        { name: 'CliftonStrengths', type: 'clifton_strengths' },
+        { name: 'Social Styles', type: 'social_styles' },
       ];
-      setFrameworks(mockFrameworks);
+
+      const mapped: FrameworkData[] = allFrameworks.map(fw => {
+        const match = (data.assessments ?? []).find(
+          (a: any) => a.framework_code === fw.type && a.status === 'completed'
+        );
+        const resultStr = match?.processed_results
+          ? JSON.stringify(match.processed_results).slice(0, 80) + '…'
+          : 'Not completed';
+        return {
+          name: fw.name,
+          type: fw.type,
+          result: resultStr,
+          confidence: match ? (match.data_quality?.score ?? 0.8) : 0,
+          completed: completedSet.has(fw.type),
+        };
+      });
+      setFrameworks(mapped);
     } catch (error) {
       toast.error('Failed to load framework data');
     } finally {
@@ -97,29 +126,51 @@ const MultiFrameworkSynthesis: React.FC = () => {
   const runSynthesis = async () => {
     setSynthesizing(true);
     try {
-      // Mock synthesis result
-      const mockSynthesis: SynthesisResult = {
-        unified_traits: {
-          openness: 0.78,
-          conscientiousness: 0.82,
-          extraversion: 0.52,
-          agreeableness: 0.72,
-          neuroticism: 0.35,
-          analytical_thinking: 0.91,
-          strategic_orientation: 0.88,
-          independence: 0.76,
-          adaptability: 0.65,
-          leadership_potential: 0.71,
-          creativity: 0.73,
-          teamwork_collaboration: 0.68,
-          communication_style: 0.62,
-          decision_making: 0.85,
-          stress_tolerance: 0.58,
-          learning_orientation: 0.92
-        },
-        confidence: 0.87,
-        contradictions: [
-          {
+      const token = localStorage.getItem('auth_token');
+      const userId = selectedUser === 'self' ? user?.id : selectedUser;
+      if (!userId) throw new Error('No user ID');
+
+      const res = await fetch(`/api/v1/personality/synthesis/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Synthesis request failed');
+      const data = await res.json();
+
+      setSynthesisResult({
+        unified_traits: data.unified_traits ?? {},
+        confidence: data.confidence ?? 0,
+        contradictions: data.contradictions ?? [],
+        insights: data.insights ?? [],
+        recommendations: data.recommendations ?? [],
+        team_compatibility: data.team_compatibility ?? { overall_score: 0, strengths: [], potential_conflicts: [] },
+      });
+      toast.success('Synthesis completed successfully!');
+    } catch (error) {
+      toast.error('Failed to synthesize frameworks');
+      console.error(error);
+    } finally {
+      setSynthesizing(false);
+    }
+  };
+
+  const _deprecatedRunSynthesisOld = async () => {
+    // kept only for reference; unreachable
+    const mockSynthesis: SynthesisResult = {
+      unified_traits: {
+        openness: 0.78,
+        conscientiousness: 0.82,
+        extraversion: 0.52,
+        agreeableness: 0.72,
+        neuroticism: 0.35,
+        analytical_thinking: 0.91,
+        strategic_orientation: 0.88,
+        independence: 0.76,
+        adaptability: 0.65,
+        leadership_potential: 0.71,
+      },
+      confidence: 0.87,
+      contradictions: [
+        {
             trait: 'Extraversion',
             frameworks: ['MBTI (Introverted)', 'Big Five (45 - Moderate)', 'DISC (C - Reserved)'],
             description: 'MBTI suggests introversion, Big Five shows moderate extraversion. Using weighted average favoring Big Five (more reliable).',
@@ -204,12 +255,6 @@ const MultiFrameworkSynthesis: React.FC = () => {
       };
 
       setSynthesisResult(mockSynthesis);
-      toast.success('Synthesis completed successfully!');
-    } catch (error) {
-      toast.error('Failed to synthesize frameworks');
-      console.error(error);
-    } finally {
-      setSynthesizing(false);
     }
   };
 

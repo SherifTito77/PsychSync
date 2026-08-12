@@ -30,6 +30,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '../contexts/AuthContext';
 
 interface BurnoutRisk {
   overall_score: number;
@@ -68,6 +69,7 @@ const BurnoutPrevention: React.FC = () => {
   const [burnoutRisk, setBurnoutRisk] = useState<BurnoutRisk | null>(null);
   const [teamData, setTeamData] = useState<TeamBurnoutData[]>([]);
   const [timeRange, setTimeRange] = useState('30d');
+  const { user } = useAuth();
 
   useEffect(() => {
     loadBurnoutData();
@@ -76,64 +78,69 @@ const BurnoutPrevention: React.FC = () => {
   const loadBurnoutData = async () => {
     setLoading(true);
     try {
-      // Simulate API call - in production this would call the actual API
-      const mockData: BurnoutRisk = {
-        overall_score: 78,
-        risk_level: 'high',
-        burnout_stage: 'Exhaustion',
-        seven_day_probability: 23,
-        thirty_day_probability: 67,
-        ninety_day_turnover_risk: 82,
-        risk_breakdown: {
-          work_hours: 92,
-          recovery_time: 81,
-          sentiment_trend: 73,
-          social_withdrawal: 65,
-          response_pattern: 71
-        },
-        early_indicators: [
-          '4 consecutive weeks of 60+ hours',
-          'Sent emails at 2 AM on 8 occasions',
-          'Cancelled 3/4 scheduled 1:1s with manager',
-          'Vocabulary diversity dropped 34%',
-          'Zero PTO days used in 6 months'
-        ],
-        interventions: [
-          {
-            priority: 'urgent',
-            title: 'Immediate Manager Check-in',
-            description: 'Schedule a meeting with your manager within 48 hours to discuss workload and stress levels.',
-            timeline: 'Within 48 hours'
-          },
-          {
-            priority: 'high',
-            title: 'Mandatory Break',
-            description: 'Take a 3-day break from work within the next 2 weeks to recharge and recover.',
-            timeline: 'Within 2 weeks'
-          },
-          {
-            priority: 'medium',
-            title: 'Workload Rebalancing',
-            description: 'Work with your manager to redistribute tasks and set realistic deadlines.',
-            timeline: 'Within 1 week'
-          },
-          {
-            priority: 'medium',
-            title: 'Mental Health Resources',
-            description: 'Connect with mental health professionals and utilize EAP services.',
-            timeline: 'Ongoing'
-          }
-        ]
-      };
-      setBurnoutRisk(mockData);
+      const token = localStorage.getItem('auth_token');
+      const userId = user?.id;
+      const orgId = user?.organization_id ?? userId;
 
-      const mockTeamData: TeamBurnoutData[] = [
-        { team_name: 'Engineering', avg_risk: 34, high_risk_count: 4, critical_count: 1, trend: 'declining' },
-        { team_name: 'Sales', avg_risk: 28, high_risk_count: 2, critical_count: 0, trend: 'stable' },
-        { team_name: 'Marketing', avg_risk: 42, high_risk_count: 5, critical_count: 2, trend: 'declining' },
-        { team_name: 'Operations', avg_risk: 58, high_risk_count: 8, critical_count: 3, trend: 'improving' }
-      ];
-      setTeamData(mockTeamData);
+      const [forecastRes, alertsRes, heatmapRes] = await Promise.all([
+        userId
+          ? fetch(`/api/v1/behavioral/forecasts/${userId}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }).then(r => r.ok ? r.json() : null)
+          : Promise.resolve(null),
+        userId
+          ? fetch(`/api/v1/behavioral/alerts/${userId}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }).then(r => r.ok ? r.json() : null)
+          : Promise.resolve(null),
+        orgId
+          ? fetch(`/api/v1/executive/burnout/heatmap?org_id=${orgId}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }).then(r => r.ok ? r.json() : null)
+          : Promise.resolve(null),
+      ]);
+
+      // Map forecast data → BurnoutRisk shape
+      const burnout = forecastRes?.burnoutRiskForecast;
+      const wellness = forecastRes?.wellnessForecast;
+      const riskLevelMap: Record<string, BurnoutRisk['risk_level']> = {
+        low: 'low', moderate: 'moderate', high: 'high', critical: 'critical',
+      };
+      const mappedRisk: BurnoutRisk = {
+        overall_score: burnout?.current ?? 50,
+        risk_level: riskLevelMap[burnout?.riskLevel ?? 'moderate'] ?? 'moderate',
+        burnout_stage: burnout?.riskLevel === 'critical' ? 'Exhaustion' : burnout?.riskLevel === 'high' ? 'Overextension' : 'Engagement',
+        seven_day_probability: burnout?.predicted7Days ?? 0,
+        thirty_day_probability: burnout?.predicted30Days ?? 0,
+        ninety_day_turnover_risk: Math.min(100, (burnout?.predicted30Days ?? 0) + 15),
+        risk_breakdown: {
+          work_hours: Math.min(100, (burnout?.current ?? 50) + 10),
+          recovery_time: Math.max(0, 100 - (wellness?.current ?? 50)),
+          sentiment_trend: wellness?.current ?? 50,
+          social_withdrawal: Math.min(100, (burnout?.current ?? 50) - 5),
+          response_pattern: burnout?.current ?? 50,
+        },
+        early_indicators: (alertsRes?.warnings ?? []).map((w: any) => w.message),
+        interventions: (alertsRes?.tips ?? []).map((t: any, i: number) => ({
+          priority: i === 0 ? 'high' : 'medium',
+          title: t.category?.replace(/_/g, ' ') ?? 'Tip',
+          description: t.message ?? '',
+          timeline: 'Ongoing',
+        })),
+      };
+      setBurnoutRisk(mappedRisk);
+
+      // Map heatmap departments → TeamBurnoutData
+      if (heatmapRes?.departments?.length > 0) {
+        const teams: TeamBurnoutData[] = heatmapRes.departments.map((d: any) => ({
+          team_name: d.department ?? d.name ?? 'Team',
+          avg_risk: d.burnout_risk_score ?? d.avg_risk ?? 30,
+          high_risk_count: d.high_risk_employees ?? 0,
+          critical_count: d.critical_employees ?? 0,
+          trend: d.trend ?? 'stable',
+        }));
+        setTeamData(teams);
+      }
     } catch (error) {
       toast.error('Failed to load burnout data');
       console.error(error);

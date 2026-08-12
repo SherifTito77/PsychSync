@@ -536,6 +536,43 @@ const mockDataSources: DataSource[] = [
 const CorporateIntegrationsPage: React.FC = () => {
   const [dataSources, setDataSources] = useState<DataSource[]>(mockDataSources);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  // Load real integration state from API; merge with static mock for description/priority
+  React.useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    Promise.all([
+      fetch('/api/v1/integrations/corporate/available', {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(r => r.ok ? r.json() : []),
+      fetch('/api/v1/integrations/corporate/organization', {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(r => r.ok ? r.json() : null),
+    ])
+      .then(([available, orgData]) => {
+        if (!orgData?.integrations) return;
+        const metaMap: Record<string, { description: string; category: string; priority: string }> =
+          Object.fromEntries((available as any[]).map((s: any) => [s.type, s]));
+        const merged: DataSource[] = orgData.integrations.map((int: any) => {
+          const t = int.config?.source_type?.value ?? int.config?.source_type ?? '';
+          const meta = metaMap[t] ?? {};
+          const mock = mockDataSources.find(m => m.type === t);
+          return {
+            type: t,
+            name: t.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+            description: meta.description ?? mock?.description ?? '',
+            category: meta.category ?? mock?.category ?? 'other',
+            priority: meta.priority ?? mock?.priority ?? 'Medium Priority',
+            enabled: int.status?.status === 'active',
+            status: int.status?.status ?? 'disabled',
+            health_score: int.status?.health_score ?? 0,
+            last_sync: int.status?.last_sync ?? undefined,
+            signals_count: int.behavioral_signals?.length ?? 0,
+          };
+        });
+        if (merged.length > 0) setDataSources(merged);
+      })
+      .catch(() => {/* keep mock fallback */});
+  }, []);
   const [selectedPriority, setSelectedPriority] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showIcons, setShowIcons] = useState(false);

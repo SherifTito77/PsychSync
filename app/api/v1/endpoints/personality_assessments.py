@@ -1124,3 +1124,337 @@ async def process_personality_assessment(
     except Exception as e:
         logger.error(f"Error processing {framework} assessment: {e!s}")
         raise HTTPException(status_code=500, detail=f"Processing error: {e!s}") from e
+
+
+# =============================================================================
+# Multi-Framework Synthesis
+# =============================================================================
+
+# Weights assigned to each framework when computing unified traits.
+# Big Five is the reference model; others are mapped onto it.
+_FRAMEWORK_WEIGHT = {
+    "big_five": 1.0,
+    "mbti": 0.8,
+    "disct": 0.7,
+    "enneagram": 0.6,
+    "predictive_index": 0.65,
+    "clifton_strengths": 0.5,
+    "social_styles": 0.5,
+}
+
+# Trait aliases that appear in processed_results across frameworks
+_TRAIT_ALIASES: dict[str, list[str]] = {
+    "openness": ["openness", "open", "creative", "imagination"],
+    "conscientiousness": [
+        "conscientiousness",
+        "conscientious",
+        "organized",
+        "structured",
+    ],
+    "extraversion": [
+        "extraversion",
+        "extraversion_score",
+        "extraversion_pct",
+        "e_i_score",
+    ],
+    "agreeableness": ["agreeableness", "agreeable", "warmth"],
+    "neuroticism": ["neuroticism", "neurotic", "emotional_stability"],
+    "analytical_thinking": ["analytical", "thinking", "t_f_score"],
+    "strategic_orientation": ["strategic", "perceiving", "j_p_score"],
+    "independence": ["dominance", "independence", "autonomy"],
+    "adaptability": ["steadiness", "flexibility", "adaptability"],
+    "leadership_potential": ["leadership", "influence", "drive"],
+}
+
+
+def _extract_trait(results: dict, aliases: list[str]) -> float | None:
+    """Pull the first matching numeric value from a results dict."""
+    for key, val in results.items():
+        key_lower = key.lower().replace("-", "_").replace(" ", "_")
+        for alias in aliases:
+            if alias in key_lower:
+                if isinstance(val, (int, float)):
+                    # Normalise to 0-1
+                    if val > 1:
+                        return min(1.0, val / 100.0)
+                    return float(val)
+                break
+    return None
+
+
+def _synthesise_traits(
+    assessments: list[dict],
+) -> tuple[dict[str, float], dict[str, list[tuple[str, float]]]]:
+    """
+    Compute weighted-average unified traits from multiple assessment results.
+    Returns (unified_traits, per_trait_votes) where per_trait_votes maps
+    trait → [(framework_label, value), ...].
+    """
+    per_trait: dict[str, list[tuple[str, float]]] = {t: [] for t in _TRAIT_ALIASES}
+
+    for assessment in assessments:
+        fw = assessment.get("framework_code", "")
+        weight = _FRAMEWORK_WEIGHT.get(fw, 0.4)
+        results = assessment.get("processed_results", {})
+        if not results:
+            continue
+        # Flatten nested results
+        if isinstance(results, dict) and "results" in results:
+            results = results["results"]
+        if not isinstance(results, dict):
+            continue
+        for trait, aliases in _TRAIT_ALIASES.items():
+            val = _extract_trait(results, aliases)
+            if val is not None:
+                per_trait[trait].append((fw, val))
+
+    unified: dict[str, float] = {}
+    for trait, votes in per_trait.items():
+        if votes:
+            weights = [_FRAMEWORK_WEIGHT.get(fw, 0.4) for fw, _ in votes]
+            total_w = sum(weights)
+            unified[trait] = sum(v * w for (_, v), w in zip(votes, weights)) / total_w
+        else:
+            # Omit trait if no data
+            pass
+
+    return unified, per_trait
+
+
+def _detect_contradictions(
+    per_trait: dict[str, list[tuple[str, float]]],
+) -> list[dict]:
+    contradictions = []
+    for trait, votes in per_trait.items():
+        if len(votes) < 2:
+            continue
+        vals = [v for _, v in votes]
+        spread = max(vals) - min(vals)
+        if spread > 0.25:
+            avg = sum(vals) / len(vals)
+            contradictions.append(
+                {
+                    "trait": trait.replace("_", " ").title(),
+                    "frameworks": [fw for fw, _ in votes],
+                    "description": (
+                        f"Frameworks disagree on {trait.replace('_', ' ')} "
+                        f"(range: {min(vals):.2f}–{max(vals):.2f}). "
+                        "Weighted average used."
+                    ),
+                    "resolved_value": round(avg, 2),
+                }
+            )
+    return contradictions
+
+
+def _generate_insights(unified: dict[str, float], confidence: float) -> list[dict]:
+    insights = []
+    if unified.get("analytical_thinking", 0) > 0.75:
+        insights.append(
+            {
+                "title": "Strong Analytical Foundation",
+                "description": "High analytical thinking scores across frameworks indicate strong aptitude for complex problem-solving.",
+                "impact": "positive",
+                "confidence": round(min(0.95, confidence + 0.05), 2),
+            }
+        )
+    if unified.get("extraversion", 0.5) < 0.4:
+        insights.append(
+            {
+                "title": "Introverted Energy Profile",
+                "description": "Lower extraversion scores suggest preference for deep focus work over high-stimulus environments.",
+                "impact": "neutral",
+                "confidence": round(confidence, 2),
+            }
+        )
+    if unified.get("conscientiousness", 0) > 0.75:
+        insights.append(
+            {
+                "title": "High Conscientiousness",
+                "description": "Strong conscientiousness predicts high reliability and attention to detail.",
+                "impact": "positive",
+                "confidence": round(min(0.93, confidence + 0.03), 2),
+            }
+        )
+    if unified.get("independence", 0) > 0.7 and unified.get("agreeableness", 1) < 0.5:
+        insights.append(
+            {
+                "title": "Potential Collaboration Gap",
+                "description": "High independence combined with moderate agreeableness may indicate a preference for autonomous work.",
+                "impact": "concern",
+                "confidence": round(max(0.5, confidence - 0.1), 2),
+            }
+        )
+    if not insights:
+        insights.append(
+            {
+                "title": "Balanced Profile",
+                "description": "No strong outliers detected. Profile reflects a balanced set of traits.",
+                "impact": "neutral",
+                "confidence": round(confidence, 2),
+            }
+        )
+    return insights
+
+
+def _role_recommendations(unified: dict[str, float]) -> list[dict]:
+    recs = []
+    analytical = unified.get("analytical_thinking", 0.5)
+    strategic = unified.get("strategic_orientation", 0.5)
+    conscientiousness = unified.get("conscientiousness", 0.5)
+
+    if analytical > 0.8 and strategic > 0.7:
+        recs.append(
+            {
+                "role": "Technical Architect",
+                "fit_score": int(
+                    min(99, (analytical + strategic + conscientiousness) / 3 * 100)
+                ),
+                "description": "High analytical and strategic scores align with architectural responsibilities.",
+            }
+        )
+    if analytical > 0.75:
+        recs.append(
+            {
+                "role": "Data Scientist",
+                "fit_score": int(min(99, (analytical + conscientiousness) / 2 * 100)),
+                "description": "Strong analytical foundation supports advanced data analysis.",
+            }
+        )
+    if strategic > 0.75 and unified.get("leadership_potential", 0) > 0.6:
+        recs.append(
+            {
+                "role": "Product Strategy Lead",
+                "fit_score": int(
+                    min(
+                        99,
+                        (strategic + unified.get("leadership_potential", 0.5))
+                        / 2
+                        * 100,
+                    )
+                ),
+                "description": "Strategic orientation combined with leadership potential fits product strategy.",
+            }
+        )
+    if not recs:
+        recs.append(
+            {
+                "role": "Cross-functional Contributor",
+                "fit_score": 70,
+                "description": "Balanced profile suits collaborative cross-functional roles.",
+            }
+        )
+    return recs
+
+
+@router.get("/synthesis/{user_id}", dependencies=[Depends(get_current_user)])
+async def get_personality_synthesis(
+    user_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    Synthesise personality data across all completed frameworks for a user.
+    Returns unified trait scores, contradictions, insights, and role recommendations.
+    """
+    try:
+        if user_id != str(current_user.id) and not getattr(
+            current_user, "is_admin", False
+        ):
+            raise HTTPException(status_code=403, detail="Not authorized")
+
+        # Fetch completed assessments with processed results
+        query = (
+            select(Assessment, AssessmentResponse)
+            .join(AssessmentResponse, Assessment.id == AssessmentResponse.assessment_id)
+            .where(
+                and_(
+                    Assessment.category == "personality",
+                    AssessmentResponse.respondent_id == user_id,
+                    AssessmentResponse.status == "completed",
+                )
+            )
+        )
+        result = await db.execute(query)
+        rows = result.all()
+
+        assessments = []
+        for assessment, response in rows:
+            processed = None
+            if response.responses:
+                try:
+                    processed = await _process_personality_assessment(
+                        assessment.framework_code, response.responses
+                    )
+                except Exception:
+                    pass
+            assessments.append(
+                {
+                    "framework_code": assessment.framework_code,
+                    "processed_results": processed,
+                }
+            )
+
+        unified, per_trait = _synthesise_traits(assessments)
+        contradictions = _detect_contradictions(per_trait)
+        confidence = round(min(0.95, 0.5 + len(assessments) * 0.08), 2)
+        insights = _generate_insights(unified, confidence)
+        recommendations = _role_recommendations(unified)
+
+        # If no real data yet, return a clear "no data" response rather than fabricating
+        if not unified:
+            return {
+                "user_id": user_id,
+                "frameworks_analysed": 0,
+                "unified_traits": {},
+                "confidence": 0.0,
+                "contradictions": [],
+                "insights": [
+                    {
+                        "title": "No completed assessments",
+                        "description": "Complete at least one personality assessment to generate a synthesis.",
+                        "impact": "neutral",
+                        "confidence": 1.0,
+                    }
+                ],
+                "recommendations": [],
+                "team_compatibility": {
+                    "overall_score": 0,
+                    "strengths": [],
+                    "potential_conflicts": [],
+                },
+            }
+
+        strengths = [
+            trait.replace("_", " ").title()
+            for trait, val in unified.items()
+            if val > 0.7
+        ]
+        potential_conflicts = [
+            trait.replace("_", " ").title()
+            for trait, val in unified.items()
+            if val < 0.4
+        ]
+
+        return {
+            "user_id": user_id,
+            "frameworks_analysed": len(assessments),
+            "unified_traits": {k: round(v, 2) for k, v in unified.items()},
+            "confidence": confidence,
+            "contradictions": contradictions,
+            "insights": insights,
+            "recommendations": recommendations,
+            "team_compatibility": {
+                "overall_score": int(
+                    min(100, sum(unified.values()) / max(len(unified), 1) * 100)
+                ),
+                "strengths": strengths[:3],
+                "potential_conflicts": potential_conflicts[:2],
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Synthesis error for user {user_id}: {exc!s}")
+        raise HTTPException(status_code=500, detail="Synthesis failed") from exc
