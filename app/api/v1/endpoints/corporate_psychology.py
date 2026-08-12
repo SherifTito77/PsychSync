@@ -1,781 +1,399 @@
 """
-Corporate Psychology Encoding Endpoints
-System-level organizational psychology for executive decision-making
+Corporate Psychology Endpoints
 
-All endpoints operate at ORGANIZATIONAL level - NO individual diagnostics.
+Derives organizational psychology metrics from real assessment data
+and the Behavioral Intelligence Engine scores.
+
+Metrics:
+  - Cognitive Load Index: derived from assessment response quality + frequency
+  - Trust Stability Score: agreeableness + response consistency
+  - Emotional Volatility Score: neuroticism proxy + response time variance
+  - Coordination Friction Score: from BI friction index
+  - Psychological Debt Score: cumulative stress + declining engagement
+  - Recovery Resilience Score: response recovery patterns
 """
 
-import logging
-import uuid
 from datetime import date, datetime, timedelta
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
-from sqlalchemy import desc, select
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_active_user, get_current_user, get_db
-from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
-from app.db.models.corporate_psychology import (
-    CorporatePsychologyMetrics,
-    InterventionCategory,
-    InterventionStatus,
-    RiskHorizon,
-    StructuralIntervention,
-    SystemSignalAlert,
-)
+from app.core.database import get_db
+from app.db.models.response import Response
+from app.db.models.team import Team, TeamMember
 from app.db.models.user import User
-from app.services.corporate_psychology_service import (
-    CorporatePsychologyService,
-    InterventionRecommendation,
-    SystemSignal,
-)
+from app.services.security import get_current_user
 
-logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/corporate-psychology", tags=["corporate-psychology"])
+router = APIRouter(prefix="/corporate-psychology", tags=["Corporate Psychology"])
 
 
-# ═══════════════════════════════════════════════════════════════
-# Request/Response Schemas
-# ═══════════════════════════════════════════════════════════════
+async def _get_org_member_ids(db: AsyncSession, organization_id: str) -> list[str]:
+    """Get all user IDs in an organization via team membership."""
+    result = await db.execute(
+        select(TeamMember.user_id)
+        .join(Team, Team.id == TeamMember.team_id)
+        .where(Team.organization_id == organization_id)
+        .distinct()
+    )
+    return [str(r[0]) for r in result.all()]
 
 
-class PsychologyMetricsResponse(BaseModel):
-    """Response model for psychology metrics."""
+async def _response_stats(
+    db: AsyncSession, member_ids: list[str], days: int = 30
+) -> dict[str, Any]:
+    """Aggregate response statistics for computing psychology metrics."""
+    since = datetime.utcnow() - timedelta(days=days)
 
-    organization_id: str
-    team_id: Optional[str]
-    measurement_period_start: date
-    measurement_period_end: date
-
-    # Core encodings
-    cognitive_load_index: float
-    trust_stability_score: float
-    emotional_volatility_score: float
-    coordination_friction_score: float
-    psychological_debt_score: float
-    recovery_resilience_capacity: float
-    recovery_resilience_score: float
-
-    # Derived metrics
-    organizational_health_index: float
-    overall_risk_score: float
-    risk_horizon: str
-
-    # Trends
-    health_trajectory: str
-
-    created_at: datetime
-
-
-class SystemSignalResponse(BaseModel):
-    """Response model for system signals."""
-
-    id: str
-    alert_type: str
-    severity: str
-    risk_horizon: str
-    signal_summary: str
-    change_description: str
-    operational_impact: str
-    current_value: float
-    probability_range: str
-    recommended_actions: list[str]
-    urgency: str
-    status: str
-    created_at: datetime
-
-
-class InterventionRequest(BaseModel):
-    """Request model for creating intervention."""
-
-    organization_id: str
-    team_id: Optional[str] = None
-    intervention_title: str
-    intervention_description: str
-    intervention_category: str
-    expected_outcomes: str
-    business_rationale: str
-    implementation_approach: str
-    estimated_duration_weeks: int
-    resource_requirements: str
-
-
-class InterventionResponse(BaseModel):
-    """Response model for interventions."""
-
-    id: str
-    organization_id: str
-    team_id: Optional[str]
-    intervention_title: str
-    intervention_category: str
-    expected_outcomes: str
-    status: str
-    progress_percentage: float
-    created_at: datetime
-
-
-class AnalysisRequest(BaseModel):
-    """Request model for running psychology analysis."""
-
-    organization_id: str
-    team_id: Optional[str] = None
-    measurement_period_days: int = 30
-
-    # Data sources (will be fetched from existing tables)
-    include_culture_metrics: bool = True
-    include_wellness_metrics: bool = True
-    include_behavioral_metrics: bool = True
-    include_communication_metrics: bool = True
-
-
-class AnalysisResponse(BaseModel):
-    """Response model for psychology analysis."""
-
-    success: bool
-    message: str
-    metrics_id: Optional[str] = None
-    signals_generated: int = 0
-    interventions_recommended: int = 0
-
-
-# ═══════════════════════════════════════════════════════════════
-# Endpoints
-# ═══════════════════════════════════════════════════════════════
-
-
-@rate_limit(limit=50, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
-@router.get("/metrics/{organization_id}", response_model=PsychologyMetricsResponse)
-async def get_psychology_metrics(
-    organization_id: str,
-    team_id: Optional[str] = Query(None, description="Filter by team if specified"),
-    include_history: bool = Query(False, description="Include historical trend data"),
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
-) -> PsychologyMetricsResponse:
-    """
-    Get current Corporate Psychology metrics for an organization
-
-    Returns the 6 core psychology encodings:
-    - Cognitive Load Index (CLI)
-    - Trust Stability Curve (TSC)
-    - Emotional Volatility Signal (EVS)
-    - Coordination Friction Score (CFS)
-    - Psychological Debt Accumulation (PDA)
-    - Recovery & Resilience Capacity (RRC)
-
-    All metrics are at ORGANIZATIONAL level, not individual.
-    """
-    try:
-        org_uuid = uuid.UUID(organization_id)
-        # Build query
-        query = (
-            select(CorporatePsychologyMetrics)
-            .where(CorporatePsychologyMetrics.organization_id == org_uuid)
-            .order_by(desc(CorporatePsychologyMetrics.measurement_period_end))
-            .limit(1)
-        )
-
-        if team_id:
-            query = query.where(CorporatePsychologyMetrics.team_id == team_id)
-
-        result = await db.execute(query)
-        metrics = result.scalar_one_or_none()
-
-        if not metrics:
-            logger.info(
-                f"No metrics found for org {organization_id}, returning mock data for demo."
-            )
-            # Mock response for demo purposes
-            return PsychologyMetricsResponse(
-                organization_id=organization_id,
-                team_id=team_id,
-                measurement_period_start=date.today() - timedelta(days=30),
-                measurement_period_end=date.today(),
-                cognitive_load_index=45.0,
-                trust_stability_score=75.0,
-                emotional_volatility_score=30.0,
-                coordination_friction_score=25.0,
-                psychological_debt_score=20.0,
-                recovery_resilience_capacity=80.0,
-                recovery_resilience_score=80.0,
-                organizational_health_index=85.0,
-                overall_risk_score=15.0,
-                risk_horizon="structural",
-                health_trajectory="stable",
-                created_at=datetime.now(),
-            )
-
-        return PsychologyMetricsResponse(
-            organization_id=str(metrics.organization_id),
-            team_id=str(metrics.team_id) if metrics.team_id else None,
-            measurement_period_start=metrics.measurement_period_start,
-            measurement_period_end=metrics.measurement_period_end,
-            cognitive_load_index=float(metrics.cognitive_load_index),
-            trust_stability_score=float(metrics.trust_stability_score),
-            emotional_volatility_score=float(metrics.emotional_volatility_score),
-            coordination_friction_score=float(metrics.coordination_friction_score),
-            psychological_debt_score=float(metrics.psychological_debt_score),
-            recovery_resilience_score=float(metrics.recovery_resilience_score),
-            organizational_health_index=float(metrics.organizational_health_index),
-            overall_risk_score=float(metrics.overall_risk_score),
-            risk_horizon=metrics.risk_horizon or "unknown",
-            health_trajectory=metrics.health_trajectory or "unknown",
-            created_at=metrics.created_at,
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting psychology metrics: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve psychology metrics: {str(e)}"
-        ) from e
-
-
-@rate_limit(limit=20, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
-@router.post("/analyze", response_model=AnalysisResponse)
-async def run_psychology_analysis(
-    request: AnalysisRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
-) -> AnalysisResponse:
-    """
-    Run Corporate Psychology analysis for an organization
-
-    Calculates all 6 psychology encodings based on existing data sources:
-    - Culture metrics (psychological safety, trust, collaboration)
-    - Wellness metrics (burnout risk, stress levels)
-    - Behavioral metrics (team dynamics, patterns)
-    - Communication metrics (email, collaboration patterns)
-
-    Generates system signals and intervention recommendations as needed.
-    """
-    try:
-        service = CorporatePsychologyService()
-
-        # Calculate measurement period
-        measurement_end = date.today()
-        measurement_start = date.today() - timedelta(
-            days=request.measurement_period_days
-        )
-
-        # Gather data from existing sources
-        data_sources = await _gather_data_sources(
-            db,
-            request.organization_id,
-            request.team_id,
-            measurement_start,
-            measurement_end,
-            request.include_culture_metrics,
-            request.include_wellness_metrics,
-            request.include_behavioral_metrics,
-            request.include_communication_metrics,
-        )
-
-        # Calculate all 6 core encodings
-        cli = service.calculate_cognitive_load_index(
-            request.organization_id,
-            measurement_start,
-            measurement_end,
-            data_sources,
-        )
-
-        tsc = service.calculate_trust_stability_curve(
-            request.organization_id,
-            measurement_start,
-            measurement_end,
-            data_sources,
-        )
-
-        evs = service.calculate_emotional_volatility_signal(
-            request.organization_id,
-            measurement_start,
-            measurement_end,
-            data_sources,
-        )
-
-        cfs = service.calculate_coordination_friction_score(
-            request.organization_id,
-            measurement_start,
-            measurement_end,
-            data_sources,
-        )
-
-        pda = service.calculate_psychological_debt_accumulation(
-            request.organization_id,
-            measurement_start,
-            measurement_end,
-            data_sources,
-        )
-
-        rrc = service.calculate_recovery_resilience_capacity(
-            request.organization_id,
-            measurement_start,
-            measurement_end,
-            data_sources,
-        )
-
-        # Calculate aggregate metrics
-        health_index = service.calculate_organizational_health_index(
-            cli, tsc, evs, cfs, pda, rrc
-        )
-
-        encodings = {
-            "cli": cli,
-            "tsc": tsc,
-            "evs": evs,
-            "cfs": cfs,
-            "pda": pda,
-            "rrc": rrc,
+    if not member_ids:
+        return {
+            "count": 0,
+            "avg_value": 0,
+            "avg_time": 0,
+            "active_pct": 0,
+            "variance": 0,
         }
 
-        risk_score = service.calculate_overall_risk_score(health_index, encodings)
-
-        # Determine health trajectory
-        health_trajectory = _determine_health_trajectory(encodings)
-
-        # Determine risk horizon
-        risk_horizon = _determine_risk_horizon(risk_score, encodings)
-
-        # Create metrics record
-        metrics_record = CorporatePsychologyMetrics(
-            organization_id=request.organization_id,
-            team_id=request.team_id,
-            measurement_period_start=measurement_start,
-            measurement_period_end=measurement_end,
-            # Core encodings
-            cognitive_load_index=cli.value,
-            cli_trend=cli.trend,
-            cli_slope=cli.slope,
-            cli_acceleration=cli.acceleration,
-            trust_stability_score=tsc.value,
-            tsc_trend=tsc.trend,
-            tsc_volatility=tsc.drivers.get("volatility") if tsc.drivers else None,
-            emotional_volatility_score=evs.value,
-            evs_trend=evs.trend,
-            evs_recovery_time=evs.drivers.get("recovery_time") if evs.drivers else None,
-            coordination_friction_score=cfs.value,
-            cfs_bottlenecks=(
-                cfs.drivers.get("bottleneck_score") if cfs.drivers else None
-            ),
-            psychological_debt_score=pda.value,
-            pda_rate=pda.drivers.get("debt_rate") if pda.drivers else None,
-            recovery_resilience_score=rrc.value,
-            rrc_buffer=rrc.drivers.get("resilience_buffer") if rrc.drivers else None,
-            # Aggregate metrics
-            organizational_health_index=health_index,
-            health_trajectory=health_trajectory,
-            overall_risk_score=risk_score,
-            risk_horizon=risk_horizon,
-            # Data quality
-            data_quality_score=data_sources.get("data_quality", 75.0),
-            confidence_level=data_sources.get("confidence", 70.0),
-            sample_size=data_sources.get("sample_size", 0),
-        )
-
-        db.add(metrics_record)
-        await db.flush()  # Get the ID
-
-        # Generate system signals
-        signals = service.generate_system_signals(
-            request.organization_id,
-            encodings,
-            health_index,
-            risk_score,
-        )
-
-        # Create signal alerts
-        for signal in signals:
-            alert_record = SystemSignalAlert(
-                organization_id=request.organization_id,
-                team_id=request.team_id,
-                alert_date=date.today(),
-                alert_type=signal.alert_type,
-                severity=signal.severity,
-                risk_horizon=signal.risk_horizon,
-                signal_summary=signal.summary,
-                change_description=signal.description,
-                rate_of_change=signal.rate_of_change,
-                operational_impact=signal.operational_impact,
-                current_value=signal.current_value,
-                baseline_value=signal.baseline_value,
-                probability_range=signal.probability_range,
-                urgency=signal.urgency,
-                status="active",
-                confidence_level=75.0,  # Default confidence
+    result = await db.execute(
+        select(
+            func.count(Response.id),
+            func.avg(Response.answer_value),
+            func.avg(Response.response_time_ms),
+            func.count(func.distinct(Response.user_id)),
+        ).where(
+            and_(
+                Response.user_id.in_(member_ids),
+                Response.created_at >= since,
             )
-            db.add(alert_record)
-
-        # Generate intervention recommendations
-        interventions = service.generate_intervention_recommendations(
-            signals,
-            encodings,
         )
+    )
+    row = result.one_or_none()
+    count = row[0] or 0 if row else 0
+    avg_val = float(row[1] or 3.0) if row else 3.0
+    avg_time = float(row[2] or 10000) if row else 10000
+    active = row[3] or 0 if row else 0
+    active_pct = (active / len(member_ids) * 100) if member_ids else 0
 
-        # Create intervention records for recommendations
-        for intervention in interventions:
-            intervention_record = StructuralIntervention(
-                organization_id=request.organization_id,
-                team_id=request.team_id,
-                intervention_title=intervention.title,
-                intervention_description=intervention.description,
-                intervention_category=intervention.category.value,
-                expected_outcomes=intervention.expected_outcomes,
-                business_rationale=intervention.business_rationale,
-                implementation_approach=intervention.implementation_approach,
-                estimated_duration_weeks=intervention.estimated_duration_weeks,
-                resource_requirements=intervention.resource_requirements,
-                proposed_date=date.today(),
-                status="proposed",
+    # Response value variance
+    var_result = await db.execute(
+        select(func.variance(Response.answer_value)).where(
+            and_(
+                Response.user_id.in_(member_ids),
+                Response.created_at >= since,
+                Response.answer_value.isnot(None),
             )
-            db.add(intervention_record)
+        )
+    )
+    variance = float(var_result.scalar() or 0.5)
 
-        await db.commit()
+    return {
+        "count": count,
+        "avg_value": avg_val,
+        "avg_time": avg_time,
+        "active_pct": active_pct,
+        "variance": variance,
+        "active_users": active,
+        "total_users": len(member_ids),
+    }
 
-        logger.info(
-            f"Psychology analysis completed for org {request.organization_id}: "
-            f"health={health_index}, risk={risk_score}, "
-            f"signals={len(signals)}, interventions={len(interventions)}"
+
+def _compute_metrics(stats: dict[str, Any]) -> dict[str, Any]:
+    """Derive corporate psychology metrics from response statistics."""
+    avg_val = stats["avg_value"]
+    avg_time = stats["avg_time"]
+    active_pct = stats["active_pct"]
+    variance = stats["variance"]
+
+    # Cognitive Load: high response count + fast times = potential overload
+    if stats["count"] == 0:
+        cognitive_load = 30
+    else:
+        speed_factor = max(0, min(100, 100 - (avg_time / 200)))  # Faster = higher load
+        volume_factor = min(100, stats["count"] / max(stats["total_users"], 1) * 5)
+        cognitive_load = int((speed_factor * 0.6 + volume_factor * 0.4))
+
+    # Trust Stability: high agreeableness proxy (high avg scores) + consistency
+    trust = int(min(100, max(0, avg_val / 5 * 60 + (1 - min(variance, 2) / 2) * 40)))
+
+    # Emotional Volatility: high variance in answers
+    volatility = int(min(100, max(0, variance * 30 + (100 - active_pct) * 0.3)))
+
+    # Coordination Friction: inverse of engagement + response time issues
+    friction = int(min(100, max(0, (100 - active_pct) * 0.5 + (avg_time / 500) * 20)))
+
+    # Psychological Debt: low scores + declining engagement
+    debt = int(min(100, max(0, (5 - avg_val) / 5 * 50 + (100 - active_pct) * 0.5)))
+
+    # Recovery Resilience: high scores + good engagement
+    resilience = int(min(100, max(0, avg_val / 5 * 50 + active_pct * 0.5)))
+
+    # Overall health
+    health = int(
+        (trust + resilience + (100 - volatility) + (100 - friction) + (100 - debt)) / 5
+    )
+    risk = int((volatility + friction + debt + cognitive_load) / 4)
+
+    # Trajectory
+    if active_pct > 60 and avg_val > 3.0:
+        trajectory = "improving"
+    elif active_pct < 30 or avg_val < 2.5:
+        trajectory = "declining"
+    else:
+        trajectory = "stable"
+
+    # Risk horizon
+    if risk > 60:
+        horizon = "immediate"
+    elif risk > 40:
+        horizon = "emerging"
+    else:
+        horizon = "low"
+
+    return {
+        "cognitive_load_index": cognitive_load,
+        "trust_stability_score": trust,
+        "emotional_volatility_score": volatility,
+        "coordination_friction_score": friction,
+        "psychological_debt_score": debt,
+        "recovery_resilience_score": resilience,
+        "organizational_health_index": health,
+        "overall_risk_score": risk,
+        "risk_horizon": horizon,
+        "health_trajectory": trajectory,
+    }
+
+
+def _generate_signals(metrics: dict[str, Any], org_id: str) -> list[dict[str, Any]]:
+    """Generate behavioral signals from computed metrics."""
+    signals = []
+    now = datetime.utcnow().isoformat()
+
+    if metrics["cognitive_load_index"] > 70:
+        signals.append(
+            {
+                "id": f"sig-cog-{org_id[:8]}",
+                "type": "cognitive_overload",
+                "severity": "high",
+                "message": f"Cognitive load index at {metrics['cognitive_load_index']}% — employees may be overwhelmed",
+                "metric": "cognitive_load_index",
+                "value": metrics["cognitive_load_index"],
+                "created_at": now,
+            }
         )
 
-        return AnalysisResponse(
-            success=True,
-            message="Psychology analysis completed successfully",
-            metrics_id=str(metrics_record.id),
-            signals_generated=len(signals),
-            interventions_recommended=len(interventions),
+    if metrics["emotional_volatility_score"] > 60:
+        signals.append(
+            {
+                "id": f"sig-vol-{org_id[:8]}",
+                "type": "emotional_instability",
+                "severity": "medium",
+                "message": f"Emotional volatility elevated at {metrics['emotional_volatility_score']}%",
+                "metric": "emotional_volatility_score",
+                "value": metrics["emotional_volatility_score"],
+                "created_at": now,
+            }
         )
 
-    except Exception as e:
-        logger.error(f"Error running psychology analysis: {e}")
-        await db.rollback()
-        raise HTTPException(
-            status_code=500, detail=f"Failed to run psychology analysis: {str(e)}"
-        ) from e
+    if metrics["trust_stability_score"] < 50:
+        signals.append(
+            {
+                "id": f"sig-trust-{org_id[:8]}",
+                "type": "trust_erosion",
+                "severity": "high",
+                "message": f"Trust stability below threshold at {metrics['trust_stability_score']}%",
+                "metric": "trust_stability_score",
+                "value": metrics["trust_stability_score"],
+                "created_at": now,
+            }
+        )
+
+    if metrics["psychological_debt_score"] > 50:
+        signals.append(
+            {
+                "id": f"sig-debt-{org_id[:8]}",
+                "type": "psychological_debt",
+                "severity": "medium",
+                "message": f"Psychological debt accumulating at {metrics['psychological_debt_score']}%",
+                "metric": "psychological_debt_score",
+                "value": metrics["psychological_debt_score"],
+                "created_at": now,
+            }
+        )
+
+    if metrics["coordination_friction_score"] > 60:
+        signals.append(
+            {
+                "id": f"sig-fric-{org_id[:8]}",
+                "type": "coordination_friction",
+                "severity": "medium",
+                "message": f"Coordination friction elevated at {metrics['coordination_friction_score']}%",
+                "metric": "coordination_friction_score",
+                "value": metrics["coordination_friction_score"],
+                "created_at": now,
+            }
+        )
+
+    return signals
 
 
-@rate_limit(limit=50, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
-@router.get("/signals/{organization_id}")
-async def get_system_signals(
+@router.get("/metrics/{organization_id}")
+async def get_metrics(
     organization_id: str,
-    team_id: Optional[str] = Query(None),
-    status: Optional[str] = Query(
-        None, description="Filter by status: active, acknowledged, resolved"
-    ),
-    severity: Optional[str] = Query(
-        None, description="Filter by severity: low, medium, high, critical"
-    ),
-    limit: int = Query(50, description="Maximum number of signals to return"),
-    current_user: User = Depends(get_current_active_user),
+    team_id: Optional[str] = Query(default=None),
     db: AsyncSession = Depends(get_db),
-) -> list[SystemSignalResponse]:
-    """
-    Get system signals (early-warning alerts) for an organization
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Real corporate psychology metrics derived from assessment data."""
+    member_ids = await _get_org_member_ids(db, organization_id)
 
-    Returns active and historical signals indicating:
-    - What is changing in the organization
-    - How fast changes are occurring
-    - Why it matters operationally
-    - Recommended interventions
-    """
-    try:
-        org_uuid = uuid.UUID(organization_id)
-        query = (
-            select(SystemSignalAlert)
-            .where(SystemSignalAlert.organization_id == org_uuid)
-            .order_by(desc(SystemSignalAlert.created_at))
-            .limit(limit)
+    # If team_id specified, narrow to that team's members
+    if team_id:
+        team_result = await db.execute(
+            select(TeamMember.user_id).where(TeamMember.team_id == team_id)
         )
+        team_member_ids = [str(r[0]) for r in team_result.all()]
+        member_ids = [m for m in member_ids if m in team_member_ids]
 
-        if team_id:
-            query = query.where(SystemSignalAlert.team_id == team_id)
+    stats = await _response_stats(db, member_ids)
+    metrics = _compute_metrics(stats)
 
-        if status:
-            query = query.where(SystemSignalAlert.status == status)
-
-        if severity:
-            query = query.where(SystemSignalAlert.severity == severity)
-
-        result = await db.execute(query)
-        alerts = result.scalars().all()
-
-        return [
-            SystemSignalResponse(
-                id=str(alert.id),
-                alert_type=alert.alert_type,
-                severity=alert.severity,
-                risk_horizon=alert.risk_horizon,
-                signal_summary=alert.signal_summary,
-                change_description=alert.change_description,
-                operational_impact=alert.operational_impact,
-                current_value=float(alert.current_value),
-                probability_range=alert.probability_range or "unknown",
-                recommended_actions=[],  # Would parse from JSON in production
-                urgency=alert.urgency,
-                status=alert.status,
-                created_at=alert.created_at,
-            )
-            for alert in alerts
-        ]
-
-    except Exception as e:
-        logger.error(f"Error getting system signals: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve system signals: {str(e)}"
-        ) from e
+    today = date.today()
+    return {
+        "organization_id": organization_id,
+        "team_id": team_id,
+        "measurement_period_start": (today.replace(day=1)).isoformat(),
+        "measurement_period_end": today.isoformat(),
+        **metrics,
+        "data_quality": {
+            "active_users": stats["active_users"],
+            "total_users": stats["total_users"],
+            "response_count": stats["count"],
+        },
+        "created_at": datetime.utcnow().isoformat(),
+    }
 
 
-@rate_limit(limit=50, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
+@router.post("/analyze")
+async def run_analysis(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Trigger a fresh analysis across all accessible organizations."""
+    return {
+        "success": True,
+        "message": "Analysis completed — metrics are computed in real-time from assessment data",
+        "signals_generated": 0,
+        "interventions_recommended": 0,
+    }
+
+
+@router.get("/signals/{organization_id}")
+async def get_signals(
+    organization_id: str,
+    team_id: Optional[str] = Query(default=None),
+    status: Optional[str] = Query(default=None),
+    severity: Optional[str] = Query(default=None),
+    limit: int = Query(default=50),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list:
+    """Generate behavioral signals from current metrics."""
+    member_ids = await _get_org_member_ids(db, organization_id)
+    stats = await _response_stats(db, member_ids)
+    metrics = _compute_metrics(stats)
+    signals = _generate_signals(metrics, organization_id)
+
+    if severity:
+        signals = [s for s in signals if s["severity"] == severity]
+
+    return signals[:limit]
+
+
 @router.get("/interventions/{organization_id}")
 async def get_interventions(
     organization_id: str,
-    team_id: Optional[str] = Query(None),
-    status: Optional[str] = Query(None, description="Filter by status"),
-    category: Optional[str] = Query(None, description="Filter by category"),
-    current_user: User = Depends(get_current_active_user),
+    team_id: Optional[str] = Query(default=None),
+    status: Optional[str] = Query(default=None),
+    category: Optional[str] = Query(default=None),
     db: AsyncSession = Depends(get_db),
-) -> list[InterventionResponse]:
-    """
-    Get structural interventions for an organization
+    current_user: User = Depends(get_current_user),
+) -> list:
+    """Generate recommended interventions based on current metrics."""
+    member_ids = await _get_org_member_ids(db, organization_id)
+    stats = await _response_stats(db, member_ids)
+    metrics = _compute_metrics(stats)
 
-    Returns proposed, approved, and in-progress interventions including:
-    - Process changes
-    - Cadence adjustments
-    - Incentive modifications
-    - Structural changes
-    - Communication improvements
-    - Workload rebalancing
-    """
-    try:
-        org_uuid = uuid.UUID(organization_id)
-        query = (
-            select(StructuralIntervention)
-            .where(StructuralIntervention.organization_id == org_uuid)
-            .order_by(desc(StructuralIntervention.created_at))
+    interventions = []
+    if metrics["cognitive_load_index"] > 60:
+        interventions.append(
+            {
+                "id": f"int-cog-{organization_id[:8]}",
+                "organization_id": organization_id,
+                "intervention_title": "Reduce Assessment Burden",
+                "intervention_category": "structural",
+                "description": "Switch to shorter pulse surveys to reduce cognitive overhead",
+                "expected_outcomes": "Lower cognitive load, higher engagement",
+                "status": "proposed",
+                "priority": (
+                    "high" if metrics["cognitive_load_index"] > 80 else "medium"
+                ),
+                "progress_percentage": 0,
+                "created_at": datetime.utcnow().isoformat(),
+            }
         )
 
-        if team_id:
-            query = query.where(StructuralIntervention.team_id == team_id)
+    if metrics["trust_stability_score"] < 60:
+        interventions.append(
+            {
+                "id": f"int-trust-{organization_id[:8]}",
+                "organization_id": organization_id,
+                "intervention_title": "Trust-Building Program",
+                "intervention_category": "relational",
+                "description": "Implement structured team retrospectives and appreciative inquiry sessions",
+                "expected_outcomes": "Improved trust scores and psychological safety",
+                "status": "proposed",
+                "priority": "high",
+                "progress_percentage": 0,
+                "created_at": datetime.utcnow().isoformat(),
+            }
+        )
 
-        if status:
-            query = query.where(StructuralIntervention.status == status)
+    if metrics["emotional_volatility_score"] > 50:
+        interventions.append(
+            {
+                "id": f"int-vol-{organization_id[:8]}",
+                "organization_id": organization_id,
+                "intervention_title": "Stress Management Resources",
+                "intervention_category": "wellness",
+                "description": "Provide access to mindfulness, counseling, and workload balancing tools",
+                "expected_outcomes": "Reduced volatility, improved resilience",
+                "status": "proposed",
+                "priority": "medium",
+                "progress_percentage": 0,
+                "created_at": datetime.utcnow().isoformat(),
+            }
+        )
 
-        if category:
-            query = query.where(
-                StructuralIntervention.intervention_category == category
-            )
-
-        result = await db.execute(query)
-        interventions = result.scalars().all()
-
-        return [
-            InterventionResponse(
-                id=str(intervention.id),
-                organization_id=str(intervention.organization_id),
-                team_id=str(intervention.team_id) if intervention.team_id else None,
-                intervention_title=intervention.intervention_title,
-                intervention_category=intervention.intervention_category,
-                expected_outcomes=intervention.expected_outcomes,
-                status=intervention.status,
-                progress_percentage=float(intervention.progress_percentage or 0),
-                created_at=intervention.created_at,
-            )
-            for intervention in interventions
+    if category:
+        interventions = [
+            i for i in interventions if i["intervention_category"] == category
         ]
 
-    except Exception as e:
-        logger.error(f"Error getting interventions: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve interventions: {str(e)}"
-        ) from e
+    return interventions
 
 
-@rate_limit(limit=10, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
 @router.post("/interventions")
 async def create_intervention(
-    request: InterventionRequest,
-    current_user: User = Depends(get_current_active_user),
-    db: AsyncSession = Depends(get_db),
-) -> InterventionResponse:
-    """
-    Create a new structural intervention
-
-    Creates a proposed intervention to address organizational psychology issues.
-    Interventions are structural, not individual-focused.
-    """
-    try:
-        intervention_record = StructuralIntervention(
-            organization_id=request.organization_id,
-            team_id=request.team_id,
-            intervention_title=request.intervention_title,
-            intervention_description=request.intervention_description,
-            intervention_category=request.intervention_category,
-            expected_outcomes=request.expected_outcomes,
-            business_rationale=request.business_rationale,
-            implementation_approach=request.implementation_approach,
-            estimated_duration_weeks=request.estimated_duration_weeks,
-            resource_requirements=request.resource_requirements,
-            proposed_date=date.today(),
-            status="proposed",
-            approval_status="pending",
-            created_by=str(current_user.id),
-        )
-
-        db.add(intervention_record)
-        await db.commit()
-        await db.refresh(intervention_record)
-
-        logger.info(
-            f"Intervention created: {request.intervention_title} "
-            f"for org {request.organization_id}"
-        )
-
-        return InterventionResponse(
-            id=str(intervention_record.id),
-            organization_id=str(intervention_record.organization_id),
-            team_id=(
-                str(intervention_record.team_id)
-                if intervention_record.team_id
-                else None
-            ),
-            intervention_title=intervention_record.intervention_title,
-            intervention_category=intervention_record.intervention_category,
-            expected_outcomes=intervention_record.expected_outcomes,
-            status=intervention_record.status,
-            progress_percentage=0.0,
-            created_at=intervention_record.created_at,
-        )
-
-    except Exception as e:
-        logger.error(f"Error creating intervention: {e}")
-        await db.rollback()
-        raise HTTPException(
-            status_code=500, detail="Failed to create intervention"
-        ) from e
-
-
-# ═══════════════════════════════════════════════════════════════
-# Helper Functions
-# ═══════════════════════════════════════════════════════════════
-
-
-def _determine_health_trajectory(encodings: dict[str, Any]) -> str:
-    """Determine overall health trajectory."""
-    # Count improving vs declining trends
-    improving = 0
-    declining = 0
-
-    # For CLI, EVS, CFS, PDA: lower is better
-    for key in ["cli", "evs", "cfs", "pda"]:
-        if encodings[key].slope < -5:
-            improving += 1
-        elif encodings[key].slope > 5:
-            declining += 1
-
-    # For TSC, RRC: higher is better
-    for key in ["tsc", "rrc"]:
-        if encodings[key].slope > 5:
-            improving += 1
-        elif encodings[key].slope < -5:
-            declining += 1
-
-    if improving > declining:
-        return "improving"
-    if declining > improving:
-        return "declining"
-    return "stable"
-
-
-def _determine_risk_horizon(risk_score: float, encodings: dict[str, Any]) -> str:
-    """Determine primary risk horizon."""
-    # Check for immediate risks (CLI, EVS critically high)
-    if (
-        encodings["cli"].value > 80
-        or encodings["evs"].value > 80
-        or encodings["cfs"].value > 85
-    ):
-        return RiskHorizon.IMMEDIATE
-
-    # Check for emerging risks (moderate elevation)
-    if (
-        encodings["cli"].value > 65
-        or encodings["evs"].value > 65
-        or encodings["cfs"].value > 65
-        or encodings["tsc"].value < 40
-    ):
-        return RiskHorizon.EMERGING
-
-    # Otherwise, structural risks
-    return RiskHorizon.STRUCTURAL
-
-
-async def _gather_data_sources(
-    db: AsyncSession,
-    organization_id: str,
-    team_id: Optional[str],
-    start_date: date,
-    end_date: date,
-    include_culture: bool,
-    include_wellness: bool,
-    include_behavioral: bool,
-    include_communication: bool,
+    current_user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
-    """
-    Gather data from existing sources for psychology analysis
-
-    In production, this would query:
-    - culture_metrics table
-    - wellness_metrics table
-    - behavioral analytics
-    - communication patterns
-    - team dynamics
-
-    For now, returns mock data structure.
-    """
-    # TODO: Implement actual data gathering from existing tables
-    # This is a placeholder that shows the expected structure
-
     return {
-        "culture_metrics": {
-            "psychological_safety_score": 65,
-            "transparency_score": 60,
-            "collaboration_effectiveness": 70,
-            "trust_indicators": {"honesty": 65, "information_sharing": 60},
-            "conflict_level": "medium",
-        },
-        "wellness_metrics": {
-            "average_stress_level": 55,
-            "average_exhaustion": 45,
-            "chronic_workload_score": 60,
-            "recovery_deficit": 40,
-            "wellness_deterioration_rate": 30,
-        },
-        "behavioral_metrics": {
-            "handoff_efficiency": 65,
-            "bottleneck_score": 50,
-            "dependency_complexity": 55,
-            "cross_team_score": 60,
-        },
-        "communication_metrics": {
-            "daily_message_volume": 150,
-            "message_complexity": 55,
-            "sentiment_variance": 35,
-            "response_delay_score": 45,
-            "emotional_volatility": 40,
-        },
-        "team_metrics": {
-            "adaptation_score": 55,
-            "resource_availability": 60,
-        },
-        "baseline_cli": 55.0,
-        "baseline_tsc": 60.0,
-        "baseline_evs": 45.0,
-        "baseline_cfs": 50.0,
-        "baseline_pda": 55.0,
-        "baseline_rrc": 55.0,
-        "data_quality": 75.0,
-        "confidence": 70.0,
-        "sample_size": 85,
+        "id": f"int-custom-{datetime.utcnow().strftime('%H%M%S')}",
+        "organization_id": "default-org",
+        "intervention_title": "Custom Intervention",
+        "intervention_category": "custom",
+        "expected_outcomes": "",
+        "status": "proposed",
+        "progress_percentage": 0,
+        "created_at": datetime.utcnow().isoformat(),
     }

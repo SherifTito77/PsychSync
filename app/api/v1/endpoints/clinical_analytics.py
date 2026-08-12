@@ -1,306 +1,404 @@
 """
 Clinical Analytics API Endpoints
 
-Provides population health insights, screening completion rates,
-and mental health trends for clinicians and administrators.
-
-HIPAA: All endpoints require authentication and role-based access control
+Queries ClinicalScreening, ClinicalAlert, and ClinicalReferral tables
+for real clinical analytics data.
 """
 
-import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_user, get_db
+from app.core.database import get_db
+from app.db.models.clinical_screening import ClinicalAlert, ClinicalScreening
+from app.db.models.team import Team, TeamMember
 from app.db.models.user import User
-from app.services.clinical.clinical_analytics_service import ClinicalScreeningAnalytics
+from app.services.security import get_current_user
 
 router = APIRouter(prefix="/analytics/clinical", tags=["clinical-analytics"])
-logger = logging.getLogger(__name__)
+
+
+async def _user_org_ids(db: AsyncSession, user_id) -> list[str]:
+    result = await db.execute(
+        select(Team.organization_id)
+        .join(TeamMember, TeamMember.team_id == Team.id)
+        .where(TeamMember.user_id == user_id)
+        .distinct()
+    )
+    return [str(r[0]) for r in result.all()]
+
+
+@router.get("/population")
+async def get_population_analytics(
+    period: Optional[str] = Query(default="30d"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Population-level clinical analytics from screening data."""
+    org_ids = await _user_org_ids(db, current_user.id)
+    days = int(period.rstrip("d")) if period and period.endswith("d") else 30
+    since = datetime.utcnow() - timedelta(days=days)
+
+    base_filter = []
+    if org_ids:
+        base_filter.append(ClinicalScreening.org_id.in_(org_ids))
+
+    # Total assessments and users
+    total_result = await db.execute(
+        select(
+            func.count(ClinicalScreening.id),
+            func.count(func.distinct(ClinicalScreening.user_id)),
+        ).where(and_(*base_filter))
+        if base_filter
+        else select(
+            func.count(ClinicalScreening.id),
+            func.count(func.distinct(ClinicalScreening.user_id)),
+        )
+    )
+    row = total_result.one_or_none()
+    total_assessments = row[0] or 0 if row else 0
+    total_users = row[1] or 0 if row else 0
+
+    # Recent screenings
+    recent_filter = [ClinicalScreening.created_at >= since]
+    if org_ids:
+        recent_filter.append(ClinicalScreening.org_id.in_(org_ids))
+
+    recent_result = await db.execute(
+        select(func.count(ClinicalScreening.id)).where(and_(*recent_filter))
+    )
+    total_screenings = recent_result.scalar() or 0
+
+    # Completed
+    completed_filter = recent_filter + [ClinicalScreening.completed_at.isnot(None)]
+    completed_result = await db.execute(
+        select(func.count(ClinicalScreening.id)).where(and_(*completed_filter))
+    )
+    completed = completed_result.scalar() or 0
+    completion_rate = round(completed / max(total_screenings, 1) * 100, 1)
+
+    # Risk distribution
+    risk_filter = recent_filter.copy()
+    risk_result = await db.execute(
+        select(ClinicalScreening.risk_level, func.count(ClinicalScreening.id))
+        .where(and_(*risk_filter))
+        .group_by(ClinicalScreening.risk_level)
+    )
+    risk_map = {r[0]: r[1] for r in risk_result.all() if r[0]}
+    risk_distribution = {
+        "low": risk_map.get("low", 0),
+        "moderate": risk_map.get("moderate", 0),
+        "high": risk_map.get("high", 0),
+        "critical": risk_map.get("critical", 0),
+    }
+
+    # Assessment counts by type
+    type_result = await db.execute(
+        select(ClinicalScreening.screening_type, func.count(ClinicalScreening.id))
+        .where(and_(*recent_filter))
+        .group_by(ClinicalScreening.screening_type)
+    )
+    assessment_counts = {r[0]: r[1] for r in type_result.all() if r[0]}
+
+    # Crisis alerts
+    alert_filter = [ClinicalAlert.created_at >= since]
+    if org_ids:
+        alert_filter.append(ClinicalAlert.org_id.in_(org_ids))
+
+    crisis_total = (
+        await db.execute(
+            select(func.count(ClinicalAlert.id)).where(and_(*alert_filter))
+        )
+    ).scalar() or 0
+
+    crisis_resolved = (
+        await db.execute(
+            select(func.count(ClinicalAlert.id)).where(
+                and_(*alert_filter, ClinicalAlert.resolution_status == "resolved")
+            )
+        )
+    ).scalar() or 0
+
+    # Avg response time for acknowledged alerts
+    avg_resp = (
+        await db.execute(
+            select(
+                func.avg(
+                    func.extract("epoch", ClinicalAlert.acknowledged_at)
+                    - func.extract("epoch", ClinicalAlert.created_at)
+                )
+            ).where(and_(*alert_filter, ClinicalAlert.acknowledged_at.isnot(None)))
+        )
+    ).scalar()
+    avg_response_minutes = round(float(avg_resp or 0) / 60, 1)
+
+    # High risk users
+    high_risk_result = await db.execute(
+        select(ClinicalScreening.user_id, func.max(ClinicalScreening.risk_level))
+        .where(
+            and_(*recent_filter, ClinicalScreening.risk_level.in_(["high", "critical"]))
+        )
+        .group_by(ClinicalScreening.user_id)
+        .limit(10)
+    )
+    high_risk_users = [
+        {"user_id": str(r[0]), "risk_level": r[1]} for r in high_risk_result.all()
+    ]
+
+    return {
+        "period": period,
+        "summary": {
+            "total_assessments": total_assessments,
+            "total_users": total_users,
+            "crisis_alerts_triggered": crisis_total,
+            "crisis_alerts_resolved": crisis_resolved,
+            "avg_response_time_minutes": avg_response_minutes,
+        },
+        "riskDistribution": risk_distribution,
+        "assessmentCounts": assessment_counts,
+        "trends": [],
+        "highRiskUsers": high_risk_users,
+        "total_screenings": total_screenings,
+        "completion_rate": completion_rate,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
 
 
 @router.get("/completion-stats")
 async def get_completion_statistics(
-    start_date: Optional[str] = Query(
-        None, description="ISO format start date (default: 30 days ago)"
-    ),
-    end_date: Optional[str] = Query(
-        None, description="ISO format end date (default: now)"
-    ),
-    screening_type: Optional[str] = Query(
-        None, description="Filter by screening type (PHQ9, GAD7, etc.)"
-    ),
+    start_date: Optional[str] = Query(default=None),
+    end_date: Optional[str] = Query(default=None),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    """
-    Get screening completion statistics for organization
+) -> dict[str, Any]:
+    """Completion rates by screening tool."""
+    filters = []
+    if start_date:
+        filters.append(ClinicalScreening.created_at >= start_date)
+    if end_date:
+        filters.append(ClinicalScreening.created_at <= end_date)
 
-    Returns:
-        - Total eligible users vs completed screenings
-        - Completion rate percentage
-        - Breakdown by screening type
-        - Team-level completion rates
-        - Weekly trend data
+    started_result = await db.execute(
+        select(func.count(ClinicalScreening.id)).where(and_(*filters))
+        if filters
+        else select(func.count(ClinicalScreening.id))
+    )
+    total_started = started_result.scalar() or 0
 
-    HIPAA: Requires organization-level access
-    """
-    # Default to last 30 days if not specified
-    if not start_date:
-        start_date = (datetime.utcnow() - timedelta(days=30)).isoformat()
-    if not end_date:
-        end_date = datetime.utcnow().isoformat()
+    completed_filters = filters + [ClinicalScreening.completed_at.isnot(None)]
+    completed_result = await db.execute(
+        select(func.count(ClinicalScreening.id)).where(and_(*completed_filters))
+    )
+    total_completed = completed_result.scalar() or 0
 
-    # Parse dates
-    try:
-        start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
-        end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-    except ValueError:
-        raise HTTPException(
-            400,
-            "Invalid date format. Use ISO format: YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS",
+    # By tool
+    tool_result = await db.execute(
+        select(
+            ClinicalScreening.screening_type,
+            func.count(ClinicalScreening.id),
+            func.count(ClinicalScreening.completed_at),
+        ).where(and_(*filters))
+        if filters
+        else select(
+            ClinicalScreening.screening_type,
+            func.count(ClinicalScreening.id),
+            func.count(ClinicalScreening.completed_at),
         )
+    )
+    # Need group_by
+    tool_result = await db.execute(
+        select(
+            ClinicalScreening.screening_type,
+            func.count(ClinicalScreening.id).label("started"),
+            func.sum(
+                func.cast(
+                    ClinicalScreening.completed_at.isnot(None), type_=func.integer_type
+                )
+                if hasattr(func, "integer_type")
+                else 1
+            ).label("completed"),
+        ).group_by(ClinicalScreening.screening_type)
+    )
+    by_tool = {}
+    # Simpler approach
+    type_list_result = await db.execute(
+        select(ClinicalScreening.screening_type).distinct()
+    )
+    for (stype,) in type_list_result.all():
+        if not stype:
+            continue
+        s = (
+            await db.execute(
+                select(func.count(ClinicalScreening.id)).where(
+                    ClinicalScreening.screening_type == stype
+                )
+            )
+        ).scalar() or 0
+        c = (
+            await db.execute(
+                select(func.count(ClinicalScreening.id)).where(
+                    and_(
+                        ClinicalScreening.screening_type == stype,
+                        ClinicalScreening.completed_at.isnot(None),
+                    )
+                )
+            )
+        ).scalar() or 0
+        by_tool[stype] = {
+            "started": s,
+            "completed": c,
+            "rate": round(c / max(s, 1) * 100, 1),
+        }
 
-    # Validate date range (max 1 year)
-    if (end_dt - start_dt).days > 365:
-        raise HTTPException(400, "Date range cannot exceed 1 year")
-
-    # Use user's organization
-    org_id = str(current_user.org_id) if hasattr(current_user, "org_id") else None
-
-    if not org_id:
-        raise HTTPException(403, "User must belong to an organization")
-
-    try:
-        analytics_service = ClinicalScreeningAnalytics(db)
-        stats = await analytics_service.get_screening_completion_stats(
-            org_id=org_id,
-            start_date=start_dt,
-            end_date=end_dt,
-            screening_type=screening_type,
-        )
-
-        logger.info(
-            f"Completion stats retrieved for org {org_id} by user {current_user.id}"
-        )
-        return stats
-
-    except Exception as e:
-        logger.error(f"Error retrieving completion stats: {str(e)}")
-        raise HTTPException(500, f"Failed to retrieve completion statistics: {str(e)}")
+    return {
+        "total_started": total_started,
+        "total_completed": total_completed,
+        "completion_rate": round(total_completed / max(total_started, 1) * 100, 1),
+        "by_tool": by_tool,
+    }
 
 
 @router.get("/severity-distribution")
 async def get_severity_distribution(
-    start_date: Optional[str] = Query(None, description="ISO format start date"),
-    end_date: Optional[str] = Query(None, description="ISO format end date"),
-    screening_type: Optional[str] = Query(None, description="Filter by screening type"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    """
-    Get distribution of severity levels for completed screenings
+) -> dict[str, Any]:
+    """Severity distribution across all screenings."""
+    result = await db.execute(
+        select(ClinicalScreening.severity_level, func.count(ClinicalScreening.id))
+        .where(ClinicalScreening.severity_level.isnot(None))
+        .group_by(ClinicalScreening.severity_level)
+    )
+    dist = {r[0]: r[1] for r in result.all()}
+    total = sum(dist.values())
 
-    Returns:
-        - Severity counts and percentages
-        - Breakdown by screening type
-        - High-risk count
-        - Severity trends over time
-
-    HIPAA: Requires organization-level access
-    """
-    # Default to last 30 days
-    if not start_date:
-        start_date = (datetime.utcnow() - timedelta(days=30)).isoformat()
-    if not end_date:
-        end_date = datetime.utcnow().isoformat()
-
-    try:
-        start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
-        end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-    except ValueError:
-        raise HTTPException(400, "Invalid date format")
-
-    org_id = str(current_user.org_id) if hasattr(current_user, "org_id") else None
-
-    if not org_id:
-        raise HTTPException(403, "User must belong to an organization")
-
-    try:
-        analytics_service = ClinicalScreeningAnalytics(db)
-        distribution = await analytics_service.get_severity_distribution(
-            org_id=org_id,
-            start_date=start_dt,
-            end_date=end_dt,
-            screening_type=screening_type,
-        )
-
-        logger.info(f"Severity distribution retrieved for org {org_id}")
-        return distribution
-
-    except NotImplementedError:
-        raise HTTPException(501, "Severity distribution analytics not yet implemented")
-    except Exception as e:
-        logger.error(f"Error retrieving severity distribution: {str(e)}")
-        raise HTTPException(500, f"Failed to retrieve severity distribution: {str(e)}")
+    return {
+        "distribution": {
+            "minimal": dist.get("minimal", 0),
+            "mild": dist.get("mild", 0),
+            "moderate": dist.get("moderate", 0),
+            "severe": dist.get("severe", 0),
+        },
+        "total": total,
+    }
 
 
 @router.get("/crisis-metrics")
-async def get_crisis_alert_metrics(
-    start_date: Optional[str] = Query(None, description="ISO format start date"),
-    end_date: Optional[str] = Query(None, description="ISO format end date"),
+async def get_crisis_metrics(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    """
-    Get crisis alert metrics and response times
+) -> dict[str, Any]:
+    """Crisis alert metrics."""
+    since = datetime.utcnow() - timedelta(days=30)
 
-    Returns:
-        - Total alerts triggered
-        - Breakdown by alert type
-        - Average response time
-        - Resolution rate
-        - Pending alerts
-
-    HIPAA: Requires clinician or admin role
-    """
-    # Default to last 30 days
-    if not start_date:
-        start_date = (datetime.utcnow() - timedelta(days=30)).isoformat()
-    if not end_date:
-        end_date = datetime.utcnow().isoformat()
-
-    try:
-        start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
-        end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-    except ValueError:
-        raise HTTPException(400, "Invalid date format")
-
-    org_id = str(current_user.org_id) if hasattr(current_user, "org_id") else None
-
-    if not org_id:
-        raise HTTPException(403, "User must belong to an organization")
-
-    try:
-        analytics_service = ClinicalScreeningAnalytics(db)
-        metrics = await analytics_service.get_crisis_alert_metrics(
-            org_id=org_id, start_date=start_dt, end_date=end_dt
+    active = (
+        await db.execute(
+            select(func.count(ClinicalAlert.id)).where(
+                ClinicalAlert.resolution_status.in_(["pending", "in_progress", None])
+            )
         )
+    ).scalar() or 0
 
-        logger.info(f"Crisis metrics retrieved for org {org_id}")
-        return metrics
+    resolved = (
+        await db.execute(
+            select(func.count(ClinicalAlert.id)).where(
+                and_(
+                    ClinicalAlert.created_at >= since,
+                    ClinicalAlert.resolution_status == "resolved",
+                )
+            )
+        )
+    ).scalar() or 0
 
-    except NotImplementedError:
-        raise HTTPException(501, "Crisis metrics analytics not yet implemented")
-    except Exception as e:
-        logger.error(f"Error retrieving crisis metrics: {str(e)}")
-        raise HTTPException(500, f"Failed to retrieve crisis metrics: {str(e)}")
+    avg_resp = (
+        await db.execute(
+            select(
+                func.avg(
+                    func.extract("epoch", ClinicalAlert.acknowledged_at)
+                    - func.extract("epoch", ClinicalAlert.created_at)
+                )
+            ).where(ClinicalAlert.acknowledged_at.isnot(None))
+        )
+    ).scalar()
+    avg_minutes = round(float(avg_resp or 0) / 60, 1)
+
+    return {
+        "active_crises": active,
+        "resolved_last_30d": resolved,
+        "avg_response_time_minutes": avg_minutes,
+    }
 
 
 @router.get("/population-health")
-async def get_population_health_summary(
-    start_date: Optional[str] = Query(None, description="ISO format start date"),
-    end_date: Optional[str] = Query(None, description="ISO format end date"),
+async def get_population_health(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    """
-    Get population-level mental health summary
+) -> dict[str, Any]:
+    """Population health summary."""
+    since = datetime.utcnow() - timedelta(days=30)
 
-    Returns:
-        - Average scores across screening types
-        - Risk distribution
-        - Top mental health concerns
-        - Improvement indicators
-        - Risk factor patterns
+    total_patients = (
+        await db.execute(select(func.count(func.distinct(ClinicalScreening.user_id))))
+    ).scalar() or 0
 
-    HIPAA: Requires organization-level access
-    """
-    if not start_date:
-        start_date = (
-            datetime.utcnow() - timedelta(days=90)
-        ).isoformat()  # Default 90 days
-    if not end_date:
-        end_date = datetime.utcnow().isoformat()
-
-    try:
-        start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
-        end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-    except ValueError:
-        raise HTTPException(400, "Invalid date format")
-
-    org_id = str(current_user.org_id) if hasattr(current_user, "org_id") else None
-
-    if not org_id:
-        raise HTTPException(403, "User must belong to an organization")
-
-    try:
-        analytics_service = ClinicalScreeningAnalytics(db)
-        summary = await analytics_service.get_population_health_summary(
-            org_id=org_id, start_date=start_dt, end_date=end_dt
+    screened_30d = (
+        await db.execute(
+            select(func.count(func.distinct(ClinicalScreening.user_id))).where(
+                ClinicalScreening.created_at >= since
+            )
         )
+    ).scalar() or 0
 
-        logger.info(f"Population health summary retrieved for org {org_id}")
-        return summary
-
-    except NotImplementedError:
-        raise HTTPException(501, "Population health analytics not yet implemented")
-    except Exception as e:
-        logger.error(f"Error retrieving population health summary: {str(e)}")
-        raise HTTPException(
-            500, f"Failed to retrieve population health summary: {str(e)}"
+    high_risk = (
+        await db.execute(
+            select(func.count(func.distinct(ClinicalScreening.user_id))).where(
+                ClinicalScreening.risk_level.in_(["high", "critical"])
+            )
         )
+    ).scalar() or 0
+
+    return {
+        "total_patients": total_patients,
+        "screened_last_30d": screened_30d,
+        "high_risk_count": high_risk,
+        "trends": [],
+    }
 
 
 @router.get("/clinician-workload")
 async def get_clinician_workload(
-    start_date: Optional[str] = Query(None, description="ISO format start date"),
-    end_date: Optional[str] = Query(None, description="ISO format end date"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-):
-    """
-    Get clinician workload and productivity metrics
-
-    Returns:
-        - Screenings reviewed per clinician
-        - Average review time
-        - Alert response statistics
-        - Patient load
-        - Documentation time
-
-    HIPAA: Requires clinician or admin role
-    """
-    if not start_date:
-        start_date = (datetime.utcnow() - timedelta(days=30)).isoformat()
-    if not end_date:
-        end_date = datetime.utcnow().isoformat()
-
-    try:
-        start_dt = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
-        end_dt = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-    except ValueError:
-        raise HTTPException(400, "Invalid date format")
-
-    org_id = str(current_user.org_id) if hasattr(current_user, "org_id") else None
-
-    if not org_id:
-        raise HTTPException(403, "User must belong to an organization")
-
-    try:
-        analytics_service = ClinicalScreeningAnalytics(db)
-        workload = await analytics_service.get_clinician_workload_metrics(
-            org_id=org_id, start_date=start_dt, end_date=end_dt
+) -> dict[str, Any]:
+    """Clinician workload based on validated screenings."""
+    # Clinicians = users who have validated screenings
+    result = await db.execute(
+        select(
+            ClinicalScreening.validated_by,
+            func.count(ClinicalScreening.id),
         )
+        .where(ClinicalScreening.validated_by.isnot(None))
+        .group_by(ClinicalScreening.validated_by)
+    )
+    rows = result.all()
+    total_clinicians = len(rows)
+    caseloads = [r[1] for r in rows]
+    avg_caseload = round(sum(caseloads) / max(total_clinicians, 1), 1)
 
-        logger.info(f"Clinician workload metrics retrieved for org {org_id}")
-        return workload
+    distribution = {}
+    for uid, count in rows:
+        if count <= 10:
+            distribution["light"] = distribution.get("light", 0) + 1
+        elif count <= 30:
+            distribution["moderate"] = distribution.get("moderate", 0) + 1
+        else:
+            distribution["heavy"] = distribution.get("heavy", 0) + 1
 
-    except NotImplementedError:
-        raise HTTPException(501, "Clinician workload analytics not yet implemented")
-    except Exception as e:
-        logger.error(f"Error retrieving clinician workload: {str(e)}")
-        raise HTTPException(500, f"Failed to retrieve clinician workload: {str(e)}")
+    return {
+        "total_clinicians": total_clinicians,
+        "avg_caseload": avg_caseload,
+        "workload_distribution": distribution,
+    }

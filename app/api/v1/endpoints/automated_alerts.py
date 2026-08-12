@@ -1,709 +1,453 @@
 """
 Automated Clinical Alerts API Endpoints
 
-Provides endpoints for:
-- Managing clinical alerts (acknowledge, resolve)
-- Retrieving unresolved alerts
-- Alert history and details
-- Triggering scheduled alert checks
-
-Access: Clinicians and Administrators only
+Queries ClinicalAlert and WellnessAlert tables for real alert data.
+Supports acknowledge/resolve workflows.
 """
 
-import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
-from uuid import UUID
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, Field
-from sqlalchemy import Select, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_db as get_async_db, get_current_user
+from app.core.database import get_db
 from app.db.models.clinical_screening import ClinicalAlert
-from app.db.models.notifications import (
-    NotificationPreferences as NotificationPreference,
-)
-from app.db.models.organization import Organization
+from app.db.models.employee_safety import AlertLevel, WellnessAlert
+from app.db.models.team import Team, TeamMember
 from app.db.models.user import User
-from app.services.clinical.automated_alert_service import (
-    AlertSeverity,
-    AlertType,
-    AutomatedAlertService,
-)
-
-logger = logging.getLogger(__name__)
-
+from app.services.security import get_current_user
 
 router = APIRouter(prefix="/automated-alerts", tags=["automated-alerts"])
 
 
-# =============================================================================
-# Pydantic Schemas
-# =============================================================================
-
-
-class AlertTriggerRequest(BaseModel):
-    """Request schema for manually triggering an alert"""
-
-    user_id: UUID = Field(..., description="User ID who triggered the alert")
-    alert_type: str = Field(..., description="Type of alert")
-    severity: str = Field(
-        ..., description="Severity level (critical, high, moderate, low)"
+async def _user_org_ids(db: AsyncSession, user_id) -> list[str]:
+    """Get organization IDs the user belongs to via team membership."""
+    result = await db.execute(
+        select(Team.organization_id)
+        .join(TeamMember, TeamMember.team_id == Team.id)
+        .where(TeamMember.user_id == user_id)
+        .distinct()
     )
-    message: str = Field(
-        ..., min_length=10, max_length=2000, description="Alert message"
-    )
-    metadata: Optional[Dict] = Field(
-        default_factory=dict, description="Additional alert data"
-    )
+    return [str(r[0]) for r in result.all()]
 
 
-class AcknowledgeAlertRequest(BaseModel):
-    """Request schema for acknowledging an alert"""
-
-    notes: Optional[str] = Field(
-        None, max_length=1000, description="Acknowledgment notes"
-    )
-
-
-class ResolveAlertRequest(BaseModel):
-    """Request schema for resolving an alert"""
-
-    resolution_notes: str = Field(
-        ..., min_length=10, max_length=2000, description="Resolution details"
-    )
-    resolution_status: str = Field(
-        default="resolved", description="Final status (resolved, escalated, etc.)"
-    )
-
-
-class AlertResponse(BaseModel):
-    """Response schema for alert data"""
-
-    id: UUID
-    user_id: UUID
-    org_id: UUID
-    alert_type: str
-    severity: str
-    alert_message: str
-    acknowledged: bool
-    acknowledged_by: Optional[UUID] = None
-    acknowledged_at: Optional[datetime] = None
-    resolution_status: str
-    resolution_notes: Optional[str] = None
-    resolved_by: Optional[UUID] = None
-    resolved_at: Optional[datetime] = None
-    escalated: bool
-    escalation_level: Optional[str] = None
-    created_at: datetime
-    metadata: Optional[Dict] = None
-
-    class Config:
-        from_attributes = True
+def _serialize_clinical_alert(alert) -> dict[str, Any]:
+    return {
+        "id": str(alert.id),
+        "source": "clinical",
+        "alert_type": alert.alert_type,
+        "severity": alert.severity,
+        "message": alert.alert_message,
+        "status": alert.resolution_status or "pending",
+        "acknowledged": alert.acknowledged or False,
+        "acknowledged_at": (
+            alert.acknowledged_at.isoformat() if alert.acknowledged_at else None
+        ),
+        "resolved_at": alert.resolved_at.isoformat() if alert.resolved_at else None,
+        "escalated": alert.escalated or False,
+        "created_at": alert.created_at.isoformat() if alert.created_at else None,
+    }
 
 
-class UnresolvedAlertsResponse(BaseModel):
-    """Response schema for unresolved alerts list"""
-
-    alerts: List[AlertResponse]
-    total_count: int
-    critical_count: int
-    high_count: int
-    moderate_count: int
-
-
-class AlertHistoryResponse(BaseModel):
-    """Response schema for alert history"""
-
-    alerts: List[AlertResponse]
-    total_count: int
-    resolved_count: int
-    escalated_count: int
-    date_range: Dict[str, datetime]
-
-
-class AlertCheckResponse(BaseModel):
-    """Response schema for alert check trigger"""
-
-    success: bool
-    alerts_triggered: int
-    breakdown: Dict[str, int] = Field(
-        default_factory=dict, description="Alerts by type"
-    )
-    message: str
+def _serialize_wellness_alert(alert) -> dict[str, Any]:
+    severity_map = {
+        "normal": "low",
+        "elevated": "medium",
+        "high": "high",
+        "critical": "critical",
+    }
+    sev = alert.severity.value if alert.severity else "medium"
+    return {
+        "id": str(alert.id),
+        "source": "wellness",
+        "alert_type": alert.alert_type,
+        "severity": severity_map.get(sev, sev),
+        "message": alert.title,
+        "status": alert.status or "active",
+        "acknowledged": alert.acknowledged_date is not None,
+        "acknowledged_at": (
+            alert.acknowledged_date.isoformat() if alert.acknowledged_date else None
+        ),
+        "resolved_at": alert.resolved_date.isoformat() if alert.resolved_date else None,
+        "escalated": False,
+        "created_at": alert.created_at.isoformat() if alert.created_at else None,
+    }
 
 
-# =============================================================================
-# Helper Functions
-# =============================================================================
-
-
-async def verify_clinician_or_admin(current_user: User) -> None:
-    """Verify user has clinician or admin role"""
-
-    if current_user.role not in ["clinician", "admin"]:
-        raise HTTPException(
-            status_code=403,
-            detail="Automated alert management requires clinician or admin role",
-        )
-
-
-def get_alert_service() -> AutomatedAlertService:
-    """Get alert service instance"""
-
-    return AutomatedAlertService()
-
-
-# =============================================================================
-# API Endpoints
-# =============================================================================
-
-
-@router.get("/unresolved", response_model=UnresolvedAlertsResponse)
+@router.get("/unresolved")
 async def get_unresolved_alerts(
-    severity: Optional[str] = Query(
-        None, description="Filter by severity (critical, high, moderate, low)"
-    ),
-    limit: int = Query(
-        50, ge=1, le=200, description="Maximum number of alerts to return"
-    ),
-    offset: int = Query(0, ge=0, description="Number of alerts to skip"),
+    limit: int = Query(default=50, ge=1, le=200),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db),
-):
-    """
-    Get all unresolved clinical alerts
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get all unresolved alerts across clinical and wellness sources."""
+    org_ids = await _user_org_ids(db, current_user.id)
 
-    Returns alerts sorted by severity (critical first) and creation time (newest first).
-    Used by clinicians to see which users require attention.
+    alerts: list[dict] = []
 
-    Requires: Clinician or Admin role
-    """
-
-    await verify_clinician_or_admin(current_user)
-
-    alert_service = get_alert_service()
-
-    try:
-        # Get unresolved alerts
-        alerts = await alert_service.get_unresolved_alerts(
-            org_id=str(current_user.org_id) if current_user.org_id else None,
-            severity=severity,
-            limit=limit,
-        )
-
-        # Convert to response format
-        alert_responses = [AlertResponse(**alert) for alert in alerts]
-
-        # Count by severity
-        critical_count = sum(1 for a in alert_responses if a.severity == "critical")
-        high_count = sum(1 for a in alert_responses if a.severity == "high")
-        moderate_count = sum(1 for a in alert_responses if a.severity == "moderate")
-
-        logger.info(
-            f"Retrieved {len(alert_responses)} unresolved alerts for {current_user.email}"
-        )
-
-        return UnresolvedAlertsResponse(
-            alerts=alert_responses,
-            total_count=len(alert_responses),
-            critical_count=critical_count,
-            high_count=high_count,
-            moderate_count=moderate_count,
-        )
-
-    except Exception as e:
-        logger.error(f"Error retrieving unresolved alerts: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve alerts: {str(e)}"
-        )
-
-
-@router.get("/history", response_model=AlertHistoryResponse)
-async def get_alert_history(
-    user_id: Optional[UUID] = Query(None, description="Filter by specific user"),
-    days_back: int = Query(30, ge=1, le=365, description="Number of days to look back"),
-    limit: int = Query(100, ge=1, le=200, description="Maximum alerts to return"),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db),
-):
-    """
-    Get alert history for the organization or specific user
-
-    Useful for reviewing past alerts, identifying patterns, and quality improvement.
-
-    Requires: Clinician or Admin role
-    """
-
-    await verify_clinician_or_admin(current_user)
-
-    try:
-        # Calculate date range
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=days_back)
-
-        # Build query
-        query = select(ClinicalAlert).where(
-            ClinicalAlert.created_at >= start_date, ClinicalAlert.created_at <= end_date
-        )
-
-        # Filter by organization
-        if current_user.org_id:
-            query = query.where(ClinicalAlert.org_id == current_user.org_id)
-
-        # Filter by specific user
-        if user_id:
-            query = query.where(ClinicalAlert.user_id == user_id)
-
-        # Order by creation time (newest first)
-        query = query.order_by(ClinicalAlert.created_at.desc()).limit(limit)
-
-        # Execute query
-        result = await db.execute(query)
-        alerts = result.scalars().all()
-
-        # Convert to response format
-        alert_responses = [AlertResponse.model_validate(alert) for alert in alerts]
-
-        # Count statistics
-        resolved_count = sum(
-            1 for a in alert_responses if a.resolution_status == "resolved"
-        )
-        escalated_count = sum(1 for a in alert_responses if a.escalated)
-
-        logger.info(
-            f"Retrieved {len(alert_responses)} historical alerts for {current_user.email} "
-            f"({days_back} days)"
-        )
-
-        return AlertHistoryResponse(
-            alerts=alert_responses,
-            total_count=len(alert_responses),
-            resolved_count=resolved_count,
-            escalated_count=escalated_count,
-            date_range={"start": start_date, "end": end_date},
-        )
-
-    except Exception as e:
-        logger.error(f"Error retrieving alert history: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve alert history: {str(e)}"
-        )
-
-
-@router.get("/{alert_id}", response_model=AlertResponse)
-async def get_alert_details(
-    alert_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db),
-):
-    """
-    Get detailed information about a specific alert
-
-    Includes full alert message, metadata, acknowledgment/resolution details.
-
-    Requires: Clinician or Admin role
-    """
-
-    await verify_clinician_or_admin(current_user)
-
-    try:
-        # Get alert
-        query = select(ClinicalAlert).where(ClinicalAlert.id == alert_id)
-        result = await db.execute(query)
-        alert = result.scalar_one_or_none()
-
-        if not alert:
-            raise HTTPException(status_code=404, detail="Alert not found")
-
-        # Verify access (same organization)
-        if current_user.org_id and alert.org_id != current_user.org_id:
-            raise HTTPException(status_code=403, detail="Access denied to this alert")
-
-        logger.info(f"Retrieved details for alert {alert_id} by {current_user.email}")
-
-        return AlertResponse.model_validate(alert)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error retrieving alert details: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve alert details: {str(e)}"
-        )
-
-
-@router.post("/{alert_id}/acknowledge", response_model=AlertResponse)
-async def acknowledge_alert(
-    alert_id: UUID,
-    request: AcknowledgeAlertRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db),
-):
-    """
-    Acknowledge a clinical alert
-
-    Marks the alert as acknowledged by the current clinician.
-    This indicates the clinician has seen the alert and is taking action.
-
-    Requires: Clinician or Admin role
-    """
-
-    await verify_clinician_or_admin(current_user)
-
-    alert_service = get_alert_service()
-
-    try:
-        # Acknowledge alert
-        success = await alert_service.acknowledge_alert(
-            alert_id=str(alert_id),
-            clinician_id=str(current_user.id),
-            notes=request.notes,
-        )
-
-        if not success:
-            raise HTTPException(
-                status_code=404, detail="Alert not found or already acknowledged"
+    # Clinical alerts — unresolved
+    if org_ids:
+        clinical_result = await db.execute(
+            select(ClinicalAlert)
+            .where(
+                and_(
+                    ClinicalAlert.org_id.in_(org_ids),
+                    or_(
+                        ClinicalAlert.resolution_status.is_(None),
+                        ClinicalAlert.resolution_status.in_(["pending", "in_progress"]),
+                    ),
+                )
             )
-
-        # Get updated alert
-        query = select(ClinicalAlert).where(ClinicalAlert.id == alert_id)
-        result = await db.execute(query)
-        alert = result.scalar_one()
-
-        logger.info(
-            f"Alert {alert_id} acknowledged by {current_user.email}"
-            + (f" with notes: {request.notes}" if request.notes else "")
+            .order_by(ClinicalAlert.created_at.desc())
+            .limit(limit)
         )
+        for a in clinical_result.scalars().all():
+            alerts.append(_serialize_clinical_alert(a))
 
-        return AlertResponse.model_validate(alert)
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error acknowledging alert: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to acknowledge alert: {str(e)}"
-        )
-
-
-@router.post("/{alert_id}/resolve", response_model=AlertResponse)
-async def resolve_alert(
-    alert_id: UUID,
-    request: ResolveAlertRequest,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db),
-):
-    """
-    Resolve a clinical alert
-
-    Marks the alert as resolved with resolution notes.
-    This indicates the clinician has addressed the issue.
-
-    Requires: Clinician or Admin role
-    """
-
-    await verify_clinician_or_admin(current_user)
-
-    alert_service = get_alert_service()
-
-    try:
-        # Resolve alert
-        success = await alert_service.resolve_alert(
-            alert_id=str(alert_id),
-            clinician_id=str(current_user.id),
-            resolution_notes=request.resolution_notes,
-        )
-
-        if not success:
-            raise HTTPException(
-                status_code=404, detail="Alert not found or already resolved"
+    # Wellness alerts — active/unresolved
+    wellness_result = await db.execute(
+        select(WellnessAlert)
+        .where(
+            and_(
+                WellnessAlert.status.in_(["active", "acknowledged"]),
             )
-
-        # Get updated alert
-        query = select(ClinicalAlert).where(ClinicalAlert.id == alert_id)
-        result = await db.execute(query)
-        alert = result.scalar_one()
-
-        logger.info(
-            f"Alert {alert_id} resolved by {current_user.email}: {request.resolution_notes[:100]}..."
         )
+        .order_by(WellnessAlert.created_at.desc())
+        .limit(limit)
+    )
+    for a in wellness_result.scalars().all():
+        alerts.append(_serialize_wellness_alert(a))
 
-        return AlertResponse.model_validate(alert)
+    # Sort by created_at descending
+    alerts.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+    alerts = alerts[:limit]
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error resolving alert: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to resolve alert: {str(e)}"
-        )
-
-
-@router.post("/check-predictions", response_model=AlertCheckResponse)
-async def trigger_prediction_checks(
-    prediction_types: Optional[List[str]] = Query(
-        None, description="Specific prediction types to check"
-    ),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    Trigger ML prediction-based alert checks
-
-    Runs the ML risk prediction models and generates alerts for high-risk users.
-    Can be called manually or by scheduled background jobs.
-
-    Requires: Clinician or Admin role
-    """
-
-    await verify_clinician_or_admin(current_user)
-
-    alert_service = get_alert_service()
-
-    try:
-        # Run ML prediction alerts
-        triggers = await alert_service.run_ml_prediction_alerts(
-            org_id=str(current_user.org_id) if current_user.org_id else None,
-            prediction_types=prediction_types,
-        )
-
-        # Count by type
-        breakdown = {}
-        for trigger in triggers:
-            breakdown[trigger.trigger_type] = breakdown.get(trigger.trigger_type, 0) + 1
-
-        logger.info(
-            f"ML prediction check triggered by {current_user.email}: "
-            f"{len(triggers)} alerts generated"
-        )
-
-        return AlertCheckResponse(
-            success=True,
-            alerts_triggered=len(triggers),
-            breakdown=breakdown,
-            message=f"Checked {len(triggers)} users for ML-based risks",
-        )
-
-    except Exception as e:
-        logger.error(f"Error running prediction checks: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to run prediction checks: {str(e)}"
-        )
-
-
-@router.post("/check-trends", response_model=AlertCheckResponse)
-async def trigger_trend_checks(
-    current_user: User = Depends(get_current_user),
-):
-    """
-    Trigger trend-based alert checks
-
-    Analyzes user assessment trends and generates alerts for worsening patterns.
-    Can be called manually or by scheduled background jobs.
-
-    Requires: Clinician or Admin role
-    """
-
-    await verify_clinician_or_admin(current_user)
-
-    alert_service = get_alert_service()
-
-    try:
-        # Run trend alerts
-        triggers = await alert_service.check_trending_alerts(
-            org_id=str(current_user.org_id) if current_user.org_id else None
-        )
-
-        # Count by type
-        breakdown = {}
-        for trigger in triggers:
-            breakdown[trigger.trigger_type] = breakdown.get(trigger.trigger_type, 0) + 1
-
-        logger.info(
-            f"Trend check triggered by {current_user.email}: {len(triggers)} alerts generated"
-        )
-
-        return AlertCheckResponse(
-            success=True,
-            alerts_triggered=len(triggers),
-            breakdown=breakdown,
-            message=f"Analyzed user trends and generated {len(triggers)} alerts",
-        )
-
-    except Exception as e:
-        logger.error(f"Error running trend checks: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to run trend checks: {str(e)}"
-        )
-
-
-@router.post("/trigger", response_model=AlertCheckResponse)
-async def trigger_manual_alert(
-    request: AlertTriggerRequest,
-    current_user: User = Depends(get_current_user),
-):
-    """
-    Manually trigger a clinical alert
-
-    Allows clinicians to manually create alerts for users requiring attention.
-    Useful for situations not caught by automated systems.
-
-    Requires: Clinician or Admin role
-    """
-
-    await verify_clinician_or_admin(current_user)
-
-    alert_service = get_alert_service()
-
-    try:
-        # Import AlertTrigger and create trigger
-        from app.services.clinical.automated_alert_service import AlertTrigger
-
-        trigger = AlertTrigger(
-            trigger_type=AlertType(request.alert_type),
-            severity=AlertSeverity(request.severity),
-            user_id=str(request.user_id),
-            org_id=str(current_user.org_id) if current_user.org_id else None,
-            message=request.message,
-            metadata=request.metadata,
-        )
-
-        # Process alert
-        await alert_service._process_alerts([trigger])
-
-        logger.info(
-            f"Manual alert triggered by {current_user.email} for user {request.user_id}: "
-            f"{request.alert_type}"
-        )
-
-        return AlertCheckResponse(
-            success=True,
-            alerts_triggered=1,
-            breakdown={request.alert_type: 1},
-            message="Manual alert created successfully",
-        )
-
-    except Exception as e:
-        logger.error(f"Error triggering manual alert: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to trigger alert: {str(e)}"
-        )
+    return {
+        "alerts": alerts,
+        "total_count": len(alerts),
+        "unresolved_count": len(alerts),
+    }
 
 
 @router.get("/stats/overview")
-async def get_alert_statistics(
-    days_back: int = Query(30, ge=7, le=365, description="Number of days to analyze"),
+async def get_alert_stats_overview(
+    days_back: int = Query(default=30, ge=1, le=365),
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_async_db),
-):
-    """
-    Get alert statistics and overview metrics
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Alert statistics overview from both clinical and wellness alert tables."""
+    org_ids = await _user_org_ids(db, current_user.id)
+    since = datetime.utcnow() - timedelta(days=days_back)
 
-    Useful for dashboards and quality improvement reporting.
+    # Clinical alert stats
+    clinical_total = 0
+    clinical_resolved = 0
+    clinical_acknowledged = 0
+    clinical_by_severity: dict[str, int] = {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "critical": 0,
+    }
 
-    Requires: Clinician or Admin role
-    """
-
-    await verify_clinician_or_admin(current_user)
-
-    try:
-        # Calculate date range
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=days_back)
-
-        # Build base query
-        base_query = select(ClinicalAlert).where(
-            ClinicalAlert.created_at >= start_date, ClinicalAlert.created_at <= end_date
-        )
-
-        # Filter by organization
-        if current_user.org_id:
-            base_query = base_query.where(ClinicalAlert.org_id == current_user.org_id)
-
-        # Total alerts
-        result = await db.execute(select(ClinicalAlert).where(base_query.whereclause))
-        total_count = len(result.scalars().all())
-
-        # Unresolved alerts
-        unresolved_query = base_query.where(
-            ClinicalAlert.resolution_status == "pending"
-        )
-        result = await db.execute(unresolved_query)
-        unresolved_count = len(result.scalars().all())
-
-        # By severity
-        critical_query = base_query.where(ClinicalAlert.severity == "critical")
-        result = await db.execute(critical_query)
-        critical_count = len(result.scalars().all())
-
-        high_query = base_query.where(ClinicalAlert.severity == "high")
-        result = await db.execute(high_query)
-        high_count = len(result.scalars().all())
-
-        # By type
-        crisis_query = base_query.where(
-            ClinicalAlert.alert_type.in_(
-                ["crisis_suicide", "crisis_self_harm", "crisis_severe"]
+    if org_ids:
+        ct_result = await db.execute(
+            select(func.count(ClinicalAlert.id)).where(
+                and_(
+                    ClinicalAlert.org_id.in_(org_ids), ClinicalAlert.created_at >= since
+                )
             )
         )
-        result = await db.execute(crisis_query)
-        crisis_count = len(result.scalars().all())
+        clinical_total = ct_result.scalar() or 0
 
-        # Acknowledgment rate
-        acknowledged_query = base_query.where(ClinicalAlert.acknowledged == True)
-        result = await db.execute(acknowledged_query)
-        acknowledged_count = len(result.scalars().all())
-
-        acknowledgment_rate = (
-            (acknowledged_count / total_count * 100) if total_count > 0 else 0
+        cr_result = await db.execute(
+            select(func.count(ClinicalAlert.id)).where(
+                and_(
+                    ClinicalAlert.org_id.in_(org_ids),
+                    ClinicalAlert.created_at >= since,
+                    ClinicalAlert.resolution_status == "resolved",
+                )
+            )
         )
+        clinical_resolved = cr_result.scalar() or 0
 
-        # Resolution rate
-        resolved_query = base_query.where(ClinicalAlert.resolution_status == "resolved")
-        result = await db.execute(resolved_query)
-        resolved_count = len(result.scalars().all())
-
-        resolution_rate = (resolved_count / total_count * 100) if total_count > 0 else 0
-
-        # Average resolution time (for resolved alerts)
-        resolved_with_time_query = base_query.where(
-            ClinicalAlert.resolution_status == "resolved",
-            ClinicalAlert.resolved_at.isnot(None),
+        ca_result = await db.execute(
+            select(func.count(ClinicalAlert.id)).where(
+                and_(
+                    ClinicalAlert.org_id.in_(org_ids),
+                    ClinicalAlert.created_at >= since,
+                    ClinicalAlert.acknowledged == True,
+                )
+            )
         )
-        result = await db.execute(resolved_with_time_query)
-        resolved_alerts = result.scalars().all()
+        clinical_acknowledged = ca_result.scalar() or 0
 
-        if resolved_alerts:
-            resolution_times = [
-                (a.resolved_at - a.created_at).total_seconds() for a in resolved_alerts
-            ]
-            avg_resolution_hours = sum(resolution_times) / len(resolution_times) / 3600
-        else:
-            avg_resolution_hours = 0
-
-        logger.info(
-            f"Alert statistics retrieved for {current_user.email}: {days_back} days"
+        sev_result = await db.execute(
+            select(ClinicalAlert.severity, func.count(ClinicalAlert.id))
+            .where(
+                and_(
+                    ClinicalAlert.org_id.in_(org_ids), ClinicalAlert.created_at >= since
+                )
+            )
+            .group_by(ClinicalAlert.severity)
         )
+        for sev, cnt in sev_result.all():
+            if sev in clinical_by_severity:
+                clinical_by_severity[sev] = cnt
 
+    # Wellness alert stats
+    wt_result = await db.execute(
+        select(func.count(WellnessAlert.id)).where(WellnessAlert.created_at >= since)
+    )
+    wellness_total = wt_result.scalar() or 0
+
+    wr_result = await db.execute(
+        select(func.count(WellnessAlert.id)).where(
+            and_(WellnessAlert.created_at >= since, WellnessAlert.status == "resolved")
+        )
+    )
+    wellness_resolved = wr_result.scalar() or 0
+
+    wa_result = await db.execute(
+        select(func.count(WellnessAlert.id)).where(
+            and_(
+                WellnessAlert.created_at >= since,
+                WellnessAlert.acknowledged_date.isnot(None),
+            )
+        )
+    )
+    wellness_acknowledged = wa_result.scalar() or 0
+
+    wsev_result = await db.execute(
+        select(WellnessAlert.severity, func.count(WellnessAlert.id))
+        .where(WellnessAlert.created_at >= since)
+        .group_by(WellnessAlert.severity)
+    )
+    wellness_sev_map = {
+        "normal": "low",
+        "elevated": "medium",
+        "high": "high",
+        "critical": "critical",
+    }
+    for sev, cnt in wsev_result.all():
+        mapped = wellness_sev_map.get(sev.value if sev else "normal", "medium")
+        clinical_by_severity[mapped] = clinical_by_severity.get(mapped, 0) + cnt
+
+    total = clinical_total + wellness_total
+    resolved = clinical_resolved + wellness_resolved
+    acknowledged = clinical_acknowledged + wellness_acknowledged
+    unresolved = total - resolved
+
+    # Average resolution time (from clinical alerts that have resolved_at)
+    avg_time_result = (
+        await db.execute(
+            select(
+                func.avg(
+                    func.extract("epoch", ClinicalAlert.resolved_at)
+                    - func.extract("epoch", ClinicalAlert.created_at)
+                )
+            ).where(
+                and_(
+                    ClinicalAlert.resolved_at.isnot(None),
+                    ClinicalAlert.created_at >= since,
+                )
+            )
+        )
+        if org_ids
+        else None
+    )
+    avg_seconds = (avg_time_result.scalar() or 0) if avg_time_result else 0
+    avg_hours = round(avg_seconds / 3600, 1) if avg_seconds else 0
+
+    return {
+        "days_back": days_back,
+        "total_alerts": total,
+        "resolved": resolved,
+        "unresolved": unresolved,
+        "acknowledged": acknowledged,
+        "by_severity": clinical_by_severity,
+        "avg_resolution_time_hours": avg_hours,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+
+
+@router.get("/history")
+async def get_alert_history(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get full alert history (all statuses) with pagination."""
+    org_ids = await _user_org_ids(db, current_user.id)
+
+    alerts: list[dict] = []
+
+    if org_ids:
+        clinical_result = await db.execute(
+            select(ClinicalAlert)
+            .where(ClinicalAlert.org_id.in_(org_ids))
+            .order_by(ClinicalAlert.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        for a in clinical_result.scalars().all():
+            alerts.append(_serialize_clinical_alert(a))
+
+    wellness_result = await db.execute(
+        select(WellnessAlert)
+        .order_by(WellnessAlert.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    for a in wellness_result.scalars().all():
+        alerts.append(_serialize_wellness_alert(a))
+
+    alerts.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+    alerts = alerts[offset : offset + limit]
+
+    # Total count
+    total = 0
+    if org_ids:
+        ct = await db.execute(
+            select(func.count(ClinicalAlert.id)).where(
+                ClinicalAlert.org_id.in_(org_ids)
+            )
+        )
+        total += ct.scalar() or 0
+    wt = await db.execute(select(func.count(WellnessAlert.id)))
+    total += wt.scalar() or 0
+
+    return {
+        "alerts": alerts,
+        "total_count": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.get("/{alert_id}")
+async def get_alert_detail(
+    alert_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get detail for a specific alert (checks both clinical and wellness tables)."""
+    import uuid as _uuid
+
+    try:
+        aid = _uuid.UUID(alert_id)
+    except ValueError:
+        return {"alert_id": alert_id, "status": "not_found"}
+
+    # Try clinical first
+    result = await db.execute(select(ClinicalAlert).where(ClinicalAlert.id == aid))
+    alert = result.scalar_one_or_none()
+    if alert:
+        return _serialize_clinical_alert(alert)
+
+    # Try wellness
+    result = await db.execute(select(WellnessAlert).where(WellnessAlert.id == aid))
+    alert = result.scalar_one_or_none()
+    if alert:
+        return _serialize_wellness_alert(alert)
+
+    return {"alert_id": alert_id, "status": "not_found"}
+
+
+@router.post("/{alert_id}/acknowledge")
+async def acknowledge_alert(
+    alert_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Acknowledge an alert in either clinical or wellness table."""
+    import uuid as _uuid
+
+    try:
+        aid = _uuid.UUID(alert_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid alert ID")
+
+    now = datetime.utcnow()
+
+    # Try clinical
+    result = await db.execute(select(ClinicalAlert).where(ClinicalAlert.id == aid))
+    alert = result.scalar_one_or_none()
+    if alert:
+        alert.acknowledged = True
+        alert.acknowledged_by = current_user.id
+        alert.acknowledged_at = now
+        if not alert.resolution_status or alert.resolution_status == "pending":
+            alert.resolution_status = "in_progress"
+        await db.commit()
         return {
-            "period_days": days_back,
-            "total_alerts": total_count,
-            "unresolved_count": unresolved_count,
-            "by_severity": {
-                "critical": critical_count,
-                "high": high_count,
-                "moderate": total_count - critical_count - high_count,
-            },
-            "crisis_alerts": crisis_count,
-            "acknowledgment_rate": round(acknowledgment_rate, 1),
-            "resolution_rate": round(resolution_rate, 1),
-            "avg_resolution_hours": round(avg_resolution_hours, 1),
+            "alert_id": alert_id,
+            "status": "acknowledged",
+            "acknowledged_at": now.isoformat(),
         }
 
-    except Exception as e:
-        logger.error(f"Error retrieving alert statistics: {str(e)}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to retrieve alert statistics: {str(e)}"
-        )
+    # Try wellness
+    result = await db.execute(select(WellnessAlert).where(WellnessAlert.id == aid))
+    alert = result.scalar_one_or_none()
+    if alert:
+        alert.acknowledged_by_id = current_user.id
+        alert.acknowledged_date = now
+        alert.status = "acknowledged"
+        await db.commit()
+        return {
+            "alert_id": alert_id,
+            "status": "acknowledged",
+            "acknowledged_at": now.isoformat(),
+        }
+
+    raise HTTPException(status_code=404, detail="Alert not found")
+
+
+@router.post("/{alert_id}/resolve")
+async def resolve_alert(
+    alert_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Resolve an alert in either clinical or wellness table."""
+    import uuid as _uuid
+
+    try:
+        aid = _uuid.UUID(alert_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid alert ID")
+
+    now = datetime.utcnow()
+
+    # Try clinical
+    result = await db.execute(select(ClinicalAlert).where(ClinicalAlert.id == aid))
+    alert = result.scalar_one_or_none()
+    if alert:
+        alert.resolution_status = "resolved"
+        alert.resolved_by = current_user.id
+        alert.resolved_at = now
+        await db.commit()
+        return {
+            "alert_id": alert_id,
+            "status": "resolved",
+            "resolved_at": now.isoformat(),
+        }
+
+    # Try wellness
+    result = await db.execute(select(WellnessAlert).where(WellnessAlert.id == aid))
+    alert = result.scalar_one_or_none()
+    if alert:
+        alert.status = "resolved"
+        alert.resolved_date = now
+        alert.resolution_notes = f"Resolved by {current_user.email}"
+        await db.commit()
+        return {
+            "alert_id": alert_id,
+            "status": "resolved",
+            "resolved_at": now.isoformat(),
+        }
+
+    raise HTTPException(status_code=404, detail="Alert not found")

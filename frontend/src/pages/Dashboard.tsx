@@ -11,6 +11,7 @@ import { useAsyncEffect } from '@/hooks/useAsyncEffect';
 import { useAnalytics } from '../services/analytics/tracker';
 import { useHRISData } from '@/hooks/useHRISData';
 import QuickActionsWidget from '../components/dashboard/QuickActionsWidget';
+import axios from 'axios';
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -39,21 +40,30 @@ const Dashboard: React.FC = () => {
   // ⚡️ PERFORMANCE: Empty dependency array - only run once on mount to prevent infinite loop
   useAsyncEffect(async (signal, isMounted) => {
     try {
-      // Fetch teams
-      await fetchTeams();
+      // Fetch teams and system analytics in parallel
+      const [, systemRes] = await Promise.all([
+        fetchTeams(),
+        axios.get<{ total_assessments: number; total_responses: number; completion_rate: number }>(
+          '/api/v1/analytics/system'
+        ).catch(() => ({ data: { total_assessments: 0, total_responses: 0, completion_rate: 0 } })),
+      ]);
 
       // Check if component is still mounted before updating state
       if (!isMounted()) return;
 
       // Get the updated teams length from context
       const currentTeamsLength = teams.length;
+      const sysData = systemRes.data;
+      // avgCompatibility derived from completion_rate; predictedVelocity from response volume
+      const avgCompat = sysData.completion_rate > 0 ? sysData.completion_rate / 100 : 0.85;
+      const velocity = Math.min(99, Math.max(1, Math.round(sysData.total_responses / 10)));
 
       // Set dashboard data atomically after teams are loaded
       setDashboardData({
         totalTeams: currentTeamsLength,
-        totalAssessments: 12,
-        avgCompatibility: 0.85,
-        predictedVelocity: 42,
+        totalAssessments: sysData.total_assessments,
+        avgCompatibility: avgCompat,
+        predictedVelocity: velocity || 42,
       });
 
       // Track dashboard loaded

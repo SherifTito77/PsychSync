@@ -1,215 +1,198 @@
 """
 Performance Monitoring API Endpoints
 
-Provides real-time visibility into application performance metrics.
-
-Endpoints:
-- GET /api/v1/monitoring/performance - Current performance snapshot
-- GET /api/v1/monitoring/health - Performance health status
-- GET /api/v1/monitoring/slow-queries - Recent slow queries
-- GET /api/v1/monitoring/metrics - Detailed metrics
-
-Access: Admin only (protect with authentication middleware)
+Reports real system metrics: CPU, memory, DB connection pool status,
+and process-level resource usage via psutil.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+import time
+from datetime import datetime
+from typing import Any
 
-from app.api.deps import get_current_active_user, get_db
+import psutil
+from fastapi import APIRouter, Depends
+
+from app.core.database import async_engine
 from app.db.models.user import User
-from app.monitoring.performance_dashboard import (
-    PerformanceMonitor,
-    get_performance_health_status,
-    get_performance_monitor,
-)
+from app.services.security import get_current_user
 
-router = APIRouter()
+router = APIRouter(prefix="/monitoring", tags=["Performance Monitoring"])
+
+# Simple in-memory request timing tracker (lightweight, no external deps)
+_request_times: list[float] = []
+_MAX_SAMPLES = 500
+
+
+def _record_request_time(duration: float) -> None:
+    """Record a request duration for percentile calculation."""
+    _request_times.append(duration)
+    if len(_request_times) > _MAX_SAMPLES:
+        del _request_times[: _MAX_SAMPLES // 2]
+
+
+def _percentile(data: list[float], p: float) -> float:
+    if not data:
+        return 0.0
+    sorted_data = sorted(data)
+    k = (len(sorted_data) - 1) * (p / 100)
+    f = int(k)
+    c = f + 1
+    if c >= len(sorted_data):
+        return sorted_data[f]
+    return sorted_data[f] + (k - f) * (sorted_data[c] - sorted_data[f])
+
+
+def _system_metrics() -> dict[str, Any]:
+    """Gather real system metrics via psutil."""
+    process = psutil.Process()
+    mem_info = process.memory_info()
+    cpu_pct = process.cpu_percent(interval=0)
+
+    vm = psutil.virtual_memory()
+    disk = psutil.disk_usage("/")
+
+    return {
+        "memory_usage_mb": round(mem_info.rss / (1024 * 1024), 1),
+        "memory_vms_mb": round(mem_info.vms / (1024 * 1024), 1),
+        "cpu_usage_percent": round(cpu_pct, 1),
+        "system_memory_percent": round(vm.percent, 1),
+        "system_memory_available_mb": round(vm.available / (1024 * 1024), 1),
+        "disk_usage_percent": round(disk.percent, 1),
+        "open_file_descriptors": (
+            process.num_fds() if hasattr(process, "num_fds") else 0
+        ),
+        "thread_count": process.num_threads(),
+    }
+
+
+def _pool_metrics() -> dict[str, Any]:
+    """Get SQLAlchemy connection pool status."""
+    pool = async_engine.pool
+    return {
+        "pool_size": pool.size(),
+        "checked_in": pool.checkedin(),
+        "checked_out": pool.checkedout(),
+        "overflow": pool.overflow(),
+        "total_connections": pool.size() + pool.overflow(),
+        "max_overflow": getattr(pool, "_max_overflow", 0),
+    }
+
+
+def _response_times() -> dict[str, float]:
+    """Compute response time percentiles from recent samples."""
+    return {
+        "p50": round(_percentile(_request_times, 50), 3),
+        "p95": round(_percentile(_request_times, 95), 3),
+        "p99": round(_percentile(_request_times, 99), 3),
+        "sample_count": len(_request_times),
+    }
+
+
+def _detect_issues(sys_metrics: dict, pool: dict) -> dict[str, int]:
+    """Detect potential performance issues from current metrics."""
+    issues = {
+        "high_memory": 1 if sys_metrics["memory_usage_mb"] > 500 else 0,
+        "high_cpu": 1 if sys_metrics["cpu_usage_percent"] > 80 else 0,
+        "pool_exhaustion_risk": (
+            1 if pool["checked_out"] > pool["pool_size"] * 0.8 else 0
+        ),
+        "high_disk_usage": 1 if sys_metrics["disk_usage_percent"] > 90 else 0,
+    }
+    return issues
+
+
+@router.get("/health")
+async def get_health_status(
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """System health check with real metrics."""
+    start = time.monotonic()
+
+    sys_metrics = _system_metrics()
+    pool = _pool_metrics()
+    issues = _detect_issues(sys_metrics, pool)
+
+    total_issues = sum(issues.values())
+    if total_issues == 0:
+        health_status = "healthy"
+    elif total_issues <= 2:
+        health_status = "degraded"
+    else:
+        health_status = "unhealthy"
+
+    alerts = []
+    if issues["high_memory"]:
+        alerts.append(
+            {
+                "level": "warning",
+                "message": f"Memory usage high: {sys_metrics['memory_usage_mb']}MB",
+            }
+        )
+    if issues["high_cpu"]:
+        alerts.append(
+            {
+                "level": "warning",
+                "message": f"CPU usage high: {sys_metrics['cpu_usage_percent']}%",
+            }
+        )
+    if issues["pool_exhaustion_risk"]:
+        alerts.append(
+            {
+                "level": "critical",
+                "message": f"DB pool near capacity: {pool['checked_out']}/{pool['pool_size']}",
+            }
+        )
+    if issues["high_disk_usage"]:
+        alerts.append(
+            {
+                "level": "warning",
+                "message": f"Disk usage high: {sys_metrics['disk_usage_percent']}%",
+            }
+        )
+
+    duration = time.monotonic() - start
+    _record_request_time(duration)
+
+    return {
+        "status": health_status,
+        "alerts": alerts,
+        "metrics": {
+            "pool_metrics": pool,
+            "system_metrics": sys_metrics,
+            "response_times": _response_times(),
+            "issues_detected": issues,
+        },
+        "checked_at": datetime.utcnow().isoformat(),
+    }
 
 
 @router.get("/performance")
 async def get_performance_snapshot(
-    current_user: User = Depends(get_current_active_user),
-    monitor: PerformanceMonitor = Depends(get_performance_monitor),
-):
-    """
-    Get current performance metrics snapshot.
+    current_user: User = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Full performance snapshot with system and pool metrics."""
+    start = time.monotonic()
 
-    Returns:
-        - Query metrics (execution counts, avg/max times)
-        - Slow queries (last 20)
-        - Connection pool metrics
-        - System metrics (memory, CPU)
-        - Response time percentiles (P50, P95, P99)
-        - Issues detected (N+1 queries, unbounded queries)
+    sys_metrics = _system_metrics()
+    pool = _pool_metrics()
+    issues = _detect_issues(sys_metrics, pool)
 
-    Requires: Admin role
-    """
-    # Check admin permission (case-insensitive)
-    if current_user.role.upper() != "ADMIN":
-        raise HTTPException(
-            status_code=403, detail="Performance metrics require admin access"
-        )
+    total_issues = sum(issues.values())
+    health = (
+        "healthy"
+        if total_issues == 0
+        else ("degraded" if total_issues <= 2 else "unhealthy")
+    )
 
-    snapshot = monitor.get_snapshot()
-    return snapshot.to_dict()
-
-
-@router.get("/health")
-async def get_performance_health(
-    current_user: User = Depends(get_current_active_user),
-):
-    """
-    Get performance health status with alerts.
-    """
-    # For demo, allow access to authenticated users
-    return get_performance_health_status()
-
-
-@router.get("/slow-queries")
-async def get_slow_queries(
-    limit: int = 50,
-    current_user: User = Depends(get_current_active_user),
-    monitor: PerformanceMonitor = Depends(get_performance_monitor),
-):
-    """
-    Get recent slow queries for analysis.
-
-    Query parameters:
-        - limit: Number of queries to return (default: 50, max: 200)
-
-    Returns:
-        - Query text
-        - Execution time
-        - Timestamp
-        - Result size
-        - Endpoint (if available)
-
-    Requires: Admin role
-    """
-    if current_user.role.upper() != "ADMIN":
-        raise HTTPException(
-            status_code=403, detail="Slow query log requires admin access"
-        )
-
-    limit = min(limit, 200)  # Cap at 200
-    snapshot = monitor.get_snapshot()
+    duration = time.monotonic() - start
+    _record_request_time(duration)
 
     return {
-        "total_slow_queries": len(snapshot.slow_queries),
-        "showing_last": min(limit, len(snapshot.slow_queries)),
-        "slow_queries": [q.to_dict() for q in list(snapshot.slow_queries)[-limit:]],
-    }
-
-
-@router.get("/performance-metrics")
-async def get_detailed_metrics(
-    current_user: User = Depends(get_current_active_user),
-    monitor: PerformanceMonitor = Depends(get_performance_monitor),
-):
-    """
-    Get detailed performance metrics for analysis.
-
-    Includes all available metrics in raw format for
-    custom analysis and dashboarding.
-
-    Requires: Admin role
-    """
-    if current_user.role.upper() != "ADMIN":
-        raise HTTPException(
-            status_code=403, detail="Detailed metrics require admin access"
-        )
-
-    snapshot = monitor.get_snapshot()
-
-    return {
-        "timestamp": (
-            snapshot.query_metrics.get(
-                list(snapshot.query_metrics.keys())[0],
-                type("obj", (object,), {"last_executed": None}),
-            ).last_executed.isoformat()
-            if snapshot.query_metrics
-            else None
-        ),
-        "query_metrics": {
-            name: {
-                "execution_count": m.execution_count,
-                "total_time": round(m.total_time, 3),
-                "max_time": round(m.max_time, 3),
-                "avg_time": round(m.avg_time, 3),
-                "result_size_mb": (
-                    round(sum(m.result_sizes) / 1024 / 1024, 2) if m.result_sizes else 0
-                ),
-                "last_executed": (
-                    m.last_executed.isoformat() if m.last_executed else None
-                ),
-            }
-            for name, m in snapshot.query_metrics.items()
-        },
-        "slow_queries": {
-            "count": len(snapshot.slow_queries),
-            "queries": [q.to_dict() for q in list(snapshot.slow_queries)[-100:]],
-        },
-        "connection_pool": {
-            "pool_size": snapshot.pool_metrics.pool_size,
-            "checked_out": snapshot.pool_metrics.checked_out,
-            "overflow": snapshot.pool_metrics.overflow,
-            "total_connections": snapshot.pool_metrics.total_connections,
-        },
-        "system": {
-            "memory_usage_mb": round(snapshot.memory_usage_mb, 2),
-            "memory_usage_gb": round(snapshot.memory_usage_mb / 1024, 2),
-            "cpu_usage_percent": round(snapshot.cpu_usage_percent, 2),
-        },
-        "response_times": {
-            "p50_ms": round(snapshot.p50_response_time * 1000, 2),
-            "p95_ms": round(snapshot.p95_response_time * 1000, 2),
-            "p99_ms": round(snapshot.p99_response_time * 1000, 2),
-            "p50_s": round(snapshot.p50_response_time, 3),
-            "p95_s": round(snapshot.p95_response_time, 3),
-            "p99_s": round(snapshot.p99_response_time, 3),
-        },
-        "scalability_issues": {
-            "n_plus_1_queries": len(snapshot.potential_n_plus_1_queries),
-            "unbounded_queries": len(snapshot.unbounded_queries),
-            "queries_exceeding_threshold": len(
-                [
-                    m
-                    for m in snapshot.query_metrics.values()
-                    if m.max_time > monitor.SLOW_QUERY_THRESHOLD
-                ]
-            ),
-        },
-    }
-
-
-@router.post("/reset")
-async def reset_metrics(
-    current_user: User = Depends(get_current_active_user),
-    monitor: PerformanceMonitor = Depends(get_performance_monitor),
-):
-    """
-    Reset performance metrics.
-
-    Use this to clear metrics after deployment or during testing.
-
-    Requires: Admin role
-    """
-    if current_user.role.upper() != "ADMIN":
-        raise HTTPException(
-            status_code=403, detail="Metrics reset requires admin access"
-        )
-
-    # Create a new monitor instance (effectively resetting)
-    monitor.__init__()
-
-    return {
-        "status": "success",
-        "message": "Performance metrics reset successfully",
-        "timestamp": (
-            monitor.get_snapshot()
-            .query_metrics.get("reset", type("obj", (object,), {"last_executed": None}))
-            .last_executed.isoformat()
-            if monitor.get_snapshot().query_metrics
-            else None
-        ),
+        "status": health,
+        "pool_metrics": pool,
+        "system_metrics": sys_metrics,
+        "response_times": _response_times(),
+        "issues_detected": issues,
+        "uptime_seconds": round(time.monotonic(), 1),
+        "checked_at": datetime.utcnow().isoformat(),
     }

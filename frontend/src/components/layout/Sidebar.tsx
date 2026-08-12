@@ -97,6 +97,8 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
     icon: '⚡',
     requiredRoles: ['hr', 'admin', 'super_admin', 'manager'], // HR/Manager only
     items: [
+      { name: 'Behavioral Intelligence', path: '/behavioral-intelligence', icon: '🧠', description: 'Team Health, Collaboration, Psych Safety, Friction & Change Readiness scores' },
+      { name: 'Org Network Analysis', path: '/organizational-network', icon: '🕸', description: 'Hidden influencers, isolated employees, cross-team bridges & manager dependency' },
       { name: 'Radar Dashboard', path: '/radar', icon: '📡', description: '360° organizational health monitoring system' },
       { name: 'Advanced Burnout Analytics', path: '/advanced-burnout', icon: '🎯', description: '14-day early warning with Z-scores & trend detection' },
       { name: 'Burnout Prevention', path: '/burnout-prevention', icon: '🔥', description: '7-90 day burnout prediction & prevention' },
@@ -197,7 +199,7 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
     items: [
       {
         name: 'CEO Burnout Analytics',
-        path: '/executive/burnout',
+        path: '/ceo-burnout-analytics',
         icon: '📊',
         description: 'Organization-level burnout risk, ROI tracking & cost-benefit analysis'
       },
@@ -388,6 +390,12 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
         description: '24/7 AI-powered mental health support'
       },
       {
+        name: 'AI Behavioral Coach',
+        path: '/ai-coach',
+        icon: '🧬',
+        description: 'Personalized coaching, Digital Twin & team fit simulation'
+      },
+      {
         name: 'Clinical Analytics',
         path: '/analytics/clinical',
         icon: '📊',
@@ -480,6 +488,24 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
         path: '/integrations/corporate',
         icon: '🔗',
         description: 'Connect 30+ data sources including Slack, HRIS, and more'
+      },
+      {
+        name: 'Work Systems (Jira/DevOps)',
+        path: '/work-systems',
+        icon: '🔌',
+        description: 'Jira, Azure DevOps, Asana, Monday.com integration & behavioral signals'
+      },
+      {
+        name: 'Calendar Intelligence',
+        path: '/calendar-intelligence',
+        icon: '📅',
+        description: 'Meeting load, focus time, after-hours & fragmentation analysis'
+      },
+      {
+        name: 'Communication Analytics',
+        path: '/communication-analytics',
+        icon: '💬',
+        description: 'Slack & Teams messaging patterns, sentiment & after-hours analysis'
       },
       {
         name: 'Health Dashboard',

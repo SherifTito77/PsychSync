@@ -51,38 +51,12 @@ const ScheduledReportsManager: React.FC = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('auth_token');
-      // TODO: Replace with actual API endpoint when available
-      // const response = await fetch('/api/v1/scheduled-reports', {
-      //   headers: { Authorization: `Bearer ${token}` }
-      // });
-
-      // Mock data for now
-      const mockReports: ScheduledReport[] = [
-        {
-          id: '1',
-          name: 'Weekly Email Summary',
-          frequency: 'weekly',
-          recipients: ['sherif.tito.77@gmail.com'],
-          next_run: '2026-01-29 09:00',
-          last_run: '2026-01-22 09:00',
-          status: 'active',
-          include_charts: true,
-          format: 'pdf',
-        },
-        {
-          id: '2',
-          name: 'Monthly Analytics Report',
-          frequency: 'monthly',
-          recipients: ['manager@example.com', 'team@example.com'],
-          next_run: '2026-02-01 09:00',
-          last_run: '2026-01-01 09:00',
-          status: 'active',
-          include_charts: true,
-          format: 'html',
-        },
-      ];
-
-      setReports(mockReports);
+      const response = await fetch('/api/v1/scheduled-reports', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Failed to fetch');
+      const data = await response.json();
+      setReports(data.reports ?? []);
     } catch (error) {
       console.error('Failed to fetch scheduled reports:', error);
     } finally {
@@ -93,79 +67,69 @@ const ScheduledReportsManager: React.FC = () => {
   const handleCreateReport = async () => {
     try {
       const token = localStorage.getItem('auth_token');
-
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/v1/scheduled-reports', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     Authorization: `Bearer ${token}`,
-      //   },
-      //   body: JSON.stringify({
-      //     ...newReport,
-      //     recipients: newReport.recipients.split(',').map(r => r.trim()),
-      //   }),
-      // });
-
-      // Mock creation
-      const newScheduledReport: ScheduledReport = {
-        id: Date.now().toString(),
-        name: newReport.name,
-        frequency: newReport.frequency,
-        recipients: newReport.recipients.split(',').map(r => r.trim()),
-        next_run: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        last_run: null,
-        status: 'active',
-        include_charts: true,
-        format: newReport.format,
-      };
-
-      setReports([...reports, newScheduledReport]);
-      setShowCreateModal(false);
-      setNewReport({
-        name: '',
-        frequency: 'weekly',
-        recipients: '',
-        format: 'pdf',
+      const response = await fetch('/api/v1/scheduled-reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ...newReport,
+          recipients: newReport.recipients.split(',').map(r => r.trim()),
+        }),
       });
+      if (!response.ok) throw new Error('Failed to create');
+      const created: ScheduledReport = await response.json();
+      setReports([...reports, created]);
+      setShowCreateModal(false);
+      setNewReport({ name: '', frequency: 'weekly', recipients: '', format: 'pdf' });
     } catch (error) {
       console.error('Failed to create report:', error);
     }
   };
 
   const handleToggleStatus = async (reportId: string) => {
-    setReports(
-      reports.map((r) =>
-        r.id === reportId
-          ? { ...r, status: r.status === 'active' ? ('paused' as const) : ('active' as const) }
-          : r
-      )
-    );
-
-    // TODO: Make API call to update status
-    // await fetch(`/api/v1/scheduled-reports/${reportId}/toggle`, { method: 'POST' });
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/v1/scheduled-reports/${reportId}/toggle`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Failed to toggle');
+      const data = await response.json();
+      setReports(reports.map(r => r.id === reportId ? { ...r, status: data.status } : r));
+    } catch (error) {
+      console.error('Failed to toggle report:', error);
+    }
   };
 
   const handleDeleteReport = async (reportId: string) => {
     if (!confirm('Are you sure you want to delete this scheduled report?')) return;
-
-    setReports(reports.filter((r) => r.id !== reportId));
-
-    // TODO: Make API call to delete
-    // await fetch(`/api/v1/scheduled-reports/${reportId}`, { method: 'DELETE' });
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/v1/scheduled-reports/${reportId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Failed to delete');
+      setReports(reports.filter(r => r.id !== reportId));
+    } catch (error) {
+      console.error('Failed to delete report:', error);
+    }
   };
 
   const handleSendNow = async (reportId: string) => {
     try {
       const token = localStorage.getItem('auth_token');
-
-      // TODO: Replace with actual API call
-      // await fetch(`/api/v1/scheduled-reports/${reportId}/send-now`, {
-      //   method: 'POST',
-      //   headers: { Authorization: `Bearer ${token}` },
-      // });
-
-      alert('Report sent successfully!');
+      const response = await fetch(`/api/v1/scheduled-reports/${reportId}/send-now`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Failed to send');
+      const data = await response.json();
+      alert(data.message ?? 'Report queued for delivery!');
+      // Refresh to show updated last_run
+      fetchScheduledReports();
     } catch (error) {
       alert('Failed to send report');
     }
