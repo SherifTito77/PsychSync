@@ -124,6 +124,7 @@ _FEATURE_ENDPOINTS = [
     "scheduled_reports",
     "clinical_resources",
     "succession_planning",
+    "ai_secure",
 ]
 
 _SEPARATED_SERVICE_ENDPOINTS = [
