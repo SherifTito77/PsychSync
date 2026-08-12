@@ -55,7 +55,7 @@ except ImportError:
     PredictionResult = None
     TrajectoryResult = None
 
-router = APIRouter()
+router = APIRouter(prefix="/predictions", tags=["Burnout Predictions"])
 
 
 # =============================================================================

@@ -29,7 +29,7 @@ from app.middleware.spotlighting import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(tags=["Heuristic - Secure"])
+router = APIRouter(prefix="/ai/heuristic", tags=["AI - Heuristic"])
 
 
 # ==================== Request/Response Models ====================

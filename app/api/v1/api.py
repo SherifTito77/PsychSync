@@ -124,7 +124,12 @@ _FEATURE_ENDPOINTS = [
     "scheduled_reports",
     "clinical_resources",
     "succession_planning",
-    "ai_secure",
+    "ai",
+    "heuristic",
+    "monitoring",
+    "behavioral_patterns",
+    "burnout_predictions",
+    "backups",
 ]
 
 _SEPARATED_SERVICE_ENDPOINTS = [

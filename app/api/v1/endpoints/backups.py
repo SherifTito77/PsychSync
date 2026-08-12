@@ -35,7 +35,7 @@ from app.services.database_backup_service import (
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/backups", tags=["Backups"])
 
 
 # Pydantic models for request/response
