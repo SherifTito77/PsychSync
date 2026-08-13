@@ -380,7 +380,7 @@ const CEOBurnoutDashboard: React.FC<CEOBurnoutDashboardProps> = ({
                 <p className="text-sm text-gray-600 font-medium">High Risk Employees</p>
                 <p className="text-3xl font-bold mt-1">{summary?.high_risk_employees || 0}</p>
                 <p className="text-sm text-gray-500 mt-2">
-                  {summary?.high_risk_percentage.toFixed(1)}% of workforce
+                  {(summary?.high_risk_percentage ?? 0).toFixed(1)}% of workforce
                 </p>
               </div>
               <div className="p-3 bg-blue-100 rounded-full">
@@ -417,7 +417,7 @@ const CEOBurnoutDashboard: React.FC<CEOBurnoutDashboardProps> = ({
               <div>
                 <p className="text-sm text-gray-600 font-medium">Annual Burnout Cost</p>
                 <p className="text-2xl font-bold mt-1">
-                  {formatCurrency(summary?.estimated_cost_of_burnout.annual || 0)}
+                  {formatCurrency(summary?.estimated_cost_of_burnout?.annual || 0)}
                 </p>
                 <p className="text-sm text-red-600 mt-2">
                   If no action taken
@@ -441,28 +441,28 @@ const CEOBurnoutDashboard: React.FC<CEOBurnoutDashboardProps> = ({
             <div>
               <p className="text-sm text-gray-600 mb-1">Invested</p>
               <p className="text-2xl font-bold text-blue-600">
-                {formatCurrency(summary?.intervention_roi.invested || 0)}
+                {formatCurrency(summary?.intervention_roi?.invested || 0)}
               </p>
             </div>
             <div>
               <p className="text-sm text-gray-600 mb-1">Saved</p>
               <p className="text-2xl font-bold text-green-600">
-                {formatCurrency(summary?.intervention_roi.saved || 0)}
+                {formatCurrency(summary?.intervention_roi?.saved || 0)}
               </p>
             </div>
             <div>
               <p className="text-sm text-gray-600 mb-1">Net ROI</p>
               <p className={`text-2xl font-bold ${
-                (summary?.intervention_roi.roi_percentage || 0) > 0 ? 'text-green-600' : 'text-red-600'
+                (summary?.intervention_roi?.roi_percentage || 0) > 0 ? 'text-green-600' : 'text-red-600'
               }`}>
-                {(summary?.intervention_roi.roi_percentage || 0) > 0 ? '+' : ''}
-                {(summary?.intervention_roi.roi_percentage || 0).toFixed(0)}%
+                {(summary?.intervention_roi?.roi_percentage || 0) > 0 ? '+' : ''}
+                {(summary?.intervention_roi?.roi_percentage || 0).toFixed(0)}%
               </p>
             </div>
             <div>
               <p className="text-sm text-gray-600 mb-1">Value Created</p>
               <p className="text-2xl font-bold text-green-600">
-                {formatCurrency((summary?.intervention_roi.saved || 0) - (summary?.intervention_roi.invested || 0))}
+                {formatCurrency((summary?.intervention_roi?.saved || 0) - (summary?.intervention_roi?.invested || 0))}
               </p>
             </div>
           </div>
@@ -592,32 +592,32 @@ const CEOBurnoutDashboard: React.FC<CEOBurnoutDashboardProps> = ({
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Turnover Replacement</span>
                   <span className="font-medium">
-                    {formatCurrency(costBenefit?.cost_of_inaction.breakdown.turnover_replacement || 0)}
+                    {formatCurrency(costBenefit?.cost_of_inaction?.breakdown?.turnover_replacement || 0)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Productivity Loss</span>
                   <span className="font-medium">
-                    {formatCurrency(costBenefit?.cost_of_inaction.breakdown.productivity_loss || 0)}
+                    {formatCurrency(costBenefit?.cost_of_inaction?.breakdown?.productivity_loss || 0)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Healthcare Costs</span>
                   <span className="font-medium">
-                    {formatCurrency(costBenefit?.cost_of_inaction.breakdown.healthcare_costs || 0)}
+                    {formatCurrency(costBenefit?.cost_of_inaction?.breakdown?.healthcare_costs || 0)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Absenteeism</span>
                   <span className="font-medium">
-                    {formatCurrency(costBenefit?.cost_of_inaction.breakdown.absenteeism || 0)}
+                    {formatCurrency(costBenefit?.cost_of_inaction?.breakdown?.absenteeism || 0)}
                   </span>
                 </div>
                 <hr className="my-2" />
                 <div className="flex justify-between font-bold text-base">
                   <span>Total Annual Cost</span>
                   <span className="text-red-600">
-                    {formatCurrency(costBenefit?.cost_of_inaction.next_year || 0)}
+                    {formatCurrency(costBenefit?.cost_of_inaction?.next_year || 0)}
                   </span>
                 </div>
               </div>
@@ -633,38 +633,38 @@ const CEOBurnoutDashboard: React.FC<CEOBurnoutDashboardProps> = ({
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Turnover Avoided</span>
                   <span className="font-medium text-green-600">
-                    {formatCurrency(costBenefit?.projected_savings.turnover_avoided || 0)}
+                    {formatCurrency(costBenefit?.projected_savings?.turnover_avoided || 0)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Productivity Gained</span>
                   <span className="font-medium text-green-600">
-                    {formatCurrency(costBenefit?.projected_savings.productivity_gained || 0)}
+                    {formatCurrency(costBenefit?.projected_savings?.productivity_gained || 0)}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Healthcare Reduced</span>
                   <span className="font-medium text-green-600">
-                    {formatCurrency(costBenefit?.projected_savings.healthcare_reduced || 0)}
+                    {formatCurrency(costBenefit?.projected_savings?.healthcare_reduced || 0)}
                   </span>
                 </div>
                 <hr className="my-2" />
                 <div className="flex justify-between font-bold text-base">
                   <span>Total Savings</span>
                   <span className="text-green-600">
-                    {formatCurrency(costBenefit?.projected_savings.total || 0)}
+                    {formatCurrency(costBenefit?.projected_savings?.total || 0)}
                   </span>
                 </div>
                 <div className="flex justify-between font-bold text-base pt-2">
                   <span>Intervention Cost</span>
                   <span className="text-blue-600">
-                    {formatCurrency(costBenefit?.cost_of_intervention.total || 0)}
+                    {formatCurrency(costBenefit?.cost_of_intervention?.total || 0)}
                   </span>
                 </div>
                 <div className="flex justify-between font-bold text-lg pt-2">
                   <span>Net ROI</span>
                   <span className="text-green-600">
-                    {costBenefit?.roi.toFixed(0)}% ({formatCurrency((costBenefit?.projected_savings.total || 0) - (costBenefit?.cost_of_intervention.total || 0))})
+                    {(costBenefit?.roi ?? 0).toFixed(0)}% ({formatCurrency((costBenefit?.projected_savings?.total || 0) - (costBenefit?.cost_of_intervention?.total || 0))})
                   </span>
                 </div>
               </div>

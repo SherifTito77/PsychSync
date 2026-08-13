@@ -121,7 +121,7 @@ const IconGallery: React.FC = () => {
 
   // Admin & Executive Section
   const adminItems: IconItem[] = [
-    { name: 'CEO Burnout Analytics', path: '/executive/burnout', icon: '📊', description: 'Organization-level burnout risk, ROI tracking & cost-benefit analysis' },
+    { name: 'CEO Burnout Analytics', path: '/ceo-burnout-analytics', icon: '📊', description: 'Organization-level burnout risk, ROI tracking & cost-benefit analysis' },
     { name: 'Advanced Burnout Analytics', path: '/advanced-burnout', icon: '🎯', description: '14-day early warning with Z-scores, cognitive load & fatigue tracking' },
     { name: 'Corporate Psychology', path: '/admin/corporate-psychology', icon: '🧠', description: 'System-level organizational psychology intelligence for executives' },
     { name: 'Security Dashboard', path: '/admin/security', icon: '🛡️', description: 'Security monitoring and threat intelligence' },

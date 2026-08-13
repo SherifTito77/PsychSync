@@ -106,11 +106,17 @@ export const AdvancedBurnoutAnalytics: React.FC = () => {
 
       // For demo purposes, use test endpoint
       // In production, call user-specific endpoints
-      const response = await fetch('http://localhost:8000/api/v1/analytics/burnout/test', {
+      const csrfToken = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrf_token='))
+        ?.split('=')[1] || '';
+      const response = await fetch('/api/v1/analytics/burnout/test', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
         },
+        credentials: 'include',
       });
 
       if (!response.ok) {

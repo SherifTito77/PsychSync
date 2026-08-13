@@ -121,7 +121,7 @@ export const SentimentAnalysisDisplay: React.FC<SentimentAnalysisDisplayProps> =
       console.log('🔑 Using token:', token.substring(0, 20) + '...');
 
       // Fetch emails from the sentiment analysis emails endpoint
-      const response = await fetch('http://localhost:8000/api/v1/sentiment-analysis/emails?page=1&limit=30', {
+      const response = await fetch('/api/v1/sentiment-analysis/emails?page=1&limit=30', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -174,7 +174,7 @@ export const SentimentAnalysisDisplay: React.FC<SentimentAnalysisDisplayProps> =
 
       console.log('🗑️ Clearing email cache...');
 
-      const response = await fetch('http://localhost:8000/api/v1/sentiment-analysis/clear-cache', {
+      const response = await fetch('/api/v1/sentiment-analysis/clear-cache', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -216,7 +216,7 @@ export const SentimentAnalysisDisplay: React.FC<SentimentAnalysisDisplayProps> =
 
       console.log('🔍 Auto-analyzing new emails...');
 
-      const response = await fetch('http://localhost:8000/api/v1/sentiment-analysis/auto-analyze-new?limit=30&days_back=7', {
+      const response = await fetch('/api/v1/sentiment-analysis/auto-analyze-new?limit=30&days_back=7', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -325,7 +325,7 @@ export const SentimentAnalysisDisplay: React.FC<SentimentAnalysisDisplayProps> =
       console.log('📧 Content length:', contentToAnalyze.length);
       console.log('🔑 Token:', token.substring(0, 30) + '...');
 
-      const response = await fetch('http://localhost:8000/api/v1/sentiment-analysis/analyze', {
+      const response = await fetch('/api/v1/sentiment-analysis/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -449,7 +449,7 @@ export const SentimentAnalysisDisplay: React.FC<SentimentAnalysisDisplayProps> =
       }
 
       // Fetch all emails to get the body
-      const response = await fetch('http://localhost:8000/api/v1/sentiment-analysis/emails?page=1&limit=50', {
+      const response = await fetch('/api/v1/sentiment-analysis/emails?page=1&limit=50', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

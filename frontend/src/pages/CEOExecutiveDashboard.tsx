@@ -33,7 +33,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import api from '@/services/api';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Types
 interface OrgHealthScore {
@@ -125,7 +125,7 @@ const CEOExecutiveDashboard: React.FC = () => {
     setLoading(true);
     try {
       // Fetch live summary data
-      const summaryRes = await api.get(`/burnout/summary?org_id=${organizationId}&range=${timeRange}`);
+      const summaryRes = await api.get(`/executive/burnout/summary?org_id=${organizationId}&range=${timeRange}`);
       const summaryData = summaryRes.data;
 
       // Update state with live data
@@ -154,9 +154,9 @@ const CEOExecutiveDashboard: React.FC = () => {
 
       // Fetch other data
       const [heatmapRes, forecastRes, costBenefitRes] = await Promise.all([
-        api.get(`/burnout/heatmap?org_id=${organizationId}`),
-        api.get(`/burnout/forecast?org_id=${organizationId}&horizon=14d`),
-        api.get(`/burnout/cost-benefit?org_id=${organizationId}`)
+        api.get(`/executive/burnout/heatmap?org_id=${organizationId}`),
+        api.get(`/executive/burnout/forecast?org_id=${organizationId}&horizon=14d`),
+        api.get(`/executive/burnout/cost-benefit?org_id=${organizationId}`)
       ]);
 
       setHeatmap(heatmapRes.data.departments || []);

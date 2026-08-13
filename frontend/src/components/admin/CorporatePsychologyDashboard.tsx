@@ -119,16 +119,10 @@ const CorporatePsychologyDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
 
-  // Get organization ID from authenticated user
-  const organizationId = user?.organization_id;
+  // Get organization ID from authenticated user, with fallback for dev/demo
+  const organizationId = user?.organization_id || 'default-org';
 
   useEffect(() => {
-    if (!organizationId) {
-      setError('No organization ID found. Please ensure you are assigned to an organization.');
-      setLoading(false);
-      return;
-    }
-
     loadPsychologyData();
     // Refresh every 5 minutes
     const interval = setInterval(loadPsychologyData, 300000);
@@ -136,10 +130,6 @@ const CorporatePsychologyDashboard: React.FC = () => {
   }, [selectedTeam, organizationId]);
 
   const loadPsychologyData = async () => {
-    if (!organizationId) {
-      setError('No organization ID found.');
-      return;
-    }
 
     try {
       setLoading(true);

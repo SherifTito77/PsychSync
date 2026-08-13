@@ -364,7 +364,7 @@ export default function PopulationHealthDashboard() {
     setError(null);
 
     try {
-      const response = await api.get(`/clinical-population-health/summary?days_back=${daysBack}`);
+      const response = await api.get(`/population-health/summary?days_back=${daysBack}`);
       if (isMountedRef.current) {
         setSummary(response.data as SummaryStatistics);
       }
