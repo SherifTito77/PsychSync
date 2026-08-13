@@ -121,10 +121,10 @@ async def get_population_metrics(
     """
     try:
         # Verify authorization
-        if current_user.role not in ["clinician", "admin"]:
+        if not current_user.is_superuser:
             raise HTTPException(
                 status_code=403,
-                detail="Population health data requires clinician or admin role",
+                detail="Population health data requires admin privileges",
             )
 
         # Parse assessment types
@@ -185,10 +185,10 @@ async def get_high_risk_users(
     """
     try:
         # Verify authorization
-        if current_user.role not in ["clinician", "admin"]:
+        if not current_user.is_superuser:
             raise HTTPException(
                 status_code=403,
-                detail="High-risk user data requires clinician or admin role",
+                detail="High-risk user data requires admin privileges",
             )
 
         # Parse assessment types
@@ -257,10 +257,10 @@ async def get_treatment_outcomes(
     """
     try:
         # Verify authorization
-        if current_user.role not in ["clinician", "admin"]:
+        if not current_user.is_superuser:
             raise HTTPException(
                 status_code=403,
-                detail="Treatment outcome data requires clinician or admin role",
+                detail="Treatment outcome data requires admin privileges",
             )
 
         # Initialize service
@@ -320,10 +320,10 @@ async def get_time_series_trends(
     """
     try:
         # Verify authorization
-        if current_user.role not in ["clinician", "admin"]:
+        if not current_user.is_superuser:
             raise HTTPException(
                 status_code=403,
-                detail="Time series data requires clinician or admin role",
+                detail="Time series data requires admin privileges",
             )
 
         # Initialize service
@@ -380,10 +380,10 @@ async def get_demographic_breakdown(
     """
     try:
         # Verify authorization
-        if current_user.role not in ["clinician", "admin"]:
+        if not current_user.is_superuser:
             raise HTTPException(
                 status_code=403,
-                detail="Demographic breakdown requires clinician or admin role",
+                detail="Demographic breakdown requires admin privileges",
             )
 
         # Initialize service
@@ -441,10 +441,10 @@ async def get_summary_statistics(
     """
     try:
         # Verify authorization
-        if current_user.role not in ["clinician", "admin"]:
+        if not current_user.is_superuser:
             raise HTTPException(
                 status_code=403,
-                detail="Summary statistics require clinician or admin role",
+                detail="Summary statistics requires admin privileges",
             )
 
         # Initialize service
@@ -509,10 +509,10 @@ async def compare_assessment_types(
     """
     try:
         # Verify authorization
-        if current_user.role not in ["clinician", "admin"]:
+        if not current_user.is_superuser:
             raise HTTPException(
                 status_code=403,
-                detail="Assessment comparison requires clinician or admin role",
+                detail="Assessment comparison requires admin privileges",
             )
 
         # Initialize service

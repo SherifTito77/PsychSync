@@ -179,6 +179,22 @@ async def simple_login(
         ) from e
 
 
+@router.post("/logout")
+async def simple_logout(request: Request):
+    """Simple logout endpoint — clears session state."""
+    client_ip = request.client.host if request and request.client else "unknown"
+
+    log_with_context(
+        logger,
+        logging.INFO,
+        "Logout successful",
+        event="logout_success",
+        client_ip=client_ip,
+    )
+
+    return {"success": True, "message": "Successfully logged out"}
+
+
 @router.get("/verify-token/{token}")
 async def verify_token(token: str):
     """

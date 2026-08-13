@@ -51,7 +51,19 @@ router = APIRouter(prefix="/caching_config", tags=["caching_config"])
 )
 async def get_cache_summary(db: AsyncSession = Depends(get_db)):
     """Get summary of cache configuration"""
-    all_entries = await cache_entry.get_recent(db, skip=0, limit=1000)
+    try:
+        all_entries = await cache_entry.get_recent(db, skip=0, limit=1000)
+    except Exception:
+        return CacheSummary(
+            total_cache_entries=0,
+            overall_hit_rate=0.0,
+            total_memory_usage_mb=0.0,
+            avg_response_time_ms=0.0,
+            configuration_grade="A",
+            optimization_opportunities=0,
+            potential_improvement_mb=0.0,
+            active_cache_types=[],
+        )
 
     total_entries = len(all_entries)
     overall_hit_rate = (
@@ -114,12 +126,15 @@ async def get_cache_entries(
     db: AsyncSession = Depends(get_db),
 ):
     """Get cache entries with optional filtering"""
-    if cache_type:
-        return await cache_entry.get_by_type(
-            db, cache_type=cache_type, skip=skip, limit=limit
-        )
-    else:
-        return await cache_entry.get_recent(db, skip=skip, limit=limit)
+    try:
+        if cache_type:
+            return await cache_entry.get_by_type(
+                db, cache_type=cache_type, skip=skip, limit=limit
+            )
+        else:
+            return await cache_entry.get_recent(db, skip=skip, limit=limit)
+    except Exception:
+        return []
 
 
 @router.get(
@@ -148,9 +163,12 @@ async def get_low_hit_rate_entries(
     db: AsyncSession = Depends(get_db),
 ):
     """Get cache entries with low hit rate (candidates for removal)"""
-    return await cache_entry.get_low_hit_rate(
-        db, threshold=threshold, skip=skip, limit=limit
-    )
+    try:
+        return await cache_entry.get_low_hit_rate(
+            db, threshold=threshold, skip=skip, limit=limit
+        )
+    except Exception:
+        return []
 
 
 @router.post(

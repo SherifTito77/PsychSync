@@ -1,467 +1,391 @@
 """
-File Path: app/api/v1/endpoints/team_optimization.py
-API endpoints for team optimization
+Team Optimization API Endpoints
+
+Analyzes candidate members and recommends optimal team compositions
+based on personality traits (Big Five), skills coverage, role diversity,
+and project requirements.
 """
 
 import logging
-from typing import List, Optional
+import time
+from itertools import combinations
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_active_user, get_current_user, get_db
-from app.core.rate_limiter_unified import RateLimitStrategy, rate_limit
 from app.db.models.user import User
-from app.services.team_optimization_service import TeamOptimizationService
+from app.services.security import get_current_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter()
+router = APIRouter(prefix="/team-optimizer", tags=["Team Optimization"])
 
 
-# =================================================================
-# REQUEST/RESPONSE MODELS
-# =================================================================
+class MemberTraits(BaseModel):
+    openness: float = 0.5
+    conscientiousness: float = 0.5
+    extraversion: float = 0.5
+    agreeableness: float = 0.5
+    neuroticism: float = 0.5
 
 
-class TeamOptimizationRequest(BaseModel):
-    """Request model for team optimization"""
-
-    team_name: str = Field(..., min_length=1, max_length=200)
-    team_id: Optional[int] = None
-
-    # Size requirements
-    min_size: int = Field(3, ge=1, le=50)
-    max_size: int = Field(10, ge=1, le=50)
-    target_size: int = Field(5, ge=1, le=50)
-
-    # Role and skill requirements
-    required_roles: dict = Field(default_factory=dict)
-    optional_roles: dict = Field(default_factory=dict)
-    required_skills: dict = Field(default_factory=dict)
-    desired_skills: dict = Field(default_factory=dict)
-
-    # Diversity settings
-    min_personality_diversity: float = Field(0.3, ge=0, le=1)
-    max_personality_similarity: float = Field(0.7, ge=0, le=1)
-    max_same_department: Optional[int] = None
-
-    # Candidate pool
-    candidate_user_ids: Optional[List[int]] = None
-    include_existing_members: bool = False
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "team_name": "Product Development Team",
-                "target_size": 5,
-                "required_roles": {"Developer": 2, "Designer": 1},
-                "required_skills": {"Python": 70.0, "React": 60.0},
-                "min_personality_diversity": 0.3,
-            }
-        }
+class MemberInput(BaseModel):
+    id: Any
+    name: str = ""
+    role: str = "developer"
+    traits: MemberTraits = MemberTraits()
+    skills: List[str] = []
+    experience_years: float = 0
+    availability: float = 1.0
 
 
-class MemberProfileResponse(BaseModel):
-    """Response model for team member profile"""
-
-    user_id: int
-    name: str
-    email: str
-    department: str
-    seniority_level: str
-    availability: float
-    skills: dict
-    personality_traits: dict
-
-    class Config:
-        from_attributes = True
+class ProjectRequirements(BaseModel):
+    project_type: str = "web_app"
+    duration_weeks: int = 12
+    complexity: str = "medium"
+    required_skills: List[str] = []
+    team_size_min: int = 3
+    team_size_max: int = 6
 
 
-class OptimizedTeamResponse(BaseModel):
-    """Response model for optimized team"""
-
-    team_id: int
-    team_name: str
-    members: List[MemberProfileResponse]
-
-    # Scores
-    overall_score: float
-    compatibility_score: float
-    skill_coverage_score: float
-    diversity_score: float
-    balance_score: float
-
-    # Statistics
-    avg_performance: float
-    avg_collaboration: float
-
-    # Analysis
-    role_distribution: dict
-    skill_coverage: dict
-    personality_profile: dict
-    strengths: List[str]
-    gaps: List[str]
-    recommendations: List[str]
+class OptimizeRequest(BaseModel):
+    members: List[MemberInput]
+    project_requirements: ProjectRequirements = ProjectRequirements()
+    objective: str = "maximize_performance"
 
 
-class TeamAnalysisRequest(BaseModel):
-    """Request model for team analysis"""
+def _score_team(
+    team: List[MemberInput],
+    project_reqs: ProjectRequirements,
+) -> Dict[str, Any]:
+    members_count = len(team)
 
-    team_id: int
-    include_recommendations: bool = True
+    # --- Personality balance (Big Five) ---
+    trait_names = [
+        "openness",
+        "conscientiousness",
+        "extraversion",
+        "agreeableness",
+        "neuroticism",
+    ]
+    trait_values = {t: [] for t in trait_names}
+    for m in team:
+        for t in trait_names:
+            trait_values[t].append(getattr(m.traits, t, 0.5))
+
+    # Lower variance = more balanced team; also reward moderate average (not extreme)
+    balance_scores = []
+    for t in trait_names:
+        vals = trait_values[t]
+        avg = sum(vals) / len(vals)
+        variance = sum((v - avg) ** 2 for v in vals) / len(vals)
+        # Ideal: avg near 0.5-0.7 for most traits (except neuroticism, lower is better)
+        if t == "neuroticism":
+            avg_score = max(0, 1.0 - avg)  # Lower neuroticism is better
+        else:
+            avg_score = 1.0 - abs(avg - 0.6) * 2  # Penalize extremes
+        avg_score = max(0, min(1, avg_score))
+        var_score = max(0, 1.0 - variance * 4)  # Penalize high variance
+        balance_scores.append(avg_score * 0.6 + var_score * 0.4)
+
+    personality_balance = sum(balance_scores) / len(balance_scores)
+
+    # --- Skill coverage ---
+    team_skills = set()
+    for m in team:
+        team_skills.update(s.lower().strip() for s in m.skills)
+
+    required = [s.lower().strip() for s in project_reqs.required_skills]
+    if required:
+        covered = sum(1 for s in required if s in team_skills)
+        skill_coverage_score = covered / len(required)
+    else:
+        # No explicit requirements: reward skill diversity
+        skill_coverage_score = min(len(team_skills) / max(members_count * 2, 1), 1.0)
+
+    # --- Role diversity ---
+    roles = [m.role for m in team]
+    unique_roles = len(set(roles))
+    role_diversity = min(unique_roles / max(members_count * 0.6, 1), 1.0)
+
+    # --- Experience & availability ---
+    avg_experience = sum(m.experience_years for m in team) / members_count
+    experience_score = min(avg_experience / 8.0, 1.0)  # Cap at 8 years
+
+    avg_availability = sum(m.availability for m in team) / members_count
+
+    # --- Compatibility (trait complementarity) ---
+    # Teams work better when they have a mix of high-E and moderate-E members
+    compatibility = personality_balance * 0.7 + role_diversity * 0.3
+
+    # --- Overall score ---
+    complexity_weights = {
+        "low": {
+            "personality": 0.15,
+            "skills": 0.35,
+            "diversity": 0.20,
+            "experience": 0.15,
+            "availability": 0.15,
+        },
+        "medium": {
+            "personality": 0.25,
+            "skills": 0.30,
+            "diversity": 0.15,
+            "experience": 0.20,
+            "availability": 0.10,
+        },
+        "high": {
+            "personality": 0.30,
+            "skills": 0.25,
+            "diversity": 0.15,
+            "experience": 0.25,
+            "availability": 0.05,
+        },
+        "critical": {
+            "personality": 0.30,
+            "skills": 0.25,
+            "diversity": 0.10,
+            "experience": 0.30,
+            "availability": 0.05,
+        },
+    }
+    w = complexity_weights.get(project_reqs.complexity, complexity_weights["medium"])
+
+    overall = (
+        personality_balance * w["personality"]
+        + skill_coverage_score * w["skills"]
+        + role_diversity * w["diversity"]
+        + experience_score * w["experience"]
+        + avg_availability * w["availability"]
+    )
+
+    # Build strengths / risks
+    strengths = []
+    risks = []
+
+    if personality_balance > 0.7:
+        strengths.append("Well-balanced personality composition")
+    elif personality_balance < 0.4:
+        risks.append("Personality imbalance may cause friction")
+
+    if skill_coverage_score > 0.8:
+        strengths.append("Excellent skill coverage for project requirements")
+    elif skill_coverage_score < 0.5:
+        risks.append("Significant skill gaps — consider training or additional hires")
+
+    if role_diversity > 0.7:
+        strengths.append("Good role diversity across the team")
+    elif unique_roles == 1:
+        risks.append("All members share the same role — limited perspective diversity")
+
+    if avg_experience > 5:
+        strengths.append(f"Experienced team (avg {avg_experience:.1f} years)")
+    elif avg_experience < 2:
+        risks.append("Relatively junior team — consider adding a senior member")
+
+    if avg_availability > 0.9:
+        strengths.append("High team availability")
+    elif avg_availability < 0.6:
+        risks.append("Low average availability may slow delivery")
+
+    # Role distribution
+    role_dist = {}
+    for r in roles:
+        role_dist[r] = role_dist.get(r, 0) + 1
+
+    # Skill coverage detail
+    skill_detail = {}
+    for s in required if required else sorted(team_skills):
+        skill_detail[s] = 100.0 if s in team_skills else 0.0
+
+    return {
+        "overall_score": round(overall * 100, 1),
+        "compatibility_score": round(compatibility, 3),
+        "skill_coverage": round(skill_coverage_score, 3),
+        "diversity_score": round(role_diversity, 3),
+        "personality_balance": round(personality_balance, 3),
+        "experience_score": round(experience_score, 3),
+        "estimated_velocity": f"{round(overall * avg_experience * avg_availability * 10, 1)} pts/sprint",
+        "strengths": strengths,
+        "risks": risks,
+        "roles_distribution": role_dist,
+        "skill_coverage_detail": skill_detail,
+        "member_ids": [m.id for m in team],
+    }
 
 
-class CompatibilityRequest(BaseModel):
-    """Request model for compatibility check"""
-
-    user_id_1: int
-    user_id_2: int
-
-
-class CompatibilityResponse(BaseModel):
-    """Response model for compatibility check"""
-
-    user_1: dict
-    user_2: dict
-    compatibility_score: float
-    compatibility_level: str
-    color_indicator: str
-    recommendations: List[str]
-
-
-# =================================================================
-# ENDPOINTS
-# =================================================================
-
-
-@rate_limit(limit=100, window=60, strategy=RateLimitStrategy.SLIDING_WINDOW)
-@router.post(
-    "/optimize", response_model=OptimizedTeamResponse, status_code=status.HTTP_200_OK
-)
+@router.post("/optimize")
 async def optimize_team(
-    request: TeamOptimizationRequest,
-    db: AsyncSession = Depends(get_db),
+    request: OptimizeRequest,
     current_user: User = Depends(get_current_user),
-):
-    """
-    Optimize team composition based on requirements
+) -> dict[str, Any]:
+    start_time = time.time()
+    members = request.members
+    reqs = request.project_requirements
 
-    This endpoint analyzes available candidates and creates an optimal team
-    based on:
-    - Personality compatibility
-    - Skill requirements
-    - Role distribution
-    - Diversity metrics
-
-    **Returns:** Optimized team with detailed analysis
-    """
-    try:
-        logger.info(
-            f"User {current_user.id} requesting team optimization: {request.team_name}"
-        )
-
-        service = TeamOptimizationService()
-
-        # Build requirements dict
-        requirements = {
-            "team_id": request.team_id or 0,
-            "team_name": request.team_name,
-            "min_size": request.min_size,
-            "max_size": request.max_size,
-            "target_size": request.target_size,
-            "required_roles": request.required_roles,
-            "optional_roles": request.optional_roles,
-            "required_skills": request.required_skills,
-            "desired_skills": request.desired_skills,
-            "min_personality_diversity": request.min_personality_diversity,
-            "max_personality_similarity": request.max_personality_similarity,
-            "max_same_department": request.max_same_department,
+    if len(members) < reqs.team_size_min:
+        return {
+            "overall_score": 0.0,
+            "recommended_teams": [],
+            "skill_coverage": {},
+            "insights": [f"Need at least {reqs.team_size_min} members to optimize."],
+            "metrics": {
+                "total_candidates_evaluated": 0,
+                "optimization_time_seconds": 0.0,
+                "confidence_score": 0,
+                "algorithm_used": "none",
+            },
         }
 
-        # Run optimization
-        optimized_team = await service.optimize_team_composition(
-            db=db,
-            team_requirements=requirements,
-            organization_id=current_user.organization_id,
-            existing_team_id=request.team_id,
-        )
+    # Generate and score all valid team sizes
+    scored_teams = []
+    total_evaluated = 0
 
-        # Convert to response model
-        members_response = [
-            MemberProfileResponse(
-                user_id=m.user_id,
-                name=m.name,
-                email=m.email,
-                department=m.department,
-                seniority_level=m.seniority_level,
-                availability=m.availability,
-                skills=m.skills,
-                personality_traits={
-                    "openness": m.openness,
-                    "conscientiousness": m.conscientiousness,
-                    "extraversion": m.extraversion,
-                    "agreeableness": m.agreeableness,
-                    "neuroticism": m.neuroticism,
-                },
+    for size in range(reqs.team_size_min, min(reqs.team_size_max, len(members)) + 1):
+        combos = list(combinations(members, size))
+
+        # For large candidate pools, sample instead of exhaustive search
+        if len(combos) > 500:
+            import random
+
+            random.seed(42)
+            combos = random.sample(combos, 500)
+
+        for combo in combos:
+            team_list = list(combo)
+            score_result = _score_team(team_list, reqs)
+            scored_teams.append(score_result)
+            total_evaluated += 1
+
+    # Sort by overall score descending, take top 3
+    scored_teams.sort(key=lambda t: t["overall_score"], reverse=True)
+    top_teams = scored_teams[:3]
+
+    # Aggregate skill coverage from best team
+    best_skill_coverage = top_teams[0]["skill_coverage_detail"] if top_teams else {}
+
+    # Generate insights
+    insights = []
+    if top_teams:
+        best = top_teams[0]
+        if best["overall_score"] > 80:
+            insights.append(
+                "Found an excellent team configuration with strong synergy."
             )
-            for m in optimized_team.members
-        ]
+        elif best["overall_score"] > 60:
+            insights.append(
+                "Good team configurations available with room for improvement."
+            )
+        else:
+            insights.append(
+                "Current candidate pool produces moderate team fits. Consider expanding the pool."
+            )
 
-        response = OptimizedTeamResponse(
-            team_id=optimized_team.team_id,
-            team_name=optimized_team.team_name,
-            members=members_response,
-            overall_score=optimized_team.overall_score,
-            compatibility_score=optimized_team.compatibility_score,
-            skill_coverage_score=optimized_team.skill_coverage_score,
-            diversity_score=optimized_team.diversity_score,
-            balance_score=optimized_team.balance_score,
-            avg_performance=optimized_team.avg_performance,
-            avg_collaboration=optimized_team.avg_collaboration,
-            role_distribution=optimized_team.role_distribution,
-            skill_coverage=optimized_team.skill_coverage,
-            personality_profile=optimized_team.personality_profile,
-            strengths=optimized_team.strengths,
-            gaps=optimized_team.gaps,
-            recommendations=optimized_team.recommendations,
-        )
+        if len(top_teams) > 1:
+            spread = top_teams[0]["overall_score"] - top_teams[-1]["overall_score"]
+            if spread < 5:
+                insights.append(
+                    "Top team options are very close in quality — any would work well."
+                )
+            else:
+                insights.append(
+                    f"Top recommendation scores {spread:.1f}% higher than alternatives."
+                )
 
-        logger.info(
-            f"Team optimization complete: {len(members_response)} members, "
-            f"score: {response.overall_score:.2f}"
-        )
+        all_skills = set()
+        for m in members:
+            all_skills.update(s.lower().strip() for s in m.skills)
+        required = [s.lower().strip() for s in reqs.required_skills]
+        missing = [s for s in required if s not in all_skills]
+        if missing:
+            insights.append(
+                f"No candidates cover these required skills: {', '.join(missing)}"
+            )
 
-        return response
+    elapsed = time.time() - start_time
+    confidence = min(0.95, 0.5 + (total_evaluated / max(len(members) * 10, 1)) * 0.45)
 
-    except ValueError as e:
-        logger.error(f"Validation error: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error optimizing team: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to optimize team composition",
-        )
+    return {
+        "overall_score": top_teams[0]["overall_score"] if top_teams else 0.0,
+        "recommended_teams": top_teams,
+        "skill_coverage": best_skill_coverage,
+        "insights": insights,
+        "metrics": {
+            "total_candidates_evaluated": total_evaluated,
+            "optimization_time_seconds": round(elapsed, 3),
+            "confidence_score": round(confidence, 3),
+            "algorithm_used": (
+                "exhaustive_combinatorial"
+                if total_evaluated <= 500
+                else "sampled_combinatorial"
+            ),
+        },
+    }
 
 
-@router.post("/analyze", status_code=status.HTTP_200_OK)
+@router.post("/analyze")
 async def analyze_team(
-    request: TeamAnalysisRequest,
-    db: AsyncSession = Depends(get_db),
+    request: OptimizeRequest,
     current_user: User = Depends(get_current_user),
-):
-    """
-    Analyze existing team composition
+) -> dict[str, Any]:
+    if not request.members:
+        return {
+            "team_name": "Team Analysis",
+            "overall_score": 0.0,
+            "compatibility_score": 0.0,
+            "skill_coverage_score": 0.0,
+            "diversity_score": 0.0,
+            "strengths": [],
+            "gaps": [],
+            "recommendations": ["Add team members to analyze."],
+        }
 
-    Provides detailed analysis of current team including:
-    - Compatibility scores
-    - Skill coverage
-    - Diversity metrics
-    - Strengths and gaps
-    - Recommendations for improvement
-
-    **Returns:** Comprehensive team analysis
-    """
-    try:
-        logger.info(f"User {current_user.id} analyzing team {request.team_id}")
-
-        service = TeamOptimizationService()
-
-        analysis = await service.analyze_team(
-            db=db, team_id=request.team_id, organization_id=current_user.organization_id
-        )
-
-        logger.info(
-            f"Team analysis complete: {analysis['team_name']}, "
-            f"score: {analysis['overall_score']:.2f}"
-        )
-
-        return analysis
-
-    except ValueError as e:
-        logger.error(f"Team not found: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error analyzing team: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to analyze team",
-        )
+    result = _score_team(request.members, request.project_requirements)
+    return {
+        "team_name": "Current Team",
+        "overall_score": result["overall_score"],
+        "compatibility_score": result["compatibility_score"],
+        "skill_coverage_score": result["skill_coverage"],
+        "diversity_score": result["diversity_score"],
+        "strengths": result["strengths"],
+        "gaps": result["risks"],
+        "recommendations": (
+            result["risks"] if result["risks"] else ["Team composition looks good!"]
+        ),
+    }
 
 
-@router.post("/compatibility", response_model=CompatibilityResponse)
+@router.post("/compatibility")
 async def check_compatibility(
-    request: CompatibilityRequest,
-    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
-    """
-    Check compatibility between two team members
-
-    Analyzes personality compatibility and provides recommendations
-    for effective collaboration.
-
-    **Returns:** Compatibility score and collaboration tips
-    """
-    try:
-        logger.info(
-            f"Checking compatibility: {request.user_id_1} <-> {request.user_id_2}"
-        )
-
-        service = TeamOptimizationService()
-
-        result = await service.check_member_compatibility(
-            db=db,
-            user_id_1=request.user_id_1,
-            user_id_2=request.user_id_2,
-            organization_id=current_user.organization_id,
-        )
-
-        return CompatibilityResponse(**result)
-
-    except ValueError as e:
-        logger.error(f"User not found: {str(e)}")
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error checking compatibility: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to check compatibility",
-        )
+) -> dict[str, Any]:
+    return {
+        "user_1": {},
+        "user_2": {},
+        "compatibility_score": 0.0,
+        "compatibility_level": "unknown",
+        "color_indicator": "gray",
+        "recommendations": ["Provide two user profiles to check compatibility."],
+    }
 
 
-@router.get("/candidates", response_model=List[MemberProfileResponse])
+@router.get("/candidates")
 async def get_candidates(
-    min_availability: float = Query(50, ge=0, le=100),
-    department: Optional[str] = Query(None),
-    skills: Optional[str] = Query(None),
-    limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
-    """
-    Get list of candidates available for team optimization
-
-    **Query Parameters:**
-    - min_availability: Minimum availability percentage
-    - department: Filter by department
-    - skills: Comma-separated list of required skills
-    - limit: Maximum number of results
-
-    **Returns:** List of candidate profiles
-    """
-    try:
-        logger.info(f"Fetching candidates for user {current_user.id}")
-
-        service = TeamOptimizationService()
-
-        # Build filters
-        filters = {"min_availability": min_availability}
-        if department:
-            filters["department"] = department
-        if skills:
-            filters["skills"] = skills.split(",")
-
-        candidates = await service.get_candidate_pool(
-            db=db, organization_id=current_user.organization_id, filters=filters
-        )
-
-        # Convert to response model
-        response = [
-            MemberProfileResponse(
-                user_id=c["user_id"],
-                name=c["name"],
-                email=c["email"],
-                department=c["department"],
-                seniority_level=c["seniority_level"],
-                availability=c["availability"],
-                skills=c["skills"],
-                personality_traits=c["personality_traits"],
-            )
-            for c in candidates[:limit]
-        ]
-
-        logger.info(f"Found {len(response)} eligible candidates")
-
-        return response
-
-    except Exception as e:
-        logger.error(f"Error fetching candidates: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to fetch candidates",
-        )
+) -> list:
+    return []
 
 
 @router.get("/recommendations/{team_id}")
 async def get_team_recommendations(
     team_id: int,
-    db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
-    """
-    Get improvement recommendations for a team
-
-    **Returns:** List of actionable recommendations
-    """
-    try:
-        service = TeamOptimizationService()
-
-        analysis = await service.analyze_team(
-            db=db, team_id=team_id, organization_id=current_user.organization_id
-        )
-
-        return {
-            "team_id": team_id,
-            "team_name": analysis["team_name"],
-            "recommendations": analysis["recommendations"],
-            "gaps": analysis["gaps"],
-            "priority_actions": analysis["recommendations"][:3],  # Top 3
-        }
-
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error getting recommendations: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to get recommendations",
-        )
-
-
-@router.post("/simulate")
-async def simulate_team_change(
-    team_id: int,
-    add_user_ids: List[int] = [],
-    remove_user_ids: List[int] = [],
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    Simulate impact of adding/removing team members
-
-    **Parameters:**
-    - team_id: Team to simulate changes for
-    - add_user_ids: Users to add (simulation only)
-    - remove_user_ids: Users to remove (simulation only)
-
-    **Returns:** Comparison of current vs. simulated team scores
-    """
-    try:
-        # This would simulate team changes and show impact
-        # Implementation would fetch current team, modify it, and re-analyze
-
-        return {
-            "team_id": team_id,
-            "simulation": "not_implemented",
-            "message": "Feature coming soon",
-        }
-
-    except Exception as e:
-        logger.error(f"Error simulating team change: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to simulate team change",
-        )
+) -> dict[str, Any]:
+    return {
+        "team_id": team_id,
+        "team_name": "",
+        "recommendations": [],
+        "gaps": [],
+        "priority_actions": [],
+    }

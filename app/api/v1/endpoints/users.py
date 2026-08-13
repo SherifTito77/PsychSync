@@ -49,7 +49,6 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 @router.get("/me")
 @measure_performance
-@async_cached(expire=300, key_prefix="user_profile")  # ✅ ASYNC: Non-blocking cache
 async def get_user_profile(current_user: User = Depends(get_current_active_user)):
     """
     Retrieve the profile of the currently authenticated user.

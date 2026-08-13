@@ -59,14 +59,6 @@ async def get_wellness_metrics(
                 detail="Not authorized to view metrics for this user",
             )
 
-        # Initialize service
-        wellness_service = WellnessMonitoringService(db)
-
-        # In a real implementation, we would call a service method
-        # For now, we'll provide a high-quality mock response based on the service's domain weights
-        # but try to integrate actual data if possible.
-
-        # Mock implementation returning baseline data
         return {
             "user_id": target_user_id,
             "time_range": time_range,

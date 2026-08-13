@@ -590,3 +590,24 @@ async def get_query_performance_health(
             message="Failed to get query performance health",
             request_id=get_request_id(request),
         )
+
+
+# Frontend-compatible alias routes (underscore convention)
+@router.get("/query_performance/queries/summary", include_in_schema=False)
+async def get_queries_summary_alias(
+    request: Request, current_user: User = Depends(get_current_active_user)
+):
+    """Alias for frontend compatibility."""
+    return await get_query_performance_stats(request=request, current_user=current_user)
+
+
+@router.get("/query_performance/queries", include_in_schema=False)
+async def get_queries_alias(
+    request: Request,
+    limit: int = Query(10, ge=1, le=100),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Alias for frontend compatibility."""
+    return await get_slow_queries(
+        request=request, limit=limit, current_user=current_user
+    )

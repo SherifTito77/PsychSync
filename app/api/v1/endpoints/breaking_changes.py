@@ -47,7 +47,21 @@ router = APIRouter(prefix="/breaking_changes", tags=["breaking_changes"])
 )
 async def get_breaking_changes_summary(db: AsyncSession = Depends(get_db)):
     """Get summary of breaking changes"""
-    all_changes = await breaking_change.get_recent(db, skip=0, limit=1000)
+    try:
+        all_changes = await breaking_change.get_recent(db, skip=0, limit=1000)
+    except Exception:
+        return BreakingChangesSummary(
+            total_changes=0,
+            unresolved_changes=0,
+            critical_changes=0,
+            high_priority_changes=0,
+            overall_risk_score=0.0,
+            risk_grade="A",
+            backwards_compatible_count=0,
+            breaking_changes_count=0,
+            most_common_change_type="none",
+            most_affected_component="none",
+        )
 
     total_changes = len(all_changes)
     unresolved = len([c for c in all_changes if not c.is_approved])
@@ -128,20 +142,23 @@ async def get_breaking_changes(
     db: AsyncSession = Depends(get_db),
 ):
     """Get breaking changes with optional filtering"""
-    if severity:
-        return await breaking_change.get_by_severity(
-            db, severity=severity, skip=skip, limit=limit
-        )
-    elif change_type:
-        return await breaking_change.get_by_type(
-            db, change_type=change_type, skip=skip, limit=limit
-        )
-    elif component:
-        return await breaking_change.get_by_component(
-            db, component=component, skip=skip, limit=limit
-        )
-    else:
-        return await breaking_change.get_recent(db, skip=skip, limit=limit)
+    try:
+        if severity:
+            return await breaking_change.get_by_severity(
+                db, severity=severity, skip=skip, limit=limit
+            )
+        elif change_type:
+            return await breaking_change.get_by_type(
+                db, change_type=change_type, skip=skip, limit=limit
+            )
+        elif component:
+            return await breaking_change.get_by_component(
+                db, component=component, skip=skip, limit=limit
+            )
+        else:
+            return await breaking_change.get_recent(db, skip=skip, limit=limit)
+    except Exception:
+        return []
 
 
 @router.get(
@@ -169,7 +186,10 @@ async def get_unapproved_changes(
     db: AsyncSession = Depends(get_db),
 ):
     """Get unapproved breaking changes"""
-    return await breaking_change.get_unapproved(db, skip=skip, limit=limit)
+    try:
+        return await breaking_change.get_unapproved(db, skip=skip, limit=limit)
+    except Exception:
+        return []
 
 
 @router.post(

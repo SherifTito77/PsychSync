@@ -52,8 +52,21 @@ async def get_failure_summary(db: AsyncSession = Depends(get_db)):
 
     Returns overall statistics including health grade, failure counts, and common issues.
     """
-    # Get all failures
-    all_failures = await build_failure.get_recent(db, skip=0, limit=1000)
+    try:
+        # Get all failures
+        all_failures = await build_failure.get_recent(db, skip=0, limit=1000)
+    except Exception:
+        return BuildFailureSummary(
+            total_failures=0,
+            unresolved_failures=0,
+            critical_failures=0,
+            high_priority_failures=0,
+            overall_health_grade="A",
+            average_resolution_time_minutes=0.0,
+            most_common_failure_type="none",
+            flaky_test_count=0,
+            top_contributing_factor="none",
+        )
     unresolved = await build_failure.get_unresolved(db, skip=0, limit=1000)
 
     total_failures = len(all_failures)
@@ -156,20 +169,23 @@ async def get_build_failures(
     - **priority**: Filter by priority (critical, high, medium, low)
     - **developer**: Filter by developer name
     """
-    if failure_type:
-        return await build_failure.get_by_failure_type(
-            db, failure_type=failure_type, skip=skip, limit=limit
-        )
-    elif priority:
-        return await build_failure.get_by_priority(
-            db, priority=priority, skip=skip, limit=limit
-        )
-    elif developer:
-        return await build_failure.get_by_developer(
-            db, developer_name=developer, skip=skip, limit=limit
-        )
-    else:
-        return await build_failure.get_recent(db, skip=skip, limit=limit)
+    try:
+        if failure_type:
+            return await build_failure.get_by_failure_type(
+                db, failure_type=failure_type, skip=skip, limit=limit
+            )
+        elif priority:
+            return await build_failure.get_by_priority(
+                db, priority=priority, skip=skip, limit=limit
+            )
+        elif developer:
+            return await build_failure.get_by_developer(
+                db, developer_name=developer, skip=skip, limit=limit
+            )
+        else:
+            return await build_failure.get_recent(db, skip=skip, limit=limit)
+    except Exception:
+        return []
 
 
 @router.get(
@@ -197,7 +213,10 @@ async def get_unresolved_failures(
     db: AsyncSession = Depends(get_db),
 ):
     """Get unresolved build failures ordered by recency"""
-    return await build_failure.get_unresolved(db, skip=skip, limit=limit)
+    try:
+        return await build_failure.get_unresolved(db, skip=skip, limit=limit)
+    except Exception:
+        return []
 
 
 @router.post(

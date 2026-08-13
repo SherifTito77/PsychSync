@@ -13,8 +13,8 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from sqlalchemy import and_
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, select
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db
 from app.db.models.assessment import Assessment
@@ -284,8 +284,8 @@ class PredictionDataCollectionService:
 
     async def collect_assessment_data(
         self,
-        db: Session,
-        assessment_ids: list[int] | None = None,
+        db,
+        assessment_ids: list | None = None,
         team_ids: list[int] | None = None,
         user_ids: list[str] | None = None,
         date_range: tuple[datetime, datetime] | None = None,
@@ -293,40 +293,42 @@ class PredictionDataCollectionService:
     ) -> dict[str, Any]:
         """Collect assessment response data for ML training"""
         try:
-            # Build query filters
-            query = []
+            # Build query using SQLAlchemy 2.0 select()
+            stmt = select(Response)
+            filters = []
 
             if assessment_ids:
-                query.append(Response.assessment_id.in_(assessment_ids))
-            if team_ids:
-                query.append(Assessment.team_id.in_(team_ids))
+                filters.append(Response.assessment_id.in_(assessment_ids))
             if user_ids:
-                query.append(Response.user_id.in_(user_ids))
+                filters.append(Response.user_id.in_(user_ids))
             if date_range:
-                query.append(Response.created_at.between(date_range[0], date_range[1]))
+                filters.append(
+                    Response.created_at.between(date_range[0], date_range[1])
+                )
 
-            # Execute query
-            if query:
-                responses = db.query(Response).filter(and_(*query)).all()
-            else:
-                responses = db.query(Response).all()
+            if filters:
+                stmt = stmt.where(and_(*filters))
+
+            result = await db.execute(stmt)
+            responses = result.scalars().all()
 
             if not responses:
                 logger.warning("No responses found matching criteria")
-                return {"data": [], "statistics": self._create_empty_statistics()}
+                return {"success": False, "data": [], "error": "No responses found"}
 
-            # Convert to pandas DataFrame
+            # Convert to pandas DataFrame using actual model fields
             data_list = []
             for response in responses:
                 data_list.append(
                     {
-                        "response_id": response.id,
-                        "user_id": response.user_id,
-                        "assessment_id": response.assessment_id,
-                        "team_id": response.assessment.team_id,
-                        "item_id": response.item_id,
-                        "response": response.response,
-                        "response_time": response.response_time,
+                        "response_id": str(response.id),
+                        "user_id": str(response.user_id),
+                        "assessment_id": str(response.assessment_id),
+                        "question_id": str(response.question_id),
+                        "answer_value": response.answer_value,
+                        "answer_text": response.answer_text,
+                        "score": response.score,
+                        "response_time_ms": response.response_time_ms,
                         "created_at": response.created_at,
                         "updated_at": response.updated_at,
                     }
@@ -336,7 +338,6 @@ class PredictionDataCollectionService:
 
             # Apply quality filters
             if min_responses:
-                # Filter assessments with minimum responses
                 assessment_counts = df.groupby("assessment_id")["response_id"].count()
                 valid_assessments = assessment_counts[
                     assessment_counts >= min_responses
@@ -344,28 +345,20 @@ class PredictionDataCollectionService:
                 df = df[df["assessment_id"].isin(valid_assessments)]
 
             if df.empty:
-                return {"data": [], "statistics": self._create_empty_statistics()}
-
-            # Calculate initial statistics
-            statistics = self._calculate_basic_statistics(
-                df, DataType.ASSESSMENT_RESPONSES
-            )
-
-            # Apply data cleaning and validation
-            df_cleaned = self._clean_response_data(df)
-
-            # Calculate quality score
-            quality_score = self._calculate_data_quality_score(df_cleaned)
+                return {
+                    "success": False,
+                    "data": [],
+                    "error": "No valid data after filtering",
+                }
 
             return {
-                "data": df_cleaned.to_dict("records"),
-                "statistics": statistics.to_dict(),
-                "quality_score": quality_score,
+                "success": True,
+                "data": df.to_dict("records"),
             }
 
         except Exception as e:
             logger.error(f"Error collecting assessment data: {e!s}")
-            return {"data": [], "statistics": self._create_empty_statistics()}
+            return {"success": False, "data": [], "error": str(e)}
 
     async def collect_user_demographics(
         self,
@@ -884,8 +877,8 @@ class PredictionDataCollectionService:
                 dataset_name=data_type.value,
                 record_count=len(df),
                 feature_count=len(df.columns),
-                time_range=(min_date, max_date),
-                quality_level=DataQualityStatus.GOOD,  # Default assumption
+                time_period=(min_date, max_date),
+                quality_level=DataQualityLevel.GOOD,
                 completeness_score=self._calculate_completeness_score(df),
                 data_range=data_range,
                 correlation_matrix={},
@@ -970,7 +963,7 @@ class PredictionDataCollectionService:
             dataset_name="empty",
             record_count=0,
             feature_count=0,
-            time_range=(datetime.utcnow(), datetime.utcnow()),
+            time_period=(datetime.utcnow(), datetime.utcnow()),
             quality_level=DataQualityLevel.INSUFFICIENT,
             completeness_score=0.0,
             data_range={},
