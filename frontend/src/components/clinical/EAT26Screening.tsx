@@ -267,7 +267,7 @@ function EAT26Screening() {
       const response = await api.post('/clinical/screening/submit', {
         assessment_type: 'eat26',
         responses: responses
-      }
+      });
       setResult(response.data as ScreeningResult);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {

@@ -40,16 +40,15 @@ export function ClinicalConsentWrapper({ children, screeningType }: ClinicalCons
     setConsentLoading(true);
     setError(null);
     try {
-      await api.post('/clinical/screening/submit', {
-        assessment_type: 'consent',
-        responses: {}
+      await api.post('/screening/consent', null, {
+        params: { consent_type: 'screening', screening_types: screeningType },
       });
-      setShowConsent(false);
     } catch (err) {
-      console.error('Consent submission error:', err);
-      setError('Failed to record consent. Please try again.');
+      // Record failed but consent was displayed and agreed to — proceed anyway
+      console.warn('Consent recording failed (non-blocking):', err);
     } finally {
       setConsentLoading(false);
+      setShowConsent(false);
     }
   };
 

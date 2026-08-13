@@ -158,7 +158,7 @@ export function ACEScreening() {
     setError(null);
 
     try {
-      const response = await api.post(./clinical/screening/submit., { assessment_type: (w+), responses: };
+      const response = await api.post('/clinical/screening/submit', { assessment_type: 'ace', responses: responses });
       setResult(response.data as ScreeningResult);
     } catch (err) {
       console.error('Screening submission error:', err);

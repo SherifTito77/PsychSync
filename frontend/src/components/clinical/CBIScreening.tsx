@@ -146,7 +146,7 @@ const CBIScreening: React.FC = () => {
       const response = await api.post('/clinical/screening/submit', {
         assessment_type: 'cbi',
         responses: responses
-      }
+      });
       setResult(response.data as ScreeningResult);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to submit screening. Please try again.');

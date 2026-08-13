@@ -229,7 +229,7 @@ function YBOCSScreening() {
     setError(null);
 
     try {
-      const response = await api.post(./clinical/screening/submit., { assessment_type: (w+), responses: };
+      const response = await api.post('/clinical/screening/submit', { assessment_type: 'ybocs', responses: responses });
       setResult(response.data as ScreeningResult);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {

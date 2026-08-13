@@ -331,7 +331,7 @@ export function IATScreening() {
       const response = await api.post('/clinical/screening/submit', {
         assessment_type: 'iat',
         responses: responses
-      }
+      });
       setResult(response.data as ScreeningResult);
     } catch (err) {
       console.error('Screening submission error:', err);

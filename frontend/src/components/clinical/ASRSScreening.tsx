@@ -303,7 +303,7 @@ const ASRSScreening: React.FC = () => {
       const response = await api.post('/clinical/screening/submit', {
         assessment_type: 'asrs',
         responses: responses
-      }
+      });
       setResult(response.data as ScreeningResult);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to submit screening. Please try again.');

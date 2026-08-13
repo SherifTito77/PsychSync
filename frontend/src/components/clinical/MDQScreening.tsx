@@ -95,7 +95,7 @@ const MDQScreening: React.FC = () => {
       const response = await api.post('/clinical/screening/submit', {
         assessment_type: 'mdq',
         responses: responses
-      }
+      });
       setResult(response.data as ScreeningResult);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to submit screening');

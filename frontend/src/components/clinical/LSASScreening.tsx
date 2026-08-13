@@ -141,7 +141,7 @@ function LSASScreening() {
       const response = await api.post('/clinical/screening/submit', {
         assessment_type: 'lsas',
         responses: responses
-      }
+      });
       setResult(response.data as ScreeningResult);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
