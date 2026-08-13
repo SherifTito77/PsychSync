@@ -36,6 +36,7 @@ export const CSP_DIRECTIVES = {
     'ws://localhost:5173',
     'wss://localhost:5173',
     'http://localhost:8000',
+    'http://127.0.0.1:8000',
     'http://localhost:8011',
     'https://api.stripe.com',
     'https://www.google-analytics.com',

@@ -785,10 +785,9 @@ const LoginSignupRefactored: React.FC = () => {
         email_domain: loginData.email.split('@')[1]
       });
 
-      // Use secure storage instead of localStorage
-      // In production, this would be http-only secure cookies
-      sessionStorage.setItem('access_token', response.access_token);
-      sessionStorage.setItem('user', JSON.stringify(response.user));
+      // Store token where axios interceptor reads it (localStorage)
+      localStorage.setItem('access_token', response.access_token);
+      localStorage.setItem('user', JSON.stringify(response.user));
 
       setSuccessMessage('Login successful! Redirecting...');
 
