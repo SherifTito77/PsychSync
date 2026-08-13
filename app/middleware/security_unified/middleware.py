@@ -9,6 +9,7 @@ one unified, configurable implementation.
 """
 
 import logging
+import secrets
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -273,7 +274,7 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
 
     async def _validate_csrf(self, request: Request) -> Response | None:
         """
-        Validate CSRF token for unsafe methods.
+        Validate CSRF token using double-submit cookie pattern.
 
         Returns error response if validation fails, None otherwise.
         """
@@ -281,10 +282,18 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
         if request.url.path in self.config.exclude_paths:
             return None
 
-        # Get token from header
-        token = request.headers.get(self.config.csrf_header_name)
+        # Skip CSRF for Bearer-token-authenticated requests.
+        # Bearer tokens are never sent automatically by browsers,
+        # so they are inherently immune to CSRF attacks.
+        auth_header = request.headers.get("authorization", "")
+        if auth_header.startswith("Bearer "):
+            return None
 
-        if not token:
+        # Double-submit cookie: header token must match cookie token
+        header_token = request.headers.get(self.config.csrf_header_name)
+        cookie_token = request.cookies.get(self.config.csrf_cookie_name)
+
+        if not header_token or not cookie_token:
             logger.warning(
                 f"CSRF token missing from {get_client_ip(request)}",
                 extra={"ip": get_client_ip(request), "path": request.url.path},
@@ -294,18 +303,35 @@ class UnifiedSecurityMiddleware(BaseHTTPMiddleware):
                 content={"detail": "CSRF token missing. Please reload the page."},
             )
 
-        # TODO: Validate token signature (requires token storage)
-        # For now, just check presence
+        if not secrets.compare_digest(header_token, cookie_token):
+            logger.warning(
+                f"CSRF token mismatch from {get_client_ip(request)}",
+                extra={"ip": get_client_ip(request), "path": request.url.path},
+            )
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "CSRF token invalid. Please reload the page."},
+            )
+
         return None
 
     async def _add_csrf_token(self, request: Request, response: Response) -> Response:
-        """Add CSRF token to response."""
-        # Only add CSRF token to safe methods or after successful validation
+        """Set CSRF token as cookie on safe method responses (double-submit cookie pattern)."""
         if request.method in self.config.csrf_safe_methods:
-            # TODO: Generate and sign token
-            token = "placeholder_token"  # Would be cryptographically secure
+            # Reuse existing cookie token or generate new one
+            existing = request.cookies.get(self.config.csrf_cookie_name)
+            token = existing or secrets.token_hex(32)
 
-            # Add to headers for AJAX requests
+            # Set as non-httpOnly cookie so frontend JS can read it
+            response.set_cookie(
+                key=self.config.csrf_cookie_name,
+                value=token,
+                max_age=self.config.csrf_token_expiry,
+                path="/",
+                samesite="lax",
+                httponly=False,
+                secure=request.url.scheme == "https",
+            )
             response.headers[self.config.csrf_header_name] = token
 
         return response

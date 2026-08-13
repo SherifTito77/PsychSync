@@ -17,6 +17,7 @@ Version: 3.0 (Enhanced)
 """
 
 import logging
+import secrets
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -585,13 +586,15 @@ class EnhancedUnifiedSecurityMiddleware(BaseHTTPMiddleware):
         return None
 
     async def _validate_csrf(self, request: Request) -> Response | None:
-        """Validate CSRF token for unsafe methods."""
+        """Validate CSRF token using double-submit cookie pattern."""
         if request.url.path in self.config.exclude_paths:
             return None
 
-        token = request.headers.get(self.config.csrf_header_name)
+        # Double-submit cookie: header token must match cookie token
+        header_token = request.headers.get(self.config.csrf_header_name)
+        cookie_token = request.cookies.get(self.config.csrf_cookie_name)
 
-        if not token:
+        if not header_token or not cookie_token:
             logger.warning(
                 f"CSRF token missing from {self._get_client_ip(request)}",
                 extra={"ip": self._get_client_ip(request), "path": request.url.path},
@@ -601,14 +604,35 @@ class EnhancedUnifiedSecurityMiddleware(BaseHTTPMiddleware):
                 content={"detail": "CSRF token missing. Please reload the page."},
             )
 
-        # TODO: Validate token signature
+        if not secrets.compare_digest(header_token, cookie_token):
+            logger.warning(
+                f"CSRF token mismatch from {self._get_client_ip(request)}",
+                extra={"ip": self._get_client_ip(request), "path": request.url.path},
+            )
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "CSRF token invalid. Please reload the page."},
+            )
+
         return None
 
     async def _add_csrf_token(self, request: Request, response: Response) -> Response:
-        """Add CSRF token to response."""
+        """Set CSRF token as a cookie on safe method responses (double-submit cookie pattern)."""
         if request.method in self.config.csrf_safe_methods:
-            # TODO: Generate and sign token
-            token = "placeholder_token"
+            # Reuse existing cookie token or generate a new one
+            existing = request.cookies.get(self.config.csrf_cookie_name)
+            token = existing or secrets.token_hex(32)
+
+            # Set as non-httpOnly cookie so frontend JS can read it
+            response.set_cookie(
+                key=self.config.csrf_cookie_name,
+                value=token,
+                max_age=self.config.csrf_token_expiry,
+                path="/",
+                samesite="lax",
+                httponly=False,  # Frontend must read this
+                secure=request.url.scheme == "https",
+            )
             response.headers[self.config.csrf_header_name] = token
 
         return response

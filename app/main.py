@@ -743,10 +743,17 @@ try:
             "/api/v1/auth/resend-verification",
             "/api/v1/auth/refresh",
             "/api/v1/auth/logout",
+            "/api/v1/logout",
             "/api/v1/auth/token",
             "/api/v1/auth/mfa/setup",
             "/api/v1/auth/mfa/verify",
             "/api/v1/auth/mfa/disable",
+            # Reliability & Validity — unauthenticated stubs (frontend uses fetch without Bearer)
+            "/api/v1/reliability-validity/comprehensive/analyze",
+            "/api/v1/reliability-validity/reliability/analyze",
+            "/api/v1/reliability-validity/factor-analysis",
+            "/api/v1/reliability-validity/validity/analyze",
+            "/api/v1/reliability-validity/items/analyze",
         },
     )
 

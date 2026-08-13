@@ -10,7 +10,6 @@ from typing import Any, Optional
 import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -76,7 +75,7 @@ def verify_token(token: str) -> Optional[str]:
     try:
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
         return payload.get("sub")
-    except JWTError:
+    except Exception:
         return None
 
 
