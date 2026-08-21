@@ -195,6 +195,27 @@ try:
 except ImportError:
     KafkaDeadLetterTask = None
 
+# Import password history model
+try:
+    from .password_history import PasswordHistory
+except ImportError:
+    PasswordHistory = None
+
+# Import HIPAA-compliant secure models (encrypted PHI at rest)
+try:
+    from .assessment_secure import SecureAssessment
+    from .organization_secure import SecureOrganization
+    from .response_secure import SecureResponse
+    from .team_secure import SecureTeam, SecureTeamMember
+    from .user_secure import SecureUser
+except ImportError:
+    SecureUser = None
+    SecureOrganization = None
+    SecureTeam = None
+    SecureTeamMember = None
+    SecureAssessment = None
+    SecureResponse = None
+
 # Make models available when importing from this package
 __all__ = [
     "User",
@@ -295,4 +316,13 @@ __all__ = [
     "DLQStatus",
     "DLQReason",
     "KafkaDeadLetterTask",
+    # Password history
+    "PasswordHistory",
+    # HIPAA-compliant secure models
+    "SecureUser",
+    "SecureOrganization",
+    "SecureTeam",
+    "SecureTeamMember",
+    "SecureAssessment",
+    "SecureResponse",
 ]

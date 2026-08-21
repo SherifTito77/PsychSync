@@ -32,6 +32,7 @@ from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import StaticPool
 
 from app.core.config import get_database_url, settings
+from app.core.pool_monitor import init_pool_monitor
 
 # Initialize database security logger
 db_security_logger = logging.getLogger("app.security.database")
@@ -162,6 +163,10 @@ else:
             "timeout": 10,
         },
     )
+
+# Initialize pool monitor for non-test environments
+if not settings.TESTING:
+    init_pool_monitor(async_engine)
 
 # Create async session factory with enhanced security
 AsyncSessionLocal = async_sessionmaker(

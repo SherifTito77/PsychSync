@@ -18,6 +18,7 @@ from app.api.v1.deps import get_current_active_user, get_db
 from app.core.async_cache import cache_get, cache_set
 from app.core.cache_strategy import intelligent_cache
 from app.core.config import settings
+from app.core.pool_monitor import get_pool_monitor
 from app.core.responses import APIResponse, get_request_id
 from app.core.structured_logging import EventType, get_logger
 from app.db.models.user import User
@@ -551,16 +552,22 @@ def get_uptime_seconds() -> int:
 
 
 async def get_database_metrics(db: AsyncSession) -> dict[str, Any]:
-    """Get database performance metrics"""
+    """Get database performance metrics including pool health."""
     try:
-        # Connection pool metrics (if available)
-        metrics = {
-            "connection_pool": {
-                "size": "unknown",
-                "checked_in": "unknown",
-                "checked_out": "unknown",
+        monitor = get_pool_monitor()
+        if monitor:
+            pool_stats = monitor.get_stats()
+            metrics = {
+                "connection_pool": pool_stats["health"],
+                "leaks_detected": pool_stats["leaks"],
+                "cumulative": pool_stats["cumulative"],
             }
-        }
+        else:
+            metrics = {
+                "connection_pool": {
+                    "status": "monitor_not_initialized",
+                }
+            }
 
         # Test query performance
         start_time = time.time()

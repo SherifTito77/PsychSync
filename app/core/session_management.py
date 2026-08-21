@@ -615,6 +615,77 @@ class SessionManager:
 
         await cache_set(activity_key, activities, expire_seconds=86400)  # 24 hours
 
+    async def revoke_all_except_current(
+        self, user_id: str, current_session_id: str, reason: str = "password_change"
+    ):
+        """
+        Revoke all sessions except the current one.
+        Used after password change or security events.
+        """
+        try:
+            sessions = await self._get_user_sessions(user_id)
+            revoked_count = 0
+
+            for session in sessions:
+                if (
+                    session.session_id != current_session_id
+                    and session.status == SessionStatus.ACTIVE
+                ):
+                    await self.revoke_session(session.session_id, reason)
+                    revoked_count += 1
+
+            logger.info(
+                "Revoked %d sessions for user %s (reason: %s, kept: %s)",
+                revoked_count,
+                user_id,
+                reason,
+                current_session_id[:8],
+            )
+            return revoked_count
+
+        except Exception as e:
+            logger.error(f"Error revoking sessions for user {user_id}: {e}")
+            return 0
+
+    @staticmethod
+    def _mask_ip(ip: str) -> str:
+        """Mask IP address for GDPR/HIPAA compliance. Shows only network prefix."""
+        if not ip:
+            return ""
+        parts = ip.split(".")
+        if len(parts) == 4:
+            return f"{parts[0]}.{parts[1]}.*.*"
+        # IPv6 or other format — show first segment only
+        if ":" in ip:
+            segments = ip.split(":")
+            return f"{segments[0]}:{segments[1] if len(segments) > 1 else ''}::*"
+        return ip[:4] + "***"
+
+    async def get_sessions_summary(self, user_id: str) -> dict:
+        """
+        Get a summary of all sessions for the user management UI.
+        Sanitizes sensitive data before returning.
+        """
+        sessions = await self.get_user_sessions(user_id, include_expired=False)
+        return {
+            "active_count": len(sessions),
+            "max_allowed": self.max_concurrent_sessions,
+            "sessions": [
+                {
+                    "session_id": s.session_id[:8] + "...",
+                    "device_type": s.device_fingerprint.device_type.value,
+                    "platform": s.device_fingerprint.platform,
+                    "ip_address": self._mask_ip(s.device_fingerprint.ip_address),
+                    "location": s.login_location,
+                    "created_at": s.created_at.isoformat(),
+                    "last_activity": s.last_activity.isoformat(),
+                    "is_trusted": s.device_fingerprint.is_trusted,
+                    "is_current": s.is_current_session,
+                }
+                for s in sessions
+            ],
+        }
+
 
 # Global session manager instance
 session_manager = SessionManager()

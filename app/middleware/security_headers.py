@@ -124,9 +124,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if request.url.path.startswith("/api/"):
             self._add_api_cache_headers(response)
 
-        # Remove server information
-        if "Server" in response.headers:
-            del response.headers["Server"]
+        # Remove server information headers (information leakage prevention)
+        for header_to_remove in ["Server", "X-Powered-By", "X-AspNet-Version"]:
+            if header_to_remove in response.headers:
+                del response.headers[header_to_remove]
+
+        # HIPAA-specific headers for clinical/PHI endpoints
+        if self._is_phi_endpoint(request):
+            self._add_phi_headers(response)
 
         # Custom security headers
         for header, value in self.custom_headers.items():
@@ -259,6 +264,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             directives["font-src"].extend(cdn_domains)
             directives["img-src"].extend(cdn_domains)
 
+        # Add CSP violation reporting endpoint
+        directives["report-uri"] = ["/api/v1/security/reports"]
+
         # Build CSP string
         csp_parts = []
         for directive, sources in directives.items():
@@ -328,6 +336,31 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         if policy_parts:
             response.headers["Permissions-Policy"] = ", ".join(policy_parts)
 
+    def _is_phi_endpoint(self, request: Request) -> bool:
+        """Check if the endpoint handles PHI (Protected Health Information)."""
+        phi_prefixes = (
+            "/api/v1/clinical/",
+            "/api/v1/screening/",
+            "/api/v1/users-secure/",
+            "/api/v1/responses-secure/",
+        )
+        return request.url.path.startswith(phi_prefixes)
+
+    def _add_phi_headers(self, response: Response):
+        """Add HIPAA-specific security headers for PHI endpoints."""
+        # Strict no-cache for PHI data — browser must never store PHI
+        response.headers["Cache-Control"] = (
+            "no-store, no-cache, must-revalidate, private, max-age=0"
+        )
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+
+        # Prevent PHI from being included in Referer headers
+        response.headers["Referrer-Policy"] = "no-referrer"
+
+        # Mark response as containing sensitive data (non-standard, for proxies/WAFs)
+        response.headers["X-Content-Classification"] = "PHI-HIPAA"
+
     def _add_api_cache_headers(self, response: Response):
         """Add cache control headers for API responses"""
         # Prevent caching of API responses by default
@@ -382,7 +415,7 @@ class SecurityReportingMiddleware(BaseHTTPMiddleware):
             # TODO: Store report in database for analysis
             # TODO: Send alert to security team if critical violation
 
-            return JSONResponse(status_code=204, content={"message": "Report received"})
+            return Response(status_code=204)
 
         except Exception as e:
             logger.error(f"Failed to handle security report: {e!s}")
