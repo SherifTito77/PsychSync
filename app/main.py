@@ -50,6 +50,24 @@ from app.core.cors import configure_cors
 # Security imports
 from app.core.ssl_config import ssl_config
 
+# Sentry error monitoring (production)
+_sentry_dsn = os.getenv("SENTRY_DSN")
+if _sentry_dsn:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.fastapi import FastApiIntegration
+        from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
+        sentry_sdk.init(
+            dsn=_sentry_dsn,
+            traces_sample_rate=0.1,
+            profiles_sample_rate=0.1,
+            environment=os.getenv("ENVIRONMENT", "development"),
+            integrations=[FastApiIntegration(), SqlalchemyIntegration()],
+        )
+    except ImportError:
+        pass
+
 # Initialize application security logger
 app_security_logger = logging.getLogger("app.security.main")
 

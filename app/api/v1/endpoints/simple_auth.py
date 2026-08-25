@@ -102,6 +102,7 @@ async def simple_login(
             "sub": user.email,
             "user_id": str(user.id),
             "name": user.full_name,
+            "type": "access",
             "exp": datetime.utcnow() + timedelta(hours=24),
             "iat": datetime.utcnow(),
         }

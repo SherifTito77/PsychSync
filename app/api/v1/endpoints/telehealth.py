@@ -3,22 +3,46 @@ Telehealth API Endpoints
 
 Queries TelehealthSession table for real session data.
 Supports scheduling, joining, and managing telehealth sessions.
+
+HIPAA: All endpoints handle PHI (session notes, consultation reasons).
 """
 
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies.hipaa import audit_phi_access, require_clinical_access
 from app.core.database import get_db
 from app.db.models.user import User
-from app.services.security import get_current_user
 
-router = APIRouter(prefix="/telehealth", tags=["telehealth"])
+
+async def _audit_telehealth(
+    request: Request,
+    current_user: User = Depends(require_clinical_access),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Audit all telehealth PHI access."""
+    action = "write" if request.method in ("POST", "PUT", "PATCH", "DELETE") else "read"
+    await audit_phi_access(
+        db,
+        current_user,
+        "telehealth_sessions",
+        action,
+        details={"endpoint": request.url.path},
+        request=request,
+    )
+
+
+router = APIRouter(
+    prefix="/telehealth",
+    tags=["telehealth"],
+    dependencies=[Depends(_audit_telehealth)],
+)
 
 
 def _get_session_model():
@@ -46,7 +70,7 @@ def _serialize_session(s) -> dict[str, Any]:
 @router.get("/upcoming")
 async def get_upcoming_sessions(
     role: Optional[str] = Query(default="patient"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Get upcoming scheduled telehealth sessions."""
@@ -79,7 +103,7 @@ async def get_upcoming_sessions(
 
 @router.get("/sessions/active")
 async def get_active_sessions(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Get currently active sessions for the user."""
@@ -106,7 +130,7 @@ async def get_active_sessions(
 @router.get("/sessions/{session_id}")
 async def get_session(
     session_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Get a specific session by ID."""
@@ -142,7 +166,7 @@ class ScheduleRequest(BaseModel):
 @router.post("/schedule")
 async def schedule_session(
     body: Optional[ScheduleRequest] = None,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Schedule a new telehealth session."""
@@ -188,7 +212,7 @@ async def schedule_session(
 
 @router.post("/join")
 async def join_session(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Join the next upcoming session."""
@@ -236,7 +260,7 @@ async def join_session(
 @router.post("/end/{session_id}")
 async def end_session(
     session_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """End a telehealth session."""
@@ -267,7 +291,7 @@ async def end_session(
 
 @router.post("/cancel")
 async def cancel_session(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Cancel the next upcoming scheduled session."""

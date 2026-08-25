@@ -11,11 +11,12 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field, validator
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies.hipaa import audit_phi_access, require_clinical_access
 from app.api.v1.deps import get_current_active_user, get_db
 from app.db.models.employee_safety import (
     AlertLevel,
@@ -31,7 +32,29 @@ from app.db.models.user import User
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/safety", tags=["employee-safety"])
+
+async def _audit_safety(
+    request: Request,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Audit all safety/wellness PHI access."""
+    action = "write" if request.method in ("POST", "PUT", "PATCH", "DELETE") else "read"
+    await audit_phi_access(
+        db,
+        current_user,
+        "safety_incidents",
+        action,
+        details={"endpoint": request.url.path},
+        request=request,
+    )
+
+
+router = APIRouter(
+    prefix="/safety",
+    tags=["employee-safety"],
+    dependencies=[Depends(_audit_safety)],
+)
 
 
 # ---------------------------------------------------------------------------

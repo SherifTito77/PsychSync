@@ -33,8 +33,10 @@ class DatabaseConfig:
         default="postgresql+asyncpg://postgres:password@localhost:5432/psychsync",
         env="DATABASE_URL",
     )
-    DATABASE_POOL_SIZE: int = Field(default=40, env="DATABASE_POOL_SIZE")
-    DATABASE_MAX_OVERFLOW: int = Field(default=60, env="DATABASE_MAX_OVERFLOW")
+    # Pool defaults safe for Supabase free tier (60 pooled connections).
+    # With 2 workers: 2 * (10 + 5) = 30 connections max, well under limit.
+    DATABASE_POOL_SIZE: int = Field(default=10, env="DATABASE_POOL_SIZE")
+    DATABASE_MAX_OVERFLOW: int = Field(default=5, env="DATABASE_MAX_OVERFLOW")
     DATABASE_POOL_RECYCLE: int = Field(default=3600, env="DATABASE_POOL_RECYCLE")
     DATABASE_POOL_TIMEOUT: int = Field(default=30, env="DATABASE_POOL_TIMEOUT")
 

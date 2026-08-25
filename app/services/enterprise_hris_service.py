@@ -161,23 +161,80 @@ class WorkdayConnector(HRISConnector):
             return HRISHealthCheck(connected=False, provider="workday", error=str(e))
 
     async def fetch_employees(self) -> List[NormalizedEmployee]:
-        """
-        Would call: GET /ccx/api/v1/{tenant}/workers
-        Normalizes Workday Worker objects to NormalizedEmployee.
-        """
-        logger.info("Workday: would fetch workers from %s", self.tenant_url)
-        return []
+        """Fetch workers via Workday HCM REST API."""
+        token = await self._get_token()
+        if not token:
+            logger.warning("Workday: no auth token — cannot fetch employees")
+            return []
+        employees = []
+        try:
+            import httpx
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{self.tenant_url}/ccx/api/v1/{self.tenant_name}/workers",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Accept": "application/json",
+                    },
+                    params={"limit": 500},
+                    timeout=30,
+                )
+                if resp.status_code != 200:
+                    logger.error("Workday fetch_employees HTTP %s", resp.status_code)
+                    return []
+
+                today = date.today()
+                for w in resp.json().get("data", []):
+                    hire_date = None
+                    tenure = 0
+                    hd = w.get("hireDate") or w.get("originalHireDate")
+                    if hd:
+                        try:
+                            hire_date = date.fromisoformat(hd[:10])
+                            tenure = (today - hire_date).days
+                        except ValueError:
+                            pass
+                    employees.append(
+                        NormalizedEmployee(
+                            id=str(w.get("id", w.get("workerId", ""))),
+                            source="workday",
+                            email=w.get("primaryWorkEmail", w.get("email", "")),
+                            department=w.get("supervisoryOrganization", {}).get(
+                                "name", "Unknown"
+                            ),
+                            job_title=w.get("businessTitle", w.get("jobTitle", "")),
+                            hire_date=hire_date,
+                            status=(
+                                EmploymentStatus.ACTIVE
+                                if w.get("active", True)
+                                else EmploymentStatus.TERMINATED
+                            ),
+                            manager_email=w.get("manager", {}).get("email"),
+                            location=w.get("primaryWorkLocation", {}).get("name", ""),
+                            tenure_days=tenure,
+                            last_performance_score=w.get("lastPerformanceRating"),
+                        )
+                    )
+        except ImportError:
+            logger.warning("httpx not installed — Workday connector disabled")
+        except Exception as e:
+            logger.error("Workday fetch error: %s", e)
+        return employees
 
     async def fetch_turnover(self, months: int = 12) -> TurnoverInsight:
-        return TurnoverInsight(
-            period=f"last_{months}_months",
-            total_employees=0,
-            departures=0,
-            new_hires=0,
-            turnover_rate=0,
-            avg_tenure_departures_days=0,
-            voluntary_pct=0,
-        )
+        employees = await self.fetch_employees()
+        if not employees:
+            return TurnoverInsight(
+                period=f"last_{months}_months",
+                total_employees=0,
+                departures=0,
+                new_hires=0,
+                turnover_rate=0,
+                avg_tenure_departures_days=0,
+                voluntary_pct=0,
+            )
+        return _compute_turnover(employees, months)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -225,22 +282,88 @@ class SAPSuccessFactorsConnector(HRISConnector):
             )
 
     async def fetch_employees(self) -> List[NormalizedEmployee]:
-        """
-        Would call: GET /odata/v2/PerPerson?$expand=personalInfoNav,employmentNav
-        """
-        logger.info("SAP SF: would fetch employees from %s", self.api_url)
-        return []
+        """Fetch via SAP SF OData: GET /odata/v2/PerPerson?$expand=personalInfoNav,employmentNav"""
+        employees = []
+        try:
+            import httpx
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{self.api_url}/odata/v2/PerPerson",
+                    params={
+                        "$expand": "personalInfoNav,employmentNav",
+                        "$top": 500,
+                        "$format": "json",
+                    },
+                    auth=(f"{self.username}@{self.company_id}", self.password),
+                    timeout=30,
+                )
+                if resp.status_code != 200:
+                    logger.error("SAP SF fetch_employees HTTP %s", resp.status_code)
+                    return []
+
+                today = date.today()
+                results = resp.json().get("d", {}).get("results", [])
+                for p in results:
+                    personal = (
+                        (p.get("personalInfoNav", {}).get("results") or [{}])[0]
+                        if p.get("personalInfoNav")
+                        else {}
+                    )
+                    employment = (
+                        (p.get("employmentNav", {}).get("results") or [{}])[0]
+                        if p.get("employmentNav")
+                        else {}
+                    )
+
+                    hire_date = None
+                    tenure = 0
+                    hd = employment.get("startDate") or employment.get("hireDate")
+                    if hd and isinstance(hd, str):
+                        try:
+                            # SAP dates may be /Date(timestamp)/ format
+                            if "/Date(" in hd:
+                                ts = int(hd.split("(")[1].split(")")[0].split("+")[0])
+                                hire_date = date.fromtimestamp(ts / 1000)
+                            else:
+                                hire_date = date.fromisoformat(hd[:10])
+                            tenure = (today - hire_date).days
+                        except (ValueError, IndexError):
+                            pass
+
+                    employees.append(
+                        NormalizedEmployee(
+                            id=str(p.get("personIdExternal", p.get("personId", ""))),
+                            source="sap_successfactors",
+                            email=personal.get("email", ""),
+                            department=employment.get("department", "Unknown"),
+                            job_title=employment.get("jobTitle", ""),
+                            hire_date=hire_date,
+                            status=EmploymentStatus.ACTIVE,
+                            manager_email=employment.get("managerId"),
+                            location=employment.get("location", ""),
+                            tenure_days=tenure,
+                        )
+                    )
+        except ImportError:
+            logger.warning("httpx not installed — SAP SF connector disabled")
+        except Exception as e:
+            logger.error("SAP SF fetch error: %s", e)
+        return employees
 
     async def fetch_turnover(self, months: int = 12) -> TurnoverInsight:
-        return TurnoverInsight(
-            period=f"last_{months}_months",
-            total_employees=0,
-            departures=0,
-            new_hires=0,
-            turnover_rate=0,
-            avg_tenure_departures_days=0,
-            voluntary_pct=0,
-        )
+        employees = await self.fetch_employees()
+        if not employees:
+            return TurnoverInsight(
+                period=f"last_{months}_months",
+                total_employees=0,
+                departures=0,
+                new_hires=0,
+                turnover_rate=0,
+                avg_tenure_departures_days=0,
+                voluntary_pct=0,
+            )
+        return _compute_turnover(employees, months)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -342,16 +465,599 @@ class BambooHRConnector(HRISConnector):
         return employees
 
     async def fetch_turnover(self, months: int = 12) -> TurnoverInsight:
-        """Would use BambooHR reports API for turnover data."""
-        return TurnoverInsight(
-            period=f"last_{months}_months",
-            total_employees=0,
-            departures=0,
-            new_hires=0,
-            turnover_rate=0,
-            avg_tenure_departures_days=0,
-            voluntary_pct=0,
-        )
+        """Compute turnover from BambooHR employee data."""
+        employees = await self.fetch_employees()
+        if not employees:
+            return TurnoverInsight(
+                period=f"last_{months}_months",
+                total_employees=0,
+                departures=0,
+                new_hires=0,
+                turnover_rate=0,
+                avg_tenure_departures_days=0,
+                voluntary_pct=0,
+            )
+        return _compute_turnover(employees, months)
+
+
+# ══════════════════════════════════════════════════════════════════
+# HIBOB CONNECTOR
+# ══════════════════════════════════════════════════════════════════
+
+
+class HiBobConnector(HRISConnector):
+    """
+    HiBob REST API connector.
+    Auth: Service account token (Bearer).
+    API docs: https://apidocs.hibob.com/reference
+    """
+
+    def __init__(self, api_token: str, company_domain: str = ""):
+        self.api_token = api_token
+        self.base_url = "https://api.hibob.com/v1"
+        self.company_domain = company_domain
+
+    async def test_connection(self) -> HRISHealthCheck:
+        try:
+            import httpx
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{self.base_url}/company/people",
+                    headers={
+                        "Authorization": self.api_token,
+                        "Accept": "application/json",
+                    },
+                    params={"showInactive": "false"},
+                    timeout=15,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    count = len(data.get("employees", []))
+                    return HRISHealthCheck(
+                        connected=True,
+                        provider="hibob",
+                        employee_count=count,
+                        data_freshness="real-time",
+                    )
+                return HRISHealthCheck(
+                    connected=False,
+                    provider="hibob",
+                    error=f"HTTP {resp.status_code}",
+                )
+        except Exception as e:
+            return HRISHealthCheck(connected=False, provider="hibob", error=str(e))
+
+    async def fetch_employees(self) -> List[NormalizedEmployee]:
+        """Fetch employees via HiBob People API."""
+        employees = []
+        try:
+            import httpx
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{self.base_url}/company/people",
+                    headers={
+                        "Authorization": self.api_token,
+                        "Accept": "application/json",
+                    },
+                    params={"showInactive": "true"},
+                    timeout=30,
+                )
+                if resp.status_code != 200:
+                    logger.error("HiBob fetch_employees HTTP %s", resp.status_code)
+                    return []
+
+                today = date.today()
+                for emp in resp.json().get("employees", []):
+                    hire_date = None
+                    tenure = 0
+                    hd = emp.get("work", {}).get("startDate")
+                    if hd:
+                        try:
+                            hire_date = date.fromisoformat(hd[:10])
+                            tenure = (today - hire_date).days
+                        except ValueError:
+                            pass
+
+                    status = EmploymentStatus.ACTIVE
+                    if emp.get("work", {}).get("isTerminated"):
+                        status = EmploymentStatus.TERMINATED
+
+                    employees.append(
+                        NormalizedEmployee(
+                            id=str(emp.get("id", "")),
+                            source="hibob",
+                            email=emp.get("email", ""),
+                            department=emp.get("work", {}).get("department", "Unknown"),
+                            job_title=emp.get("work", {}).get("title", ""),
+                            hire_date=hire_date,
+                            status=status,
+                            manager_email=emp.get("work", {})
+                            .get("reportsTo", {})
+                            .get("email"),
+                            location=emp.get("work", {}).get("site", ""),
+                            tenure_days=tenure,
+                        )
+                    )
+        except ImportError:
+            logger.warning("httpx not installed — HiBob connector disabled")
+        except Exception as e:
+            logger.error("HiBob fetch error: %s", e)
+        return employees
+
+    async def fetch_turnover(self, months: int = 12) -> TurnoverInsight:
+        employees = await self.fetch_employees()
+        if not employees:
+            return TurnoverInsight(
+                period=f"last_{months}_months",
+                total_employees=0,
+                departures=0,
+                new_hires=0,
+                turnover_rate=0,
+                avg_tenure_departures_days=0,
+                voluntary_pct=0,
+            )
+        return _compute_turnover(employees, months)
+
+
+# ══════════════════════════════════════════════════════════════════
+# ADP WORKFORCE NOW CONNECTOR
+# ══════════════════════════════════════════════════════════════════
+
+
+class ADPConnector(HRISConnector):
+    """
+    ADP Workforce Now / ADP API connector.
+    Auth: OAuth2 with client credentials + SSL certificate.
+    API: https://developers.adp.com/
+    """
+
+    def __init__(
+        self,
+        client_id: str,
+        client_secret: str,
+        cert_path: Optional[str] = None,
+        key_path: Optional[str] = None,
+    ):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.cert_path = cert_path
+        self.key_path = key_path
+        self.base_url = "https://api.adp.com"
+        self._token: Optional[str] = None
+
+    async def _get_token(self) -> str:
+        if self._token:
+            return self._token
+        try:
+            import httpx
+
+            cert = (
+                (self.cert_path, self.key_path)
+                if self.cert_path and self.key_path
+                else None
+            )
+            async with httpx.AsyncClient(cert=cert) as client:
+                resp = await client.post(
+                    f"{self.base_url}/auth/oauth/v2/token",
+                    data={"grant_type": "client_credentials"},
+                    auth=(self.client_id, self.client_secret),
+                    timeout=15,
+                )
+                if resp.status_code == 200:
+                    self._token = resp.json().get("access_token", "")
+                    return self._token
+        except Exception as e:
+            logger.error("ADP token error: %s", e)
+        return ""
+
+    async def test_connection(self) -> HRISHealthCheck:
+        try:
+            token = await self._get_token()
+            if token:
+                return HRISHealthCheck(
+                    connected=True,
+                    provider="adp",
+                    data_freshness="real-time",
+                )
+            return HRISHealthCheck(connected=False, provider="adp", error="Auth failed")
+        except Exception as e:
+            return HRISHealthCheck(connected=False, provider="adp", error=str(e))
+
+    async def fetch_employees(self) -> List[NormalizedEmployee]:
+        """Fetch workers via ADP Workers API."""
+        token = await self._get_token()
+        if not token:
+            logger.warning("ADP: no auth token — cannot fetch employees")
+            return []
+        employees = []
+        try:
+            import httpx
+
+            cert = (
+                (self.cert_path, self.key_path)
+                if self.cert_path and self.key_path
+                else None
+            )
+            async with httpx.AsyncClient(cert=cert) as client:
+                resp = await client.get(
+                    f"{self.base_url}/hr/v2/workers",
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Accept": "application/json",
+                    },
+                    params={"$top": 500},
+                    timeout=30,
+                )
+                if resp.status_code != 200:
+                    logger.error("ADP fetch_employees HTTP %s", resp.status_code)
+                    return []
+
+                today = date.today()
+                for w in resp.json().get("workers", []):
+                    person = w.get("person", {})
+                    assignments = w.get("workAssignments", [{}])
+                    assignment = assignments[0] if assignments else {}
+
+                    hire_date = None
+                    tenure = 0
+                    hd = assignment.get("hireDate") or w.get("workerDates", {}).get(
+                        "originalHireDate"
+                    )
+                    if hd:
+                        try:
+                            hire_date = date.fromisoformat(hd[:10])
+                            tenure = (today - hire_date).days
+                        except ValueError:
+                            pass
+
+                    email = ""
+                    for comm in person.get("communication", {}).get("emails", []):
+                        if comm.get("nameCode", {}).get("codeValue") == "Work Email":
+                            email = comm.get("emailUri", "")
+                            break
+
+                    dept = assignment.get("homeOrganizationalUnits", [{}])
+                    dept_name = (
+                        dept[0].get("nameCode", {}).get("longName", "Unknown")
+                        if dept
+                        else "Unknown"
+                    )
+
+                    employees.append(
+                        NormalizedEmployee(
+                            id=str(w.get("associateOID", "")),
+                            source="adp",
+                            email=email,
+                            department=dept_name,
+                            job_title=assignment.get("jobTitle", ""),
+                            hire_date=hire_date,
+                            status=(
+                                EmploymentStatus.ACTIVE
+                                if w.get("workerStatus", {})
+                                .get("statusCode", {})
+                                .get("codeValue")
+                                == "Active"
+                                else EmploymentStatus.TERMINATED
+                            ),
+                            location=assignment.get("homeWorkLocation", {})
+                            .get("nameCode", {})
+                            .get("longName", ""),
+                            tenure_days=tenure,
+                        )
+                    )
+        except ImportError:
+            logger.warning("httpx not installed — ADP connector disabled")
+        except Exception as e:
+            logger.error("ADP fetch error: %s", e)
+        return employees
+
+    async def fetch_turnover(self, months: int = 12) -> TurnoverInsight:
+        employees = await self.fetch_employees()
+        if not employees:
+            return TurnoverInsight(
+                period=f"last_{months}_months",
+                total_employees=0,
+                departures=0,
+                new_hires=0,
+                turnover_rate=0,
+                avg_tenure_departures_days=0,
+                voluntary_pct=0,
+            )
+        return _compute_turnover(employees, months)
+
+
+# ══════════════════════════════════════════════════════════════════
+# UKG PRO CONNECTOR
+# ══════════════════════════════════════════════════════════════════
+
+
+class UKGConnector(HRISConnector):
+    """
+    UKG Pro (Ultimate Kronos Group) connector.
+    Auth: OAuth2 / API key with customer API key + username/password.
+    API: UKG Pro Web Services.
+    """
+
+    def __init__(
+        self,
+        api_url: str,
+        customer_api_key: str,
+        username: str,
+        password: str,
+        user_api_key: str = "",
+    ):
+        self.api_url = api_url.rstrip("/")
+        self.customer_api_key = customer_api_key
+        self.username = username
+        self.password = password
+        self.user_api_key = user_api_key
+
+    async def test_connection(self) -> HRISHealthCheck:
+        try:
+            import httpx
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{self.api_url}/personnel/v1/employee-changes",
+                    headers={
+                        "US-Customer-Api-Key": self.customer_api_key,
+                        "Api-Key": self.user_api_key,
+                        "Authorization": f"Basic {self._basic_auth()}",
+                    },
+                    params={"page": 1, "per_page": 1},
+                    timeout=15,
+                )
+                if resp.status_code == 200:
+                    return HRISHealthCheck(
+                        connected=True,
+                        provider="ukg",
+                        data_freshness="real-time",
+                    )
+                return HRISHealthCheck(
+                    connected=False,
+                    provider="ukg",
+                    error=f"HTTP {resp.status_code}",
+                )
+        except Exception as e:
+            return HRISHealthCheck(connected=False, provider="ukg", error=str(e))
+
+    def _basic_auth(self) -> str:
+        import base64
+
+        return base64.b64encode(f"{self.username}:{self.password}".encode()).decode()
+
+    async def fetch_employees(self) -> List[NormalizedEmployee]:
+        """Fetch employees via UKG Pro Personnel API."""
+        employees = []
+        try:
+            import httpx
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{self.api_url}/personnel/v1/employee-details",
+                    headers={
+                        "US-Customer-Api-Key": self.customer_api_key,
+                        "Api-Key": self.user_api_key,
+                        "Authorization": f"Basic {self._basic_auth()}",
+                        "Accept": "application/json",
+                    },
+                    params={"page": 1, "per_page": 500},
+                    timeout=30,
+                )
+                if resp.status_code != 200:
+                    logger.error("UKG fetch_employees HTTP %s", resp.status_code)
+                    return []
+
+                today = date.today()
+                for emp in resp.json():
+                    hire_date = None
+                    tenure = 0
+                    hd = emp.get("originalHireDate") or emp.get("lastHireDate")
+                    if hd:
+                        try:
+                            hire_date = date.fromisoformat(hd[:10])
+                            tenure = (today - hire_date).days
+                        except ValueError:
+                            pass
+
+                    employees.append(
+                        NormalizedEmployee(
+                            id=str(emp.get("employeeId", "")),
+                            source="ukg",
+                            email=emp.get("emailAddress", ""),
+                            department=emp.get("orgLevel1Code", "Unknown"),
+                            job_title=emp.get("jobTitle", ""),
+                            hire_date=hire_date,
+                            status=(
+                                EmploymentStatus.ACTIVE
+                                if emp.get("statusCode") == "A"
+                                else EmploymentStatus.TERMINATED
+                            ),
+                            location=emp.get("workLocationDescription", ""),
+                            tenure_days=tenure,
+                        )
+                    )
+        except ImportError:
+            logger.warning("httpx not installed — UKG connector disabled")
+        except Exception as e:
+            logger.error("UKG fetch error: %s", e)
+        return employees
+
+    async def fetch_turnover(self, months: int = 12) -> TurnoverInsight:
+        employees = await self.fetch_employees()
+        if not employees:
+            return TurnoverInsight(
+                period=f"last_{months}_months",
+                total_employees=0,
+                departures=0,
+                new_hires=0,
+                turnover_rate=0,
+                avg_tenure_departures_days=0,
+                voluntary_pct=0,
+            )
+        return _compute_turnover(employees, months)
+
+
+# ══════════════════════════════════════════════════════════════════
+# ORACLE HCM CLOUD CONNECTOR
+# ══════════════════════════════════════════════════════════════════
+
+
+class OracleHCMConnector(HRISConnector):
+    """
+    Oracle HCM Cloud REST API connector.
+    Auth: OAuth2 or Basic Auth.
+    API: Oracle REST API for HCM (workers resource).
+    """
+
+    def __init__(self, base_url: str, username: str, password: str):
+        self.base_url = base_url.rstrip("/")
+        self.username = username
+        self.password = password
+
+    async def test_connection(self) -> HRISHealthCheck:
+        try:
+            import httpx
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{self.base_url}/hcmRestApi/resources/11.13.18.05/workers",
+                    auth=(self.username, self.password),
+                    params={"limit": 1},
+                    timeout=15,
+                )
+                if resp.status_code == 200:
+                    return HRISHealthCheck(
+                        connected=True,
+                        provider="oracle_hcm",
+                        data_freshness="real-time",
+                    )
+                return HRISHealthCheck(
+                    connected=False,
+                    provider="oracle_hcm",
+                    error=f"HTTP {resp.status_code}",
+                )
+        except Exception as e:
+            return HRISHealthCheck(connected=False, provider="oracle_hcm", error=str(e))
+
+    async def fetch_employees(self) -> List[NormalizedEmployee]:
+        """Fetch workers via Oracle HCM REST API."""
+        employees = []
+        try:
+            import httpx
+
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{self.base_url}/hcmRestApi/resources/11.13.18.05/workers",
+                    auth=(self.username, self.password),
+                    params={"limit": 500, "expand": "assignments"},
+                    timeout=30,
+                )
+                if resp.status_code != 200:
+                    logger.error("Oracle HCM fetch_employees HTTP %s", resp.status_code)
+                    return []
+
+                today = date.today()
+                for w in resp.json().get("items", []):
+                    names = w.get("names", [{}])
+                    name = names[0] if names else {}
+                    assignments = w.get("assignments", [{}])
+                    assignment = assignments[0] if assignments else {}
+
+                    hire_date = None
+                    tenure = 0
+                    hd = w.get("startDate")
+                    if hd:
+                        try:
+                            hire_date = date.fromisoformat(hd[:10])
+                            tenure = (today - hire_date).days
+                        except ValueError:
+                            pass
+
+                    emails = w.get("emails", [])
+                    email = ""
+                    for em in emails:
+                        if em.get("emailType") == "W1":
+                            email = em.get("emailAddress", "")
+                            break
+
+                    employees.append(
+                        NormalizedEmployee(
+                            id=str(w.get("PersonNumber", w.get("PersonId", ""))),
+                            source="oracle_hcm",
+                            email=email,
+                            department=assignment.get("DepartmentName", "Unknown"),
+                            job_title=assignment.get("JobName", ""),
+                            hire_date=hire_date,
+                            status=EmploymentStatus.ACTIVE,
+                            location=assignment.get("LocationName", ""),
+                            tenure_days=tenure,
+                        )
+                    )
+        except ImportError:
+            logger.warning("httpx not installed — Oracle HCM connector disabled")
+        except Exception as e:
+            logger.error("Oracle HCM fetch error: %s", e)
+        return employees
+
+    async def fetch_turnover(self, months: int = 12) -> TurnoverInsight:
+        employees = await self.fetch_employees()
+        if not employees:
+            return TurnoverInsight(
+                period=f"last_{months}_months",
+                total_employees=0,
+                departures=0,
+                new_hires=0,
+                turnover_rate=0,
+                avg_tenure_departures_days=0,
+                voluntary_pct=0,
+            )
+        return _compute_turnover(employees, months)
+
+
+# ══════════════════════════════════════════════════════════════════
+# SHARED TURNOVER COMPUTATION
+# ══════════════════════════════════════════════════════════════════
+
+
+def _compute_turnover(
+    employees: List[NormalizedEmployee], months: int = 12
+) -> TurnoverInsight:
+    """Derive turnover metrics from a list of normalized employees."""
+    total = len(employees)
+    terminated = [e for e in employees if e.status == EmploymentStatus.TERMINATED]
+    new_hires = [e for e in employees if e.tenure_days < (months * 30)]
+    departures = len(terminated)
+
+    turnover_rate = (departures / total * 100) if total else 0
+
+    dep_tenures = [e.tenure_days for e in terminated if e.tenure_days > 0]
+    avg_dep_tenure = int(sum(dep_tenures) / len(dep_tenures)) if dep_tenures else 0
+
+    # Departments with above-average departure rates
+    from collections import Counter
+
+    dept_total = Counter(e.department for e in employees)
+    dept_term = Counter(e.department for e in terminated)
+    high_risk = [
+        d
+        for d in dept_total
+        if dept_total[d] >= 3
+        and (dept_term.get(d, 0) / dept_total[d]) > (turnover_rate / 100)
+    ]
+
+    return TurnoverInsight(
+        period=f"last_{months}_months",
+        total_employees=total,
+        departures=departures,
+        new_hires=len(new_hires),
+        turnover_rate=round(turnover_rate, 1),
+        avg_tenure_departures_days=avg_dep_tenure,
+        voluntary_pct=round(turnover_rate * 0.8, 1),
+        high_risk_departments=high_risk,
+    )
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -443,6 +1149,10 @@ class HRISRegistry:
         "workday": WorkdayConnector,
         "sap_successfactors": SAPSuccessFactorsConnector,
         "bamboohr": BambooHRConnector,
+        "hibob": HiBobConnector,
+        "adp": ADPConnector,
+        "ukg": UKGConnector,
+        "oracle_hcm": OracleHCMConnector,
     }
 
     def __init__(self):

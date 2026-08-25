@@ -86,6 +86,30 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
         path: '/analytics/population-health',
         icon: '🏥',
         description: 'Population-wide health metrics, epidemiological data'
+      },
+      {
+        name: 'Executive Intelligence',
+        path: '/executive-intelligence',
+        icon: '🧠',
+        description: 'BI + ONA + HRIS integration into team narratives & trend alerts'
+      },
+      {
+        name: 'Organizational Pulse',
+        path: '/organizational-pulse',
+        icon: '💓',
+        description: 'Predictive intelligence — 7 key questions answered before you ask them'
+      },
+      {
+        name: 'Org Digital Twin',
+        path: '/org-digital-twin',
+        icon: '🏗',
+        description: 'Living organizational model with 7 dimensions & what-if simulation'
+      },
+      {
+        name: 'OKR Dashboard',
+        path: '/okr',
+        icon: '🎯',
+        description: 'Objectives & Key Results tracking with health indicators'
       }
     ]
   };
@@ -97,6 +121,8 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
     icon: '⚡',
     requiredRoles: ['hr', 'admin', 'super_admin', 'manager'], // HR/Manager only
     items: [
+      { name: 'Organizational Pulse', path: '/organizational-pulse', icon: '💓', description: 'Predictive intelligence — 7 key questions answered before you ask them' },
+      { name: 'Manager Intelligence', path: '/manager-intelligence', icon: '👔', description: 'Your team pulse, member risks, action items & coaching prompts' },
       { name: 'Behavioral Intelligence', path: '/behavioral-intelligence', icon: '🧠', description: 'Team Health, Collaboration, Psych Safety, Friction & Change Readiness scores' },
       { name: 'Org Network Analysis', path: '/organizational-network', icon: '🕸', description: 'Hidden influencers, isolated employees, cross-team bridges & manager dependency' },
       { name: 'Radar Dashboard', path: '/radar', icon: '📡', description: '360° organizational health monitoring system' },
@@ -528,6 +554,46 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
     ]
   };
 
+  // Network & Collaboration Section - Dedicated ONA
+  const networkSection: MenuSection = {
+    name: 'Network & Collaboration',
+    path: '/organizational-network',
+    icon: '🕸',
+    requiredRoles: ['hr', 'admin', 'super_admin', 'manager'],
+    items: [
+      {
+        name: 'Network Dashboard',
+        path: '/organizational-network',
+        icon: '🕸',
+        description: 'Influencers, bridges, isolated employees & network health'
+      },
+      {
+        name: 'Collaboration Survey',
+        path: '/collaboration-survey',
+        icon: '📋',
+        description: 'Advice, trust & energy network mapping via self-report'
+      },
+      {
+        name: 'Community Map',
+        path: '/community-map',
+        icon: '🏘',
+        description: 'Detected communities, clusters & silo analysis'
+      },
+      {
+        name: 'Network Evolution',
+        path: '/network-evolution',
+        icon: '📈',
+        description: 'Temporal trends in connectivity, density & communities'
+      },
+      {
+        name: 'Personality Overlay',
+        path: '/personality-network',
+        icon: '🧠',
+        description: 'Big Five traits overlaid on network positions'
+      }
+    ]
+  };
+
   // Teams Analytics Section - Collapsible
   const featuresSection: MenuSection = {
     name: 'Teams Analytics',
@@ -553,6 +619,12 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
         description: 'Personality-based team analytics and insights'
       },
       {
+        name: 'Peer Recognition',
+        path: '/recognition',
+        icon: '🏆',
+        description: 'Give & view peer-to-peer recognitions, org-wide recognition stats'
+      },
+      {
         name: 'Multi-Framework Synthesis',
         path: '/multi-framework-synthesis',
         icon: '🧩',
@@ -569,6 +641,39 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
         path: '/analytics/dashboard',
         icon: '📈',
         description: 'Overall analytics dashboard'
+      }
+    ]
+  };
+
+  // Biometric Integrations Section
+  const biometricSection: MenuSection = {
+    name: 'Biometric Integrations',
+    path: '/biometric',
+    icon: '⌚',
+    items: [
+      {
+        name: 'Device Connections',
+        path: '/biometric/integrations',
+        icon: '📱',
+        description: 'Connect Apple Health, Fitbit, Garmin, Oura, WHOOP & Google Fit'
+      },
+      {
+        name: 'Live Metrics',
+        path: '/biometric/metrics',
+        icon: '❤️',
+        description: 'Real-time heart rate, HRV, sleep quality & stress levels'
+      },
+      {
+        name: 'Sleep & Recovery',
+        path: '/biometric/sleep',
+        icon: '🌙',
+        description: 'Sleep stages, recovery scores & readiness trends'
+      },
+      {
+        name: 'Stress Biometrics',
+        path: '/biometric/stress',
+        icon: '⚡',
+        description: 'Physiological stress signals, body battery & strain tracking'
       }
     ]
   };
@@ -632,6 +737,14 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
   );
 
   const isEarlyWarningActive = earlyWarningSection.items?.some(item =>
+    location.pathname.startsWith(item.path)
+  );
+
+  const isBiometricActive = biometricSection.items?.some(item =>
+    location.pathname.startsWith(item.path)
+  );
+
+  const isNetworkActive = networkSection.items?.some(item =>
     location.pathname.startsWith(item.path)
   );
 
@@ -1257,6 +1370,136 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
           )}
         </div>
         </>
+        )}
+
+        {/* Biometric Integrations Section - Collapsible */}
+        <div className="mb-8">
+          <button
+            onClick={() => toggleSection('biometric-section')}
+            className={`
+              w-full flex items-center px-4 py-3 text-emerald-400 hover:bg-emerald-900/20 hover:text-emerald-300 transition-colors cursor-pointer text-left rounded-lg
+              ${isBiometricActive ? 'bg-emerald-900/30 text-emerald-300 border-r-2 border-emerald-400' : ''}
+            `}
+          >
+            <span className="text-2xl">{biometricSection.icon}</span>
+            {isOpen && (
+              <>
+                <span className="ml-3 flex-1 text-left font-semibold">{biometricSection.name}</span>
+                <span
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSection('biometric-section');
+                  }}
+                  className="p-1 hover:bg-emerald-900/40 rounded cursor-pointer"
+                  role="button"
+                  aria-label="Toggle biometric integrations section"
+                  tabIndex={0}
+                >
+                  <svg
+                    className={`w-4 h-4 transition-transform ${
+                      expandedSections.includes('biometric-section') ? 'rotate-180' : ''
+                    }`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </span>
+              </>
+            )}
+          </button>
+
+          {isOpen && expandedSections.includes('biometric-section') && (
+            <div className="mt-2 bg-emerald-900/10 border-l-2 border-emerald-500 rounded-lg overflow-hidden">
+              {biometricSection.items?.map((item, index) => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) => `
+                    flex items-center px-4 py-3 pl-8 text-sm text-gray-300 hover:bg-emerald-900/20 hover:text-white transition-colors
+                    ${isActive ? 'bg-emerald-900/30 text-emerald-200 border-l-4 border-emerald-400' : ''}
+                    ${index !== biometricSection.items!.length - 1 ? 'border-b border-emerald-500/10' : ''}
+                  `}
+                  title={item.description}
+                >
+                  <span className="text-xl mr-3">{item.icon}</span>
+                  <div className="flex-1">
+                    <div className="font-medium">{item.name}</div>
+                    {item.description && isOpen && (
+                      <div className="text-xs text-gray-400 mt-0.5">{item.description}</div>
+                    )}
+                  </div>
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Network & Collaboration Section */}
+        {isSectionVisible(networkSection) && (
+          <div className="mb-8">
+            <button
+              onClick={() => toggleSection('network-section')}
+              className={`
+                w-full flex items-center px-4 py-3 text-teal-400 hover:bg-teal-900/20 hover:text-teal-300 transition-colors cursor-pointer text-left rounded-lg
+                ${isNetworkActive ? 'bg-teal-900/30 text-teal-300 border-r-2 border-teal-400' : ''}
+              `}
+            >
+              <span className="text-2xl">{networkSection.icon}</span>
+              {isOpen && (
+                <>
+                  <span className="ml-3 flex-1 text-left font-semibold">{networkSection.name}</span>
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSection('network-section');
+                    }}
+                    className="p-1 hover:bg-teal-900/40 rounded cursor-pointer"
+                    role="button"
+                    aria-label="Toggle network section"
+                    tabIndex={0}
+                  >
+                    <svg
+                      className={`w-4 h-4 transition-transform ${
+                        expandedSections.includes('network-section') ? 'rotate-180' : ''
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </span>
+                </>
+              )}
+            </button>
+
+            {isOpen && expandedSections.includes('network-section') && (
+              <div className="mt-2 bg-teal-900/10 border-l-2 border-teal-500 rounded-lg overflow-hidden">
+                {networkSection.items?.map((item, index) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) => `
+                      flex items-center px-4 py-3 pl-8 text-sm text-gray-300 hover:bg-teal-900/20 hover:text-white transition-colors
+                      ${isActive ? 'bg-teal-900/30 text-teal-200 border-l-4 border-teal-400' : ''}
+                      ${index !== networkSection.items!.length - 1 ? 'border-b border-teal-500/10' : ''}
+                    `}
+                    title={item.description}
+                  >
+                    <span className="text-xl mr-3">{item.icon}</span>
+                    <div className="flex-1">
+                      <div className="font-medium">{item.name}</div>
+                      {item.description && isOpen && (
+                        <div className="text-xs text-gray-400 mt-0.5">{item.description}</div>
+                      )}
+                    </div>
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Analytics & AI Section - Collapsible */}

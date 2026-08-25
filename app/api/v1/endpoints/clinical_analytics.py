@@ -3,20 +3,22 @@ Clinical Analytics API Endpoints
 
 Queries ClinicalScreening, ClinicalAlert, and ClinicalReferral tables
 for real clinical analytics data.
+
+HIPAA: All endpoints access aggregate PHI and require clinical staff role.
 """
 
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies.hipaa import audit_phi_access, require_clinical_staff
 from app.core.database import get_db
 from app.db.models.clinical_screening import ClinicalAlert, ClinicalScreening
 from app.db.models.team import Team, TeamMember
 from app.db.models.user import User
-from app.services.security import get_current_user
 
 router = APIRouter(prefix="/analytics/clinical", tags=["clinical-analytics"])
 
@@ -33,11 +35,20 @@ async def _user_org_ids(db: AsyncSession, user_id) -> list[str]:
 
 @router.get("/population")
 async def get_population_analytics(
+    request: Request,
     period: Optional[str] = Query(default="30d"),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_staff),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Population-level clinical analytics from screening data."""
+    await audit_phi_access(
+        db,
+        current_user,
+        "clinical_screenings",
+        "read",
+        details={"endpoint": "population", "period": period},
+        request=request,
+    )
     org_ids = await _user_org_ids(db, current_user.id)
     days = int(period.rstrip("d")) if period and period.endswith("d") else 30
     since = datetime.utcnow() - timedelta(days=days)
@@ -169,12 +180,21 @@ async def get_population_analytics(
 
 @router.get("/completion-stats")
 async def get_completion_statistics(
+    request: Request,
     start_date: Optional[str] = Query(default=None),
     end_date: Optional[str] = Query(default=None),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_staff),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Completion rates by screening tool."""
+    await audit_phi_access(
+        db,
+        current_user,
+        "clinical_screenings",
+        "read",
+        details={"endpoint": "completion-stats"},
+        request=request,
+    )
     filters = []
     if start_date:
         filters.append(ClinicalScreening.created_at >= start_date)
@@ -263,10 +283,19 @@ async def get_completion_statistics(
 
 @router.get("/severity-distribution")
 async def get_severity_distribution(
-    current_user: User = Depends(get_current_user),
+    request: Request,
+    current_user: User = Depends(require_clinical_staff),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Severity distribution across all screenings."""
+    await audit_phi_access(
+        db,
+        current_user,
+        "clinical_screenings",
+        "read",
+        details={"endpoint": "severity-distribution"},
+        request=request,
+    )
     result = await db.execute(
         select(ClinicalScreening.severity_level, func.count(ClinicalScreening.id))
         .where(ClinicalScreening.severity_level.isnot(None))
@@ -288,10 +317,19 @@ async def get_severity_distribution(
 
 @router.get("/crisis-metrics")
 async def get_crisis_metrics(
-    current_user: User = Depends(get_current_user),
+    request: Request,
+    current_user: User = Depends(require_clinical_staff),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Crisis alert metrics."""
+    await audit_phi_access(
+        db,
+        current_user,
+        "clinical_alerts",
+        "read",
+        details={"endpoint": "crisis-metrics"},
+        request=request,
+    )
     since = datetime.utcnow() - timedelta(days=30)
 
     active = (
@@ -334,10 +372,19 @@ async def get_crisis_metrics(
 
 @router.get("/population-health")
 async def get_population_health(
-    current_user: User = Depends(get_current_user),
+    request: Request,
+    current_user: User = Depends(require_clinical_staff),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Population health summary."""
+    await audit_phi_access(
+        db,
+        current_user,
+        "clinical_screenings",
+        "read",
+        details={"endpoint": "population-health"},
+        request=request,
+    )
     since = datetime.utcnow() - timedelta(days=30)
 
     total_patients = (
@@ -370,10 +417,19 @@ async def get_population_health(
 
 @router.get("/clinician-workload")
 async def get_clinician_workload(
-    current_user: User = Depends(get_current_user),
+    request: Request,
+    current_user: User = Depends(require_clinical_staff),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Clinician workload based on validated screenings."""
+    await audit_phi_access(
+        db,
+        current_user,
+        "clinical_screenings",
+        "read",
+        details={"endpoint": "clinician-workload"},
+        request=request,
+    )
     # Clinicians = users who have validated screenings
     result = await db.execute(
         select(

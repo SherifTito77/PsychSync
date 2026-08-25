@@ -30,6 +30,7 @@ interface TeamResult {
     psychological_safety: number;
     change_readiness: number;
     friction_index: number;
+    burnout_risk: number;
   };
   top_risk: string;
 }
@@ -54,6 +55,7 @@ interface TeamAllScores {
     psychological_safety: Score;
     change_readiness: Score;
     friction_index: Score;
+    burnout_risk: Score;
   };
 }
 
@@ -64,6 +66,7 @@ const SCORE_CONFIGS = [
   { key: 'psychological_safety', label: 'Psych Safety', color: 'amber', icon: '🛡', higherBetter: true },
   { key: 'change_readiness', label: 'Change Readiness', color: 'cyan', icon: '🔄', higherBetter: true },
   { key: 'friction_index', label: 'Friction Index', color: 'red', icon: '⚡', higherBetter: false },
+  { key: 'burnout_risk', label: 'Burnout Risk', color: 'orange', icon: '🔥', higherBetter: false },
 ] as const;
 
 function scoreColor(score: number, higherBetter: boolean): string {
@@ -259,7 +262,7 @@ export default function BehavioralIntelligenceDashboard() {
           {activeTab === 'overview' && (
             <div className="space-y-6">
               {/* Score Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                 {SCORE_CONFIGS.map((cfg) => {
                   const val = orgDashboard?.scores?.[cfg.key] ?? 0;
                   return (

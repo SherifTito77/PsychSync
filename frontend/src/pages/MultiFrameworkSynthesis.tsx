@@ -255,7 +255,6 @@ const MultiFrameworkSynthesis: React.FC = () => {
       };
 
       setSynthesisResult(mockSynthesis);
-    }
   };
 
   const getImpactColor = (impact: string) => {

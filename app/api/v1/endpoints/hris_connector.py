@@ -17,19 +17,25 @@ from app.api.v1.deps import get_current_user, get_db
 from app.db.models.team import Team, TeamMember
 from app.db.models.user import User
 from app.services.enterprise_hris_service import (
+    ADPConnector,
     BambooHRConnector,
+    HiBobConnector,
     HRISBehavioralAnalyzer,
     HRISRegistry,
+    OracleHCMConnector,
     SAPSuccessFactorsConnector,
+    UKGConnector,
     WorkdayConnector,
     hris_registry,
 )
+from app.services.hris_analytics_service import HRISAnalyticsService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/hris_analytics", tags=["HRIS Analytics"])
 
 _analyzer = HRISBehavioralAnalyzer()
+_analytics = HRISAnalyticsService()
 
 
 # ---------------------------------------------------------------------------
@@ -51,6 +57,10 @@ async def get_available_providers(
                     "workday": "Intermediate",
                     "sap_successfactors": "Advanced",
                     "bamboohr": "Easy",
+                    "hibob": "Easy",
+                    "adp": "Advanced",
+                    "ukg": "Intermediate",
+                    "oracle_hcm": "Intermediate",
                 }.get(name, "Intermediate"),
             }
             for name, cls in HRISRegistry.CONNECTOR_TYPES.items()
@@ -125,6 +135,32 @@ async def setup_hris_connection(
         connector = BambooHRConnector(
             subdomain=body.get("subdomain", ""),
             api_key=body.get("api_key", ""),
+        )
+    elif provider == "hibob":
+        connector = HiBobConnector(
+            api_token=body.get("api_token", ""),
+            company_domain=body.get("company_domain", ""),
+        )
+    elif provider == "adp":
+        connector = ADPConnector(
+            client_id=body.get("client_id", ""),
+            client_secret=body.get("client_secret", ""),
+            cert_path=body.get("cert_path"),
+            key_path=body.get("key_path"),
+        )
+    elif provider == "ukg":
+        connector = UKGConnector(
+            api_url=body.get("api_url", ""),
+            customer_api_key=body.get("customer_api_key", ""),
+            username=body.get("username", ""),
+            password=body.get("password", ""),
+            user_api_key=body.get("user_api_key", ""),
+        )
+    elif provider == "oracle_hcm":
+        connector = OracleHCMConnector(
+            base_url=body.get("base_url", ""),
+            username=body.get("username", ""),
+            password=body.get("password", ""),
         )
     else:
         raise HTTPException(
@@ -308,6 +344,32 @@ async def get_analytics_dashboard(
         else {"status": "no_hris_data", "signals": []}
     )
 
+    # Serialize employee data for analytics service
+    employee_dicts = [
+        {
+            "department": e.department,
+            "job_title": e.job_title,
+            "status": e.status.value,
+            "location": e.location,
+            "tenure_days": e.tenure_days,
+            "hire_date": e.hire_date.isoformat() if e.hire_date else None,
+            "last_performance_score": e.last_performance_score,
+            "leave_days_used": e.leave_days_used,
+            "leave_days_total": e.leave_days_total,
+        }
+        for e in hris_employees
+    ]
+    hris_data = {"employees": employee_dicts}
+
+    # Run real analytics when employee data is available
+    analytics = {}
+    if employee_dicts:
+        analytics = await _analytics.get_dashboard_data(
+            organization_id=0,
+            time_period=time_period,
+            hris_data=hris_data,
+        )
+
     return {
         "success": True,
         "organization_id": organization_id,
@@ -330,6 +392,7 @@ async def get_analytics_dashboard(
             },
             "behavioral_signals": behavioral_signals.get("signals", []),
             "hris_connectors": len(connectors),
+            "analytics": analytics,
         },
     }
 
@@ -354,33 +417,57 @@ async def analyze_workforce(
 
     analysis = _analyzer.analyze(all_employees)
 
-    # Turnover insights
-    turnover_insights = []
-    for c in connectors:
-        connector = hris_registry.get(c["name"])
-        if connector:
-            try:
-                turnover = await connector.fetch_turnover(months=12)
-                turnover_insights.append(
-                    {
-                        "connector": c["name"],
-                        "period": turnover.period,
-                        "turnover_rate": turnover.turnover_rate,
-                        "departures": turnover.departures,
-                        "new_hires": turnover.new_hires,
-                    }
-                )
-            except Exception:
-                pass
+    # Serialize for analytics service
+    employee_dicts = [
+        {
+            "department": e.department,
+            "job_title": e.job_title,
+            "status": e.status.value,
+            "location": e.location,
+            "tenure_days": e.tenure_days,
+            "hire_date": e.hire_date.isoformat() if e.hire_date else None,
+            "last_performance_score": e.last_performance_score,
+            "leave_days_used": e.leave_days_used,
+            "leave_days_total": e.leave_days_total,
+        }
+        for e in all_employees
+    ]
+    hris_data = {"employees": employee_dicts}
+
+    # Run full analytics suite
+    analytics_type = (body or {}).get("analytics_type", "demographics")
+    analytics_results = {}
+    if employee_dicts:
+        if analytics_type == "demographics":
+            analytics_results = await _analytics.analyze_workforce_demographics(
+                hris_data
+            )
+        elif analytics_type == "performance":
+            analytics_results = await _analytics.analyze_employee_performance(hris_data)
+        elif analytics_type == "turnover":
+            analytics_results = await _analytics.analyze_turnover_patterns(hris_data)
+        elif analytics_type == "engagement":
+            analytics_results = await _analytics.analyze_employee_engagement(hris_data)
+        elif analytics_type == "compensation":
+            analytics_results = await _analytics.analyze_compensation_equity(hris_data)
+        elif analytics_type == "learning_development":
+            analytics_results = await _analytics.analyze_learning_development(hris_data)
+        elif analytics_type == "succession":
+            analytics_results = await _analytics.analyze_succession_readiness(hris_data)
+
+    insights = await _analytics.generate_workforce_insights(
+        analytics_results, analytics_type
+    )
 
     return {
         "success": True,
-        "analytics_results": analysis,
-        "workforce_insights": analysis.get("signals", []),
+        "analytics_type": analytics_type,
+        "analytics_results": analytics_results,
+        "behavioral_signals": analysis,
+        "workforce_insights": insights,
         "workforce_metrics": {
             "total_employees": analysis.get("total_employees", 0),
             "avg_tenure_days": analysis.get("avg_tenure_days", 0),
-            "turnover_insights": turnover_insights,
         },
     }
 

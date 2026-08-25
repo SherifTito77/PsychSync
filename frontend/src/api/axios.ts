@@ -2,7 +2,7 @@
 import axios from 'axios';
 // Create an Axios instance with base configuration
 const apiClient = axios.create({
-  baseURL: '', // Callers use full paths like /api/v1/...; Vite proxy handles /api
+  baseURL: import.meta.env.VITE_API_URL || '', // Production: https://api.psychsync.com, Dev: '' (Vite proxy)
   headers: {
     'Content-Type': 'application/json',
   },

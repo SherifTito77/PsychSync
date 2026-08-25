@@ -84,16 +84,27 @@ import {
   AIChatSupport,
   CorporateIntegrationsPage,
   HealthDashboard,
+  BiometricIntegrations,
   TeamCompositionAnalytics,
   MultiFrameworkSynthesis,
   LegalRightsDashboard,
   EquityDashboard,
   BehavioralIntelligenceDashboard,
   OrganizationalNetworkDashboard,
+  CollaborationSurvey,
+  CommunityMap,
+  NetworkEvolution,
+  PersonalityNetwork,
   WorkSystemsIntegration,
   AIBehavioralCoach,
   CalendarIntegration,
   CommunicationAnalytics,
+  ExecutiveIntelligence,
+  OrganizationalPulse,
+  OrganizationalDigitalTwin,
+  ManagerIntelligence,
+  OKRDashboard,
+  PeerRecognition,
 } from './lazyImports';
 
 // Layout
@@ -206,6 +217,10 @@ export const protectedRoutes = (
     {/* Services & Connectors */}
     {createProtectedRoute('/integrations/corporate', <CorporateIntegrationsPage />)}
     {createProtectedRoute('/health', <HealthDashboard />)}
+    {createProtectedRoute('/biometric/integrations', <BiometricIntegrations />)}
+    {createProtectedRoute('/biometric/metrics', <BiometricIntegrations />)}
+    {createProtectedRoute('/biometric/sleep', <BiometricIntegrations />)}
+    {createProtectedRoute('/biometric/stress', <BiometricIntegrations />)}
     {createProtectedRoute('/team-health', <TeamCompositionAnalytics />)}
     {createProtectedRoute('/behavioral-analysis', <BehavioralAnalysis />)}
 
@@ -232,10 +247,30 @@ export const protectedRoutes = (
     {/* Behavioral Intelligence */}
     {createProtectedRoute('/behavioral-intelligence', <BehavioralIntelligenceDashboard />)}
     {createProtectedRoute('/organizational-network', <OrganizationalNetworkDashboard />)}
+    {createProtectedRoute('/collaboration-survey', <CollaborationSurvey />)}
+    {createProtectedRoute('/community-map', <CommunityMap />)}
+    {createProtectedRoute('/network-evolution', <NetworkEvolution />)}
+    {createProtectedRoute('/personality-network', <PersonalityNetwork />)}
     {createProtectedRoute('/work-systems', <WorkSystemsIntegration />)}
     {createProtectedRoute('/ai-coach', <AIBehavioralCoach />)}
     {createProtectedRoute('/calendar-intelligence', <CalendarIntegration />)}
     {createProtectedRoute('/communication-analytics', <CommunicationAnalytics />)}
+
+    {/* Executive Intelligence */}
+    {createProtectedRoute('/executive-intelligence', <ExecutiveIntelligence />)}
+
+    {/* Organizational Pulse */}
+    {createProtectedRoute('/organizational-pulse', <OrganizationalPulse />)}
+
+    {/* Organizational Digital Twin */}
+    {createProtectedRoute('/org-digital-twin', <OrganizationalDigitalTwin />)}
+
+    {/* Manager Intelligence */}
+    {createProtectedRoute('/manager-intelligence', <ManagerIntelligence />)}
+
+    {/* OKR & Recognition */}
+    {createProtectedRoute('/okr', <OKRDashboard />)}
+    {createProtectedRoute('/recognition', <PeerRecognition />)}
 
     {/* Compliance & Legal */}
     {createProtectedRoute('/legal-rights', <LegalRightsDashboard />)}

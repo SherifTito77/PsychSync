@@ -9,11 +9,13 @@ All access is logged and requires proper authorization
 import logging
 from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.deps import get_current_user, get_db
+from app.api.dependencies.hipaa import audit_phi_access, require_clinical_access
+from app.api.dependencies.secure_phi import resolve_user_phi
+from app.api.v1.deps import get_db
 from app.db.models.user import User
 from app.schemas.clinical import (
     ASRSRequest,
@@ -38,8 +40,31 @@ from app.services.clinical.scoring_algorithms import (
     score_isi,
 )
 
-router = APIRouter(prefix="/screening", tags=["clinical-screening"])
 logger = logging.getLogger(__name__)
+
+
+async def _audit_screening_access(
+    request: Request,
+    current_user: User = Depends(require_clinical_access),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Router-level audit: log every screening read/write as PHI access."""
+    action = "write" if request.method in ("POST", "PUT", "PATCH") else "read"
+    await audit_phi_access(
+        db,
+        current_user,
+        "clinical_screenings",
+        action,
+        details={"endpoint": request.url.path, "method": request.method},
+        request=request,
+    )
+
+
+router = APIRouter(
+    prefix="/screening",
+    tags=["clinical-screening"],
+    dependencies=[Depends(_audit_screening_access)],
+)
 
 
 # ============================================================================
@@ -50,7 +75,7 @@ logger = logging.getLogger(__name__)
 @router.get("/consent/status")
 async def get_consent_status(
     screening_type: str = "general",
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ):
     """Check whether the user has given consent for a screening type."""
@@ -66,7 +91,7 @@ async def get_consent_status(
 async def submit_consent(
     consent_type: str = "screening",
     screening_types: str = "general",
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -105,6 +130,34 @@ async def _require_consent(user_id, screening_type: str, svc: ScreeningService) 
         )
 
 
+async def _save_screening(
+    svc: ScreeningService,
+    *,
+    current_user: User,
+    db: AsyncSession,
+    screening_type: str,
+    version: str,
+    response_dict: dict,
+    result,
+    background_tasks: BackgroundTasks,
+    notify_clinicians: bool = True,
+):
+    """Save screening with PHI resolved from SecureUser when available."""
+    phi = await resolve_user_phi(db, current_user)
+    return await svc.save_and_escalate(
+        user_id=current_user.id,
+        org_id=getattr(current_user, "org_id", None),
+        screening_type=screening_type,
+        version=version,
+        response_dict=response_dict,
+        result=result,
+        background_tasks=background_tasks,
+        user_email=phi.email,
+        user_name=phi.full_name,
+        notify_clinicians=notify_clinicians,
+    )
+
+
 # ============================================================================
 # PHQ-9 SCREENING (DEPRESSION)
 # ============================================================================
@@ -114,7 +167,7 @@ async def _require_consent(user_id, screening_type: str, svc: ScreeningService) 
 async def submit_phq9(
     responses: PHQ9Request,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -141,16 +194,15 @@ async def submit_phq9(
         9: responses.q9_suicide,
     }
     result = PHQ9Scorer.score(response_dict)
-    screening = await svc.save_and_escalate(
-        user_id=current_user.id,
-        org_id=current_user.org_id,
+    screening = await _save_screening(
+        svc,
+        current_user=current_user,
+        db=db,
         screening_type=screening_type,
         version="2.0",
         response_dict=response_dict,
         result=result,
         background_tasks=background_tasks,
-        user_email=current_user.email,
-        user_name=current_user.full_name,
     )
     return ScreeningResponse(
         id=screening.id,
@@ -176,7 +228,7 @@ async def submit_phq9(
 async def submit_gad7(
     responses: GAD7Request,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -199,16 +251,15 @@ async def submit_gad7(
         7: responses.q7_afraid,
     }
     result = GAD7Scorer.score(response_dict)
-    screening = await svc.save_and_escalate(
-        user_id=current_user.id,
-        org_id=current_user.org_id,
+    screening = await _save_screening(
+        svc,
+        current_user=current_user,
+        db=db,
         screening_type=screening_type,
         version="2.0",
         response_dict=response_dict,
         result=result,
         background_tasks=background_tasks,
-        user_email=current_user.email,
-        user_name=current_user.full_name,
     )
     return ScreeningResponse(
         id=screening.id,
@@ -234,7 +285,7 @@ async def submit_gad7(
 async def submit_cssrs(
     responses: CSSRSRequest,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -258,17 +309,16 @@ async def submit_cssrs(
         "q13": responses.q13_aborted_attempt,
     }
     result = CSSRSScorer.score(response_dict)
-    screening = await svc.save_and_escalate(
-        user_id=current_user.id,
-        org_id=current_user.org_id,
+    screening = await _save_screening(
+        svc,
+        current_user=current_user,
+        db=db,
         screening_type=screening_type,
         version="2.0",
         response_dict=response_dict,
         result=result,
         background_tasks=background_tasks,
-        user_email=current_user.email,
-        user_name=current_user.full_name,
-        notify_clinicians=False,  # C-SSRS crisis is handled by crisis protocol itself
+        notify_clinicians=False,
     )
     return ScreeningResponse(
         id=screening.id,
@@ -314,7 +364,7 @@ class MDQRequest(BaseModel):
 async def submit_mdq(
     responses: MDQRequest,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -331,16 +381,15 @@ async def submit_mdq(
     response_dict["q14_clustered"] = responses.q14_clustered
     response_dict["q15_impairment"] = responses.q15_impairment
     result = MDQScorer().score(response_dict)
-    screening = await svc.save_and_escalate(
-        user_id=current_user.id,
-        org_id=getattr(current_user, "org_id", None),
+    screening = await _save_screening(
+        svc,
+        current_user=current_user,
+        db=db,
         screening_type=screening_type,
         version="1.0",
         response_dict=response_dict,
         result=result,
         background_tasks=background_tasks,
-        user_email=current_user.email,
-        user_name=current_user.full_name,
         notify_clinicians=False,
     )
     return ScreeningResponse(
@@ -382,7 +431,7 @@ class DAST10Request(BaseModel):
 async def submit_dast10(
     responses: DAST10Request,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -397,16 +446,15 @@ async def submit_dast10(
 
     response_dict = {i: getattr(responses, f"q{i}") for i in range(1, 11)}
     result = DAST10Scorer().score(response_dict)
-    screening = await svc.save_and_escalate(
-        user_id=current_user.id,
-        org_id=getattr(current_user, "org_id", None),
+    screening = await _save_screening(
+        svc,
+        current_user=current_user,
+        db=db,
         screening_type=screening_type,
         version="1.0",
         response_dict=response_dict,
         result=result,
         background_tasks=background_tasks,
-        user_email=current_user.email,
-        user_name=current_user.full_name,
         notify_clinicians=False,
     )
     return ScreeningResponse(
@@ -448,7 +496,7 @@ class AQ10Request(BaseModel):
 async def submit_aq10(
     responses: AQ10Request,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -463,16 +511,15 @@ async def submit_aq10(
 
     response_dict = {i: getattr(responses, f"q{i}") for i in range(1, 11)}
     result = AQ10Scorer().score(response_dict)
-    screening = await svc.save_and_escalate(
-        user_id=current_user.id,
-        org_id=getattr(current_user, "org_id", None),
+    screening = await _save_screening(
+        svc,
+        current_user=current_user,
+        db=db,
         screening_type=screening_type,
         version="1.0",
         response_dict=response_dict,
         result=result,
         background_tasks=background_tasks,
-        user_email=current_user.email,
-        user_name=current_user.full_name,
         notify_clinicians=False,
     )
     return ScreeningResponse(
@@ -514,7 +561,7 @@ class ACERequest(BaseModel):
 async def submit_ace(
     responses: ACERequest,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -529,16 +576,15 @@ async def submit_ace(
 
     response_dict = {i: getattr(responses, f"q{i}") for i in range(1, 11)}
     result = ACEScorer().score(response_dict)
-    screening = await svc.save_and_escalate(
-        user_id=current_user.id,
-        org_id=getattr(current_user, "org_id", None),
+    screening = await _save_screening(
+        svc,
+        current_user=current_user,
+        db=db,
         screening_type=screening_type,
         version="1.0",
         response_dict=response_dict,
         result=result,
         background_tasks=background_tasks,
-        user_email=current_user.email,
-        user_name=current_user.full_name,
         notify_clinicians=False,
     )
     return ScreeningResponse(
@@ -590,7 +636,7 @@ It means I should speak with a mental health professional for proper evaluation.
 async def submit_lsas(
     responses: dict,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -614,16 +660,15 @@ async def submit_lsas(
                 "avoidance": responses[item_key].get("avoidance", 0),
             }
     result = LSASScorer().score(response_dict)
-    screening = await svc.save_and_escalate(
-        user_id=current_user.id,
-        org_id=current_user.org_id,
+    screening = await _save_screening(
+        svc,
+        current_user=current_user,
+        db=db,
         screening_type=screening_type,
         version="1.0",
         response_dict=response_dict,
         result=result,
         background_tasks=background_tasks,
-        user_email=current_user.email,
-        user_name=current_user.full_name,
     )
     return ScreeningResponse(
         id=screening.id,
@@ -649,7 +694,7 @@ async def submit_lsas(
 async def submit_eat26(
     responses: dict,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -671,16 +716,15 @@ async def submit_eat26(
         "item_responses": response_items,
         "behavioral_questions": behavioral_questions,
     }
-    screening = await svc.save_and_escalate(
-        user_id=current_user.id,
-        org_id=current_user.org_id,
+    screening = await _save_screening(
+        svc,
+        current_user=current_user,
+        db=db,
         screening_type=screening_type,
         version="1.0",
         response_dict=response_dict,
         result=result,
         background_tasks=background_tasks,
-        user_email=current_user.email,
-        user_name=current_user.full_name,
         notify_clinicians=False,
     )
     return ScreeningResponse(
@@ -707,7 +751,7 @@ async def submit_eat26(
 async def submit_ybocs(
     responses: dict,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -735,16 +779,15 @@ async def submit_ybocs(
         10: responses.get("item_10_control_compulsions", 0),
     }
     result = YBOCSScorer().score(response_dict)
-    screening = await svc.save_and_escalate(
-        user_id=current_user.id,
-        org_id=current_user.org_id,
+    screening = await _save_screening(
+        svc,
+        current_user=current_user,
+        db=db,
         screening_type=screening_type,
         version="1.0",
         response_dict=response_dict,
         result=result,
         background_tasks=background_tasks,
-        user_email=current_user.email,
-        user_name=current_user.full_name,
     )
     return ScreeningResponse(
         id=screening.id,
@@ -770,7 +813,7 @@ async def submit_ybocs(
 async def submit_asrs(
     responses: ASRSRequest,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -813,16 +856,15 @@ async def submit_asrs(
         "18": responses.q18,
     }
     result = score_asrs(response_dict)  # returns dict
-    screening = await svc.save_and_escalate(
-        user_id=current_user.id,
-        org_id=current_user.org_id,
+    screening = await _save_screening(
+        svc,
+        current_user=current_user,
+        db=db,
         screening_type=screening_type,
         version="1.1",
         response_dict=response_dict,
         result=result,
         background_tasks=background_tasks,
-        user_email=current_user.email,
-        user_name=current_user.full_name,
         notify_clinicians=False,
     )
     return ScreeningResponse(
@@ -849,7 +891,7 @@ async def submit_asrs(
 async def submit_isi(
     responses: ISIRequest,
     background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_clinical_access),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -885,16 +927,15 @@ async def submit_isi(
         "7": responses.q7,
     }
     result = score_isi(response_dict)  # returns dict
-    screening = await svc.save_and_escalate(
-        user_id=current_user.id,
-        org_id=current_user.org_id,
+    screening = await _save_screening(
+        svc,
+        current_user=current_user,
+        db=db,
         screening_type=screening_type,
         version="1.0",
         response_dict=response_dict,
         result=result,
         background_tasks=background_tasks,
-        user_email=current_user.email,
-        user_name=current_user.full_name,
         notify_clinicians=False,
     )
     return ScreeningResponse(

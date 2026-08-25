@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models.network_analysis import NetworkSnapshot
 from app.db.models.response import Response
 from app.db.models.team import Team, TeamMember
 from app.db.models.user import User
@@ -58,6 +59,9 @@ class AIBehavioralCoachService:
         stress_indicators = self._assess_stress_level(responses)
         growth_areas = self._identify_growth_areas(traits)
 
+        # Network context from ONA
+        network_context = await self._get_network_context(db, user_id)
+
         return {
             "user_id": user_id,
             "user_name": user.full_name or user.email,
@@ -66,13 +70,14 @@ class AIBehavioralCoachService:
             "stress_indicators": stress_indicators,
             "growth_areas": growth_areas,
             "coaching_recommendations": self._generate_coaching(
-                traits, stress_indicators, growth_areas
+                traits, stress_indicators, growth_areas, network_context
             ),
             "communication_guide": self._communication_guide(traits),
             "team_context": {
                 "team_count": len(teams),
                 "team_names": [t["name"] for t in teams],
             },
+            "network_context": network_context,
             "generated_at": datetime.utcnow().isoformat(),
         }
 
@@ -90,10 +95,12 @@ class AIBehavioralCoachService:
         traits = self._extract_personality_traits(responses)
         engagement = self._engagement_pattern(responses)
 
+        network_context = await self._get_network_context(db, user_id)
+
         return {
             "user_id": user_id,
             "user_name": user.full_name or user.email,
-            "twin_version": "1.0",
+            "twin_version": "2.0",
             "behavioral_dna": {
                 "openness": traits.get("openness", 50),
                 "conscientiousness": traits.get("conscientiousness", 50),
@@ -106,6 +113,7 @@ class AIBehavioralCoachService:
             "stress_resilience": 100 - traits.get("neuroticism", 50),
             "change_adaptability": traits.get("openness", 50),
             "engagement_pattern": engagement,
+            "network_position": network_context,
             "predicted_responses": {
                 "to_high_pressure": self._predict_pressure_response(traits),
                 "to_team_conflict": self._predict_conflict_response(traits),
@@ -428,9 +436,52 @@ class AIBehavioralCoachService:
         traits: Dict[str, float],
         stress: Dict[str, Any],
         growth_areas: list,
+        network_context: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, str]]:
-        """Generate personalized coaching recommendations."""
+        """Generate personalized coaching recommendations including network insights."""
         recs = []
+
+        # Network-aware coaching (prioritized)
+        if network_context and network_context.get("role"):
+            role = network_context["role"]
+            centrality = network_context.get("degree_centrality", 0)
+
+            if role == "isolated":
+                recs.append(
+                    {
+                        "type": "urgent",
+                        "title": "Expand Your Network",
+                        "message": (
+                            "Your organizational connectivity is low. You may be missing "
+                            "information flow and collaboration opportunities. "
+                            "Join a cross-functional project or attend a team outside your group this week."
+                        ),
+                    }
+                )
+            elif role == "influencer" and traits.get("neuroticism", 50) > 60:
+                recs.append(
+                    {
+                        "type": "urgent",
+                        "title": "Burnout Risk — High Centrality + High Stress",
+                        "message": (
+                            "You're a critical connector in the organization but showing stress signals. "
+                            "People depend on you for information flow. "
+                            "Delegate some coordination responsibilities before burnout sets in."
+                        ),
+                    }
+                )
+            elif role == "bridge":
+                recs.append(
+                    {
+                        "type": "strength",
+                        "title": "Cross-Team Connector",
+                        "message": (
+                            f"You bridge multiple teams (connectivity: {centrality:.0%}). "
+                            "This is a valuable organizational role. "
+                            "Make it visible — share cross-team learnings in standups."
+                        ),
+                    }
+                )
 
         if stress.get("level") == "high":
             recs.append(
@@ -692,6 +743,56 @@ class AIBehavioralCoachService:
     # ══════════════════════════════════════════════════════════════════
     # DATA ACCESS
     # ══════════════════════════════════════════════════════════════════
+
+    async def _get_network_context(
+        self, db: AsyncSession, user_id: str
+    ) -> Dict[str, Any]:
+        """
+        Fetch this user's position in the organizational network
+        from the most recent NetworkSnapshot.
+        """
+        try:
+            result = await db.execute(
+                select(NetworkSnapshot)
+                .order_by(NetworkSnapshot.snapshot_date.desc())
+                .limit(1)
+            )
+            snapshot = result.scalar_one_or_none()
+            if not snapshot or not snapshot.node_metrics:
+                return {"role": None, "note": "No network data available"}
+
+            # Find this user in the snapshot
+            for node in snapshot.node_metrics:
+                if str(node.get("user_id")) == user_id:
+                    degree = node.get("degree", 0)
+                    betweenness = node.get("betweenness", 0)
+                    community = node.get("community_id")
+
+                    # Classify role
+                    if betweenness > 0.1 and degree > 0.2:
+                        role = "influencer"
+                    elif degree < 0.05 and betweenness < 0.01:
+                        role = "isolated"
+                    elif node.get("bridging_score", 0) > 0.4:
+                        role = "bridge"
+                    else:
+                        role = "member"
+
+                    return {
+                        "role": role,
+                        "degree_centrality": degree,
+                        "betweenness_centrality": betweenness,
+                        "community_id": community,
+                        "network_size": snapshot.total_nodes,
+                        "org_density": (
+                            float(snapshot.density) if snapshot.density else 0
+                        ),
+                    }
+
+            return {"role": None, "note": "User not found in network snapshot"}
+        except Exception as e:
+            logger.warning("Network context lookup failed: %s", e)
+            return {"role": None, "note": "Network data unavailable"}
 
     async def _get_user(self, db: AsyncSession, user_id: str) -> Optional[User]:
         result = await db.execute(select(User).where(User.id == user_id))

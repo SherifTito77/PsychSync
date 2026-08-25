@@ -12,6 +12,7 @@ Scores produced:
   - Psychological Safety Score (0-100)
   - Change Readiness Score (0-100)
   - Organizational Friction Index (0-100, lower is better)
+  - Burnout Risk Score (0-100, lower is better)
 
 Data sources: Assessment responses, HRIS data, team structure,
 calendar metadata, work system signals (when available).
@@ -28,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.response import Response
 from app.db.models.team import Team, TeamMember
 from app.db.models.user import User
+from app.db.models.wellness_burnout import WellnessMetrics
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,7 @@ class BehavioralIntelligenceService:
         db: AsyncSession,
         team_id: str,
         lookback_days: int = 30,
+        enrichment: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Composite team health from assessment engagement, personality
@@ -81,6 +84,27 @@ class BehavioralIntelligenceService:
             + size_score * 0.20
         )
 
+        factors = {
+            "engagement": round(engagement, 1),
+            "personality_balance": round(personality_balance, 1),
+            "response_quality": round(response_quality, 1),
+            "team_size_health": round(size_score, 1),
+        }
+
+        # Behavioral enrichment: work velocity + meeting balance
+        if enrichment:
+            e_signals = {}
+            if "cycle_time_trend" in enrichment:
+                e_signals["work_velocity"] = self._cycle_trend_to_score(
+                    enrichment["cycle_time_trend"]
+                )
+            if "meeting_health_score" in enrichment:
+                e_signals["meeting_balance"] = enrichment["meeting_health_score"]
+            if e_signals:
+                e_avg = sum(e_signals.values()) / len(e_signals)
+                score = score * 0.80 + e_avg * 0.20
+                factors.update({k: round(v, 1) for k, v in e_signals.items()})
+
         trend = await self._calculate_trend(
             db, member_ids, "team_health", lookback_days
         )
@@ -89,12 +113,7 @@ class BehavioralIntelligenceService:
             "score": round(score, 1),
             "label": self._score_label(score),
             "trend": trend,
-            "factors": {
-                "engagement": round(engagement, 1),
-                "personality_balance": round(personality_balance, 1),
-                "response_quality": round(response_quality, 1),
-                "team_size_health": round(size_score, 1),
-            },
+            "factors": factors,
             "member_count": member_count,
             "recommendations": self._team_health_recommendations(
                 engagement, personality_balance, response_quality, size_score
@@ -107,6 +126,7 @@ class BehavioralIntelligenceService:
         db: AsyncSession,
         team_id: str,
         lookback_days: int = 30,
+        enrichment: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Measures cross-functional work and team cohesion.
@@ -131,17 +151,25 @@ class BehavioralIntelligenceService:
 
         score = collab_traits * 0.40 + co_completion * 0.35 + consistency * 0.25
 
+        factors = {
+            "collaboration_traits": round(collab_traits, 1),
+            "co_completion_rate": round(co_completion, 1),
+            "response_consistency": round(consistency, 1),
+        }
+
+        # Behavioral enrichment: cross-team collaboration from work systems
+        if enrichment and "cross_team_edges" in enrichment:
+            cross_team = min(100, enrichment["cross_team_edges"] * 5)
+            score = score * 0.80 + cross_team * 0.20
+            factors["cross_team_collaboration"] = round(cross_team, 1)
+
         return {
             "score": round(score, 1),
             "label": self._score_label(score),
             "trend": await self._calculate_trend(
                 db, member_ids, "collaboration", lookback_days
             ),
-            "factors": {
-                "collaboration_traits": round(collab_traits, 1),
-                "co_completion_rate": round(co_completion, 1),
-                "response_consistency": round(consistency, 1),
-            },
+            "factors": factors,
             "recommendations": self._collaboration_recommendations(
                 collab_traits, co_completion, consistency
             ),
@@ -153,6 +181,7 @@ class BehavioralIntelligenceService:
         db: AsyncSession,
         team_id: str,
         lookback_days: int = 30,
+        enrichment: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         A manager's health is measured by their team's wellbeing.
@@ -185,18 +214,26 @@ class BehavioralIntelligenceService:
             + retention * 0.20
         )
 
+        factors = {
+            "team_engagement": round(engagement, 1),
+            "burnout_resilience": round(burnout_proxy, 1),
+            "team_productivity": round(conscientiousness, 1),
+            "team_retention": round(retention, 1),
+        }
+
+        # Behavioral enrichment: 1:1 meeting frequency from calendar
+        if enrichment and "one_on_one_ratio" in enrichment:
+            ono_score = min(100, enrichment["one_on_one_ratio"] * 500)
+            score = score * 0.85 + ono_score * 0.15
+            factors["one_on_one_frequency"] = round(ono_score, 1)
+
         return {
             "score": round(score, 1),
             "label": self._score_label(score),
             "trend": await self._calculate_trend(
                 db, member_ids, "manager_health", lookback_days
             ),
-            "factors": {
-                "team_engagement": round(engagement, 1),
-                "burnout_resilience": round(burnout_proxy, 1),
-                "team_productivity": round(conscientiousness, 1),
-                "team_retention": round(retention, 1),
-            },
+            "factors": factors,
             "recommendations": self._manager_health_recommendations(
                 engagement, burnout_proxy, conscientiousness, retention
             ),
@@ -317,6 +354,7 @@ class BehavioralIntelligenceService:
         db: AsyncSession,
         team_id: str,
         lookback_days: int = 30,
+        enrichment: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Measures organizational drag. Lower is better.
@@ -341,19 +379,126 @@ class BehavioralIntelligenceService:
 
         friction = conflict_potential * 0.40 + fatigue * 0.30 + fragmentation * 0.30
 
+        factors = {
+            "personality_conflict_risk": round(conflict_potential, 1),
+            "assessment_fatigue": round(fatigue, 1),
+            "participation_inequality": round(fragmentation, 1),
+        }
+
+        # Behavioral enrichment: cycle time drag from work systems
+        if enrichment and "cycle_time_trend" in enrichment:
+            trend_friction = {"slowing": 75, "stable": 30, "improving": 10}.get(
+                enrichment["cycle_time_trend"], 30
+            )
+            friction = friction * 0.80 + trend_friction * 0.20
+            factors["cycle_time_drag"] = round(trend_friction, 1)
+
         return {
             "score": round(friction, 1),
             "label": self._friction_label(friction),
             "trend": await self._calculate_trend(
                 db, member_ids, "friction", lookback_days
             ),
-            "factors": {
-                "personality_conflict_risk": round(conflict_potential, 1),
-                "assessment_fatigue": round(fatigue, 1),
-                "participation_inequality": round(fragmentation, 1),
-            },
+            "factors": factors,
             "recommendations": self._friction_recommendations(
                 conflict_potential, fatigue, fragmentation
+            ),
+        }
+
+    # ── Burnout Risk Score ──────────────────────────────────────────
+    async def calculate_burnout_risk(
+        self,
+        db: AsyncSession,
+        team_id: str,
+        lookback_days: int = 30,
+        enrichment: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Blends direct wellness metrics with personality-based signals
+        to produce a burnout risk score. Higher = greater risk.
+        """
+        since = datetime.utcnow() - timedelta(days=lookback_days)
+        members = await self._get_team_members(db, team_id)
+        if not members:
+            return self._empty_score("burnout_risk", "No team members")
+
+        member_ids = [str(m.user_id) for m in members]
+
+        # Factor 1: Direct burnout risk from WellnessMetrics (0-10 → 0-100)
+        direct_burnout = await self._direct_burnout_score(db, member_ids, since)
+
+        # Factor 2: Neuroticism (Big Five — high neuroticism predicts burnout)
+        neuroticism = await self._avg_trait(db, member_ids, "neuroticism")
+
+        # Factor 3: Engagement decline (falling response rates = disengagement)
+        fatigue = await self._assessment_fatigue(db, member_ids, since)
+
+        # Factor 4: Resilience deficit from WellnessMetrics
+        resilience_deficit = await self._resilience_deficit(db, member_ids, since)
+
+        score = (
+            direct_burnout * 0.35
+            + resilience_deficit * 0.25
+            + neuroticism * 0.25
+            + fatigue * 0.15
+        )
+
+        factors = {
+            "direct_burnout_signals": round(direct_burnout, 1),
+            "neuroticism_risk": round(neuroticism, 1),
+            "engagement_decline": round(fatigue, 1),
+            "resilience_deficit": round(resilience_deficit, 1),
+        }
+
+        # Behavioral enrichment: meeting overload + work overcommitment
+        if enrichment:
+            e_signals = {}
+            # Meeting overload composite: high meeting hours + after-hours + low focus time
+            has_calendar = any(
+                k in enrichment
+                for k in (
+                    "meeting_hours_per_week",
+                    "after_hours_pct",
+                    "focus_hours_per_week",
+                )
+            )
+            if has_calendar:
+                # >10h/week meetings starts adding risk, >25h = max signal
+                mtg_load = min(
+                    100,
+                    max(0, (enrichment.get("meeting_hours_per_week", 10) - 10) * 6.67),
+                )
+                after_hrs = enrichment.get("after_hours_pct", 0)
+                # <20h focus/week = risk, <5h = critical
+                focus_deficit = max(
+                    0, min(100, (20 - enrichment.get("focus_hours_per_week", 20)) * 5)
+                )
+                # Meeting load is strongest predictor (Maslach & Leiter, 2016)
+                meeting_overload = (
+                    mtg_load * 0.45 + after_hrs * 0.30 + focus_deficit * 0.25
+                )
+                e_signals["meeting_overload"] = min(100, meeting_overload)
+
+            if "avg_overcommitment" in enrichment:
+                e_signals["work_overcommitment"] = enrichment["avg_overcommitment"]
+
+            if e_signals:
+                e_avg = sum(e_signals.values()) / len(e_signals)
+                score = score * 0.80 + e_avg * 0.20
+                factors.update({k: round(v, 1) for k, v in e_signals.items()})
+
+        trend = await self._calculate_trend(
+            db, member_ids, "burnout_risk", lookback_days
+        )
+
+        return {
+            "score": round(score, 1),
+            "label": self._burnout_label(score),
+            "trend": trend,
+            "factors": factors,
+            "member_count": len(members),
+            "recommendations": self._burnout_recommendations(
+                direct_burnout, neuroticism, fatigue, resilience_deficit
             ),
         }
 
@@ -363,8 +508,14 @@ class BehavioralIntelligenceService:
         db: AsyncSession,
         organization_id: str,
         lookback_days: int = 30,
+        enrichment: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Full behavioral intelligence dashboard for an organization."""
+        """Full behavioral intelligence dashboard for an organization.
+
+        When ``enrichment`` is provided (from ``build_enrichment()``), work system
+        and calendar signals are blended into team health, collaboration, manager
+        health, friction, and burnout risk scores.
+        """
         # Get all teams in the organization
         result = await db.execute(
             select(Team).where(Team.organization_id == organization_id)
@@ -389,16 +540,28 @@ class BehavioralIntelligenceService:
             "psychological_safety": [],
             "change_readiness": [],
             "friction_index": [],
+            "burnout_risk": [],
         }
 
         for team in teams:
             tid = str(team.id)
-            th = await self.calculate_team_health(db, tid, lookback_days)
-            co = await self.calculate_collaboration_score(db, tid, lookback_days)
-            mh = await self.calculate_manager_health(db, tid, lookback_days)
+            th = await self.calculate_team_health(
+                db, tid, lookback_days, enrichment=enrichment
+            )
+            co = await self.calculate_collaboration_score(
+                db, tid, lookback_days, enrichment=enrichment
+            )
+            mh = await self.calculate_manager_health(
+                db, tid, lookback_days, enrichment=enrichment
+            )
             ps = await self.calculate_psychological_safety(db, tid, lookback_days)
             cr = await self.calculate_change_readiness(db, tid, lookback_days)
-            fi = await self.calculate_friction_index(db, tid, lookback_days)
+            fi = await self.calculate_friction_index(
+                db, tid, lookback_days, enrichment=enrichment
+            )
+            br = await self.calculate_burnout_risk(
+                db, tid, lookback_days, enrichment=enrichment
+            )
 
             for key, val in [
                 ("team_health", th),
@@ -407,6 +570,7 @@ class BehavioralIntelligenceService:
                 ("psychological_safety", ps),
                 ("change_readiness", cr),
                 ("friction_index", fi),
+                ("burnout_risk", br),
             ]:
                 if val["score"] > 0:
                     agg_scores[key].append(val["score"])
@@ -423,8 +587,9 @@ class BehavioralIntelligenceService:
                         "psychological_safety": ps["score"],
                         "change_readiness": cr["score"],
                         "friction_index": fi["score"],
+                        "burnout_risk": br["score"],
                     },
-                    "top_risk": self._identify_top_risk(th, co, mh, ps, cr, fi),
+                    "top_risk": self._identify_top_risk(th, co, mh, ps, cr, fi, br),
                 }
             )
 
@@ -750,6 +915,41 @@ class BehavioralIntelligenceService:
         gini = (2 * gini_sum - total * (n + 1)) / (total * n)
         return max(0, min(100, gini * 100))
 
+    async def _direct_burnout_score(
+        self, db: AsyncSession, member_ids: list, since: datetime
+    ) -> float:
+        """Average burnout_risk_score from WellnessMetrics, mapped 0-10 → 0-100."""
+        result = await db.execute(
+            select(func.avg(WellnessMetrics.burnout_risk_score)).where(
+                and_(
+                    WellnessMetrics.user_id.in_(member_ids),
+                    WellnessMetrics.measurement_date >= since.date(),
+                )
+            )
+        )
+        avg = result.scalar()
+        if avg is None:
+            return 50.0  # No data — neutral risk
+        return min(100, float(avg) * 10)
+
+    async def _resilience_deficit(
+        self, db: AsyncSession, member_ids: list, since: datetime
+    ) -> float:
+        """Inverse of average resilience_score. Higher deficit = higher risk."""
+        result = await db.execute(
+            select(func.avg(WellnessMetrics.resilience_score)).where(
+                and_(
+                    WellnessMetrics.user_id.in_(member_ids),
+                    WellnessMetrics.measurement_date >= since.date(),
+                )
+            )
+        )
+        avg = result.scalar()
+        if avg is None:
+            return 50.0
+        # Resilience 10 → deficit 0, Resilience 0 → deficit 100
+        return max(0, 100 - float(avg) * 10)
+
     async def _get_latest_responses(self, db: AsyncSession, member_ids: list) -> list:
         """Get recent assessment responses for a set of users."""
         result = await db.execute(
@@ -840,6 +1040,17 @@ class BehavioralIntelligenceService:
             return "High Friction"
         return "Critical Friction"
 
+    def _burnout_label(self, score: float) -> str:
+        if score >= 80:
+            return "Critical Burnout Risk"
+        elif score >= 60:
+            return "High Risk"
+        elif score >= 40:
+            return "Moderate Risk"
+        elif score >= 20:
+            return "Low Risk"
+        return "Healthy"
+
     def _empty_score(self, metric: str, reason: str) -> Dict[str, Any]:
         return {
             "score": 0.0,
@@ -848,6 +1059,47 @@ class BehavioralIntelligenceService:
             "factors": {},
             "recommendations": [reason],
         }
+
+    @staticmethod
+    def _cycle_trend_to_score(trend: str) -> float:
+        """Convert work system cycle time trend to a health score."""
+        return {"improving": 85.0, "stable": 65.0, "slowing": 35.0}.get(trend, 65.0)
+
+    @staticmethod
+    def build_enrichment(
+        workload_snapshots: Optional[list] = None,
+        cycle_times: Optional[Dict[str, Any]] = None,
+        collaboration_edges: Optional[list] = None,
+        meeting_health: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        """Build enrichment dict from work system + calendar analyzer outputs.
+
+        Pass the result as ``enrichment`` to any score calculation method.
+        """
+        enrichment: Dict[str, Any] = {}
+
+        if workload_snapshots:
+            scores = [s.overcommitment_score for s in workload_snapshots]
+            enrichment["avg_overcommitment"] = (
+                sum(scores) / len(scores) if scores else 0
+            )
+
+        if cycle_times:
+            enrichment["cycle_time_trend"] = cycle_times.get("trend", "stable")
+            enrichment["avg_cycle_time_hours"] = cycle_times.get("avg_hours", 0)
+
+        if collaboration_edges:
+            enrichment["cross_team_edges"] = len(collaboration_edges)
+
+        if meeting_health is not None:
+            enrichment["meeting_health_score"] = meeting_health.score
+            enrichment["meeting_hours_per_week"] = meeting_health.meeting_hours_per_week
+            enrichment["focus_hours_per_week"] = meeting_health.focus_hours_per_week
+            enrichment["after_hours_pct"] = meeting_health.after_hours_pct
+            enrichment["one_on_one_ratio"] = meeting_health.one_on_one_ratio
+            enrichment["back_to_back_rate"] = meeting_health.back_to_back_rate
+
+        return enrichment
 
     # ── Recommendations ──────────────────────────────────────────────
 
@@ -975,7 +1227,33 @@ class BehavioralIntelligenceService:
             )
         return recs
 
-    def _identify_top_risk(self, th, co, mh, ps, cr, fi) -> str:
+    def _burnout_recommendations(
+        self, direct, neuroticism, fatigue, resilience_deficit
+    ):
+        recs = []
+        if direct > 60:
+            recs.append(
+                "Direct burnout indicators are elevated. Immediate intervention needed — review workloads, enforce recovery time, and consider temporary task redistribution."
+            )
+        if neuroticism > 60:
+            recs.append(
+                "Team personality profiles show high emotional reactivity. Provide stress management training and ensure managers check in regularly."
+            )
+        if fatigue > 60:
+            recs.append(
+                "Engagement is declining, a hallmark pre-burnout signal. Reduce assessment frequency and focus on meaningful, shorter pulse surveys."
+            )
+        if resilience_deficit > 60:
+            recs.append(
+                "Low resilience reserves detected. Invest in resilience workshops, ensure adequate PTO usage, and consider workload audits."
+            )
+        if not recs:
+            recs.append(
+                "Burnout risk is well-managed. Maintain current wellness practices and continue monitoring."
+            )
+        return recs
+
+    def _identify_top_risk(self, th, co, mh, ps, cr, fi, br=None) -> str:
         """Identify the most concerning metric for a team."""
         risks = [
             ("Team Health", th["score"], False),
@@ -985,6 +1263,8 @@ class BehavioralIntelligenceService:
             ("Change Readiness", cr["score"], False),
             ("Organizational Friction", fi["score"], True),  # Higher is worse
         ]
+        if br is not None:
+            risks.append(("Burnout Risk", br["score"], True))  # Higher is worse
 
         worst = None
         worst_severity = 0
@@ -1034,6 +1314,13 @@ class BehavioralIntelligenceService:
         if safety < 50:
             parts.append(
                 f"Psychological safety is concerning at {safety}%. Teams may not feel comfortable raising issues or proposing new ideas."
+            )
+
+        # Burnout risk
+        burnout = scores.get("burnout_risk", 0)
+        if burnout > 60:
+            parts.append(
+                f"Burnout risk is elevated at {burnout}%. Proactive intervention is recommended before attrition increases."
             )
 
         # At-risk teams

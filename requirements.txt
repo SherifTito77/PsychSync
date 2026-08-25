@@ -91,7 +91,7 @@ orjson>=3.9.0  # 2-3x faster JSON serialization/deserialization
 annotated-types==0.7.0
 anyio==3.7.1
 async-timeout==5.0.1
-bcrypt==5.0.0
+bcrypt==4.2.1  # Must match pinned version above (bcrypt 5.0 breaks passlib 1.7.4)
 certifi==2025.10.5
 cffi==2.0.0
 click==8.3.0

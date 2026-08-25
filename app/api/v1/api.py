@@ -116,7 +116,11 @@ _FEATURE_ENDPOINTS = [
     "performance_monitoring",
     "telehealth",
     "behavioral_intelligence",
+    "executive_intelligence",
+    "org_digital_twin",
+    "manager_intelligence",
     "organizational_network",
+    "organizational_pulse",
     "work_systems",
     "ai_behavioral_coach",
     "calendar_integration",
@@ -131,6 +135,8 @@ _FEATURE_ENDPOINTS = [
     "burnout_predictions",
     "backups",
     "voice_video_analysis",
+    "okr",
+    "peer_recognition",
 ]
 
 _SEPARATED_SERVICE_ENDPOINTS = [
@@ -145,6 +151,7 @@ _SEPARATED_SERVICE_ENDPOINTS = [
     "biometric_auth",
     "screening",
     "health_monitoring",
+    "biometric_integrations",
 ]
 
 _BASE = "app.api.v1.endpoints"

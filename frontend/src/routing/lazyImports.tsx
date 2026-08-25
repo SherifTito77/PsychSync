@@ -105,6 +105,7 @@ export const MultiFrameworkSynthesis = lazy(() => import('../pages/MultiFramewor
 // Services & Connectors
 export const CorporateIntegrationsPage = lazy(() => import('../pages/CorporateIntegrationsPage'));
 export const HealthDashboard = lazy(() => import('../components/health/HealthDashboard'));
+export const BiometricIntegrations = lazy(() => import('../pages/BiometricIntegrations'));
 export const TeamCompositionAnalytics = lazy(() => import('../pages/TeamCompositionAnalytics'));
 
 // AI Chat Support
@@ -115,12 +116,28 @@ export const BehavioralIntelligenceDashboard = lazy(() => import('../pages/Behav
 
 // Organizational Network Analysis
 export const OrganizationalNetworkDashboard = lazy(() => import('../pages/OrganizationalNetworkDashboard'));
+export const CollaborationSurvey = lazy(() => import('../pages/CollaborationSurvey'));
+export const CommunityMap = lazy(() => import('../pages/CommunityMap'));
+export const NetworkEvolution = lazy(() => import('../pages/NetworkEvolution'));
+export const PersonalityNetwork = lazy(() => import('../pages/PersonalityNetwork'));
 
 // Work Systems Integration
 export const WorkSystemsIntegration = lazy(() => import('../pages/WorkSystemsIntegration'));
 
 // AI Behavioral Coach
 export const AIBehavioralCoach = lazy(() => import('../pages/AIBehavioralCoach'));
+
+// Executive Intelligence
+export const ExecutiveIntelligence = lazy(() => import('../pages/ExecutiveIntelligence'));
+
+// Organizational Pulse
+export const OrganizationalPulse = lazy(() => import('../pages/OrganizationalPulse'));
+
+// Organizational Digital Twin
+export const OrganizationalDigitalTwin = lazy(() => import('../pages/OrganizationalDigitalTwin'));
+
+// Manager Intelligence
+export const ManagerIntelligence = lazy(() => import('../pages/ManagerIntelligence'));
 
 // Calendar Integration
 export const CalendarIntegration = lazy(() => import('../pages/CalendarIntegration'));
@@ -138,6 +155,10 @@ export const EnhancedClinicalAssessments = lazy(() => import('../components/clin
 // Compliance & Legal
 export const LegalRightsDashboard = lazy(() => import('../components/legal/LegalRightsDashboard'));
 export const EquityDashboard = lazy(() => import('../components/equity/EquityDashboard'));
+
+// OKR & Recognition
+export const OKRDashboard = lazy(() => import('../pages/OKRDashboard'));
+export const PeerRecognition = lazy(() => import('../pages/PeerRecognition'));
 
 // Test & Demo Pages
 export const TestWellnessForm = lazy(() => import('../components/clinical/TestWellnessForm'));

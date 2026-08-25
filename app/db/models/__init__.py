@@ -201,6 +201,26 @@ try:
 except ImportError:
     PasswordHistory = None
 
+# Import ONA (Organizational Network Analysis) models
+try:
+    from .network_analysis import (
+        CollaborationSurveyResponse,
+        EdgeType,
+        NetworkEdge,
+        NetworkSnapshot,
+    )
+except ImportError:
+    NetworkEdge = None
+    NetworkSnapshot = None
+    CollaborationSurveyResponse = None
+    EdgeType = None
+
+# Import Organizational Pulse models
+try:
+    from .organizational_pulse import PulseSnapshot
+except ImportError:
+    PulseSnapshot = None
+
 # Import HIPAA-compliant secure models (encrypted PHI at rest)
 try:
     from .assessment_secure import SecureAssessment
@@ -325,4 +345,11 @@ __all__ = [
     "SecureTeamMember",
     "SecureAssessment",
     "SecureResponse",
+    # ONA (Organizational Network Analysis) models
+    "NetworkEdge",
+    "NetworkSnapshot",
+    "CollaborationSurveyResponse",
+    "EdgeType",
+    # Organizational Pulse models
+    "PulseSnapshot",
 ]

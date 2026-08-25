@@ -32,6 +32,14 @@ interface ManagerDep {
   risk_level: 'high' | 'moderate';
 }
 
+interface Community {
+  id: number;
+  members: string[];
+  size: number;
+  internal_density: number;
+  health_score: number | null;
+}
+
 interface NetworkAnalysis {
   organization_id: string;
   lookback_days: number;
@@ -40,9 +48,11 @@ interface NetworkAnalysis {
     total_edges: number;
     density: number;
     avg_degree_centrality: number;
+    num_communities?: number;
   };
   nodes: NetworkNode[];
   edges: NetworkEdge[];
+  communities?: Community[];
   insights: {
     influencers: NetworkNode[];
     isolated: NetworkNode[];
@@ -70,7 +80,7 @@ export default function OrganizationalNetworkDashboard() {
   const [analysis, setAnalysis] = useState<NetworkAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [lookbackDays, setLookbackDays] = useState(60);
-  const [activeTab, setActiveTab] = useState<'overview' | 'people' | 'cross-team' | 'risks'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'people' | 'communities' | 'cross-team' | 'risks'>('overview');
   const [roleFilter, setRoleFilter] = useState<string>('all');
 
   const fetchAnalysis = useCallback(async () => {
@@ -208,7 +218,7 @@ export default function OrganizationalNetworkDashboard() {
       {hasData && (
         <>
           <div className="flex border-b border-slate-700">
-            {(['overview', 'people', 'cross-team', 'risks'] as const).map((tab) => (
+            {(['overview', 'people', 'communities', 'cross-team', 'risks'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -361,6 +371,70 @@ export default function OrganizationalNetworkDashboard() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {/* Communities Tab */}
+          {activeTab === 'communities' && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-white">
+                Detected Communities ({analysis?.communities?.length || 0})
+              </h3>
+              <p className="text-xs text-slate-400">
+                Clusters of tightly connected employees identified via Louvain community detection
+              </p>
+              {(analysis?.communities?.length ?? 0) === 0 ? (
+                <div className="text-center py-10 text-slate-500 text-sm">
+                  No communities detected yet — more assessment data needed
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {analysis?.communities?.filter(c => c.size > 1).map((comm) => {
+                    const commMembers = comm.members
+                      .map(uid => analysis.nodes.find(n => n.user_id === uid))
+                      .filter(Boolean)
+                      .sort((a, b) => (b?.betweenness_centrality || 0) - (a?.betweenness_centrality || 0));
+                    return (
+                      <div key={comm.id} className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-semibold text-white">Community {comm.id + 1}</h4>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-slate-400">{comm.size} members</span>
+                            {comm.health_score !== null && (
+                              <span className={`text-xs font-mono ${
+                                (comm.health_score ?? 0) >= 70 ? 'text-emerald-300' :
+                                (comm.health_score ?? 0) >= 40 ? 'text-amber-300' : 'text-red-300'
+                              }`}>
+                                Health: {comm.health_score}
+                              </span>
+                            )}
+                            <span className="text-xs font-mono text-cyan-300">
+                              {(comm.internal_density * 100).toFixed(0)}% dense
+                            </span>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          {commMembers.slice(0, 5).map(node => node && (
+                            <div key={node.user_id} className="flex items-center justify-between py-1">
+                              <span className="text-sm text-slate-300">{node.name}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                ROLE_CONFIG[node.role]?.bg || ''
+                              } ${ROLE_CONFIG[node.role]?.color || 'text-slate-400'}`}>
+                                {ROLE_CONFIG[node.role]?.label || node.role}
+                              </span>
+                            </div>
+                          ))}
+                          {commMembers.length > 5 && (
+                            <div className="text-xs text-slate-500 pt-1">
+                              +{commMembers.length - 5} more members
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

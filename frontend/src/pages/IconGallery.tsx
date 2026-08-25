@@ -1,4 +1,4 @@
-// src/pages/IconGallery.tsx - Complete Icon Gallery Page (Updated for Current Sidebar)
+// src/pages/IconGallery.tsx - Complete Icon Gallery Page (Synced with Sidebar)
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../components/common/Icon';
@@ -22,25 +22,33 @@ const IconGallery: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  // Core Items - Updated to match current sidebar
+  // ── Core Navigation (4 items) ──
   const coreItems: IconItem[] = [
     { name: 'Dashboard', path: '/dashboard', icon: '📊', description: 'Overview of teams, assessments, and analytics' },
     { name: 'Product Operations', path: '/product-operations', icon: '📈', description: 'Product operations and management dashboard' },
     { name: 'Icon Gallery', path: '/icon-gallery', icon: '🎨', description: 'Browse all available UI icons and emojis' },
-    { name: 'Teams', path: '/teams', icon: '👥', description: 'Manage and view your teams' },
     { name: 'Settings', path: '/settings', icon: '⚙️', description: 'Manage your preferences' }
   ];
 
-  // Executive Analytics Section
+  // ── Executive Analytics (4 items) ──
   const executiveAnalyticsItems: IconItem[] = [
     { name: 'CEO Executive Dashboard', path: '/executive/burnout', icon: '🎯', description: 'Executive burnout risk, department analytics, 90-day trends' },
     { name: 'KPI Dashboard', path: '/analytics/kpi', icon: '📈', description: 'Business KPIs, performance metrics, goal tracking' },
     { name: 'Predictive Analytics', path: '/predictive-analytics', icon: '🔮', description: 'AI predictions, forecasting, risk models' },
-    { name: 'Population Health', path: '/analytics/population-health', icon: '🏥', description: 'Population-wide health metrics, epidemiological data' }
+    { name: 'Population Health', path: '/analytics/population-health', icon: '🏥', description: 'Population-wide health metrics, epidemiological data' },
+    { name: 'Executive Intelligence', path: '/executive-intelligence', icon: '🧠', description: 'BI + ONA + HRIS integration into team narratives & trend alerts' },
+    { name: 'Organizational Pulse', path: '/organizational-pulse', icon: '💓', description: 'Predictive intelligence — 7 key questions answered before you ask them' },
+    { name: 'Org Digital Twin', path: '/org-digital-twin', icon: '🏗', description: 'Living organizational model with 7 dimensions & what-if simulation' },
+    { name: 'OKR Dashboard', path: '/okr', icon: '🎯', description: 'Objectives & Key Results tracking with health indicators' },
+    { name: 'Peer Recognition', path: '/recognition', icon: '🏆', description: 'Give & view peer-to-peer recognitions, org-wide stats' }
   ];
 
-  // Early Warning & Risk Section
+  // ── Early Warning & Risk (14 items) ──
   const earlyWarningItems: IconItem[] = [
+    { name: 'Organizational Pulse', path: '/organizational-pulse', icon: '💓', description: 'Predictive intelligence — 7 key questions answered before you ask them' },
+    { name: 'Manager Intelligence', path: '/manager-intelligence', icon: '👔', description: 'Your team pulse, member risks, action items & coaching prompts' },
+    { name: 'Behavioral Intelligence', path: '/behavioral-intelligence', icon: '🧠', description: 'Team Health, Collaboration, Psych Safety, Friction & Change Readiness scores' },
+    { name: 'Org Network Analysis', path: '/organizational-network', icon: '🕸', description: 'Hidden influencers, isolated employees, cross-team bridges & manager dependency' },
     { name: 'Radar Dashboard', path: '/radar', icon: '📡', description: '360° organizational health monitoring system' },
     { name: 'Advanced Burnout Analytics', path: '/advanced-burnout', icon: '🎯', description: '14-day early warning with Z-scores & trend detection' },
     { name: 'Burnout Prevention', path: '/burnout-prevention', icon: '🔥', description: '7-90 day burnout prediction & prevention' },
@@ -52,7 +60,38 @@ const IconGallery: React.FC = () => {
     { name: 'Burnout Prediction', path: '/burnout-prediction', icon: '🔮', description: 'AI-powered risk prediction & analytics' }
   ];
 
-  // Clinical Screening Section
+  // ── Email Monitoring (5 items) ──
+  const emailMonitoringItems: IconItem[] = [
+    { name: 'Email Connector', path: '/email-connector', icon: '🔗', description: 'Email integration services' },
+    { name: 'Sentiment Analysis', path: '/sentiment-analysis', icon: '😊', description: 'Email tone and emotion analysis' },
+    { name: 'Scheduled Reports', path: '/scheduled-reports', icon: '📅', description: 'Automated weekly/monthly email reports' },
+    { name: 'Anomaly Detection', path: '/anomaly-detection', icon: '🚨', description: 'ML-powered pattern detection & alerts' },
+    { name: 'Team Dashboard', path: '/team-dashboard', icon: '👥', description: 'Team analytics & performance metrics' }
+  ];
+
+  // ── HRIS Analytics (9 items) ──
+  const hrisItems: IconItem[] = [
+    { name: 'Analytics Dashboard', path: '/hris-analytics', icon: '📈', description: '7 charts, KPIs, custom reports with real-time updates' },
+    { name: 'HRIS Connector', path: '/hris-connector', icon: '🔗', description: 'Connect Workday, BambooHR, ADP & 30+ HR systems' },
+    { name: 'Workforce Demographics', path: '/hris/demographics', icon: '👥', description: 'Employee composition, diversity analysis, age distribution & tenure trends' },
+    { name: 'Performance Analytics', path: '/hris/performance', icon: '⭐', description: 'Performance reviews, goals completion, top performers & trends' },
+    { name: 'Turnover Analysis', path: '/hris/turnover', icon: '📉', description: 'Turnover patterns, retention risks, exit reasons & predictions' },
+    { name: 'Compensation Analysis', path: '/hris/compensation', icon: '💰', description: 'Pay equity, salary benchmarks, compensation gaps & total rewards' },
+    { name: 'Engagement Analytics', path: '/hris/engagement', icon: '😊', description: 'Employee satisfaction, engagement scores, sentiment & workplace pulse' },
+    { name: 'Learning & Development', path: '/hris/learning', icon: '📚', description: 'Training effectiveness, skill gaps, certifications & development programs' },
+    { name: 'Succession Planning', path: '/hris/succession', icon: '🎯', description: 'Leadership pipeline, readiness scores, key positions & successors' }
+  ];
+
+  // ── Admin & Executive (5 items) ──
+  const adminItems: IconItem[] = [
+    { name: 'CEO Burnout Analytics', path: '/ceo-burnout-analytics', icon: '📊', description: 'Organization-level burnout risk, ROI tracking & cost-benefit analysis' },
+    { name: 'Advanced Burnout Analytics', path: '/advanced-burnout', icon: '🎯', description: '14-day early warning with Z-scores, cognitive load & fatigue tracking' },
+    { name: 'Corporate Psychology', path: '/admin/corporate-psychology', icon: '🧠', description: 'System-level organizational psychology intelligence for executives' },
+    { name: 'Security Dashboard', path: '/admin/security', icon: '🛡️', description: 'Security monitoring and threat intelligence' },
+    { name: 'Performance Monitoring', path: '/admin/performance', icon: '⚡', description: 'Real-time system performance metrics and health' }
+  ];
+
+  // ── Clinical Screening (22 items) ──
   const clinicalScreeningItems: IconItem[] = [
     { name: 'Depression Screening (PHQ-9)', path: '/screening/phq9', icon: '💙', description: 'Evidence-based depression screening (α=0.89)' },
     { name: 'Anxiety Screening (GAD-7)', path: '/screening/gad7', icon: '💛', description: 'Comprehensive anxiety assessment (α=0.92)' },
@@ -62,7 +101,7 @@ const IconGallery: React.FC = () => {
     { name: 'Eating Attitudes (EAT-26)', path: '/screening/eat26', icon: '🍎', description: 'Eating disorder screening (α=0.90)' },
     { name: 'OCD Severity (Y-BOCS)', path: '/screening/ybocs', icon: '🔄', description: 'Yale-Brown Obsessive Compulsive Scale (α=0.90)' },
     { name: 'Depression (BDI-II)', path: '/screening/bdi2', icon: '😢', description: 'Beck Depression Inventory-II (α=0.91)' },
-    { name: 'Anxiety (BAI)', path: '/screening/bai', icon: '😟', description: 'Beck Anxiety Inventory (α=0.92)' },
+    { name: 'Anxiety (BAI)', path: '/screening/bai', icon: '😰', description: 'Beck Anxiety Inventory (α=0.92)' },
     { name: 'DASS-21 (Depression/Anxiety/Stress)', path: '/screening/dass21', icon: '📊', description: '21-item multi-symptom assessment (α=0.84-0.91)' },
     { name: 'PCL-5 (PTSD Checklist)', path: '/screening/pcl5', icon: '🎯', description: 'PTSD screening for DSM-5 (α=0.94)' },
     { name: 'AUDIT (Alcohol Use)', path: '/screening/audit', icon: '🍺', description: 'Alcohol Use Disorders Identification Test (α=0.92)' },
@@ -78,32 +117,11 @@ const IconGallery: React.FC = () => {
     { name: 'ADHD Screening (ASRS)', path: '/screening/asrs', icon: '⚡', description: 'Adult ADHD Self-Report Scale v1.1 (Sens=68.7%, Spec=72.1%)' }
   ];
 
-  // Email Monitoring Section
-  const emailMonitoringItems: IconItem[] = [
-    { name: 'Email Connector', path: '/email-connector', icon: '🔗', description: 'Email integration services' },
-    { name: 'Sentiment Analysis', path: '/sentiment-analysis', icon: '😊', description: 'Email tone and emotion analysis' },
-    { name: 'Scheduled Reports', path: '/scheduled-reports', icon: '📅', description: 'Automated weekly/monthly email reports' },
-    { name: 'Anomaly Detection', path: '/anomaly-detection', icon: '🚨', description: 'ML-powered pattern detection & alerts' },
-    { name: 'Team Dashboard', path: '/team-dashboard', icon: '👥', description: 'Team analytics & performance metrics' }
-  ];
-
-  // HRIS Analytics Section
-  const hrisItems: IconItem[] = [
-    { name: 'Analytics Dashboard', path: '/hris-analytics', icon: '📈', description: '7 charts, KPIs, custom reports with real-time updates' },
-    { name: 'HRIS Connector', path: '/hris-connector', icon: '🔗', description: 'Connect Workday, BambooHR, ADP & 30+ HR systems' },
-    { name: 'Workforce Demographics', path: '/hris/demographics', icon: '👥', description: 'Employee composition, diversity analysis, age distribution & tenure trends' },
-    { name: 'Performance Analytics', path: '/hris/performance', icon: '⭐', description: 'Performance reviews, goals completion, top performers & trends' },
-    { name: 'Turnover Analysis', path: '/hris/turnover', icon: '📉', description: 'Turnover patterns, retention risks, exit reasons & predictions' },
-    { name: 'Compensation Analysis', path: '/hris/compensation', icon: '💰', description: 'Pay equity, salary benchmarks, compensation gaps & total rewards' },
-    { name: 'Engagement Analytics', path: '/hris/engagement', icon: '😊', description: 'Employee satisfaction, engagement scores, sentiment & workplace pulse' },
-    { name: 'Learning & Development', path: '/hris/learning', icon: '📚', description: 'Training effectiveness, skill gaps, certifications & development programs' },
-    { name: 'Succession Planning', path: '/hris/succession', icon: '🎯', description: 'Leadership pipeline, readiness scores, key positions & successors' }
-  ];
-
-  // Clinical Services & Resources Section
+  // ── Clinical Services & Resources (16 items) ──
   const clinicalServicesItems: IconItem[] = [
     { name: 'Telehealth - Schedule Consultation', path: '/telehealth/schedule', icon: '📹', description: 'Schedule video consultation with clinician' },
     { name: 'AI Chat Support', path: '/support/chat', icon: '🤖', description: '24/7 AI-powered mental health support' },
+    { name: 'AI Behavioral Coach', path: '/ai-coach', icon: '🧬', description: 'Personalized coaching, Digital Twin & team fit simulation' },
     { name: 'Clinical Analytics', path: '/analytics/clinical', icon: '📊', description: 'Population health insights dashboard' },
     { name: 'Population Health', path: '/analytics/population-health', icon: '🏥', description: 'Population metrics and high-risk identification' },
     { name: 'Alerts Center', path: '/clinical/alerts-center', icon: '🚨', description: 'Manage clinical alerts and notifications' },
@@ -114,45 +132,56 @@ const IconGallery: React.FC = () => {
     { name: 'Clinical Resources', path: '/clinical/resources', icon: '🏥', description: 'Therapists, support groups & mental health tools' },
     { name: 'Emergency Resources', path: '/clinical/emergency', icon: '🚨', description: '24/7 crisis support hotline' },
     { name: 'Clinical Dashboard', path: '/clinical/dashboard', icon: '👨‍⚕️', description: 'Professional tools for clinicians' },
-    { name: '✨ Enhanced Assessments', path: '/enhanced-assessments', icon: '⭐', description: 'Advanced assessments with dark mode, animations & offline support' },
+    { name: 'Enhanced Assessments', path: '/enhanced-assessments', icon: '⭐', description: 'Advanced assessments with dark mode, animations & offline support' },
     { name: 'Mental Health', path: '/mental-health-wellness', icon: '🧘', description: 'Mental health and wellness resources' },
     { name: 'Personality Assessments', path: '/personality-assessments', icon: '🧠', description: 'Personality tests and profiles' }
   ];
 
-  // Admin & Executive Section
-  const adminItems: IconItem[] = [
-    { name: 'CEO Burnout Analytics', path: '/ceo-burnout-analytics', icon: '📊', description: 'Organization-level burnout risk, ROI tracking & cost-benefit analysis' },
-    { name: 'Advanced Burnout Analytics', path: '/advanced-burnout', icon: '🎯', description: '14-day early warning with Z-scores, cognitive load & fatigue tracking' },
-    { name: 'Corporate Psychology', path: '/admin/corporate-psychology', icon: '🧠', description: 'System-level organizational psychology intelligence for executives' },
-    { name: 'Security Dashboard', path: '/admin/security', icon: '🛡️', description: 'Security monitoring and threat intelligence' },
-    { name: 'Performance Monitoring', path: '/admin/performance', icon: '⚡', description: 'Real-time system performance metrics and health' }
-  ];
-
-  // Services & Connectors Section
+  // ── Services & Connectors (7 items) ──
   const servicesItems: IconItem[] = [
     { name: 'Corporate Integrations', path: '/integrations/corporate', icon: '🔗', description: 'Connect 30+ data sources including Slack, HRIS, and more' },
+    { name: 'Work Systems (Jira/DevOps)', path: '/work-systems', icon: '🔌', description: 'Jira, Azure DevOps, Asana, Monday.com integration & behavioral signals' },
+    { name: 'Calendar Intelligence', path: '/calendar-intelligence', icon: '📅', description: 'Meeting load, focus time, after-hours & fragmentation analysis' },
+    { name: 'Communication Analytics', path: '/communication-analytics', icon: '💬', description: 'Slack & Teams messaging patterns, sentiment & after-hours analysis' },
     { name: 'Health Dashboard', path: '/health', icon: '❤️', description: 'Personal health monitoring and stress tracking' },
     { name: 'Team Health Analytics', path: '/team-health', icon: '📊', description: 'Manager view of team wellness (anonymized)' },
     { name: 'Behavioral Analysis', path: '/behavioral-analysis', icon: '📊', description: 'Behavioral pattern analysis' }
   ];
 
-  // Analytics & AI Section
-  const analyticsItems: IconItem[] = [
+  // ── Network & Collaboration (5 items) ──
+  const networkCollaborationItems: IconItem[] = [
+    { name: 'Network Dashboard', path: '/organizational-network', icon: '🕸', description: 'Influencers, bridges, isolated employees & network health' },
+    { name: 'Collaboration Survey', path: '/collaboration-survey', icon: '📋', description: 'Advice, trust & energy network mapping via self-report' },
+    { name: 'Community Map', path: '/community-map', icon: '🏘', description: 'Detected communities, clusters & silo analysis' },
+    { name: 'Network Evolution', path: '/network-evolution', icon: '📈', description: 'Temporal trends in connectivity, density & communities' },
+    { name: 'Personality Overlay', path: '/personality-network', icon: '🧠', description: 'Big Five traits overlaid on network positions' }
+  ];
+
+  // ── Biometric Integrations (4 items) ──
+  const biometricItems: IconItem[] = [
+    { name: 'Device Connections', path: '/biometric/integrations', icon: '📱', description: 'Connect Apple Health, Fitbit, Garmin, Oura, WHOOP & Google Fit' },
+    { name: 'Live Metrics', path: '/biometric/metrics', icon: '❤️', description: 'Real-time heart rate, HRV, sleep quality & stress levels' },
+    { name: 'Sleep & Recovery', path: '/biometric/sleep', icon: '🌙', description: 'Sleep stages, recovery scores & readiness trends' },
+    { name: 'Stress Biometrics', path: '/biometric/stress', icon: '⚡', description: 'Physiological stress signals, body battery & strain tracking' }
+  ];
+
+  // ── Teams Analytics (6 items) ──
+  const teamsAnalyticsItems: IconItem[] = [
+    { name: 'Teams', path: '/teams', icon: '👥', description: 'Manage and view your teams' },
     { name: 'Team Optimizer', path: '/team-optimizer', icon: '⚡', description: 'Optimize team dynamics with department filtering' },
     { name: 'Team Composition', path: '/team-composition', icon: '🧩', description: 'Personality-based team analytics and insights' },
     { name: 'Multi-Framework Synthesis', path: '/multi-framework-synthesis', icon: '🧩', description: 'AI-powered synthesis across personality frameworks' },
-    { name: 'Predictive Analytics', path: '/predictive-analytics', icon: '🤖', description: 'AI-powered predictions' },
     { name: 'Reliability & Validity', path: '/reliability-validity', icon: '🔬', description: 'Research metrics and validation' },
     { name: 'General Analytics', path: '/analytics/dashboard', icon: '📈', description: 'Overall analytics dashboard' }
   ];
 
-  // Compliance & Legal Section
+  // ── Compliance & Legal (2 items) ──
   const complianceItems: IconItem[] = [
     { name: 'Legal Rights Dashboard', path: '/legal-rights', icon: '⚖️', description: 'Employee legal rights information and resources' },
     { name: 'Equity & Transparency', path: '/equity', icon: '🤝', description: 'Workplace equity metrics and transparency reports' }
   ];
 
-  // Public Access Section
+  // ── Public Access (2 items) ──
   const publicItems: IconItem[] = [
     { name: 'Anonymous Feedback', path: '/anonymous-feedback', icon: '🛡️', description: 'Secure anonymous feedback system' },
     { name: 'Check Status', path: '/feedback-status', icon: '🔍', description: 'Check feedback status' }
@@ -162,13 +191,15 @@ const IconGallery: React.FC = () => {
     { title: 'Core Navigation', icon: '📊', color: 'bg-blue-50 border-blue-200', items: coreItems },
     { title: 'Executive Analytics', icon: '📊', color: 'bg-indigo-50 border-indigo-200', items: executiveAnalyticsItems },
     { title: 'Early Warning & Risk', icon: '⚡', color: 'bg-yellow-50 border-yellow-200', items: earlyWarningItems },
-    { title: 'Clinical Screening', icon: '🏥', color: 'bg-green-50 border-green-200', items: clinicalScreeningItems },
     { title: 'Email Monitoring', icon: '📧', color: 'bg-indigo-50 border-indigo-200', items: emailMonitoringItems },
     { title: 'HRIS Analytics', icon: '📊', color: 'bg-cyan-50 border-cyan-200', items: hrisItems },
-    { title: 'Clinical Services', icon: '🏥', color: 'bg-blue-50 border-blue-200', items: clinicalServicesItems },
     { title: 'Admin & Executive', icon: '🔐', color: 'bg-red-50 border-red-200', items: adminItems },
+    { title: 'Clinical Screening', icon: '🏥', color: 'bg-green-50 border-green-200', items: clinicalScreeningItems },
+    { title: 'Clinical Services & Resources', icon: '🏥', color: 'bg-blue-50 border-blue-200', items: clinicalServicesItems },
     { title: 'Services & Connectors', icon: '🔧', color: 'bg-purple-50 border-purple-200', items: servicesItems },
-    { title: 'Analytics & AI', icon: '🤖', color: 'bg-orange-50 border-orange-200', items: analyticsItems },
+    { title: 'Network & Collaboration', icon: '🕸', color: 'bg-teal-50 border-teal-200', items: networkCollaborationItems },
+    { title: 'Biometric Integrations', icon: '⌚', color: 'bg-emerald-50 border-emerald-200', items: biometricItems },
+    { title: 'Teams Analytics', icon: '🤖', color: 'bg-orange-50 border-orange-200', items: teamsAnalyticsItems },
     { title: 'Compliance & Legal', icon: '⚖️', color: 'bg-gray-50 border-gray-200', items: complianceItems },
     { title: 'Public Access', icon: '🌐', color: 'bg-green-50 border-green-200', items: publicItems }
   ];
@@ -202,14 +233,14 @@ const IconGallery: React.FC = () => {
               Icon Gallery
             </h1>
             <p className="text-sm text-gray-600 mt-1">
-              All navigation icons from the sidebar • {allIcons.length} total items across {sections.length} categories
+              All navigation icons from the sidebar &bull; {allIcons.length} total items across {sections.length} categories &bull; {uniqueIcons} unique icons
             </p>
           </div>
           <button
             onClick={() => navigate(-1)}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors mobile-touch-target"
           >
-            ← Back
+            &larr; Back
           </button>
         </div>
 
@@ -256,7 +287,7 @@ const IconGallery: React.FC = () => {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         {sections.map((section) => (
           <div
             key={section.title}
@@ -335,7 +366,7 @@ const IconGallery: React.FC = () => {
       {/* Footer Info */}
       <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
         <p className="text-sm text-indigo-800 text-center">
-          <strong>💡 Tip:</strong> Click on any icon card to navigate to that page • Use keyboard shortcut <kbd className="px-1.5 py-0.5 bg-white border rounded mx-1">⌘K</kbd> to search from anywhere
+          <strong>💡 Tip:</strong> Click on any icon card to navigate to that page &bull; Use keyboard shortcut <kbd className="px-1.5 py-0.5 bg-white border rounded mx-1">⌘K</kbd> to search from anywhere
         </p>
       </div>
     </div>
