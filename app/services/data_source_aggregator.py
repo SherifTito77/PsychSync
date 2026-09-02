@@ -1536,7 +1536,68 @@ class DataSourceAggregator:
             except Exception:
                 status[key] = {"available": False, "reason": "Registry error"}
 
+        # Project Management source
+        try:
+            from app.services.project_management_metadata_service import (
+                project_management_registry,
+            )
+
+            pm_connectors = project_management_registry.list_connectors()
+            status["project_management"] = {
+                "available": len(pm_connectors) > 0,
+                "connector_count": len(pm_connectors),
+            }
+        except Exception:
+            status["project_management"] = {
+                "available": False,
+                "reason": "Service not loaded",
+            }
+
         return status
+
+    async def gather_project_management_signals(
+        self, organization_id: str, days: int = 30
+    ) -> Dict[str, Any]:
+        """Gather workload and delivery signals from project management tools."""
+        try:
+            from app.services.project_management_metadata_service import (
+                ProjectManagementAnalyzer,
+                project_management_registry,
+            )
+
+            connectors = project_management_registry.list_connectors()
+            if not connectors:
+                return {}
+            connector = project_management_registry.get(connectors[0]["name"])
+            if connector is None:
+                return {}
+            records = await connector.fetch_task_metadata({}, period_days=days)
+            if not records:
+                return {}
+            analyzer = ProjectManagementAnalyzer()
+            return analyzer.analyze(records)
+        except Exception as exc:
+            logger.debug("Project management signal gathering failed: %s", exc)
+            return {}
+
+    async def gather_lifecycle_signals(
+        self, db, org_id: str, days: int = 365
+    ) -> Dict[str, Any]:
+        """Gather employee lifecycle signals (turnover, promotions, tenure)."""
+        try:
+            from app.services.employee_lifecycle_service import (
+                employee_lifecycle_service,
+            )
+
+            analysis = await employee_lifecycle_service.analyze_lifecycle(
+                db, org_id, period_days=days
+            )
+            from dataclasses import asdict
+
+            return asdict(analysis)
+        except Exception as exc:
+            logger.debug("Lifecycle signal gathering failed: %s", exc)
+            return {}
 
 
 # Module-level singleton

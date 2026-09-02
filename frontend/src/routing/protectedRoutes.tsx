@@ -121,6 +121,8 @@ import {
   ToxicityBurnoutDashboard,
   VideoConferenceMetadataDashboard,
   KnowledgeBaseAnalyticsDashboard,
+  ProjectManagementDashboard,
+  EmployeeLifecycleDashboard,
 } from './lazyImports';
 
 // Layout
@@ -309,6 +311,10 @@ export const protectedRoutes = (
 
     {/* Toxicity & Burnout Intelligence */}
     {createProtectedRoute('/toxicity-burnout', <ToxicityBurnoutDashboard />)}
+
+    {/* Project Management & Employee Lifecycle */}
+    {createProtectedRoute('/project-management-metadata', <ProjectManagementDashboard />)}
+    {createProtectedRoute('/employee-lifecycle', <EmployeeLifecycleDashboard />)}
 
     {/* Compliance & Legal */}
     {createProtectedRoute('/legal-rights', <LegalRightsDashboard />)}

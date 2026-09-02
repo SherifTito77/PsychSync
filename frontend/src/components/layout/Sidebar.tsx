@@ -142,7 +142,8 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
       { name: 'Burnout Prediction', path: '/burnout-prediction', icon: '🔮', description: 'AI-powered risk prediction & analytics' },
       { name: 'Action Plans', path: '/action-plans', icon: '📋', description: 'Track interventions from Pulse, Manager Intelligence & manual creation' },
       { name: 'Onboarding Analytics', path: '/onboarding-analytics', icon: '👋', description: 'New hire health composite from existing signals' },
-      { name: 'Toxicity & Burnout', path: '/toxicity-burnout', icon: '☣️', description: 'Passive detection of toxic patterns & burnout from infrastructure metadata' }
+      { name: 'Toxicity & Burnout', path: '/toxicity-burnout', icon: '☣️', description: 'Passive detection of toxic patterns & burnout from infrastructure metadata' },
+      { name: 'Employee Lifecycle', path: '/employee-lifecycle', icon: '🔄', description: 'Turnover, promotions, tenure cliffs, departure clustering, flight risk from lifecycle events' }
     ]
   };
 
@@ -163,6 +164,7 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
       { name: 'Git/GitHub', path: '/git-metadata', icon: '🐙', description: 'Commit patterns, PR lifecycle, review bottlenecks, after-hours coding' },
       { name: 'Video Conferencing', path: '/video-conference-metadata', icon: '📹', description: 'Camera engagement, meeting fatigue, back-to-back density, join latency' },
       { name: 'Knowledge Base', path: '/knowledge-base-metadata', icon: '📚', description: 'Doc creation, contributor concentration, stale content, knowledge sharing' },
+      { name: 'Project Management', path: '/project-management-metadata', icon: '📋', description: 'Workload, cycle time, blocked tasks, deadline pressure from Jira/Asana/Linear' },
       { name: 'Email Connector', path: '/email-connector', icon: '🔗', description: 'Email integration services' },
       { name: 'Scheduled Reports', path: '/scheduled-reports', icon: '📅', description: 'Automated weekly/monthly email reports' },
       { name: 'Anomaly Detection', path: '/anomaly-detection', icon: '🚨', description: 'ML-powered pattern detection & alerts' }

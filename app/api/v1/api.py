@@ -164,6 +164,9 @@ _FEATURE_ENDPOINTS = [
     "toxicity_burnout",
     "video_conference_metadata",
     "knowledge_base_metadata",
+    "project_management_metadata",
+    "employee_lifecycle",
+    "module_registry",
 ]
 
 _SEPARATED_SERVICE_ENDPOINTS = [

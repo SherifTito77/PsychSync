@@ -184,6 +184,10 @@ export const KnowledgeBaseAnalyticsDashboard = lazy(() => import('../pages/Knowl
 // Toxicity & Burnout Intelligence
 export const ToxicityBurnoutDashboard = lazy(() => import('../pages/ToxicityBurnoutDashboard'));
 
+// Project Management & Employee Lifecycle (metadata-first architecture)
+export const ProjectManagementDashboard = lazy(() => import('../pages/ProjectManagementDashboard'));
+export const EmployeeLifecycleDashboard = lazy(() => import('../pages/EmployeeLifecycleDashboard'));
+
 // Test & Demo Pages
 export const TestWellnessForm = lazy(() => import('../components/clinical/TestWellnessForm'));
 export const StressAssessmentTest = lazy(() => import('../pages/StressAssessmentTest'));
