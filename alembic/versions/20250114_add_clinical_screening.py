@@ -22,7 +22,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "20250114_add_clinical_screening"
-down_revision = None  # Will be set when integrated
+down_revision = "20250114_add_corporate_integrations"
 branch_labels = None
 depends_on = None
 

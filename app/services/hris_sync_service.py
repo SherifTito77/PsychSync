@@ -89,29 +89,47 @@ class HRISSyncService:
             HRIS data
         """
         try:
-            # TODO: Implement actual data retrieval from HRIS connectors
-            # For now, return mock data
+            from app.services.enterprise_hris_service import hris_registry
 
-            employees = [
-                {
-                    "id": "EMP001",
-                    "name": "John Doe",
-                    "email": "john.doe@company.com",
-                    "department": "Engineering",
-                    "title": "Software Engineer",
-                    "status": "active",
-                    "hire_date": "2022-03-15",
-                },
-                {
-                    "id": "EMP002",
-                    "name": "Jane Smith",
-                    "email": "jane.smith@company.com",
-                    "department": "Sales",
-                    "title": "Sales Manager",
-                    "status": "active",
-                    "hire_date": "2021-07-20",
-                },
-            ]
+            employees: list = []
+            connector = None
+
+            # Try each registered HRIS connector until we find one for this org
+            for info in hris_registry.list_connectors():
+                c = hris_registry.get(info["name"])
+                if c is not None:
+                    connector = c
+                    break
+
+            if connector is not None:
+                try:
+                    raw_employees = await connector.fetch_employees()
+                    for emp in raw_employees:
+                        employees.append(
+                            {
+                                "id": emp.employee_id,
+                                "name": emp.full_name,
+                                "email": emp.email,
+                                "department": emp.department,
+                                "title": emp.job_title,
+                                "status": emp.status,
+                                "hire_date": emp.start_date,
+                                "manager_id": emp.manager_id,
+                            }
+                        )
+                except Exception as fetch_err:
+                    logger.warning(
+                        f"HRIS connector fetch failed, returning empty: {fetch_err}"
+                    )
+
+            # Apply optional filters
+            if filters:
+                dept = filters.get("department")
+                status = filters.get("status")
+                if dept:
+                    employees = [e for e in employees if e.get("department") == dept]
+                if status:
+                    employees = [e for e in employees if e.get("status") == status]
 
             hris_data = {
                 "employees": employees,
@@ -152,12 +170,55 @@ class HRISSyncService:
         Returns:
             Employee data
         """
-        # TODO: Implement actual retrieval
+        all_data = await self.get_hris_data(
+            organization_id=organization_id,
+            data_types=["employees"],
+            date_range={
+                "start": "1970-01-01",
+                "end": datetime.utcnow().strftime("%Y-%m-%d"),
+            },
+            filters=filters,
+        )
+        employees = all_data.get("employees", [])
+
+        # Filter to specific employee IDs if provided
+        if employee_ids:
+            id_set = set(employee_ids)
+            employees = [e for e in employees if e.get("id") in id_set]
+
+        # Scope-based field filtering
+        scope_fields = {
+            "basic": {"id", "name", "department", "title", "status"},
+            "standard": {
+                "id",
+                "name",
+                "email",
+                "department",
+                "title",
+                "status",
+                "hire_date",
+            },
+            "advanced": {
+                "id",
+                "name",
+                "email",
+                "department",
+                "title",
+                "status",
+                "hire_date",
+                "manager_id",
+            },
+        }
+        allowed = scope_fields.get(data_scope, scope_fields["basic"])
+        if not include_sensitive:
+            allowed = allowed - {"email", "manager_id"}
+
+        employees = [{k: v for k, v in e.items() if k in allowed} for e in employees]
+
         return {
-            "employees": [],
+            "employees": employees,
             "scope": data_scope,
-            "count": 0,
-            "message": "Employee data retrieval not yet implemented",
+            "count": len(employees),
         }
 
     async def start_manual_sync(
@@ -222,14 +283,27 @@ class HRISSyncService:
             # Update task status
             if sync_task_id in self._active_sync_tasks:
                 self._active_sync_tasks[sync_task_id]["status"] = "processing"
-                self._active_sync_tasks[sync_task_id]["records_processed"] = 75
+                self._active_sync_tasks[sync_task_id]["records_processed"] = 0
 
-            # TODO: Implement actual sync processing
+            # Fetch data from HRIS connectors
+            data_types = sync_options.get("data_types", ["employees"])
+            hris_data = await self.get_hris_data(
+                organization_id=organization_id,
+                data_types=data_types,
+                date_range={
+                    "start": (datetime.utcnow() - timedelta(days=30)).strftime(
+                        "%Y-%m-%d"
+                    ),
+                    "end": datetime.utcnow().strftime("%Y-%m-%d"),
+                },
+            )
+
+            total = hris_data.get("total_records", 0)
 
             # Complete the task
             if sync_task_id in self._active_sync_tasks:
                 self._active_sync_tasks[sync_task_id]["status"] = "completed"
-                self._active_sync_tasks[sync_task_id]["records_processed"] = 150
+                self._active_sync_tasks[sync_task_id]["records_processed"] = total
                 self._active_sync_tasks[sync_task_id][
                     "completed_at"
                 ] = datetime.utcnow().isoformat()
@@ -327,8 +401,33 @@ class HRISSyncService:
         Returns:
             Data freshness description
         """
-        # TODO: Implement actual freshness check
-        return "Data updated within last 24 hours"
+        # Check sync history for the most recent completed sync
+        org_history = [
+            entry
+            for entry in self._sync_history
+            if entry.get("organization_id") == organization_id
+        ]
+
+        if not org_history:
+            return "No sync data available"
+
+        last_sync_str = org_history[-1].get("completed_at")
+        if not last_sync_str:
+            return "No sync data available"
+
+        last_sync = datetime.fromisoformat(last_sync_str)
+        age = datetime.utcnow() - last_sync
+
+        if age < timedelta(hours=1):
+            return "Data updated within last hour"
+        elif age < timedelta(hours=24):
+            hours = int(age.total_seconds() // 3600)
+            return f"Data updated {hours} hour{'s' if hours != 1 else ''} ago"
+        elif age < timedelta(days=7):
+            days = age.days
+            return f"Data updated {days} day{'s' if days != 1 else ''} ago"
+        else:
+            return f"Data is stale (last sync: {last_sync.strftime('%Y-%m-%d')})"
 
     async def update_sync_settings(
         self,

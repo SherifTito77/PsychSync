@@ -15,7 +15,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID, TIMESTAMP
 
 revision: str = "20260824_pulse_snapshots"
-down_revision: Union[str, None] = None
+down_revision: Union[str, None] = "20260824_org_twin"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

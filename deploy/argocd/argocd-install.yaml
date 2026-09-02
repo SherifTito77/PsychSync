@@ -728,7 +728,7 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: migration
-        image: psychsync/db-migration:v1.0.0
+        image: ghcr.io/sheriftito77/psychsync-db-migration:latest  # Update via CI/CD or kustomize overlay
         command:
         - /scripts/run-migrations.sh
         env:
@@ -754,7 +754,7 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: smoke-test
-        image: psychsync/smoke-tests:v1.0.0
+        image: ghcr.io/sheriftito77/psychsync-smoke-tests:latest  # Update via CI/CD or kustomize overlay
         command:
         - /scripts/run-smoke-tests.sh
         env:

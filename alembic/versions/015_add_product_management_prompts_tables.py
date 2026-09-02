@@ -1,6 +1,6 @@
 """add_product_management_prompts_tables
 
-Revision ID: 015_add_product_management_prompts_tables
+Revision ID: 015b_add_product_management_prompts_tables
 Revises: 014_enterprise_security_implementation
 Create Date: 2025-01-17
 
@@ -12,8 +12,8 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "015_add_product_management_prompts_tables"
-down_revision = "014_enterprise_security_implementation"
+revision = "015b_add_product_management_prompts_tables"
+down_revision = "015_add_composite_indexes"
 branch_labels = None
 depends_on = None
 

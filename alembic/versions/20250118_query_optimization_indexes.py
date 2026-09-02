@@ -23,7 +23,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "20250118_query_optimization_indexes"
-down_revision: Union[str, None] = "009_add_critical_database_indexes"
+down_revision: Union[str, None] = "clinical_f654b6576f6a"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

@@ -15,7 +15,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "008_create_assessment_tables"
-down_revision: Union[str, None] = "007_add_user_role_field"
+down_revision: Union[str, None] = "007b_add_user_role_field"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

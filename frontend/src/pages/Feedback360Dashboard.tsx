@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import axios from '../api/axios';
 
 interface FeedbackRound {
   id: string;
@@ -16,7 +17,41 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 };
 
 function Feedback360Dashboard() {
-  const [rounds] = useState<FeedbackRound[]>([]);
+  const [rounds, setRounds] = useState<FeedbackRound[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  const orgId = 'current';
+
+  const fetchRounds = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await axios.get(`/api/v1/feedback-360/rounds/${orgId}`);
+      setRounds(res.data.rounds || res.data || []);
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'Failed to load feedback rounds');
+    } finally {
+      setLoading(false);
+    }
+  }, [orgId]);
+
+  useEffect(() => {
+    fetchRounds();
+  }, [fetchRounds]);
+
+  const handleCreateRound = async () => {
+    setCreating(true);
+    try {
+      await axios.post('/api/v1/feedback-360/rounds', { org_id: orgId, title: `Feedback Round ${new Date().toLocaleDateString()}` });
+      await fetchRounds();
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'Failed to create feedback round');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <div style={{ padding: 24, maxWidth: 1200, margin: '0 auto' }}>
@@ -44,14 +79,29 @@ function Feedback360Dashboard() {
         </div>
       </div>
 
+      {error && (
+        <div style={{
+          padding: 16, background: '#fef2f2', border: '1px solid #fecaca',
+          borderRadius: 8, color: '#991b1b', marginBottom: 16,
+        }}>
+          {error}
+        </div>
+      )}
+
       {/* Rounds list */}
-      {rounds.length === 0 ? (
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 48, color: '#9ca3af' }}>Loading feedback rounds...</div>
+      ) : rounds.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 48, color: '#9ca3af', background: '#f9fafb', borderRadius: 12 }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🔄</div>
           <h3 style={{ fontSize: 18, fontWeight: 600, color: '#374151' }}>No feedback rounds yet</h3>
           <p style={{ fontSize: 14 }}>Create a feedback round to start collecting multi-rater assessments.</p>
-          <button style={{ marginTop: 16, padding: '10px 20px', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>
-            + Create Round
+          <button
+            onClick={handleCreateRound}
+            disabled={creating}
+            style={{ marginTop: 16, padding: '10px 20px', background: creating ? '#9ca3af' : '#4f46e5', color: '#fff', border: 'none', borderRadius: 8, cursor: creating ? 'not-allowed' : 'pointer', fontWeight: 600 }}
+          >
+            {creating ? 'Creating...' : '+ Create Round'}
           </button>
         </div>
       ) : (

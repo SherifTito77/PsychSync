@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "014_enterprise_compliance_implementation"
-down_revision = "013_add_critical_performance_indexes"
+down_revision = "013b_add_user_role_to_base"
 branch_labels = None
 depends_on = None
 

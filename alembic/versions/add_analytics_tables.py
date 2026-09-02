@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "002_add_analytics"
-down_revision = "001_base_tables"
+down_revision = "002_anonymous_feedback_tables"
 branch_labels = None
 depends_on = None
 

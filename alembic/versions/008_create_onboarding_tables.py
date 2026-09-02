@@ -16,8 +16,8 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers
-revision = "008"
-down_revision = None
+revision = "008b"
+down_revision = "008_create_assessment_tables"
 
 
 def upgrade():

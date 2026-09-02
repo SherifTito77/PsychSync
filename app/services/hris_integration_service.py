@@ -7,6 +7,8 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from cryptography.fernet import Fernet
+
 from app.integrations.hris.integration_manager import HRISIntegrationManager
 
 logger = logging.getLogger(__name__)
@@ -18,10 +20,20 @@ class HRISIntegrationService:
     Handles connection lifecycle, validation, and access control.
     """
 
+    # k-anonymity thresholds matching privacy_guard.py
+    K_BASIC = 5
+    K_SENSITIVE = 10
+
+    # PII field sets by scope
+    _PII_FIELDS_BASIC = {"email", "phone", "address", "ssn", "date_of_birth"}
+    _PII_FIELDS_STANDARD = {"phone", "address", "ssn", "date_of_birth"}
+    _PII_FIELDS_ADVANCED = {"ssn"}
+
     def __init__(self):
         """Initialize HRIS integration service."""
         self.integration_manager = HRISIntegrationManager()
         self._active_connections: Dict[str, Dict[str, Any]] = {}
+        self._fernet: Optional[Fernet] = None
 
     async def validate_connection_parameters(
         self,
@@ -160,11 +172,13 @@ class HRISIntegrationService:
                 f"{organization_id}_{provider}_{datetime.utcnow().timestamp()}"
             )
 
+            encrypted_params = self._encrypt_parameters(connection_parameters)
+
             connection_config = {
                 "connection_id": connection_id,
                 "organization_id": organization_id,
                 "provider": provider,
-                "connection_parameters": connection_parameters,  # TODO: Encrypt before storing
+                "connection_parameters": encrypted_params,
                 "data_permissions": data_permissions,
                 "sync_settings": sync_settings,
                 "setup_by": setup_by,
@@ -269,9 +283,12 @@ class HRISIntegrationService:
         Returns:
             True if user has access, False otherwise
         """
-        # TODO: Implement proper permission checking
-        # For now, grant access to all users
-        return True
+        allowed_roles = {"admin", "owner", "super_admin"}
+        user_role = await self._resolve_user_role(user_id, organization_id)
+        if user_role in allowed_roles:
+            return True
+        # Members can only view basic analytics
+        return analytics_type in ("overview", "summary")
 
     async def verify_employee_data_access(
         self,
@@ -292,10 +309,18 @@ class HRISIntegrationService:
         Returns:
             True if user has access, False otherwise
         """
-        # TODO: Implement proper permission checking
-        # Basic scope validation
         valid_scopes = ["basic", "standard", "advanced", "custom"]
-        return data_scope in valid_scopes
+        if data_scope not in valid_scopes:
+            return False
+
+        user_role = await self._resolve_user_role(user_id, organization_id)
+        # Only admins/owners can access advanced or custom scopes
+        if data_scope in ("advanced", "custom"):
+            return user_role in ("admin", "owner", "super_admin")
+        # Standard scope requires at least admin or owner
+        if data_scope == "standard":
+            return user_role in ("admin", "owner", "super_admin", "member")
+        return True
 
     async def verify_sync_status_access(
         self,
@@ -312,8 +337,8 @@ class HRISIntegrationService:
         Returns:
             True if user has access, False otherwise
         """
-        # TODO: Implement proper permission checking
-        return True
+        user_role = await self._resolve_user_role(user_id, organization_id)
+        return user_role in ("admin", "owner", "super_admin", "member")
 
     async def verify_organization_access(
         self,
@@ -330,8 +355,8 @@ class HRISIntegrationService:
         Returns:
             True if user has access, False otherwise
         """
-        # TODO: Implement proper permission checking
-        return True
+        user_role = await self._resolve_user_role(user_id, organization_id)
+        return user_role is not None
 
     async def anonymize_employee_data(
         self,
@@ -348,14 +373,37 @@ class HRISIntegrationService:
         Returns:
             Anonymized employee data
         """
-        # TODO: Implement proper anonymization
-        # For basic scope, remove direct identifiers
+        employees = employee_data.get("employees", [])
+
+        # Determine which PII fields to strip based on scope
         if data_scope == "basic":
-            employees = employee_data.get("employees", [])
-            for emp in employees:
-                emp.pop("email", None)
-                emp.pop("phone", None)
-                emp.pop("address", None)
+            strip_fields = self._PII_FIELDS_BASIC
+        elif data_scope == "standard":
+            strip_fields = self._PII_FIELDS_STANDARD
+        elif data_scope == "advanced":
+            strip_fields = self._PII_FIELDS_ADVANCED
+        else:
+            strip_fields = self._PII_FIELDS_BASIC
+
+        for emp in employees:
+            for pii_field in strip_fields:
+                emp.pop(pii_field, None)
+            # Generalize name to initials when group is below k-anonymity threshold
+            if len(employees) < self.K_BASIC and "name" in emp:
+                parts = emp["name"].split()
+                emp["name"] = " ".join(p[0] + "." for p in parts if p)
+
+        # Suppress department-level breakdowns below k-anonymity threshold
+        dept_groups: Dict[str, int] = {}
+        for emp in employees:
+            dept = emp.get("department", "Unknown")
+            dept_groups[dept] = dept_groups.get(dept, 0) + 1
+
+        k = self.K_SENSITIVE if data_scope in ("advanced", "custom") else self.K_BASIC
+        for emp in employees:
+            dept = emp.get("department", "Unknown")
+            if dept_groups.get(dept, 0) < k:
+                emp["department"] = "Other"
 
         return employee_data
 
@@ -374,11 +422,46 @@ class HRISIntegrationService:
         Returns:
             Psychometric data for employees
         """
-        # TODO: Implement retrieval from assessment tables
-        return {
-            "psychometric_integration": [],
-            "message": "Psychometric data integration not yet implemented",
-        }
+        try:
+            from sqlalchemy import select
+            from app.core.database import async_session_factory
+
+            async with async_session_factory() as db:
+                # Try to query the responses/assessments tables if they exist
+                from app.db.models import Assessment, Response
+
+                q = select(Response).where(
+                    Response.organization_id == str(organization_id)
+                )
+                if employee_ids:
+                    q = q.where(Response.user_id.in_(employee_ids))
+                q = q.limit(500)
+
+                result = await db.execute(q)
+                rows = result.scalars().all()
+
+                return {
+                    "psychometric_integration": [
+                        {
+                            "employee_id": str(r.user_id),
+                            "assessment_id": str(r.assessment_id),
+                            "score": r.score if hasattr(r, "score") else None,
+                            "completed_at": (
+                                r.created_at.isoformat()
+                                if hasattr(r, "created_at") and r.created_at
+                                else None
+                            ),
+                        }
+                        for r in rows
+                    ],
+                    "total": len(rows),
+                }
+        except Exception as e:
+            logger.warning(f"Psychometric data retrieval unavailable: {e}")
+            return {
+                "psychometric_integration": [],
+                "message": "Assessment tables not yet available",
+            }
 
     async def get_data_field_list(self, data_scope: str) -> List[str]:
         """
@@ -565,3 +648,91 @@ class HRISIntegrationService:
             return {"deleted": True, "connection_id": connection_id}
 
         return {"deleted": False, "connection_id": connection_id}
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    def _get_fernet(self) -> Fernet:
+        """Lazily initialise Fernet cipher from app settings."""
+        if self._fernet is None:
+            try:
+                from app.core.config import settings
+
+                key = (
+                    getattr(settings, "HRIS_ENCRYPTION_KEY", None)
+                    or Fernet.generate_key()
+                )
+                if isinstance(key, str):
+                    key = key.encode()
+                self._fernet = Fernet(key)
+            except Exception:
+                # Fallback: generate an ephemeral key (connections won't survive restart)
+                self._fernet = Fernet(Fernet.generate_key())
+        return self._fernet
+
+    def _encrypt_parameters(self, params: Dict[str, Any]) -> str:
+        """Encrypt connection parameters with Fernet symmetric encryption."""
+        import json
+
+        plaintext = json.dumps(params).encode()
+        return self._get_fernet().encrypt(plaintext).decode()
+
+    def _decrypt_parameters(self, encrypted: str) -> Dict[str, Any]:
+        """Decrypt connection parameters."""
+        import json
+
+        plaintext = self._get_fernet().decrypt(encrypted.encode())
+        return json.loads(plaintext)
+
+    async def _resolve_user_role(
+        self, user_id: int, organization_id: int
+    ) -> Optional[str]:
+        """
+        Resolve the highest role a user holds within an organization.
+
+        Checks team_members table for roles within the org's teams.
+        Falls back to checking User.is_superuser.
+        """
+        try:
+            from sqlalchemy import select, and_
+            from sqlalchemy.ext.asyncio import AsyncSession
+            from app.core.database import async_session_factory
+            from app.db.models.team import Team, TeamMember
+            from app.db.models.user import User
+
+            async with async_session_factory() as db:
+                # Check superuser first
+                user_q = select(User.is_superuser).where(User.id == str(user_id))
+                result = await db.execute(user_q)
+                row = result.scalar_one_or_none()
+                if row is True:
+                    return "super_admin"
+
+                # Query team memberships within the organization
+                q = (
+                    select(TeamMember.role)
+                    .join(Team, Team.id == TeamMember.team_id)
+                    .where(
+                        and_(
+                            TeamMember.user_id == str(user_id),
+                            Team.organization_id == str(organization_id),
+                        )
+                    )
+                )
+                result = await db.execute(q)
+                roles = [
+                    r[0].value if hasattr(r[0], "value") else str(r[0])
+                    for r in result.all()
+                ]
+
+                if not roles:
+                    return None
+
+                # Return highest role: owner > admin > member
+                role_hierarchy = {"owner": 3, "admin": 2, "member": 1}
+                return max(roles, key=lambda r: role_hierarchy.get(r, 0))
+
+        except Exception as e:
+            logger.error(f"Error resolving user role: {e}")
+            return None

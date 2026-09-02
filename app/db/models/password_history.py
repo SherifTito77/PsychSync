@@ -6,7 +6,7 @@ NIST SP 800-63B compliant — tracks last N password hashes per user.
 
 import uuid
 
-from sqlalchemy import Column, ForeignKey, String, Text, func
+from sqlalchemy import Column, ForeignKey, String, Text, func, text
 from sqlalchemy.dialects.postgresql import UUID, TIMESTAMP
 
 from app.core.database import Base
@@ -18,7 +18,12 @@ PASSWORD_HISTORY_DEPTH = 12
 class PasswordHistory(Base):
     __tablename__ = "password_history"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
     user_id = Column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),

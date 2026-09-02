@@ -4,10 +4,9 @@ ClinicalResource — admin-managed directory of therapists, support groups, and 
 
 import uuid
 
-from sqlalchemy import Boolean, Column, Float, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, String, Text, text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.sql import func
-from sqlalchemy import DateTime
 
 from app.core.database import Base
 
@@ -15,7 +14,12 @@ from app.core.database import Base
 class ClinicalResource(Base):
     __tablename__ = "clinical_resources"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
     resource_type = Column(
         String(20), nullable=False, index=True
     )  # therapist|group|resource

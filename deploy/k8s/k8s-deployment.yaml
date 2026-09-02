@@ -186,7 +186,7 @@ spec:
     spec:
       containers:
       - name: api
-        image: psychsync/api:latest
+        image: ghcr.io/sheriftito77/psychsync-api:latest  # Update via CI/CD or kustomize overlay
         ports:
         - containerPort: 8000
         env:
@@ -260,7 +260,7 @@ spec:
     spec:
       containers:
       - name: worker
-        image: psychsync/api:latest
+        image: ghcr.io/sheriftito77/psychsync-api:latest  # Update via CI/CD or kustomize overlay
         command: ["celery"]
         args:
           - "-A"
@@ -309,7 +309,7 @@ spec:
     spec:
       containers:
       - name: beat
-        image: psychsync/api:latest
+        image: ghcr.io/sheriftito77/psychsync-api:latest  # Update via CI/CD or kustomize overlay
         command: ["celery"]
         args:
           - "-A"
@@ -356,7 +356,7 @@ spec:
     spec:
       containers:
       - name: flower
-        image: psychsync/api:latest
+        image: ghcr.io/sheriftito77/psychsync-api:latest  # Update via CI/CD or kustomize overlay
         command: ["celery"]
         args:
           - "-A"

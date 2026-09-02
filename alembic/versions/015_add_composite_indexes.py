@@ -19,7 +19,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "015_add_composite_indexes"
-down_revision = "014_enterprise_security_implementation"
+down_revision = "014b_enterprise_security_implementation"
 branch_labels = None
 depends_on = None
 

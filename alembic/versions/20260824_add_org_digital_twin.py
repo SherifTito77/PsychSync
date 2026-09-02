@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "20260824_org_twin"
-down_revision = None
-branch_labels = ("org_twin",)
+down_revision = "20260823_ona_tables"
+branch_labels = None
 depends_on = None
 
 

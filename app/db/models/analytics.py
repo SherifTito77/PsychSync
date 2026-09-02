@@ -156,7 +156,12 @@ class DimUser(Base):
     __tablename__ = "dim_user"
 
     # Surrogate key
-    user_key = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_key = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=sa.text("gen_random_uuid()"),
+    )
 
     # Natural key
     user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
@@ -207,7 +212,12 @@ class DimAssessment(Base):
     __tablename__ = "dim_assessment"
 
     # Surrogate key
-    assessment_key = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    assessment_key = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=sa.text("gen_random_uuid()"),
+    )
 
     # Natural key
     assessment_id = Column(UUID(as_uuid=True), nullable=False, index=True)
@@ -265,7 +275,12 @@ class DimTeam(Base):
     __tablename__ = "dim_team"
 
     # Surrogate key
-    team_key = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    team_key = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=sa.text("gen_random_uuid()"),
+    )
 
     # Natural key
     team_id = Column(UUID(as_uuid=True), nullable=False, index=True)
@@ -552,7 +567,12 @@ class UnifiedAnalyticsEvent(Base):
 
     __tablename__ = "unified_analytics_events"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=sa.text("gen_random_uuid()"),
+    )
     event_name = Column(String(255), nullable=False)
     event_type = Column(String(100), nullable=False)
     timestamp = Column(sa.TIMESTAMP(timezone=True), nullable=False)
@@ -580,7 +600,12 @@ class AssessmentTrend(Base):
 
     __tablename__ = "assessment_trends"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid4,
+        server_default=sa.text("gen_random_uuid()"),
+    )
     user_id = Column(String(255), nullable=False, index=True)
     assessment_type = Column(String(100), nullable=False)
     trend_direction = Column(String(50), nullable=True)

@@ -1,6 +1,6 @@
 """Add user role field to users table - CRITICAL FIX
 
-Revision ID: 013_add_user_role_to_base
+Revision ID: 013b_add_user_role_to_base
 Revises: 003_add_user_columns
 Create Date: 2025-11-22 12:00:00.000000
 
@@ -14,8 +14,8 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "013_add_user_role_to_base"
-down_revision: Union[str, None] = "003_add_user_columns"
+revision: str = "013b_add_user_role_to_base"
+down_revision: Union[str, None] = "013_add_critical_performance_indexes"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

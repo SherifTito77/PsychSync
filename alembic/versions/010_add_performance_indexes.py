@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "010_add_performance_indexes"
-down_revision = "009_add_critical_database_indexes"
+down_revision = "009b"
 branch_labels = None
 depends_on = None
 

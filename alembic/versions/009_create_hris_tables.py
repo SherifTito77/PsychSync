@@ -16,8 +16,8 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers
-revision = "009"
-down_revision = "008"
+revision = "009b"
+down_revision = "009_add_critical_database_indexes"
 
 
 def upgrade():

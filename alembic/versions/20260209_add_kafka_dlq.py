@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "20260209_add_kafka_dlq"
-down_revision = None  # Independent migration due to multiple heads
+down_revision = "1e98a671d787"
 branch_labels = None
 depends_on = None
 

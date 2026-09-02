@@ -1,6 +1,6 @@
 """Enterprise security implementation
 
-Revision ID: 014_enterprise_security_implementation
+Revision ID: 014b_enterprise_security_implementation
 Revises: 013_add_critical_performance_indexes
 Create Date: 2025-01-24 12:00:00.000000
 
@@ -19,8 +19,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("alembic")
 
 # revision identifiers, used by Alembic.
-revision = "014_enterprise_security_implementation"
-down_revision = "013_add_critical_performance_indexes"
+revision = "014b_enterprise_security_implementation"
+down_revision = "014_enterprise_compliance_implementation"
 branch_labels = None
 depends_on = None
 

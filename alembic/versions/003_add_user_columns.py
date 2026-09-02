@@ -15,7 +15,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "003_add_user_columns"
-down_revision: Union[str, None] = "002_anonymous_feedback_tables"
+down_revision: Union[str, None] = "002_add_analytics"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

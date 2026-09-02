@@ -1,4 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import axios from '../api/axios';
+
+interface MeetingSummary {
+  total_ratings: number;
+  avg_score: number;
+  tag_frequency: Record<string, number>;
+  team_summaries?: Array<{ team_id: string; avg_score: number; count: number }>;
+}
 
 const TAGS = ['productive', 'good_decisions', 'no_agenda', 'too_long', 'wrong_people'];
 const TAG_LABELS: Record<string, { label: string; color: string }> = {
@@ -13,6 +21,28 @@ function MeetingEffectiveness() {
   const [score, setScore] = useState(0);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [summary, setSummary] = useState<MeetingSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const orgId = 'current';
+
+  const fetchSummary = useCallback(async () => {
+    setSummaryLoading(true);
+    try {
+      const res = await axios.get(`/api/v1/meeting-effectiveness/summary/${orgId}`);
+      setSummary(res.data);
+    } catch {
+      setSummary(null);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, [orgId]);
+
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev =>
@@ -20,10 +50,25 @@ function MeetingEffectiveness() {
     );
   };
 
-  const handleSubmit = () => {
-    // Placeholder — will wire to POST /api/v1/meeting-effectiveness/rate
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 3000);
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await axios.post('/api/v1/meeting-effectiveness/rate', {
+        score,
+        tags: selectedTags,
+        meeting_id: null,
+      });
+      setSubmitted(true);
+      setScore(0);
+      setSelectedTags([]);
+      await fetchSummary();
+      setTimeout(() => setSubmitted(false), 3000);
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'Failed to submit rating');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -88,31 +133,78 @@ function MeetingEffectiveness() {
           </div>
         </div>
 
+        {error && (
+          <div style={{
+            padding: 12, background: '#fef2f2', border: '1px solid #fecaca',
+            borderRadius: 8, color: '#991b1b', marginBottom: 12, fontSize: 13,
+          }}>
+            {error}
+          </div>
+        )}
+
         <button
           onClick={handleSubmit}
-          disabled={score === 0}
+          disabled={score === 0 || submitting}
           style={{
             padding: '10px 24px',
-            background: score > 0 ? '#4f46e5' : '#d1d5db',
+            background: score > 0 && !submitting ? '#4f46e5' : '#d1d5db',
             color: '#fff',
             border: 'none',
             borderRadius: 8,
-            cursor: score > 0 ? 'pointer' : 'not-allowed',
+            cursor: score > 0 && !submitting ? 'pointer' : 'not-allowed',
             fontWeight: 600,
           }}
         >
-          {submitted ? 'Submitted!' : 'Submit Rating'}
+          {submitting ? 'Submitting...' : submitted ? 'Submitted!' : 'Submit Rating'}
         </button>
       </div>
 
-      {/* Org summary placeholder */}
-      <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 16, padding: 24, textAlign: 'center' }}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>📊</div>
-        <h3 style={{ fontSize: 18, fontWeight: 600, color: '#374151' }}>Organization Meeting Health</h3>
-        <p style={{ fontSize: 14, color: '#6b7280' }}>
-          Meeting effectiveness scores are aggregated and fed into the Behavioral Intelligence team_health score at 15% weight.
-        </p>
-      </div>
+      {/* Org summary */}
+      {summaryLoading ? (
+        <div style={{ textAlign: 'center', padding: 48, color: '#9ca3af' }}>Loading summary...</div>
+      ) : summary && summary.total_ratings > 0 ? (
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 24 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16, color: '#374151' }}>Organization Meeting Health</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 20 }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 36, fontWeight: 700, color: summary.avg_score >= 3.5 ? '#22c55e' : summary.avg_score >= 2.5 ? '#eab308' : '#ef4444' }}>
+                {summary.avg_score.toFixed(1)}
+              </div>
+              <div style={{ fontSize: 12, color: '#6b7280' }}>Avg Score (out of 5)</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 36, fontWeight: 700, color: '#4f46e5' }}>{summary.total_ratings}</div>
+              <div style={{ fontSize: 12, color: '#6b7280' }}>Total Ratings</div>
+            </div>
+          </div>
+          {Object.keys(summary.tag_frequency).length > 0 && (
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#374151' }}>Tag Frequency</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {Object.entries(summary.tag_frequency).sort(([, a], [, b]) => b - a).map(([tag, count]) => {
+                  const t = TAG_LABELS[tag];
+                  return (
+                    <span key={tag} style={{ padding: '4px 12px', borderRadius: 16, background: t?.color || '#6b7280', color: '#fff', fontSize: 12, fontWeight: 600 }}>
+                      {t?.label || tag}: {count}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 16 }}>
+            Meeting effectiveness scores feed into the Behavioral Intelligence team_health score at 15% weight.
+          </p>
+        </div>
+      ) : (
+        <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 16, padding: 24, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>📊</div>
+          <h3 style={{ fontSize: 18, fontWeight: 600, color: '#374151' }}>Organization Meeting Health</h3>
+          <p style={{ fontSize: 14, color: '#6b7280' }}>
+            No ratings yet. Submit your first meeting rating above to start building organizational meeting health signals.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

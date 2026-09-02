@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "20250114_add_biometric_health"
-down_revision = "20250112_satisfaction_tracking"
+down_revision = "20250114_fix_framework_pk"
 branch_labels = None
 depends_on = None
 

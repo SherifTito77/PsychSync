@@ -478,8 +478,13 @@ class PermissionService:
                 logger.warning(f"Attempted to assign unknown role: {role}")
                 return False
 
-            # TODO: Store role assignment in database
-            # For now, we'd need a user_roles table
+            # If the role maps to a super_admin, set the is_superuser flag
+            if role == Role.SUPER_ADMIN:
+                target_user_q = select(User).where(User.id == user_id)
+                result = await db.execute(target_user_q)
+                target_user = result.scalar_one_or_none()
+                if target_user:
+                    target_user.is_superuser = True
 
             # Log the role assignment
             from app.services.audit_service import AuditEventType, audit_service
@@ -495,6 +500,7 @@ class PermissionService:
                 },
             )
 
+            await db.commit()
             return True
 
         except Exception as e:
@@ -528,7 +534,13 @@ class PermissionService:
                 )
                 return False
 
-            # TODO: Remove role assignment from database
+            # If revoking super_admin, clear the is_superuser flag
+            if role == Role.SUPER_ADMIN:
+                target_user_q = select(User).where(User.id == user_id)
+                result = await db.execute(target_user_q)
+                target_user = result.scalar_one_or_none()
+                if target_user:
+                    target_user.is_superuser = False
 
             # Log the role revocation
             from app.services.audit_service import AuditEventType, audit_service
@@ -544,6 +556,7 @@ class PermissionService:
                 },
             )
 
+            await db.commit()
             return True
 
         except Exception as e:
@@ -558,23 +571,36 @@ class PermissionService:
         """
         Get all roles assigned to a user.
 
-        Args:
-            db: Database session
-            user: User object
-
-        Returns:
-            Set of role names
+        Checks User.is_superuser and team_members table for team roles,
+        then maps them to the Role constants.
         """
         try:
-            # Start with base role from user table
-            roles = set()
+            roles: Set[str] = set()
 
-            # TODO: Query user_roles table when implemented
-            # For now, use is_superuser as a marker
             if user.is_superuser:
                 roles.add(Role.SUPER_ADMIN)
 
-            # Add default role if no roles assigned
+            # Query team_members for team-based roles
+            from app.db.models.team import TeamMember
+
+            team_role_q = select(TeamMember.role).where(TeamMember.user_id == user.id)
+            result = await db.execute(team_role_q)
+            team_roles = result.scalars().all()
+
+            # Map DB team roles to permission-service roles
+            _TEAM_ROLE_MAP = {
+                "owner": Role.ADMIN,
+                "admin": Role.TEAM_LEAD,
+                "member": Role.TEAM_MEMBER,
+            }
+
+            for tr in team_roles:
+                role_val = tr.value if hasattr(tr, "value") else str(tr)
+                mapped = _TEAM_ROLE_MAP.get(role_val)
+                if mapped:
+                    roles.add(mapped)
+
+            # Default role when nothing else matched
             if not roles:
                 roles.add(Role.USER)
 
@@ -606,17 +632,48 @@ class PermissionService:
             True if user has permission
         """
         try:
-            # TODO: Implement resource-specific permission checking
-            # This would query a resource_permissions table
-
-            # For now, check if user owns the resource
+            # Users can always access their own resources
             if resource_type == "user" and str(resource_id) == str(user.id):
                 return True
 
-            # Check if user is on the team that owns the resource
+            # Check team-based resource access via team_members table
             if resource_type in ["team", "assessment", "responses"]:
-                # TODO: Query team membership
-                pass
+                from app.db.models.team import TeamMember
+
+                membership_q = select(TeamMember.role).where(
+                    and_(
+                        TeamMember.user_id == user.id,
+                        TeamMember.team_id == str(resource_id),
+                    )
+                )
+                result = await db.execute(membership_q)
+                member_role = result.scalar_one_or_none()
+
+                if member_role is None:
+                    return False
+
+                role_val = (
+                    member_role.value
+                    if hasattr(member_role, "value")
+                    else str(member_role)
+                )
+
+                # Role hierarchy check: owner > admin > member
+                role_hierarchy = {"owner": 3, "admin": 2, "member": 1}
+                user_level = role_hierarchy.get(role_val, 0)
+
+                # Write operations require admin+; read requires member+
+                write_perms = {
+                    Permission.CREATE,
+                    Permission.UPDATE,
+                    Permission.DELETE,
+                    Permission.EDIT_TEAM,
+                    Permission.ADD_TEAM_MEMBER,
+                    Permission.REMOVE_TEAM_MEMBER,
+                }
+                if permission in write_perms:
+                    return user_level >= 2  # admin or owner
+                return user_level >= 1  # any member
 
             return False
 

@@ -1,6 +1,6 @@
 """add_legal_rights_system
 
-Revision ID: 015_add_legal_rights_system
+Revision ID: 015c_add_legal_rights_system
 Revises: c2049af57c94
 Create Date: 2026-01-16 15:00:00.000000
 
@@ -14,7 +14,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "015_add_legal_rights_system"
+revision: str = "015c_add_legal_rights_system"
 down_revision: Union[str, None] = "c2049af57c94"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

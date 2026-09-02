@@ -31,7 +31,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic
 revision = "20250112_enable_rls"
-down_revision = None  # Set to previous migration ID
+down_revision = "20250112_add_product_ops"
 branch_labels = None
 depends_on = None
 

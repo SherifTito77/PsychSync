@@ -525,12 +525,34 @@ class LogAggregationService:
         notification_channels: list[str],
         enabled: bool = True,
     ) -> str:
-        """Create a log-based alert rule"""
-        # TODO: Implement log alert rules
-        # This would integrate with the alerts service
+        """
+        Create a log-based alert rule.
+
+        Conditions schema:
+            level: LogLevel value to match (e.g. 3 for ERROR)
+            threshold: number of matching entries to trigger
+            window_seconds: time window for counting (default 300)
+            source: optional LogSource value filter
+            service: optional service name filter
+            search_term: optional message substring filter
+        """
         alert_id = str(uuid.uuid4())
 
-        logger.info(f"Created log alert: {alert_id}")
+        if not hasattr(self, "_alert_rules"):
+            self._alert_rules: dict[str, dict[str, Any]] = {}
+
+        self._alert_rules[alert_id] = {
+            "id": alert_id,
+            "name": name,
+            "conditions": conditions,
+            "notification_channels": notification_channels,
+            "enabled": enabled,
+            "created_at": datetime.utcnow(),
+            "triggered_count": 0,
+            "last_triggered": None,
+        }
+
+        logger.info(f"Created log alert: {alert_id} ({name})")
         return alert_id
 
     async def _process_log_queue(self) -> None:
@@ -850,9 +872,74 @@ class LogAggregationService:
         return True
 
     async def _check_log_alerts(self, log_entry: LogEntry) -> None:
-        """Check if log entry triggers any alerts"""
-        # TODO: Implement log alert checking
-        # This would evaluate log-based alert rules and trigger notifications
+        """
+        Evaluate all alert rules against the incoming log entry.
+
+        For each enabled rule, count matching log entries within the
+        configured time window and fire an alert when the threshold is met.
+        """
+        if not hasattr(self, "_alert_rules"):
+            return
+
+        for alert_id, rule in self._alert_rules.items():
+            if not rule.get("enabled", False):
+                continue
+
+            conditions = rule.get("conditions", {})
+
+            # Quick pre-filter: if a level is specified, skip non-matching entries
+            required_level = conditions.get("level")
+            if required_level is not None and log_entry.level.value != required_level:
+                continue
+
+            # Source filter
+            required_source = conditions.get("source")
+            if (
+                required_source is not None
+                and log_entry.source.value != required_source
+            ):
+                continue
+
+            # Service filter
+            required_service = conditions.get("service")
+            if required_service and log_entry.service != required_service:
+                continue
+
+            # Search term filter
+            search_term = conditions.get("search_term")
+            if search_term and search_term.lower() not in log_entry.message.lower():
+                continue
+
+            # Count matching entries within the time window
+            threshold = conditions.get("threshold", 10)
+            window_seconds = conditions.get("window_seconds", 300)
+            window_start = datetime.utcnow() - timedelta(seconds=window_seconds)
+
+            match_count = 0
+            for entry in self._log_store:
+                if entry.timestamp < window_start:
+                    continue
+                if required_level is not None and entry.level.value != required_level:
+                    continue
+                if (
+                    required_source is not None
+                    and entry.source.value != required_source
+                ):
+                    continue
+                if required_service and entry.service != required_service:
+                    continue
+                if search_term and search_term.lower() not in entry.message.lower():
+                    continue
+                match_count += 1
+
+            if match_count >= threshold:
+                rule["triggered_count"] = rule.get("triggered_count", 0) + 1
+                rule["last_triggered"] = datetime.utcnow()
+
+                logger.warning(
+                    f"Log alert triggered: {rule['name']} (id={alert_id}) — "
+                    f"{match_count} matching entries in {window_seconds}s window"
+                )
 
     async def _cleanup_old_logs(self) -> None:
         """Background task to clean up old logs"""

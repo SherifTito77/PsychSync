@@ -53,18 +53,13 @@ hiredis==2.3.2
 # HTTP Client
 httpx==0.25.0
 
-# AI/ML Libraries for NLP Analysis
-torch>=2.6.0  # UPGRADED: CVE-2025-32434 fix (was >=2.2.0)
-transformers>=4.37.0  # UPGRADED: Security fixes (was 4.36.0)
+# AI/ML Libraries (core — used by 29+ service files)
 numpy==1.24.3
 scipy==1.11.4
 scikit-learn==1.3.0
 
-# Burnout Prediction System Dependencies
-pymc>=5.10.0  # Bayesian inference and probabilistic programming
-arviz>=0.18.0  # Bayesian model diagnostics and visualization
-xgboost>=2.0.0  # Gradient boosting for ML ensemble
-statsmodels>=0.14.0  # Statistical analysis for A/B testing
+# Heavy ML dependencies moved to requirements-ai.txt
+# pip install -r requirements-ai.txt
 
 # Task Queue
 celery[redis]==5.3.4

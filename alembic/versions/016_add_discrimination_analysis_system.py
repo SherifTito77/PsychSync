@@ -1,6 +1,6 @@
 """add_discrimination_analysis_system
 
-Revision ID: 016_add_discrimination_analysis_system
+Revision ID: 016b_add_discrimination_analysis_system
 Revises: 015_add_legal_rights_system
 Create Date: 2026-01-16 16:00:00.000000
 
@@ -14,8 +14,8 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "016_add_discrimination_analysis_system"
-down_revision: Union[str, None] = "015_add_legal_rights_system"
+revision: str = "016b_add_discrimination_analysis_system"
+down_revision: Union[str, None] = "015c_add_legal_rights_system"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

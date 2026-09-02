@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import axios from '../api/axios';
 
 interface NewHireHealth {
   user_id: string;
@@ -21,8 +22,27 @@ function healthColor(score: number): string {
 }
 
 function OnboardingAnalytics() {
-  const [newHires] = useState<NewHireHealth[]>([]);
+  const [newHires, setNewHires] = useState<NewHireHealth[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [windowDays, setWindowDays] = useState(90);
+
+  const orgId = 'current';
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    axios.get(`/api/v1/onboarding-analytics/${orgId}/new-hires`, { params: { window_days: windowDays } })
+      .then(res => {
+        if (!cancelled) setNewHires(res.data.new_hires || res.data || []);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err?.response?.data?.detail || 'Failed to load onboarding data');
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [orgId, windowDays]);
 
   const signalLabels: Record<string, { label: string; icon: string; weight: string }> = {
     network_velocity: { label: 'Network Velocity', icon: '🕸', weight: '35%' },
@@ -64,8 +84,19 @@ function OnboardingAnalytics() {
         ))}
       </div>
 
+      {error && (
+        <div style={{
+          padding: 16, background: '#fef2f2', border: '1px solid #fecaca',
+          borderRadius: 8, color: '#991b1b', marginBottom: 16,
+        }}>
+          {error}
+        </div>
+      )}
+
       {/* New hires list */}
-      {newHires.length === 0 ? (
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 48, color: '#9ca3af' }}>Loading onboarding data...</div>
+      ) : newHires.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 48, color: '#9ca3af', background: '#f9fafb', borderRadius: 12 }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>👋</div>
           <h3 style={{ fontSize: 18, fontWeight: 600, color: '#374151' }}>No new hires in window</h3>

@@ -16,7 +16,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "20250114_fix_framework_pk"
-down_revision = None  # Standalone migration due to branched history
+down_revision = "20250112_rls_enhanced"
 branch_labels = None
 depends_on = None
 

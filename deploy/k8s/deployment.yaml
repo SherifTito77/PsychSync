@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: psychsync-backend
-        image: psychsync/backend:latest
+        image: ghcr.io/sheriftito77/psychsync-backend:latest  # Update via CI/CD or kustomize overlay
         ports:
         - containerPort: 8000
           name: http

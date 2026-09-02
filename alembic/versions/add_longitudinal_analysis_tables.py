@@ -14,7 +14,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "003_longitudinal_analysis"
-down_revision = "002_add_analytics"
+down_revision = "003_add_user_columns"
 branch_labels = None
 depends_on = None
 

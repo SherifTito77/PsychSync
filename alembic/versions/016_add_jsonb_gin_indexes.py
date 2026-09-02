@@ -19,7 +19,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "016_add_jsonb_gin_indexes"
-down_revision = "015_add_composite_indexes"
+down_revision = "015b_add_product_management_prompts_tables"
 branch_labels = None
 depends_on = None
 

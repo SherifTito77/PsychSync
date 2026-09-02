@@ -4,7 +4,7 @@ ScheduledReport model — stores user-configured automated report schedules.
 
 import uuid
 
-from sqlalchemy import Boolean, Column, DateTime, String
+from sqlalchemy import Boolean, Column, DateTime, String, text
 from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.sql import func
 
@@ -14,7 +14,12 @@ from app.core.database import Base
 class ScheduledReport(Base):
     __tablename__ = "scheduled_reports"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
     user_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     frequency = Column(String(20), nullable=False, default="weekly")  # weekly | monthly

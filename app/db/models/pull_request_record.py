@@ -4,7 +4,7 @@ PullRequestRecord — stores synced PR data from GitHub/GitLab webhooks or manua
 
 import uuid
 
-from sqlalchemy import Column, DateTime, Integer, String, Text
+from sqlalchemy import Column, DateTime, Integer, String, Text, text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.sql import func
 
@@ -14,7 +14,12 @@ from app.core.database import Base
 class PullRequestRecord(Base):
     __tablename__ = "pull_request_records"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        server_default=text("gen_random_uuid()"),
+    )
     org_id = Column(String(36), nullable=True, index=True)
     external_id = Column(String(64), nullable=False, index=True)  # e.g. "PR-001"
     title = Column(String(500), nullable=False)

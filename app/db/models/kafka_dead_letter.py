@@ -13,7 +13,17 @@ import logging
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Index,
+    Integer,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSON, UUID
 
 from app.db.base_class import Base
@@ -35,7 +45,9 @@ class KafkaDeadLetterTask(Base):
     __tablename__ = "kafka_dead_letter_tasks"
 
     # Primary identification
-    id = Column(UUID(as_uuid=True), primary_key=True)
+    id = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
     event_id = Column(String(255), nullable=False, unique=True, index=True)
 
     # Event information

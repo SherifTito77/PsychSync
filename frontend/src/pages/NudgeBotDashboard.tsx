@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import axios from '../api/axios';
 
 interface NudgeResult {
   type: string;
@@ -16,17 +17,54 @@ const NUDGE_TYPES: NudgeResult[] = [
 ];
 
 function NudgeBotDashboard() {
-  const [nudgeTypes] = useState(NUDGE_TYPES);
+  const [nudgeTypes, setNudgeTypes] = useState(NUDGE_TYPES);
   const [running, setRunning] = useState(false);
   const [lastRun, setLastRun] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const orgId = 'current';
+
+  const fetchStatus = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`/api/v1/nudge-bot/${orgId}/status`);
+      const data = res.data;
+      if (data.last_run) setLastRun(data.last_run);
+      if (data.nudge_types) {
+        setNudgeTypes(prev => prev.map(n => {
+          const updated = data.nudge_types.find((u: any) => u.type === n.type);
+          return updated ? { ...n, sent: updated.sent || 0 } : n;
+        }));
+      }
+    } catch {
+      // Status endpoint not available yet; keep defaults
+    } finally {
+      setLoading(false);
+    }
+  }, [orgId]);
+
+  useEffect(() => {
+    fetchStatus();
+  }, [fetchStatus]);
 
   const handleRunAll = async () => {
     setRunning(true);
-    // Placeholder — will wire to POST /api/v1/nudge-bot/{org_id}/run-all
-    setTimeout(() => {
-      setRunning(false);
+    setError(null);
+    try {
+      const res = await axios.post(`/api/v1/nudge-bot/${orgId}/run-all`);
       setLastRun(new Date().toLocaleString());
-    }, 2000);
+      if (res.data?.results) {
+        setNudgeTypes(prev => prev.map(n => {
+          const result = res.data.results.find((r: any) => r.type === n.type);
+          return result ? { ...n, sent: result.sent || 0 } : n;
+        }));
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'Failed to run nudges');
+    } finally {
+      setRunning(false);
+    }
   };
 
   return (
@@ -58,6 +96,15 @@ function NudgeBotDashboard() {
           {running ? 'Running...' : '🚀 Run All Nudges'}
         </button>
       </div>
+
+      {error && (
+        <div style={{
+          padding: 16, background: '#fef2f2', border: '1px solid #fecaca',
+          borderRadius: 8, color: '#991b1b', marginBottom: 16,
+        }}>
+          {error}
+        </div>
+      )}
 
       {/* Nudge types grid */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

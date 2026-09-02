@@ -23,10 +23,20 @@ import pytest_asyncio
 # Set test environment before importing application modules
 os.environ["ENVIRONMENT"] = "testing"
 os.environ["TESTING"] = "True"
-os.environ["DATABASE_URL"] = (
-    "postgresql+asyncpg://sheriftito@localhost:5432/psychsync_test"
-)
-os.environ["REDIS_URL"] = "redis://localhost:6379/1"  # Test database
+
+_db_user = os.environ.get("PSYCHSYNC_TEST_DB_USER", "postgres")
+_db_host = os.environ.get("PSYCHSYNC_TEST_DB_HOST", "localhost")
+_db_port = os.environ.get("PSYCHSYNC_TEST_DB_PORT", "5432")
+_db_name = os.environ.get("PSYCHSYNC_TEST_DB_NAME", "psychsync_test")
+DATABASE_URL = f"postgresql+asyncpg://{_db_user}@{_db_host}:{_db_port}/{_db_name}"
+
+_redis_host = os.environ.get("PSYCHSYNC_TEST_REDIS_HOST", "localhost")
+_redis_port = os.environ.get("PSYCHSYNC_TEST_REDIS_PORT", "6379")
+_redis_db = os.environ.get("PSYCHSYNC_TEST_REDIS_DB", "1")
+REDIS_URL = f"redis://{_redis_host}:{_redis_port}/{_redis_db}"
+
+os.environ["DATABASE_URL"] = DATABASE_URL
+os.environ["REDIS_URL"] = REDIS_URL
 
 import redis.asyncio as redis
 from aiofiles import tempfile as aiotempfile
@@ -60,10 +70,8 @@ def get_test_password_hash(password: str) -> str:
 fake = Faker()
 
 # Test Database Configuration
-SQLALCHEMY_TEST_DATABASE_URL = (
-    "postgresql+asyncpg://sheriftito@localhost:5432/psychsync_test"
-)
-SQLALCHEMY_SYNC_DATABASE_URL = "postgresql://sheriftito@localhost:5432/psychsync_test"
+SQLALCHEMY_TEST_DATABASE_URL = DATABASE_URL
+SQLALCHEMY_SYNC_DATABASE_URL = f"postgresql://{_db_user}@{_db_host}:{_db_port}/{_db_name}"
 
 # Create async test engine
 test_engine = create_async_engine(
@@ -280,7 +288,7 @@ async def admin_auth_headers(test_admin: User) -> Dict[str, str]:
 async def test_redis():
     """Create a test Redis connection"""
     try:
-        redis_client = redis.from_url("redis://localhost:6379/1", decode_responses=True)
+        redis_client = redis.from_url(REDIS_URL, decode_responses=True)
         # Test connection
         await redis_client.ping()
         yield redis_client

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import axios from '../api/axios';
 
 interface ActionPlan {
   id: string;
@@ -37,18 +38,31 @@ function ActionPlansDashboard() {
   const [plans, setPlans] = useState<ActionPlan[]>([]);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>('all');
 
+  const orgId = 'current';
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [dashboardRes, plansRes] = await Promise.all([
+        axios.get(`/api/v1/action-plans/dashboard/${orgId}`),
+        axios.get(`/api/v1/action-plans/${orgId}`),
+      ]);
+      setDashboard(dashboardRes.data);
+      setPlans(plansRes.data.plans || plansRes.data || []);
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || 'Failed to load action plans');
+    } finally {
+      setLoading(false);
+    }
+  }, [orgId]);
+
   useEffect(() => {
-    // Placeholder — will wire to API
-    setLoading(false);
-    setDashboard({
-      total: 0,
-      by_status: { proposed: 0, accepted: 0, in_progress: 0, completed: 0, skipped: 0 },
-      by_category: {},
-      overdue: 0,
-    });
-  }, []);
+    fetchData();
+  }, [fetchData]);
 
   const filtered = filter === 'all' ? plans : plans.filter(p => p.status === filter);
 
@@ -59,8 +73,17 @@ function ActionPlansDashboard() {
         Track interventions from Pulse warnings, Manager Intelligence, and manual creation.
       </p>
 
+      {error && (
+        <div style={{
+          padding: 16, background: '#fef2f2', border: '1px solid #fecaca',
+          borderRadius: 8, color: '#991b1b', marginBottom: 16,
+        }}>
+          {error}
+        </div>
+      )}
+
       {/* Status summary cards */}
-      {dashboard && (
+      {!error && dashboard && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
           {Object.entries(dashboard.by_status).map(([status, count]) => {
             const c = STATUS_COLORS[status] || STATUS_COLORS.proposed;
