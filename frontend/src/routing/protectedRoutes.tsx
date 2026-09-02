@@ -105,6 +105,22 @@ import {
   ManagerIntelligence,
   OKRDashboard,
   PeerRecognition,
+  EmailMetadataDashboard,
+  SlackMetadataDashboard,
+  TeamsMetadataDashboard,
+  ComputerUsageDashboard,
+  BadgeAccessDashboard,
+  PTOPatternsDashboard,
+  ActionPlansDashboard,
+  Feedback360Dashboard,
+  MeetingEffectiveness,
+  ExternalBenchmarks,
+  OnboardingAnalytics,
+  NudgeBotDashboard,
+  GitMetadataDashboard,
+  ToxicityBurnoutDashboard,
+  VideoConferenceMetadataDashboard,
+  KnowledgeBaseAnalyticsDashboard,
 } from './lazyImports';
 
 // Layout
@@ -194,6 +210,13 @@ export const protectedRoutes = (
 
     {/* Email Monitoring */}
     {createProtectedRoute('/email-connector', <EmailConnector />)}
+    {createProtectedRoute('/email-metadata', <EmailMetadataDashboard />)}
+    {createProtectedRoute('/slack-metadata', <SlackMetadataDashboard />)}
+    {createProtectedRoute('/teams-metadata', <TeamsMetadataDashboard />)}
+    {createProtectedRoute('/computer-usage', <ComputerUsageDashboard />)}
+    {createProtectedRoute('/badge-access', <BadgeAccessDashboard />)}
+    {createProtectedRoute('/pto-patterns', <PTOPatternsDashboard />)}
+    {createProtectedRoute('/git-metadata', <GitMetadataDashboard />)}
     {createProtectedRoute('/sentiment-analysis', <SentimentAnalysis />)}
     {createProtectedRoute('/scheduled-reports', <ScheduledReports />)}
 
@@ -271,6 +294,21 @@ export const protectedRoutes = (
     {/* OKR & Recognition */}
     {createProtectedRoute('/okr', <OKRDashboard />)}
     {createProtectedRoute('/recognition', <PeerRecognition />)}
+
+    {/* Corporate Enhancement Layer */}
+    {createProtectedRoute('/action-plans', <ActionPlansDashboard />)}
+    {createProtectedRoute('/feedback-360', <Feedback360Dashboard />)}
+    {createProtectedRoute('/meeting-effectiveness', <MeetingEffectiveness />)}
+    {createProtectedRoute('/external-benchmarks', <ExternalBenchmarks />)}
+    {createProtectedRoute('/onboarding-analytics', <OnboardingAnalytics />)}
+    {createProtectedRoute('/nudge-bot', <NudgeBotDashboard />)}
+
+    {/* Video Conferencing & Knowledge Base Analytics */}
+    {createProtectedRoute('/video-conference-metadata', <VideoConferenceMetadataDashboard />)}
+    {createProtectedRoute('/knowledge-base-metadata', <KnowledgeBaseAnalyticsDashboard />)}
+
+    {/* Toxicity & Burnout Intelligence */}
+    {createProtectedRoute('/toxicity-burnout', <ToxicityBurnoutDashboard />)}
 
     {/* Compliance & Legal */}
     {createProtectedRoute('/legal-rights', <LegalRightsDashboard />)}

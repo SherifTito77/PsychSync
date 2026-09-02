@@ -179,13 +179,23 @@ class OrganizationalDigitalTwinService:
 
         scenario_type = scenario.get("type", "")
         if scenario_type == "key_person_departure":
-            predicted = self._simulate_departure(baseline, scenario)
+            predicted = await self._simulate_departure(
+                db, organization_id, baseline, scenario
+            )
         elif scenario_type == "team_merge":
             predicted = self._simulate_merge(baseline, scenario)
+        elif scenario_type == "team_restructure":
+            predicted = await self._simulate_restructure(
+                db, organization_id, baseline, scenario
+            )
         elif scenario_type == "engagement_shift":
             predicted = self._simulate_engagement_shift(baseline, scenario)
         elif scenario_type == "rapid_growth":
             predicted = self._simulate_growth(baseline, scenario)
+        elif scenario_type == "hiring":
+            predicted = await self._simulate_hiring(
+                db, organization_id, baseline, scenario
+            )
         else:
             return {"error": f"Unknown scenario type: {scenario_type}"}
 
@@ -199,6 +209,14 @@ class OrganizationalDigitalTwinService:
         )
         deltas["overall"] = round(predicted["overall"] - baseline["overall"], 1)
 
+        # Determine if ONA data backed this simulation
+        ona_backed = (
+            scenario_type in ("key_person_departure", "team_restructure", "hiring")
+            and scenario.get("person_id")
+            or scenario.get("person_ids")
+            or scenario.get("team_id")
+        )
+
         # Risk narrative
         narrative = self._scenario_narrative(scenario_type, deltas)
 
@@ -208,7 +226,8 @@ class OrganizationalDigitalTwinService:
             "predicted": predicted,
             "deltas": deltas,
             "risk_narrative": narrative,
-            "confidence": self._scenario_confidence(scenario_type),
+            "confidence": self._scenario_confidence(scenario_type, bool(ona_backed)),
+            "ona_backed": bool(ona_backed),
         }
 
     # ------------------------------------------------------------------
@@ -308,7 +327,7 @@ class OrganizationalDigitalTwinService:
             )
 
             ona = OrganizationalNetworkService()
-            network = await ona.analyze_network(db, org_id)
+            network = await ona.analyze_organization(db, org_id)
 
             manager_dep = network.get("insights", {}).get("manager_dependency", {})
             if not manager_dep:
@@ -366,7 +385,7 @@ class OrganizationalDigitalTwinService:
             )
 
             ona = OrganizationalNetworkService()
-            network = await ona.analyze_network(db, org_id)
+            network = await ona.analyze_organization(db, org_id)
 
             stats = network.get("network_stats", {})
             if stats.get("total_nodes", 0) == 0:
@@ -883,27 +902,188 @@ class OrganizationalDigitalTwinService:
     # What-If Simulations
     # ------------------------------------------------------------------
 
-    def _simulate_departure(self, baseline: Dict, scenario: Dict) -> Dict[str, float]:
-        """Simulate a key person leaving."""
-        predicted = dict(baseline)
-        role = scenario.get("role", "manager")
+    async def _simulate_departure(
+        self,
+        db: AsyncSession,
+        org_id: str,
+        baseline: Dict,
+        scenario: Dict,
+    ) -> Dict[str, float]:
+        """Simulate a key person leaving — person-specific if person_id given.
 
-        if role == "manager":
-            predicted["managers"] = max(baseline["managers"] - 20, 5)
-            predicted["teams"] = max(baseline["teams"] - 10, 5)
-            predicted["engagement"] = max(baseline["engagement"] - 12, 5)
-            predicted["turnover_risk"] = max(baseline["turnover_risk"] - 15, 5)
-            predicted["culture"] = max(baseline["culture"] - 8, 5)
-        elif role == "influencer":
-            predicted["collaboration"] = max(baseline["collaboration"] - 25, 5)
-            predicted["engagement"] = max(baseline["engagement"] - 10, 5)
-            predicted["culture"] = max(baseline["culture"] - 12, 5)
-        elif role == "bridge":
-            predicted["collaboration"] = max(baseline["collaboration"] - 20, 5)
-            predicted["teams"] = max(baseline["teams"] - 8, 5)
+        When person_id is provided, queries ONA for their actual centrality,
+        bridging score, and role. Impact scales with their real network position:
+        - betweenness_centrality: how many communication paths they carry
+        - bridging_score: cross-team connectivity they provide
+        - degree_centrality: direct relationships that break
+        """
+        predicted = dict(baseline)
+        person_id = scenario.get("person_id")
+        ona_profile = None
+
+        if person_id:
+            ona_profile = await self._get_person_ona_profile(db, org_id, person_id)
+
+        if ona_profile:
+            # Person-specific impact from real ONA data
+            bc = ona_profile["betweenness_centrality"]
+            dc = ona_profile["degree_centrality"]
+            bs = ona_profile["bridging_score"]
+            role = ona_profile["role"]
+
+            # Scale factors: centrality normalized to impact magnitude
+            # A person with bc=0.3 is ~6x more impactful than bc=0.05
+            collab_impact = max(bc * 80, 5) + bs * 15
+            team_impact = bs * 25 + dc * 10
+            engagement_impact = dc * 20 + bc * 15
+
+            predicted["collaboration"] = max(
+                baseline["collaboration"] - collab_impact, 5
+            )
+            predicted["teams"] = max(baseline["teams"] - team_impact, 5)
+            predicted["engagement"] = max(baseline["engagement"] - engagement_impact, 5)
+
+            # Role-specific additional effects
+            if role == "influencer":
+                predicted["culture"] = max(baseline["culture"] - (bc * 40 + 5), 5)
+            elif role == "bridge":
+                # Bridges hold communities together
+                predicted["collaboration"] -= min(bs * 10, 10)
+                predicted["collaboration"] = max(predicted["collaboration"], 5)
+            elif role in ("manager", "connector"):
+                predicted["managers"] = max(baseline["managers"] - (dc * 30 + 5), 5)
+                predicted["turnover_risk"] = max(baseline["turnover_risk"] - 10, 5)
         else:
+            # Fallback: role-based static deltas (original behavior)
+            role = scenario.get("role", "manager")
+            if role == "manager":
+                predicted["managers"] = max(baseline["managers"] - 20, 5)
+                predicted["teams"] = max(baseline["teams"] - 10, 5)
+                predicted["engagement"] = max(baseline["engagement"] - 12, 5)
+                predicted["turnover_risk"] = max(baseline["turnover_risk"] - 15, 5)
+                predicted["culture"] = max(baseline["culture"] - 8, 5)
+            elif role == "influencer":
+                predicted["collaboration"] = max(baseline["collaboration"] - 25, 5)
+                predicted["engagement"] = max(baseline["engagement"] - 10, 5)
+                predicted["culture"] = max(baseline["culture"] - 12, 5)
+            elif role == "bridge":
+                predicted["collaboration"] = max(baseline["collaboration"] - 20, 5)
+                predicted["teams"] = max(baseline["teams"] - 8, 5)
+            else:
+                predicted["teams"] = max(baseline["teams"] - 5, 5)
+                predicted["turnover_risk"] = max(baseline["turnover_risk"] - 3, 5)
+
+        return predicted
+
+    async def _get_person_ona_profile(
+        self, db: AsyncSession, org_id: str, person_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Query ONA for a specific person's network metrics."""
+        try:
+            from app.services.organizational_network_service import (
+                OrganizationalNetworkService,
+            )
+
+            ona = OrganizationalNetworkService()
+            network = await ona.analyze_organization(db, org_id)
+            for node in network.get("nodes", []):
+                if node["user_id"] == person_id:
+                    return node
+        except Exception as e:
+            logger.warning("ONA lookup failed for person %s: %s", person_id, e)
+        return None
+
+    async def _simulate_restructure(
+        self,
+        db: AsyncSession,
+        org_id: str,
+        baseline: Dict,
+        scenario: Dict,
+    ) -> Dict[str, float]:
+        """Simulate moving person(s) between teams.
+
+        Uses ONA cross-team edge density to predict collaboration disruption.
+        Moving a bridge between teams has very different impact than moving
+        an isolated node.
+        """
+        predicted = dict(baseline)
+        person_ids = scenario.get("person_ids", [])
+        target_team = scenario.get("target_team_id")
+
+        if not person_ids or not target_team:
+            # Generic restructure — moderate disruption
+            predicted["culture"] = max(baseline["culture"] - 10, 5)
+            predicted["collaboration"] = max(baseline["collaboration"] - 8, 5)
             predicted["teams"] = max(baseline["teams"] - 5, 5)
-            predicted["turnover_risk"] = max(baseline["turnover_risk"] - 3, 5)
+            return predicted
+
+        total_bridge_score = 0.0
+        total_centrality = 0.0
+
+        for pid in person_ids:
+            profile = await self._get_person_ona_profile(db, org_id, pid)
+            if profile:
+                total_bridge_score += profile["bridging_score"]
+                total_centrality += profile["betweenness_centrality"]
+
+        # Moving bridges disrupts cross-team communication
+        collab_impact = total_bridge_score * 20 + 3
+        culture_impact = total_centrality * 15 + 5
+        # But restructuring can improve team structure
+        team_upside = min(len(person_ids) * 2, 8)
+
+        predicted["collaboration"] = max(baseline["collaboration"] - collab_impact, 5)
+        predicted["culture"] = max(baseline["culture"] - culture_impact, 5)
+        predicted["teams"] = min(baseline["teams"] + team_upside, 100)
+        predicted["engagement"] = max(
+            baseline["engagement"] - (culture_impact * 0.3), 5
+        )
+
+        return predicted
+
+    async def _simulate_hiring(
+        self,
+        db: AsyncSession,
+        org_id: str,
+        baseline: Dict,
+        scenario: Dict,
+    ) -> Dict[str, float]:
+        """Simulate hiring into a specific team.
+
+        Predicts density dilution (new hires aren't connected yet) and
+        capacity boost. Larger teams absorb hires better.
+        """
+        predicted = dict(baseline)
+        team_id = scenario.get("team_id")
+        hire_count = scenario.get("hire_count", 1)
+
+        # Get current team size for dilution calculation
+        current_size = 0
+        if team_id:
+            result = await db.execute(
+                select(func.count())
+                .select_from(TeamMember)
+                .where(TeamMember.team_id == team_id)
+            )
+            current_size = result.scalar() or 0
+
+        if current_size == 0:
+            current_size = 10  # fallback assumption
+
+        # Dilution: new hires aren't connected — density drops
+        # Impact inversely proportional to team size (large teams absorb better)
+        dilution_ratio = hire_count / (current_size + hire_count)
+        collab_dilution = dilution_ratio * 25
+        culture_dilution = dilution_ratio * 20
+
+        predicted["collaboration"] = max(baseline["collaboration"] - collab_dilution, 5)
+        predicted["culture"] = max(baseline["culture"] - culture_dilution, 5)
+        # But capacity improves performance potential
+        capacity_boost = min(hire_count * 3, 15)
+        predicted["performance"] = min(baseline["performance"] + capacity_boost, 100)
+        # Manager load increases
+        if hire_count > 3:
+            predicted["managers"] = max(baseline["managers"] - (hire_count - 3) * 2, 5)
 
         return predicted
 
@@ -961,8 +1141,10 @@ class OrganizationalDigitalTwinService:
         label = {
             "key_person_departure": "key person departure",
             "team_merge": "team merger",
+            "team_restructure": "team restructure",
             "engagement_shift": "engagement shift",
             "rapid_growth": "rapid growth",
+            "hiring": "new hire integration",
         }.get(scenario_type, scenario_type)
 
         parts = [
@@ -984,14 +1166,22 @@ class OrganizationalDigitalTwinService:
 
         return " ".join(parts)
 
-    def _scenario_confidence(self, scenario_type: str) -> float:
+    def _scenario_confidence(
+        self, scenario_type: str, ona_backed: bool = False
+    ) -> float:
         """Return confidence level (0-1) for simulation accuracy."""
-        return {
+        base = {
             "key_person_departure": 0.65,
             "team_merge": 0.55,
+            "team_restructure": 0.60,
             "engagement_shift": 0.70,
             "rapid_growth": 0.60,
+            "hiring": 0.55,
         }.get(scenario_type, 0.50)
+        # ONA-backed simulations get a confidence boost
+        if ona_backed:
+            base = min(base + 0.15, 0.95)
+        return base
 
     # ------------------------------------------------------------------
     # Interconnection Analysis

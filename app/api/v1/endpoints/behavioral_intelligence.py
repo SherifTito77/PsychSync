@@ -141,11 +141,35 @@ async def organization_dashboard(
     Work Systems) and applies k-anonymity privacy guard before returning.
     """
     enrichment = await data_source_aggregator.gather_bi_enrichment(organization_id)
+    feedback_signals = await data_source_aggregator.gather_feedback_signals(
+        db, organization_id, lookback_days
+    )
+    culture_signals = await data_source_aggregator.gather_culture_signals(
+        db, organization_id, lookback_days
+    )
+    recognition_signals = await data_source_aggregator.gather_recognition_signals(
+        db, organization_id, lookback_days
+    )
+    pulse_survey_signals = await data_source_aggregator.gather_pulse_survey_signals(
+        db, organization_id, lookback_days
+    )
+    feedback_360_signals = await data_source_aggregator.gather_360_feedback_signals(
+        db, organization_id
+    )
+    meeting_signals = await data_source_aggregator.gather_meeting_signals(
+        db, organization_id, lookback_days
+    )
     dashboard = await _service.get_organization_dashboard(
         db,
         organization_id,
         lookback_days,
         enrichment=enrichment or None,
+        culture_signals=culture_signals or None,
+        feedback_signals=feedback_signals or None,
+        recognition_signals=recognition_signals or None,
+        pulse_survey_signals=pulse_survey_signals or None,
+        feedback_360_signals=feedback_360_signals or None,
+        meeting_signals=meeting_signals or None,
     )
 
     ctx = PrivacyContext(organization_id=organization_id)

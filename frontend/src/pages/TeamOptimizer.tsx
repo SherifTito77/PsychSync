@@ -4,6 +4,32 @@ import { useFormPersistence, useSessionExpiryHandler } from '../hooks/useFormPer
 import { TeamRadarChart } from '../components/teams/team-optimizer/components/TeamRadarChart';
 import { SkillGapAnalysis } from '../components/teams/team-optimizer/components/SkillGapAnalysis';
 
+// --- Extended traits configuration ---
+const PRIMARY_TRAITS = ['openness', 'conscientiousness', 'extraversion', 'agreeableness', 'neuroticism'];
+
+const SECONDARY_NUMERIC_TRAITS = [
+  'empathy', 'self_regulation', 'social_awareness',
+  'risk_tolerance', 'autonomy_preference', 'detail_orientation',
+  'feedback_receptivity', 'leadership_emergence', 'cognitive_load_preference',
+];
+
+const CONFLICT_STYLES = ['competing', 'avoiding', 'collaborating', 'accommodating', 'compromising'];
+
+const TRAIT_LABELS: Record<string, string> = {
+  empathy: 'Empathy', self_regulation: 'Self-Regulation', social_awareness: 'Social Awareness',
+  risk_tolerance: 'Risk Tolerance', autonomy_preference: 'Autonomy', detail_orientation: 'Detail Orientation',
+  feedback_receptivity: 'Feedback Receptivity', leadership_emergence: 'Leadership', cognitive_load_preference: 'Cognitive Load Pref.',
+};
+
+const ROLE_PRESETS: Record<string, Record<string, number | string>> = {
+  developer: { openness: 0.6, conscientiousness: 0.7, extraversion: 0.4, agreeableness: 0.5, neuroticism: 0.3, risk_tolerance: 0.5, autonomy_preference: 0.7, detail_orientation: 0.7, feedback_receptivity: 0.7, cognitive_load_preference: 0.7 },
+  designer: { openness: 0.85, conscientiousness: 0.5, extraversion: 0.5, agreeableness: 0.6, neuroticism: 0.3, empathy: 0.8, detail_orientation: 0.6, feedback_receptivity: 0.8, cognitive_load_preference: 0.5 },
+  pm: { openness: 0.6, conscientiousness: 0.75, extraversion: 0.7, agreeableness: 0.65, neuroticism: 0.25, empathy: 0.7, social_awareness: 0.8, risk_tolerance: 0.6, leadership_emergence: 0.7, cognitive_load_preference: 0.8 },
+  qa: { openness: 0.4, conscientiousness: 0.85, extraversion: 0.4, agreeableness: 0.5, neuroticism: 0.3, detail_orientation: 0.9, autonomy_preference: 0.5, feedback_receptivity: 0.6, cognitive_load_preference: 0.6 },
+  devops: { openness: 0.5, conscientiousness: 0.8, extraversion: 0.4, agreeableness: 0.5, neuroticism: 0.2, self_regulation: 0.8, risk_tolerance: 0.4, autonomy_preference: 0.8, cognitive_load_preference: 0.8 },
+  lead: { openness: 0.6, conscientiousness: 0.7, extraversion: 0.65, agreeableness: 0.6, neuroticism: 0.2, empathy: 0.7, social_awareness: 0.75, self_regulation: 0.8, leadership_emergence: 0.85, feedback_receptivity: 0.7 },
+};
+
 // Team Optimizer Component with form persistence
 export default function TeamOptimizer() {
   const [optimization, setOptimization] = useState<any>(null);
@@ -11,6 +37,30 @@ export default function TeamOptimizer() {
   const [error, setError] = useState<string | null>(null);
   const [selectedMembers, setSelectedMembers] = useState(new Set());
   const hasSanitizedRef = useRef(false);
+  const [expandedTraits, setExpandedTraits] = useState<Set<number>>(new Set());
+
+  const toggleSecondaryTraits = (memberId: number) => {
+    setExpandedTraits(prev => {
+      const next = new Set(prev);
+      if (next.has(memberId)) next.delete(memberId);
+      else next.add(memberId);
+      return next;
+    });
+  };
+
+  const applyRolePreset = (memberId: number, role: string) => {
+    const preset = ROLE_PRESETS[role];
+    if (!preset) return;
+    setMembers(members.map(m => {
+      if (m.id !== memberId) return m;
+      const newTraits = { ...m.traits };
+      for (const [key, val] of Object.entries(preset)) {
+        newTraits[key] = val;
+      }
+      return { ...m, traits: newTraits };
+    }));
+    setExpandedTraits(prev => new Set(prev).add(memberId));
+  };
 
   // Form persistence for members
   const {
@@ -142,9 +192,9 @@ export default function TeamOptimizer() {
         ? 1.0
         : member.availability ?? 1.0,
       traits: Object.fromEntries(
-        Object.entries(member.traits || {}).map(([key, val]) => [
+        Object.entries(member.traits || {}).filter(([_, val]) => val != null).map(([key, val]) => [
           key,
-          typeof val === 'number' && isNaN(val) ? 0.5 : Math.max(0, Math.min(1, val ?? 0.5))
+          typeof val === 'string' ? val : (typeof val === 'number' && isNaN(val) ? 0.5 : Math.max(0, Math.min(1, val ?? 0.5)))
         ])
       )
     }));
@@ -200,13 +250,18 @@ export default function TeamOptimizer() {
   };
 
   const updateTrait = (memberId, trait, value) => {
-    // Safely parse value to prevent NaN warning
-    const parsedValue = value !== undefined && value !== null && value !== ''
-      ? parseFloat(value)
-      : 0.5; // Default fallback value
+    let safeValue: any;
 
-    // Ensure parsed value is a valid number
-    const safeValue = isNaN(parsedValue) ? 0.5 : Math.max(0, Math.min(1, parsedValue));
+    if (trait === 'conflict_style') {
+      // String trait — pass through (null clears it)
+      safeValue = value || null;
+    } else {
+      // Numeric trait — parse and clamp
+      const parsedValue = value !== undefined && value !== null && value !== ''
+        ? parseFloat(value)
+        : 0.5;
+      safeValue = isNaN(parsedValue) ? 0.5 : Math.max(0, Math.min(1, parsedValue));
+    }
 
     setMembers(members.map(m =>
       m.id === memberId
@@ -402,7 +457,15 @@ export default function TeamOptimizer() {
                         <option value="pm">Product Manager</option>
                         <option value="qa">QA Engineer</option>
                         <option value="devops">DevOps</option>
+                        <option value="lead">Team Lead</option>
                       </select>
+                      <button
+                        onClick={() => applyRolePreset(member.id, member.role)}
+                        className="mt-1 text-xs text-indigo-600 hover:text-indigo-800 underline"
+                        title="Auto-fill traits based on role ideal profile"
+                      >
+                        Apply Role Preset
+                      </button>
                     </div>
 
                     <div>
@@ -437,28 +500,72 @@ export default function TeamOptimizer() {
                     />
                   </div>
 
-                  {/* Personality Traits */}
+                  {/* Primary Personality Traits (Big Five) */}
                   <div className="mt-4">
-                    <h4 className="text-sm font-medium mb-2">Personality Traits</h4>
+                    <h4 className="text-sm font-medium mb-2">Personality Traits (OCEAN)</h4>
                     <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                      {Object.entries(member.traits).map(([trait, value]) => (
-                        <div key={trait}>
-                          <label className="block text-xs text-gray-600 mb-1 capitalize">
-                            {trait}
-                          </label>
-                          <input
-                            type="range"
-                            min="0"
-                            max="1"
-                            step="0.1"
-                            className="w-full"
-                            value={isNaN(value as number) ? 0.5 : (value as number)}
-                            onChange={e => updateTrait(member.id, trait, e.target.value)}
-                          />
-                          <div className="text-xs text-center text-gray-500">{isNaN(value as number) ? "0.5" : (value as number).toFixed(1)}</div>
-                        </div>
-                      ))}
+                      {PRIMARY_TRAITS.map(trait => {
+                        const value = member.traits?.[trait] ?? 0.5;
+                        return (
+                          <div key={trait}>
+                            <label className="block text-xs text-gray-600 mb-1 capitalize">{trait}</label>
+                            <input type="range" min="0" max="1" step="0.1" className="w-full"
+                              value={isNaN(value) ? 0.5 : value}
+                              onChange={e => updateTrait(member.id, trait, e.target.value)} />
+                            <div className="text-xs text-center text-gray-500">{isNaN(value) ? '0.5' : value.toFixed(1)}</div>
+                          </div>
+                        );
+                      })}
                     </div>
+                  </div>
+
+                  {/* Secondary Traits (Toggleable) */}
+                  <div className="mt-3">
+                    <button
+                      onClick={() => toggleSecondaryTraits(member.id)}
+                      className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                    >
+                      <span>{expandedTraits.has(member.id) ? '- Hide' : '+ Show'} Secondary Traits</span>
+                      <span className="text-xs text-gray-400">(EI, Cognitive, Collaboration)</span>
+                    </button>
+
+                    {expandedTraits.has(member.id) && (
+                      <div className="mt-3 border-t pt-3">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                          {SECONDARY_NUMERIC_TRAITS.map(trait => {
+                            const value = member.traits?.[trait];
+                            const hasValue = value != null;
+                            return (
+                              <div key={trait} className={!hasValue ? 'opacity-50' : ''}>
+                                <label className="block text-xs text-gray-600 mb-1">
+                                  {TRAIT_LABELS[trait] || trait}
+                                </label>
+                                <input type="range" min="0" max="1" step="0.1" className="w-full"
+                                  value={hasValue ? (isNaN(value) ? 0.5 : value) : 0.5}
+                                  onChange={e => updateTrait(member.id, trait, e.target.value)} />
+                                <div className="text-xs text-center text-gray-500">
+                                  {hasValue ? (isNaN(value) ? '0.5' : value.toFixed(1)) : 'unset'}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Conflict Style Dropdown */}
+                        <div className="mt-3">
+                          <label className="block text-xs text-gray-600 mb-1">Conflict Style (Thomas-Kilmann)</label>
+                          <select className="border rounded px-3 py-1.5 text-sm w-48"
+                            value={member.traits?.conflict_style || ''}
+                            onChange={e => updateTrait(member.id, 'conflict_style', e.target.value || null)}
+                          >
+                            <option value="">-- Not set --</option>
+                            {CONFLICT_STYLES.map(s => (
+                              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -544,6 +651,65 @@ export default function TeamOptimizer() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Extended Scores (when available) */}
+                    {(team.role_fit != null || team.ei_score != null) && (
+                      <div className="grid grid-cols-3 md:grid-cols-5 gap-3 mb-4">
+                        {team.role_fit != null && (
+                          <div className="bg-indigo-50 p-2 rounded text-center">
+                            <div className="text-xs text-gray-500">Role Fit</div>
+                            <div className={`text-lg font-bold ${team.role_fit > 0.7 ? 'text-indigo-600' : team.role_fit < 0.4 ? 'text-red-500' : 'text-gray-600'}`}>
+                              {(team.role_fit * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        )}
+                        {team.ei_score != null && (
+                          <div className="bg-pink-50 p-2 rounded text-center">
+                            <div className="text-xs text-gray-500">Team EI</div>
+                            <div className={`text-lg font-bold ${team.ei_score > 0.7 ? 'text-pink-600' : team.ei_score < 0.35 ? 'text-red-500' : 'text-gray-600'}`}>
+                              {(team.ei_score * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        )}
+                        {team.collaboration_score != null && (
+                          <div className="bg-teal-50 p-2 rounded text-center">
+                            <div className="text-xs text-gray-500">Collaboration</div>
+                            <div className="text-lg font-bold text-teal-600">
+                              {(team.collaboration_score * 100).toFixed(0)}%
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Composite Scores (Layer 3) */}
+                    {team.composites && (
+                      <div className="mb-4 border rounded p-3 bg-gray-50">
+                        <h5 className="text-sm font-medium mb-2 text-gray-700">Team Composite Analysis</h5>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+                          {[
+                            { key: 'cognitive_diversity_score', label: 'Cognitive Diversity', warn: 0.35, good: 0.7 },
+                            { key: 'conflict_potential_index', label: 'Conflict Potential', warn: 0.6, good: -1, invert: true },
+                            { key: 'bandwidth_alignment', label: 'Bandwidth Fit', warn: 0.4, good: 0.7 },
+                            { key: 'risk_profile_match', label: 'Risk Match', warn: 0.4, good: 0.7 },
+                            { key: 'communication_style_spread', label: 'Comm. Spread', warn: 0.35, good: 0.7 },
+                          ].map(({ key, label, warn, good, invert }) => {
+                            const val = team.composites[key] ?? 0;
+                            const isWarning = invert ? val > warn : val < warn;
+                            const isGood = invert ? val < 0.3 : val > good;
+                            return (
+                              <div key={key} className={`p-2 rounded text-center ${isWarning ? 'bg-red-50 border border-red-200' : isGood ? 'bg-green-50' : 'bg-white'}`}>
+                                <div className="text-xs text-gray-500">{label}</div>
+                                <div className={`font-bold ${isWarning ? 'text-red-600' : isGood ? 'text-green-600' : 'text-gray-700'}`}>
+                                  {(val * 100).toFixed(0)}%
+                                  {isWarning && ' \u26A0'}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="mb-4">
                       <h5 className="font-medium mb-2">Team Members:</h5>

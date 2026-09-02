@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.response import Response
 from app.db.models.team import Team, TeamMember
 from app.db.models.user import User
+from app.db.models.organizational_pulse import PulseSnapshot
 from app.db.models.wellness_burnout import WellnessMetrics
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,7 @@ class BehavioralIntelligenceService:
         team_id: str,
         lookback_days: int = 30,
         enrichment: Optional[Dict[str, Any]] = None,
+        meeting_signals: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Composite team health from assessment engagement, personality
@@ -105,6 +107,12 @@ class BehavioralIntelligenceService:
                 score = score * 0.80 + e_avg * 0.20
                 factors.update({k: round(v, 1) for k, v in e_signals.items()})
 
+        # Meeting effectiveness: direct employee voice on meeting quality
+        if meeting_signals and meeting_signals.get("meeting_avg_score_100") is not None:
+            meeting_eff = meeting_signals["meeting_avg_score_100"]
+            score = score * 0.85 + meeting_eff * 0.15
+            factors["meeting_effectiveness"] = round(meeting_eff, 1)
+
         trend = await self._calculate_trend(
             db, member_ids, "team_health", lookback_days
         )
@@ -127,11 +135,12 @@ class BehavioralIntelligenceService:
         team_id: str,
         lookback_days: int = 30,
         enrichment: Optional[Dict[str, Any]] = None,
+        culture_signals: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Measures cross-functional work and team cohesion.
         Uses assessment data + team structure as baseline.
-        Enhanced with work system data when available.
+        Enhanced with work system data and culture metrics when available.
         """
         since = datetime.utcnow() - timedelta(days=lookback_days)
         members = await self._get_team_members(db, team_id)
@@ -163,6 +172,12 @@ class BehavioralIntelligenceService:
             score = score * 0.80 + cross_team * 0.20
             factors["cross_team_collaboration"] = round(cross_team, 1)
 
+        # Culture metrics enrichment: direct collaboration measurement
+        if culture_signals and "culture_collaboration" in culture_signals:
+            culture_collab = culture_signals["culture_collaboration"]
+            score = score * 0.80 + culture_collab * 0.20
+            factors["culture_measurement"] = round(culture_collab, 1)
+
         return {
             "score": round(score, 1),
             "label": self._score_label(score),
@@ -182,10 +197,21 @@ class BehavioralIntelligenceService:
         team_id: str,
         lookback_days: int = 30,
         enrichment: Optional[Dict[str, Any]] = None,
+        recognition_signals: Optional[Dict[str, Any]] = None,
+        pulse_survey_signals: Optional[Dict[str, Any]] = None,
+        feedback_360_signals: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
-        A manager's health is measured by their team's wellbeing.
-        High burnout / low engagement on a team → struggling manager.
+        Manager effectiveness measured through team outcomes + direct feedback.
+
+        Base signals (personality/assessment inference):
+          - Team engagement (30%), burnout resilience (25%),
+            productivity proxy (25%), retention (20%)
+
+        Enrichment layers (when available):
+          - Calendar 1:1 frequency (15% blend)
+          - Recognition investment (10% blend)
+          - Pulse survey manager_support (20% blend — direct employee voice)
         """
         since = datetime.utcnow() - timedelta(days=lookback_days)
         members = await self._get_team_members(db, team_id)
@@ -227,6 +253,36 @@ class BehavioralIntelligenceService:
             score = score * 0.85 + ono_score * 0.15
             factors["one_on_one_frequency"] = round(ono_score, 1)
 
+        # Recognition investment: managers who recognize their team are more effective
+        if recognition_signals and recognition_signals.get("per_giver"):
+            per_giver = recognition_signals["per_giver"]
+            manager_recognition_total = 0
+            for mid in member_ids:
+                giver_data = per_giver.get(mid)
+                if giver_data:
+                    manager_recognition_total += giver_data["given_count"]
+            recognition_score = min(100, manager_recognition_total * 10)
+            score = score * 0.90 + recognition_score * 0.10
+            factors["recognition_investment"] = round(recognition_score, 1)
+
+        # Pulse survey: direct employee voice on manager support (strongest signal)
+        if (
+            pulse_survey_signals
+            and pulse_survey_signals.get("manager_support") is not None
+        ):
+            mgr_support = pulse_survey_signals["manager_support"]
+            score = score * 0.80 + mgr_support * 0.20
+            factors["pulse_manager_support"] = round(mgr_support, 1)
+
+        # 360 feedback: multi-rater leadership assessment (when available)
+        if (
+            feedback_360_signals
+            and feedback_360_signals.get("leadership_score") is not None
+        ):
+            leadership = feedback_360_signals["leadership_score"]
+            score = score * 0.80 + leadership * 0.20
+            factors["feedback_360_leadership"] = round(leadership, 1)
+
         return {
             "score": round(score, 1),
             "label": self._score_label(score),
@@ -245,11 +301,16 @@ class BehavioralIntelligenceService:
         db: AsyncSession,
         team_id: str,
         lookback_days: int = 30,
+        culture_signals: Optional[Dict[str, Any]] = None,
+        feedback_signals: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Based on Edmondson's framework. Teams with high openness,
         high agreeableness, and low neuroticism tend to have
         higher psychological safety.
+
+        When culture_signals or feedback_signals are provided, direct
+        measurements blend with personality-based inference for accuracy.
         """
         members = await self._get_team_members(db, team_id)
         if not members:
@@ -277,18 +338,35 @@ class BehavioralIntelligenceService:
             + diversity_bonus * 0.15
         )
 
+        factors = {
+            "openness_to_ideas": round(openness, 1),
+            "interpersonal_trust": round(agreeableness, 1),
+            "emotional_stability": round(stability, 1),
+            "diversity_resilience": round(diversity_bonus, 1),
+        }
+
+        # Culture metrics enrichment: direct psych safety measurement
+        if culture_signals and "culture_psych_safety" in culture_signals:
+            culture_safety = culture_signals["culture_psych_safety"]
+            score = score * 0.75 + culture_safety * 0.25
+            factors["culture_measurement"] = round(culture_safety, 1)
+
+        # Anonymous feedback penalty: safety-related reports lower the score
+        if feedback_signals and feedback_signals.get("safety_reports", 0) > 0:
+            safety_reports = feedback_signals["safety_reports"]
+            total = feedback_signals.get("total_reports", 1)
+            # Each safety report reduces score; scaled by report volume
+            safety_penalty = min(20, safety_reports * 3)
+            score = max(0, score - safety_penalty)
+            factors["feedback_safety_penalty"] = round(safety_penalty, 1)
+
         return {
             "score": round(score, 1),
             "label": self._psych_safety_label(score),
             "trend": await self._calculate_trend(
                 db, member_ids, "psych_safety", lookback_days
             ),
-            "factors": {
-                "openness_to_ideas": round(openness, 1),
-                "interpersonal_trust": round(agreeableness, 1),
-                "emotional_stability": round(stability, 1),
-                "diversity_resilience": round(diversity_bonus, 1),
-            },
+            "factors": factors,
             "recommendations": self._psych_safety_recommendations(
                 openness, agreeableness, stability
             ),
@@ -355,11 +433,13 @@ class BehavioralIntelligenceService:
         team_id: str,
         lookback_days: int = 30,
         enrichment: Optional[Dict[str, Any]] = None,
+        feedback_signals: Optional[Dict[str, Any]] = None,
+        culture_signals: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Measures organizational drag. Lower is better.
-        Based on coordination overhead, response delays, and
-        personality friction points.
+        Based on coordination overhead, response delays, personality
+        friction points, anonymous feedback patterns, and culture conflict.
         """
         since = datetime.utcnow() - timedelta(days=lookback_days)
         members = await self._get_team_members(db, team_id)
@@ -392,6 +472,21 @@ class BehavioralIntelligenceService:
             )
             friction = friction * 0.80 + trend_friction * 0.20
             factors["cycle_time_drag"] = round(trend_friction, 1)
+
+        # Anonymous feedback amplifier: friction-related reports increase score
+        if feedback_signals and feedback_signals.get("friction_reports", 0) > 0:
+            friction_reports = feedback_signals["friction_reports"]
+            # Each friction-category report adds to the score (capped at +15)
+            feedback_amplifier = min(15, friction_reports * 2.5)
+            friction = min(100, friction + feedback_amplifier)
+            factors["feedback_friction_reports"] = friction_reports
+            factors["feedback_amplifier"] = round(feedback_amplifier, 1)
+
+        # Culture conflict level enrichment
+        if culture_signals and "culture_conflict" in culture_signals:
+            culture_conflict = culture_signals["culture_conflict"]
+            friction = friction * 0.85 + culture_conflict * 0.15
+            factors["culture_conflict_level"] = round(culture_conflict, 1)
 
         return {
             "score": round(friction, 1),
@@ -509,12 +604,22 @@ class BehavioralIntelligenceService:
         organization_id: str,
         lookback_days: int = 30,
         enrichment: Optional[Dict[str, Any]] = None,
+        culture_signals: Optional[Dict[str, Any]] = None,
+        feedback_signals: Optional[Dict[str, Any]] = None,
+        recognition_signals: Optional[Dict[str, Any]] = None,
+        pulse_survey_signals: Optional[Dict[str, Any]] = None,
+        feedback_360_signals: Optional[Dict[str, Any]] = None,
+        meeting_signals: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Full behavioral intelligence dashboard for an organization.
 
         When ``enrichment`` is provided (from ``build_enrichment()``), work system
         and calendar signals are blended into team health, collaboration, manager
         health, friction, and burnout risk scores.
+
+        When ``culture_signals`` / ``feedback_signals`` / ``recognition_signals``
+        / ``pulse_survey_signals`` / ``feedback_360_signals`` / ``meeting_signals``
+        are provided, direct employee voice enriches the scores.
         """
         # Get all teams in the organization
         result = await db.execute(
@@ -546,18 +651,43 @@ class BehavioralIntelligenceService:
         for team in teams:
             tid = str(team.id)
             th = await self.calculate_team_health(
-                db, tid, lookback_days, enrichment=enrichment
+                db,
+                tid,
+                lookback_days,
+                enrichment=enrichment,
+                meeting_signals=meeting_signals,
             )
             co = await self.calculate_collaboration_score(
-                db, tid, lookback_days, enrichment=enrichment
+                db,
+                tid,
+                lookback_days,
+                enrichment=enrichment,
+                culture_signals=culture_signals,
             )
             mh = await self.calculate_manager_health(
-                db, tid, lookback_days, enrichment=enrichment
+                db,
+                tid,
+                lookback_days,
+                enrichment=enrichment,
+                recognition_signals=recognition_signals,
+                pulse_survey_signals=pulse_survey_signals,
+                feedback_360_signals=feedback_360_signals,
             )
-            ps = await self.calculate_psychological_safety(db, tid, lookback_days)
+            ps = await self.calculate_psychological_safety(
+                db,
+                tid,
+                lookback_days,
+                culture_signals=culture_signals,
+                feedback_signals=feedback_signals,
+            )
             cr = await self.calculate_change_readiness(db, tid, lookback_days)
             fi = await self.calculate_friction_index(
-                db, tid, lookback_days, enrichment=enrichment
+                db,
+                tid,
+                lookback_days,
+                enrichment=enrichment,
+                feedback_signals=feedback_signals,
+                culture_signals=culture_signals,
             )
             br = await self.calculate_burnout_risk(
                 db, tid, lookback_days, enrichment=enrichment
@@ -604,14 +734,133 @@ class BehavioralIntelligenceService:
         # Sort teams by risk (lowest team_health first)
         team_results.sort(key=lambda t: t["scores"]["team_health"])
 
+        # Internal benchmarking: percentile rank + 90-day trend
+        benchmarks = self._compute_benchmark_context(org_scores, team_results)
+        historical_trend = await self._get_historical_trend(db, organization_id, 90)
+
         return {
             "organization_id": organization_id,
             "team_count": len(teams),
             "scores": org_scores,
+            "benchmarks": benchmarks,
+            "historical_trend": historical_trend,
             "teams": team_results,
             "executive_summary": narrative,
             "generated_at": datetime.utcnow().isoformat(),
             "lookback_days": lookback_days,
+        }
+
+    # ══════════════════════════════════════════════════════════════════
+    # INTERNAL BENCHMARKING
+    # ══════════════════════════════════════════════════════════════════
+
+    def _compute_benchmark_context(
+        self,
+        org_scores: Dict[str, float],
+        team_results: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Percentile rank + org-average context for each BI score.
+
+        For each of the 7 scores, computes:
+        - org_average: mean across all teams
+        - distribution: {min, p25, median, p75, max}
+        - per-team percentile_rank (added into team_results in-place)
+        """
+        score_keys = [
+            "team_health",
+            "collaboration",
+            "manager_health",
+            "psychological_safety",
+            "change_readiness",
+            "friction_index",
+            "burnout_risk",
+        ]
+
+        benchmarks: Dict[str, Any] = {}
+
+        for key in score_keys:
+            values = sorted(
+                t["scores"].get(key, 0)
+                for t in team_results
+                if t["scores"].get(key, 0) > 0
+            )
+            if not values:
+                benchmarks[key] = {
+                    "org_average": org_scores.get(key, 0),
+                    "distribution": None,
+                }
+                continue
+
+            n = len(values)
+            benchmarks[key] = {
+                "org_average": org_scores.get(key, 0),
+                "distribution": {
+                    "min": round(values[0], 1),
+                    "p25": round(values[max(0, n // 4 - 1)], 1),
+                    "median": round(values[n // 2], 1),
+                    "p75": round(values[max(0, 3 * n // 4 - 1)], 1),
+                    "max": round(values[-1], 1),
+                },
+            }
+
+            # Add percentile rank to each team (in-place)
+            for team in team_results:
+                team_score = team["scores"].get(key, 0)
+                if team_score <= 0:
+                    continue
+                # Inverted metrics: lower is better → rank from bottom
+                if key in ("friction_index", "burnout_risk"):
+                    rank = sum(1 for v in values if v >= team_score) / n
+                else:
+                    rank = sum(1 for v in values if v <= team_score) / n
+                team.setdefault("percentiles", {})[key] = round(rank * 100, 0)
+
+        return benchmarks
+
+    async def _get_historical_trend(
+        self,
+        db: AsyncSession,
+        organization_id: str,
+        days: int = 90,
+    ) -> Dict[str, Any]:
+        """90-day trend from PulseSnapshot history."""
+        cutoff = datetime.utcnow() - timedelta(days=days)
+        try:
+            result = await db.execute(
+                select(PulseSnapshot)
+                .where(
+                    and_(
+                        PulseSnapshot.organization_id == organization_id,
+                        PulseSnapshot.snapshot_date >= cutoff,
+                    )
+                )
+                .order_by(PulseSnapshot.snapshot_date.asc())
+            )
+            snapshots = result.scalars().all()
+        except Exception:
+            return {"available": False}
+
+        if len(snapshots) < 2:
+            return {"available": False, "reason": "insufficient_history"}
+
+        first = snapshots[0]
+        last = snapshots[-1]
+
+        return {
+            "available": True,
+            "period_days": days,
+            "data_points": len(snapshots),
+            "pulse_score": {
+                "start": first.overall_pulse_score,
+                "end": last.overall_pulse_score,
+                "delta": round(last.overall_pulse_score - first.overall_pulse_score, 1),
+                "trend": last.overall_trend,
+            },
+            "risk_evolution": {
+                "teams_at_risk_start": first.teams_at_risk,
+                "teams_at_risk_end": last.teams_at_risk,
+                "delta": last.teams_at_risk - first.teams_at_risk,
+            },
         }
 
     # ══════════════════════════════════════════════════════════════════

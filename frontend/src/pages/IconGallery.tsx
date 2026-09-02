@@ -40,7 +40,8 @@ const IconGallery: React.FC = () => {
     { name: 'Organizational Pulse', path: '/organizational-pulse', icon: '💓', description: 'Predictive intelligence — 7 key questions answered before you ask them' },
     { name: 'Org Digital Twin', path: '/org-digital-twin', icon: '🏗', description: 'Living organizational model with 7 dimensions & what-if simulation' },
     { name: 'OKR Dashboard', path: '/okr', icon: '🎯', description: 'Objectives & Key Results tracking with health indicators' },
-    { name: 'Peer Recognition', path: '/recognition', icon: '🏆', description: 'Give & view peer-to-peer recognitions, org-wide stats' }
+    { name: 'Peer Recognition', path: '/recognition', icon: '🏆', description: 'Give & view peer-to-peer recognitions, org-wide stats' },
+    { name: 'External Benchmarks', path: '/external-benchmarks', icon: '📊', description: 'Compare against anonymized industry peers with differential privacy' }
   ];
 
   // ── Early Warning & Risk (14 items) ──
@@ -57,16 +58,24 @@ const IconGallery: React.FC = () => {
     { name: 'Employee Safety', path: '/employee-safety', icon: '⚠️', description: 'Workplace safety & incident tracking' },
     { name: 'Anomaly Detection', path: '/anomaly-detection', icon: '🚨', description: 'ML-powered pattern detection & alerts' },
     { name: 'Team Risk Dashboard', path: '/team-dashboard', icon: '👥', description: 'Team-level risk indicators & heatmap' },
-    { name: 'Burnout Prediction', path: '/burnout-prediction', icon: '🔮', description: 'AI-powered risk prediction & analytics' }
+    { name: 'Burnout Prediction', path: '/burnout-prediction', icon: '🔮', description: 'AI-powered risk prediction & analytics' },
+    { name: 'Action Plans', path: '/action-plans', icon: '📋', description: 'Track interventions from Pulse, Manager Intelligence & manual creation' },
+    { name: 'Onboarding Analytics', path: '/onboarding-analytics', icon: '👋', description: 'New hire health composite from existing signals' }
   ];
 
-  // ── Email Monitoring (5 items) ──
-  const emailMonitoringItems: IconItem[] = [
+  // ── Metadata Intelligence (11 items) ──
+  const metadataIntelligenceItems: IconItem[] = [
+    { name: 'Email Metadata', path: '/email-metadata', icon: '📧', description: 'Behavioral signals from email metadata — timestamps, volumes, response times' },
+    { name: 'Slack Metadata', path: '/slack-metadata', icon: '💬', description: 'Channel breadth, DM ratio, context switching, presence patterns' },
+    { name: 'Teams Metadata', path: '/teams-metadata', icon: '🟣', description: 'Chat counts, call duration, meeting fatigue, presence timeline' },
+    { name: 'Calendar Analytics', path: '/calendar-intelligence', icon: '📅', description: 'Meeting load, focus time, after-hours meetings, fragmentation score' },
+    { name: 'Computer Usage', path: '/computer-usage', icon: '🖥', description: 'Activity levels, session duration, break frequency, idle patterns' },
+    { name: 'Badge Access', path: '/badge-access', icon: '🏢', description: 'Office entry/exit times, long days, weekend presence, hours trend' },
+    { name: 'PTO Patterns', path: '/pto-patterns', icon: '🏖', description: 'Vacation avoidance, sick day trends, recovery deficit — strongest early predictor' },
+    { name: 'Git/GitHub', path: '/git-metadata', icon: '🐙', description: 'Commit patterns, PR lifecycle, review bottlenecks, after-hours coding' },
     { name: 'Email Connector', path: '/email-connector', icon: '🔗', description: 'Email integration services' },
-    { name: 'Sentiment Analysis', path: '/sentiment-analysis', icon: '😊', description: 'Email tone and emotion analysis' },
     { name: 'Scheduled Reports', path: '/scheduled-reports', icon: '📅', description: 'Automated weekly/monthly email reports' },
-    { name: 'Anomaly Detection', path: '/anomaly-detection', icon: '🚨', description: 'ML-powered pattern detection & alerts' },
-    { name: 'Team Dashboard', path: '/team-dashboard', icon: '👥', description: 'Team analytics & performance metrics' }
+    { name: 'Anomaly Detection', path: '/anomaly-detection', icon: '🚨', description: 'ML-powered pattern detection & alerts' }
   ];
 
   // ── HRIS Analytics (9 items) ──
@@ -145,7 +154,8 @@ const IconGallery: React.FC = () => {
     { name: 'Communication Analytics', path: '/communication-analytics', icon: '💬', description: 'Slack & Teams messaging patterns, sentiment & after-hours analysis' },
     { name: 'Health Dashboard', path: '/health', icon: '❤️', description: 'Personal health monitoring and stress tracking' },
     { name: 'Team Health Analytics', path: '/team-health', icon: '📊', description: 'Manager view of team wellness (anonymized)' },
-    { name: 'Behavioral Analysis', path: '/behavioral-analysis', icon: '📊', description: 'Behavioral pattern analysis' }
+    { name: 'Behavioral Analysis', path: '/behavioral-analysis', icon: '📊', description: 'Behavioral pattern analysis' },
+    { name: 'Nudge Bot', path: '/nudge-bot', icon: '🤖', description: 'Proactive outbound nudges via Slack/Teams' }
   ];
 
   // ── Network & Collaboration (5 items) ──
@@ -168,11 +178,13 @@ const IconGallery: React.FC = () => {
   // ── Teams Analytics (6 items) ──
   const teamsAnalyticsItems: IconItem[] = [
     { name: 'Teams', path: '/teams', icon: '👥', description: 'Manage and view your teams' },
-    { name: 'Team Optimizer', path: '/team-optimizer', icon: '⚡', description: 'Optimize team dynamics with department filtering' },
+    { name: 'Team Optimizer', path: '/team-optimizer', icon: '⚡', description: 'AI team composition with OCEAN, EI, cognitive traits, role presets & conflict analysis' },
     { name: 'Team Composition', path: '/team-composition', icon: '🧩', description: 'Personality-based team analytics and insights' },
-    { name: 'Multi-Framework Synthesis', path: '/multi-framework-synthesis', icon: '🧩', description: 'AI-powered synthesis across personality frameworks' },
+    { name: 'Multi-Framework Synthesis', path: '/multi-framework-synthesis', icon: '🧬', description: 'Cross-framework synthesis: Big Five, MBTI, Enneagram, DISC, Belbin, Holland & more' },
     { name: 'Reliability & Validity', path: '/reliability-validity', icon: '🔬', description: 'Research metrics and validation' },
-    { name: 'General Analytics', path: '/analytics/dashboard', icon: '📈', description: 'Overall analytics dashboard' }
+    { name: 'General Analytics', path: '/analytics/dashboard', icon: '📈', description: 'Overall analytics dashboard' },
+    { name: '360 Feedback', path: '/feedback-360', icon: '🔄', description: 'Multi-rater feedback with privacy-safe aggregation & blind spot detection' },
+    { name: 'Meeting Effectiveness', path: '/meeting-effectiveness', icon: '📹', description: 'Rate meetings to build org-wide meeting health signals' }
   ];
 
   // ── Compliance & Legal (2 items) ──
@@ -191,7 +203,7 @@ const IconGallery: React.FC = () => {
     { title: 'Core Navigation', icon: '📊', color: 'bg-blue-50 border-blue-200', items: coreItems },
     { title: 'Executive Analytics', icon: '📊', color: 'bg-indigo-50 border-indigo-200', items: executiveAnalyticsItems },
     { title: 'Early Warning & Risk', icon: '⚡', color: 'bg-yellow-50 border-yellow-200', items: earlyWarningItems },
-    { title: 'Email Monitoring', icon: '📧', color: 'bg-indigo-50 border-indigo-200', items: emailMonitoringItems },
+    { title: 'Metadata Intelligence', icon: '🔍', color: 'bg-indigo-50 border-indigo-200', items: metadataIntelligenceItems },
     { title: 'HRIS Analytics', icon: '📊', color: 'bg-cyan-50 border-cyan-200', items: hrisItems },
     { title: 'Admin & Executive', icon: '🔐', color: 'bg-red-50 border-red-200', items: adminItems },
     { title: 'Clinical Screening', icon: '🏥', color: 'bg-green-50 border-green-200', items: clinicalScreeningItems },

@@ -5,7 +5,7 @@ import { safeJSONParse } from '../utils/safeJSON';
 
 // Create a separate axios instance for AI requests that don't require authentication
 const aiApiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
+  baseURL: import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : (import.meta.env.PROD ? '/api/v1' : 'http://localhost:8000/api/v1'),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -14,7 +14,7 @@ const aiApiClient = axios.create({
 // Enhanced AI client that supports both authenticated and non-authenticated requests
 const createAuthenticatedAIClient = (token?: string) => {
   return axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1',
+    baseURL: import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : (import.meta.env.PROD ? '/api/v1' : 'http://localhost:8000/api/v1'),
     headers: {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),

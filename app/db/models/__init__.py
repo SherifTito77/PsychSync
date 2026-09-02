@@ -221,6 +221,20 @@ try:
 except ImportError:
     PulseSnapshot = None
 
+# Import Toxicity & Burnout models
+try:
+    from .toxicity_burnout import (
+        AlertSeverity,
+        SnapshotScope,
+        ToxicityBurnoutAlert,
+        ToxicityBurnoutSnapshot,
+    )
+except ImportError:
+    ToxicityBurnoutSnapshot = None
+    ToxicityBurnoutAlert = None
+    SnapshotScope = None
+    AlertSeverity = None
+
 # Import HIPAA-compliant secure models (encrypted PHI at rest)
 try:
     from .assessment_secure import SecureAssessment
@@ -235,6 +249,96 @@ except ImportError:
     SecureTeamMember = None
     SecureAssessment = None
     SecureResponse = None
+
+# Import Org Digital Twin models
+try:
+    from .org_digital_twin import OrgDigitalTwinSnapshot
+except ImportError:
+    OrgDigitalTwinSnapshot = None
+
+# Import Action Plan models
+try:
+    from .action_plan import (
+        ActionPlan,
+        ActionPlanPriority,
+        ActionPlanSource,
+        ActionPlanStatus,
+    )
+except ImportError:
+    ActionPlan = None
+    ActionPlanStatus = None
+    ActionPlanSource = None
+    ActionPlanPriority = None
+
+# Import 360-Degree Feedback models
+try:
+    from .feedback_360 import (
+        FeedbackCompetency,
+        FeedbackRequest,
+        FeedbackResponse as FeedbackResponse360,
+        FeedbackRound,
+        FeedbackRoundStatus,
+        RaterCategory,
+    )
+except ImportError:
+    FeedbackRound = None
+    FeedbackRequest = None
+    FeedbackResponse360 = None
+    FeedbackCompetency = None
+    FeedbackRoundStatus = None
+    RaterCategory = None
+
+# Import Pulse Survey models
+try:
+    from .pulse_survey import (
+        PulseSurveyCampaign,
+        PulseSurveyResponse,
+        SurveyCampaignStatus,
+        SurveyFrequency,
+    )
+except ImportError:
+    PulseSurveyCampaign = None
+    PulseSurveyResponse = None
+    SurveyFrequency = None
+    SurveyCampaignStatus = None
+
+# Import Meeting Effectiveness models
+try:
+    from .meeting_effectiveness import MeetingRating
+except ImportError:
+    MeetingRating = None
+
+# Import External Benchmark models
+try:
+    from .external_benchmark import BenchmarkContribution, BenchmarkOptIn
+except ImportError:
+    BenchmarkContribution = None
+    BenchmarkOptIn = None
+
+# Import OKR models
+try:
+    from .okr import (
+        Initiative,
+        KRProgressUpdate,
+        KeyResult,
+        Objective,
+        OKRCheckIn,
+        OKRRetrospective,
+    )
+except ImportError:
+    Objective = None
+    KeyResult = None
+    KRProgressUpdate = None
+    Initiative = None
+    OKRCheckIn = None
+    OKRRetrospective = None
+
+# Import Peer Recognition models
+try:
+    from .peer_recognition import PeerRecognition, RecognitionType
+except ImportError:
+    PeerRecognition = None
+    RecognitionType = None
 
 # Make models available when importing from this package
 __all__ = [
@@ -352,4 +456,43 @@ __all__ = [
     "EdgeType",
     # Organizational Pulse models
     "PulseSnapshot",
+    # Toxicity & Burnout models
+    "ToxicityBurnoutSnapshot",
+    "ToxicityBurnoutAlert",
+    "SnapshotScope",
+    "AlertSeverity",
+    # Org Digital Twin models
+    "OrgDigitalTwinSnapshot",
+    # Action Plan models
+    "ActionPlan",
+    "ActionPlanStatus",
+    "ActionPlanSource",
+    "ActionPlanPriority",
+    # 360-Degree Feedback models
+    "FeedbackRound",
+    "FeedbackRequest",
+    "FeedbackResponse360",
+    "FeedbackCompetency",
+    "FeedbackRoundStatus",
+    "RaterCategory",
+    # Pulse Survey models
+    "PulseSurveyCampaign",
+    "PulseSurveyResponse",
+    "SurveyFrequency",
+    "SurveyCampaignStatus",
+    # Meeting Effectiveness models
+    "MeetingRating",
+    # External Benchmark models
+    "BenchmarkContribution",
+    "BenchmarkOptIn",
+    # OKR models
+    "Objective",
+    "KeyResult",
+    "KRProgressUpdate",
+    "Initiative",
+    "OKRCheckIn",
+    "OKRRetrospective",
+    # Peer Recognition models
+    "PeerRecognition",
+    "RecognitionType",
 ]

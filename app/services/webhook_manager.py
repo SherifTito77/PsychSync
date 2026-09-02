@@ -51,6 +51,18 @@ class WebhookEvent(str, Enum):
     EMAIL_VERIFIED = "email.verified"
     PASSWORD_RESET = "password.reset"
 
+    # Intelligence engine events
+    FLIGHT_RISK_DETECTED = "intelligence.flight_risk_detected"
+    BURNOUT_WARNING = "intelligence.burnout_warning"
+    MANAGER_HEALTH_CRITICAL = "intelligence.manager_health_critical"
+    ISOLATION_DETECTED = "intelligence.isolation_detected"
+    FRICTION_SPIKE = "intelligence.friction_spike"
+    OKR_HEALTH_CRITICAL = "intelligence.okr_health_critical"
+    PULSE_SCORE_DROP = "intelligence.pulse_score_drop"
+    ACTION_PLAN_OVERDUE = "intelligence.action_plan_overdue"
+    ONBOARDING_AT_RISK = "intelligence.onboarding_at_risk"
+    FEEDBACK_360_BLIND_SPOT = "intelligence.feedback_360_blind_spot"
+
 
 class WebhookStatus(str, Enum):
     """Webhook delivery status tracking."""

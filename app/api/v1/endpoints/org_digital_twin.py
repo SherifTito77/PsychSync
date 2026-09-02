@@ -56,12 +56,26 @@ class SimulationRequest(BaseModel):
     type: str = Field(
         ...,
         description=(
-            "Scenario type: key_person_departure, team_merge, "
-            "engagement_shift, or rapid_growth"
+            "Scenario type: key_person_departure, team_merge, team_restructure, "
+            "engagement_shift, rapid_growth, or hiring"
         ),
     )
     role: str | None = Field(
         None, description="For departure: manager, influencer, bridge, or member"
+    )
+    person_id: str | None = Field(
+        None,
+        description="For departure: specific person UUID for ONA-backed simulation",
+    )
+    person_ids: list[str] | None = Field(
+        None, description="For restructure: list of person UUIDs to move"
+    )
+    target_team_id: str | None = Field(
+        None, description="For restructure: destination team UUID"
+    )
+    team_id: str | None = Field(None, description="For hiring: target team UUID")
+    hire_count: int | None = Field(
+        None, description="For hiring: number of new hires (default 1)"
     )
     shift_pct: float | None = Field(
         None, description="For engagement_shift: percentage change (e.g. -15)"

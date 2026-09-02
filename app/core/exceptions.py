@@ -500,6 +500,15 @@ def create_error_response(exception: PsychSyncException) -> dict[str, Any]:
     """
     response = exception.to_dict()
 
+    # In production, strip internal details that could leak system internals
+    import os
+
+    if os.getenv("ENVIRONMENT", "development").lower() == "production":
+        if "details" in response and isinstance(response["details"], dict):
+            # Remove keys that expose internal errors (SQL, stack traces, etc.)
+            for sensitive_key in ("original_error", "error_type", "exception_message"):
+                response["details"].pop(sensitive_key, None)
+
     # Add helpful information for development
     if logger.level <= logging.DEBUG:
         response["debug"] = {

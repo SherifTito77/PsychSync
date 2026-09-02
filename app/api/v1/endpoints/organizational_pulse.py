@@ -51,13 +51,76 @@ async def get_organizational_pulse(
     enrichment = await data_source_aggregator.gather_bi_enrichment(organization_id)
     hris = await data_source_aggregator.gather_hris_analysis(organization_id)
 
+    # Gather signals from previously unwired assets
+    feedback_signals = await data_source_aggregator.gather_feedback_signals(
+        db, organization_id, lookback_days
+    )
+    culture_signals = await data_source_aggregator.gather_culture_signals(
+        db, organization_id, lookback_days
+    )
+    recognition_signals = await data_source_aggregator.gather_recognition_signals(
+        db, organization_id, lookback_days
+    )
+    pulse_survey_signals = await data_source_aggregator.gather_pulse_survey_signals(
+        db, organization_id, lookback_days
+    )
+    okr_signals = await data_source_aggregator.gather_okr_signals(db, organization_id)
+
     pulse = await _service.generate_pulse(
         db,
         organization_id,
         lookback_days,
         enrichment=enrichment or None,
         hris_signals=hris,
+        feedback_signals=feedback_signals or None,
+        culture_signals=culture_signals or None,
+        recognition_signals=recognition_signals or None,
+        okr_signals=okr_signals or None,
     )
+
+    # Add pulse survey validation layer
+    if pulse_survey_signals:
+        from app.services.pulse_survey_service import pulse_survey_service
+
+        divergences = await pulse_survey_service.validate_against_inferred(
+            db,
+            organization_id,
+            pulse.get("questions", {}).get("collaboration_effectiveness", {}),
+            lookback_days,
+        )
+        pulse["pulse_survey"] = {
+            "available": True,
+            "response_count": pulse_survey_signals.get("response_count", 0),
+            "divergences": divergences,
+        }
+
+    # Persist Q7 interventions as trackable action plans
+    interventions = (
+        pulse.get("questions", {}).get("interventions", {}).get("answer", [])
+    )
+    if interventions:
+        from app.services.action_plan_service import action_plan_service
+
+        bi_scores = pulse.get("bi_dashboard", {}).get("scores", {})
+        plans = await action_plan_service.create_from_pulse_interventions(
+            db,
+            organization_id=current_user.organization_id or organization_id,
+            owner_id=current_user.id,
+            interventions=interventions,
+            bi_scores=bi_scores,
+        )
+        pulse["action_plans_created"] = len(plans)
+
+    # Dispatch intelligence events to webhook subscribers (fire-and-forget)
+    try:
+        from app.services.intelligence_events import intelligence_events
+
+        events_emitted = await intelligence_events.dispatch_pulse_events(
+            organization_id, pulse
+        )
+        pulse["events_emitted"] = events_emitted
+    except Exception:
+        pass  # Never block pulse on event dispatch failures
 
     # Apply privacy guard to team-level details within pulse questions
     ctx = PrivacyContext(organization_id=organization_id)

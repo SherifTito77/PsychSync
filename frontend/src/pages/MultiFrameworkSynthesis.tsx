@@ -98,6 +98,8 @@ const MultiFrameworkSynthesis: React.FC = () => {
         { name: 'Predictive Index', type: 'predictive_index' },
         { name: 'CliftonStrengths', type: 'clifton_strengths' },
         { name: 'Social Styles', type: 'social_styles' },
+        { name: 'Belbin Team Roles', type: 'belbin' },
+        { name: 'Holland Code (RIASEC)', type: 'holland' },
       ];
 
       const mapped: FrameworkData[] = allFrameworks.map(fw => {

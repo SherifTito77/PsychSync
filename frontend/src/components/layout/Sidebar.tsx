@@ -110,6 +110,12 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
         path: '/okr',
         icon: '🎯',
         description: 'Objectives & Key Results tracking with health indicators'
+      },
+      {
+        name: 'External Benchmarks',
+        path: '/external-benchmarks',
+        icon: '📊',
+        description: 'Compare against anonymized industry peers with differential privacy'
       }
     ]
   };
@@ -133,22 +139,33 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
       { name: 'Employee Safety', path: '/employee-safety', icon: '⚠️', description: 'Workplace safety & incident tracking' },
       { name: 'Anomaly Detection', path: '/anomaly-detection', icon: '🚨', description: 'ML-powered pattern detection & alerts' },
       { name: 'Team Risk Dashboard', path: '/team-dashboard', icon: '👥', description: 'Team-level risk indicators & heatmap' },
-      { name: 'Burnout Prediction', path: '/burnout-prediction', icon: '🔮', description: 'AI-powered risk prediction & analytics' }
+      { name: 'Burnout Prediction', path: '/burnout-prediction', icon: '🔮', description: 'AI-powered risk prediction & analytics' },
+      { name: 'Action Plans', path: '/action-plans', icon: '📋', description: 'Track interventions from Pulse, Manager Intelligence & manual creation' },
+      { name: 'Onboarding Analytics', path: '/onboarding-analytics', icon: '👋', description: 'New hire health composite from existing signals' },
+      { name: 'Toxicity & Burnout', path: '/toxicity-burnout', icon: '☣️', description: 'Passive detection of toxic patterns & burnout from infrastructure metadata' }
     ]
   };
 
-  // Email Monitoring Section
-  const emailMonitoringSection: MenuSection = {
-    name: 'Email Monitoring',
-    path: '/email-monitoring',
-    icon: '📧',
-    requiredRoles: ['hr', 'admin', 'super_admin', 'manager'], // HR/Manager only
+  // Metadata Intelligence Section
+  const metadataIntelligenceSection: MenuSection = {
+    name: 'Metadata Intelligence',
+    path: '/metadata-intelligence',
+    icon: '🔍',
+    requiredRoles: ['hr', 'admin', 'super_admin', 'manager'],
     items: [
+      { name: 'Email Metadata', path: '/email-metadata', icon: '📧', description: 'Behavioral signals from email metadata — timestamps, volumes, response times' },
+      { name: 'Slack Metadata', path: '/slack-metadata', icon: '💬', description: 'Channel breadth, DM ratio, context switching, presence patterns' },
+      { name: 'Teams Metadata', path: '/teams-metadata', icon: '🟣', description: 'Chat counts, call duration, meeting fatigue, presence timeline' },
+      { name: 'Calendar Analytics', path: '/calendar-intelligence', icon: '📅', description: 'Meeting load, focus time, after-hours meetings, fragmentation score' },
+      { name: 'Computer Usage', path: '/computer-usage', icon: '🖥', description: 'Activity levels, session duration, break frequency, idle patterns' },
+      { name: 'Badge Access', path: '/badge-access', icon: '🏢', description: 'Office entry/exit times, long days, weekend presence, hours trend' },
+      { name: 'PTO Patterns', path: '/pto-patterns', icon: '🏖', description: 'Vacation avoidance, sick day trends, recovery deficit — strongest early predictor' },
+      { name: 'Git/GitHub', path: '/git-metadata', icon: '🐙', description: 'Commit patterns, PR lifecycle, review bottlenecks, after-hours coding' },
+      { name: 'Video Conferencing', path: '/video-conference-metadata', icon: '📹', description: 'Camera engagement, meeting fatigue, back-to-back density, join latency' },
+      { name: 'Knowledge Base', path: '/knowledge-base-metadata', icon: '📚', description: 'Doc creation, contributor concentration, stale content, knowledge sharing' },
       { name: 'Email Connector', path: '/email-connector', icon: '🔗', description: 'Email integration services' },
-      { name: 'Sentiment Analysis', path: '/sentiment-analysis', icon: '😊', description: 'Email tone and emotion analysis' },
       { name: 'Scheduled Reports', path: '/scheduled-reports', icon: '📅', description: 'Automated weekly/monthly email reports' },
-      { name: 'Anomaly Detection', path: '/anomaly-detection', icon: '🚨', description: 'ML-powered pattern detection & alerts' },
-      { name: 'Team Dashboard', path: '/team-dashboard', icon: '👥', description: 'Team analytics & performance metrics' }
+      { name: 'Anomaly Detection', path: '/anomaly-detection', icon: '🚨', description: 'ML-powered pattern detection & alerts' }
     ]
   };
 
@@ -550,6 +567,12 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
         path: '/behavioral-analysis',
         icon: '📊',
         description: 'Behavioral pattern analysis'
+      },
+      {
+        name: 'Nudge Bot',
+        path: '/nudge-bot',
+        icon: '🤖',
+        description: 'Proactive outbound nudges via Slack/Teams'
       }
     ]
   };
@@ -610,7 +633,7 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
         name: 'Team Optimizer',
         path: '/team-optimizer',
         icon: '⚡',
-        description: 'Optimize team dynamics with department filtering'
+        description: 'AI team composition with OCEAN, EI, cognitive traits, role presets & conflict analysis'
       },
       {
         name: 'Team Composition',
@@ -625,10 +648,22 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
         description: 'Give & view peer-to-peer recognitions, org-wide recognition stats'
       },
       {
+        name: '360 Feedback',
+        path: '/feedback-360',
+        icon: '🔄',
+        description: 'Multi-rater feedback with privacy-safe aggregation & blind spot detection'
+      },
+      {
+        name: 'Meeting Effectiveness',
+        path: '/meeting-effectiveness',
+        icon: '📹',
+        description: 'Rate meetings to build org-wide meeting health signals'
+      },
+      {
         name: 'Multi-Framework Synthesis',
         path: '/multi-framework-synthesis',
-        icon: '🧩',
-        description: 'AI-powered synthesis across personality frameworks'
+        icon: '🧬',
+        description: 'Cross-framework synthesis: Big Five, MBTI, Enneagram, DISC, Belbin, Holland & more'
       },
       {
         name: 'Reliability & Validity',
@@ -728,7 +763,7 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
     location.pathname.startsWith(item.path)
   );
 
-  const isEmailMonitoringActive = emailMonitoringSection.items?.some(item =>
+  const isMetadataIntelligenceActive = metadataIntelligenceSection.items?.some(item =>
     location.pathname.startsWith(item.path)
   );
 
@@ -1053,19 +1088,19 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
         </div>
 
         {/* Email Monitoring Section - Collapsible */}
-        {isSectionVisible(emailMonitoringSection) && (
+        {isSectionVisible(metadataIntelligenceSection) && (
           <div className="mb-8">
           <button
             onClick={() => toggleSection('email-monitoring')}
             className={`
               w-full flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors cursor-pointer text-left
-              ${isEmailMonitoringActive ? 'bg-gray-800 text-white border-r-2 border-indigo-500' : ''}
+              ${isMetadataIntelligenceActive ? 'bg-gray-800 text-white border-r-2 border-indigo-500' : ''}
             `}
           >
-            <span className="text-xl text-indigo-400">{emailMonitoringSection.icon}</span>
+            <span className="text-xl text-indigo-400">{metadataIntelligenceSection.icon}</span>
             {isOpen && (
               <>
-                <span className="ml-3 flex-1 text-left">{emailMonitoringSection.name}</span>
+                <span className="ml-3 flex-1 text-left">{metadataIntelligenceSection.name}</span>
                 <span
                   onClick={(e) => {
                     e.stopPropagation(); // Prevent double toggle
@@ -1094,7 +1129,7 @@ const Sidebar = memo(({ isOpen, onToggle }: SidebarProps) => {
           {/* Collapsible Email Monitoring Sub-items */}
           {isOpen && expandedSections.includes('email-monitoring') && (
             <div className="bg-gray-800 border-l-2 border-indigo-500">
-              {emailMonitoringSection.items?.map((item) => (
+              {metadataIntelligenceSection.items?.map((item) => (
                 <NavLink
                   key={item.path}
                   to={item.path}

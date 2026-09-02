@@ -15,7 +15,11 @@ from typing import Any, Optional
 from sqlalchemy import and_, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.code_quality import CodeQualityIssue, CodeQualityMetric, PullRequestQuality
+from app.db.models.code_quality import (
+    CodeQualityIssue,
+    CodeQualityMetric,
+    PullRequestQuality,
+)
 from app.schemas.code_quality import (
     CodeQualityIssueCreate,
     CodeQualityMetricCreate,
@@ -29,15 +33,15 @@ class CRUDCodeQualityMetric:
     async def get(self, db: AsyncSession, id: str) -> Optional[CodeQualityMetric]:
         """Retrieve resource(s).
 
-Args:
-    db: Database session
-    **kwargs: Filter criteria
+        Args:
+            db: Database session
+            **kwargs: Filter criteria
 
-Returns:
-    Resource object or list of resources
+        Returns:
+            Resource object or list of resources
 
-Raises:
-    NotFoundError: If resource doesn't exist
+        Raises:
+            NotFoundError: If resource doesn't exist
         """
         """Get a single metric by ID"""
         result = await db.execute(
@@ -46,18 +50,6 @@ Raises:
         return result.scalar_one_or_none()
 
     async def get_multi(
-        """Retrieve resource(s).
-
-Args:
-    db: Database session
-    **kwargs: Filter criteria
-
-Returns:
-    Resource object or list of resources
-
-Raises:
-    NotFoundError: If resource doesn't exist
-        """
         self,
         db: AsyncSession,
         *,
@@ -67,7 +59,7 @@ Raises:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> tuple[list[CodeQualityMetric], int]:
-        """Get multiple metrics with filtering"""
+        """Get multiple metrics with filtering."""
         query = select(CodeQualityMetric)
 
         # Apply filters
@@ -88,27 +80,35 @@ Raises:
         total = total_result.scalar()
 
         # Get paginated results
-        query = query.order_by(desc(CodeQualityMetric.scan_date)).offset(skip).limit(limit)
+        query = (
+            query.order_by(desc(CodeQualityMetric.scan_date)).offset(skip).limit(limit)
+        )
         result = await db.execute(query)
         items = result.scalars().all()
 
         return list(items), total
 
-    async def get_latest(self, db: AsyncSession, module_name: Optional[str] = None) -> Optional[CodeQualityMetric]:
+    async def get_latest(
+        self, db: AsyncSession, module_name: Optional[str] = None
+    ) -> Optional[CodeQualityMetric]:
         """Retrieve resource(s).
 
-Args:
-    db: Database session
-    **kwargs: Filter criteria
+        Args:
+            db: Database session
+            **kwargs: Filter criteria
 
-Returns:
-    Resource object or list of resources
+        Returns:
+            Resource object or list of resources
 
-Raises:
-    NotFoundError: If resource doesn't exist
+        Raises:
+            NotFoundError: If resource doesn't exist
         """
         """Get the most recent metric"""
-        query = select(CodeQualityMetric).order_by(desc(CodeQualityMetric.scan_date)).limit(1)
+        query = (
+            select(CodeQualityMetric)
+            .order_by(desc(CodeQualityMetric.scan_date))
+            .limit(1)
+        )
 
         if module_name is not None:
             query = query.where(CodeQualityMetric.module_name == module_name)
@@ -117,28 +117,18 @@ Raises:
         return result.scalar_one_or_none()
 
     async def get_trend(
-        """Retrieve resource(s).
-
-Args:
-    db: Database session
-    **kwargs: Filter criteria
-
-Returns:
-    Resource object or list of resources
-
-Raises:
-    NotFoundError: If resource doesn't exist
-        """
         self,
         db: AsyncSession,
         *,
         days: int = 30,
         module_name: Optional[str] = None,
     ) -> list[dict[str, Any]]:
-        """Get quality trend over time"""
+        """Get quality trend over time."""
         start_date = datetime.utcnow() - timedelta(days=days)
 
-        query = select(CodeQualityMetric).where(CodeQualityMetric.scan_date >= start_date)
+        query = select(CodeQualityMetric).where(
+            CodeQualityMetric.scan_date >= start_date
+        )
 
         if module_name is not None:
             query = query.where(CodeQualityMetric.module_name == module_name)
@@ -161,18 +151,20 @@ Raises:
             for m in metrics
         ]
 
-    async def create(self, db: AsyncSession, *, obj_in: CodeQualityMetricCreate) -> CodeQualityMetric:
+    async def create(
+        self, db: AsyncSession, *, obj_in: CodeQualityMetricCreate
+    ) -> CodeQualityMetric:
         """Create a new resource.
 
-Args:
-    db: Database session
-    **kwargs: Resource attributes
+        Args:
+            db: Database session
+            **kwargs: Resource attributes
 
-Returns:
-    Created resource object
+        Returns:
+            Created resource object
 
-Raises:
-    ValidationError: If input data is invalid
+        Raises:
+            ValidationError: If input data is invalid
         """
         """Create a new quality metric"""
         db_obj = CodeQualityMetric(**obj_in.model_dump())
@@ -187,25 +179,13 @@ Raises:
         return db_obj
 
     async def create_with_issues(
-        """Create a new resource.
-
-Args:
-    db: Database session
-    **kwargs: Resource attributes
-
-Returns:
-    Created resource object
-
-Raises:
-    ValidationError: If input data is invalid
-        """
         self,
         db: AsyncSession,
         *,
         metric_in: CodeQualityMetricCreate,
         issues: list[dict[str, Any]],
     ) -> CodeQualityMetric:
-        """Create a quality metric with associated issues"""
+        """Create a quality metric with associated issues."""
         db_obj = CodeQualityMetric(**metric_in.model_dump())
 
         # Calculate quality score and grade
@@ -225,26 +205,12 @@ Raises:
         return db_obj
 
     async def update_trends(
-        """Update an existing resource.
-
-Args:
-    db: Database session
-    id: Resource ID
-    **kwargs: Attributes to update
-
-Returns:
-    Updated resource object
-
-Raises:
-    NotFoundError: If resource doesn't exist
-    ValidationError: If input data is invalid
-        """
         self,
         db: AsyncSession,
         *,
         current_metric: CodeQualityMetric,
     ) -> CodeQualityMetric:
-        """Update trend indicators by comparing with previous metric"""
+        """Update trend indicators by comparing with previous metric."""
         previous = await self.get_latest(db, module_name=current_metric.module_name)
 
         if previous and previous.id != current_metric.id:
@@ -258,7 +224,10 @@ Raises:
                 current_metric.technical_debt_ratio,
             )  # lower is better
 
-            if current_metric.test_coverage_percentage and previous.test_coverage_percentage:
+            if (
+                current_metric.test_coverage_percentage
+                and previous.test_coverage_percentage
+            ):
                 current_metric.coverage_trend = self._calculate_trend(
                     current_metric.test_coverage_percentage,
                     previous.test_coverage_percentage,
@@ -314,7 +283,9 @@ Raises:
         else:
             return "F"
 
-    def _calculate_trend(self, current: float, previous: float, threshold: float = 0.05) -> str:
+    def _calculate_trend(
+        self, current: float, previous: float, threshold: float = 0.05
+    ) -> str:
         """Calculate trend direction"""
         if previous == 0:
             return "stable"
@@ -335,15 +306,15 @@ class CRUDCodeQualityIssue:
     async def get(self, db: AsyncSession, id: str) -> Optional[CodeQualityIssue]:
         """Retrieve resource(s).
 
-Args:
-    db: Database session
-    **kwargs: Filter criteria
+        Args:
+            db: Database session
+            **kwargs: Filter criteria
 
-Returns:
-    Resource object or list of resources
+        Returns:
+            Resource object or list of resources
 
-Raises:
-    NotFoundError: If resource doesn't exist
+        Raises:
+            NotFoundError: If resource doesn't exist
         """
         """Get a single issue by ID"""
         result = await db.execute(
@@ -352,18 +323,6 @@ Raises:
         return result.scalar_one_or_none()
 
     async def get_multi(
-        """Retrieve resource(s).
-
-Args:
-    db: Database session
-    **kwargs: Filter criteria
-
-Returns:
-    Resource object or list of resources
-
-Raises:
-    NotFoundError: If resource doesn't exist
-        """
         self,
         db: AsyncSession,
         *,
@@ -374,7 +333,7 @@ Raises:
         status: str = "open",
         metric_id: Optional[str] = None,
     ) -> tuple[list[CodeQualityIssue], int]:
-        """Get multiple issues with filtering"""
+        """Get multiple issues with filtering."""
         query = select(CodeQualityIssue)
 
         # Apply filters
@@ -404,7 +363,11 @@ Raises:
             "info": 3,
         }
         # Note: This is a simplified ordering. In production, use CASE expression in SQL
-        query = query.order_by(desc(CodeQualityIssue.last_detected)).offset(skip).limit(limit)
+        query = (
+            query.order_by(desc(CodeQualityIssue.last_detected))
+            .offset(skip)
+            .limit(limit)
+        )
 
         result = await db.execute(query)
         items = result.scalars().all()
@@ -412,24 +375,12 @@ Raises:
         return list(items), total
 
     async def get_hotspots(
-        """Retrieve resource(s).
-
-Args:
-    db: Database session
-    **kwargs: Filter criteria
-
-Returns:
-    Resource object or list of resources
-
-Raises:
-    NotFoundError: If resource doesn't exist
-        """
         self,
         db: AsyncSession,
         *,
         limit: int = 20,
     ) -> list[CodeQualityIssue]:
-        """Get the most critical issues"""
+        """Get the most critical issues."""
         result = await db.execute(
             select(CodeQualityIssue)
             .where(CodeQualityIssue.status == "open")
@@ -439,18 +390,20 @@ Raises:
         )
         return list(result.scalars().all())
 
-    async def create(self, db: AsyncSession, *, obj_in: CodeQualityIssueCreate) -> CodeQualityIssue:
+    async def create(
+        self, db: AsyncSession, *, obj_in: CodeQualityIssueCreate
+    ) -> CodeQualityIssue:
         """Create a new resource.
 
-Args:
-    db: Database session
-    **kwargs: Resource attributes
+        Args:
+            db: Database session
+            **kwargs: Resource attributes
 
-Returns:
-    Created resource object
+        Returns:
+            Created resource object
 
-Raises:
-    ValidationError: If input data is invalid
+        Raises:
+            ValidationError: If input data is invalid
         """
         """Create a new quality issue"""
         db_obj = CodeQualityIssue(**obj_in.model_dump())
@@ -466,15 +419,15 @@ class CRUDPullRequestQuality:
     async def get(self, db: AsyncSession, id: str) -> Optional[PullRequestQuality]:
         """Retrieve resource(s).
 
-Args:
-    db: Database session
-    **kwargs: Filter criteria
+        Args:
+            db: Database session
+            **kwargs: Filter criteria
 
-Returns:
-    Resource object or list of resources
+        Returns:
+            Resource object or list of resources
 
-Raises:
-    NotFoundError: If resource doesn't exist
+        Raises:
+            NotFoundError: If resource doesn't exist
         """
         """Get a single PR quality record by ID"""
         result = await db.execute(
@@ -482,18 +435,20 @@ Raises:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_pr_number(self, db: AsyncSession, *, pr_number: int) -> Optional[PullRequestQuality]:
+    async def get_by_pr_number(
+        self, db: AsyncSession, *, pr_number: int
+    ) -> Optional[PullRequestQuality]:
         """Retrieve resource(s).
 
-Args:
-    db: Database session
-    **kwargs: Filter criteria
+        Args:
+            db: Database session
+            **kwargs: Filter criteria
 
-Returns:
-    Resource object or list of resources
+        Returns:
+            Resource object or list of resources
 
-Raises:
-    NotFoundError: If resource doesn't exist
+        Raises:
+            NotFoundError: If resource doesn't exist
         """
         """Get PR quality by PR number"""
         result = await db.execute(
@@ -502,18 +457,6 @@ Raises:
         return result.scalar_one_or_none()
 
     async def get_multi(
-        """Retrieve resource(s).
-
-Args:
-    db: Database session
-    **kwargs: Filter criteria
-
-Returns:
-    Resource object or list of resources
-
-Raises:
-    NotFoundError: If resource doesn't exist
-        """
         self,
         db: AsyncSession,
         *,
@@ -524,7 +467,7 @@ Raises:
         min_score: Optional[float] = None,
         is_merged: Optional[bool] = None,
     ) -> tuple[list[PullRequestQuality], int]:
-        """Get multiple PR quality records with filtering"""
+        """Get multiple PR quality records with filtering."""
         query = select(PullRequestQuality)
 
         # Apply filters
@@ -547,35 +490,29 @@ Raises:
         total = total_result.scalar()
 
         # Get paginated results
-        query = query.order_by(desc(PullRequestQuality.created_at)).offset(skip).limit(limit)
+        query = (
+            query.order_by(desc(PullRequestQuality.created_at))
+            .offset(skip)
+            .limit(limit)
+        )
         result = await db.execute(query)
         items = result.scalars().all()
 
         return list(items), total
 
     async def get_summary(
-        """Retrieve resource(s).
-
-Args:
-    db: Database session
-    **kwargs: Filter criteria
-
-Returns:
-    Resource object or list of resources
-
-Raises:
-    NotFoundError: If resource doesn't exist
-        """
         self,
         db: AsyncSession,
         *,
         days: int = 30,
     ) -> dict[str, Any]:
-        """Get PR quality summary for recent period"""
+        """Get PR quality summary for recent period."""
         start_date = datetime.utcnow() - timedelta(days=days)
 
         result = await db.execute(
-            select(PullRequestQuality).where(PullRequestQuality.created_at >= start_date)
+            select(PullRequestQuality).where(
+                PullRequestQuality.created_at >= start_date
+            )
         )
         prs = list(result.scalars().all())
 
@@ -610,18 +547,20 @@ Raises:
             "merge_rate": len(merged_prs) / len(prs) if prs else 0.0,
         }
 
-    async def create(self, db: AsyncSession, *, obj_in: PullRequestQualityCreate) -> PullRequestQuality:
+    async def create(
+        self, db: AsyncSession, *, obj_in: PullRequestQualityCreate
+    ) -> PullRequestQuality:
         """Create a new resource.
 
-Args:
-    db: Database session
-    **kwargs: Resource attributes
+        Args:
+            db: Database session
+            **kwargs: Resource attributes
 
-Returns:
-    Created resource object
+        Returns:
+            Created resource object
 
-Raises:
-    ValidationError: If input data is invalid
+        Raises:
+            ValidationError: If input data is invalid
         """
         """Create a new PR quality record"""
         db_obj = PullRequestQuality(**obj_in.model_dump())

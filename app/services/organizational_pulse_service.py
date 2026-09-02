@@ -64,6 +64,10 @@ class OrganizationalPulseService:
         lookback_days: int = 45,
         enrichment: Optional[Dict[str, Any]] = None,
         hris_signals: Optional[Dict[str, Any]] = None,
+        feedback_signals: Optional[Dict[str, Any]] = None,
+        culture_signals: Optional[Dict[str, Any]] = None,
+        recognition_signals: Optional[Dict[str, Any]] = None,
+        okr_signals: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Generate the full organizational pulse — answers all 7 key questions.
@@ -71,6 +75,10 @@ class OrganizationalPulseService:
         When enrichment is provided (from DataSourceAggregator), BI scores
         incorporate work system and calendar signals. HRIS signals feed
         directly into flight risk and intervention calculations.
+
+        When feedback_signals/culture_signals/recognition_signals are provided,
+        previously unwired assets enrich BI scores and directly inform
+        friction (Q4) and change impact (Q6) detection.
         """
         start_ms = time.time()
 
@@ -80,6 +88,9 @@ class OrganizationalPulseService:
             organization_id,
             lookback_days,
             enrichment=enrichment,
+            culture_signals=culture_signals,
+            feedback_signals=feedback_signals,
+            recognition_signals=recognition_signals,
         )
         ona_analysis = await _ona_service.analyze_organization(
             db, organization_id, lookback_days
@@ -97,9 +108,15 @@ class OrganizationalPulseService:
         )
         q2_manager_burnout = self._detect_manager_burnout_attribution(teams)
         q3_collaboration = self._rank_collaboration_effectiveness(teams, ona_analysis)
-        q4_friction = self._detect_friction_trends(teams, temporal_snapshots)
-        q5_flight_risk = self._calculate_flight_risk(teams, ona_analysis, hris_signals)
-        q6_change_impact = self._predict_change_impact(teams, org_scores, ona_analysis)
+        q4_friction = self._detect_friction_trends(
+            teams, temporal_snapshots, feedback_signals=feedback_signals
+        )
+        q5_flight_risk = self._calculate_flight_risk(
+            teams, ona_analysis, hris_signals, okr_signals=okr_signals
+        )
+        q6_change_impact = self._predict_change_impact(
+            teams, org_scores, ona_analysis, feedback_signals=feedback_signals
+        )
         q7_interventions = self._generate_proactive_interventions(
             q1_isolated,
             q2_manager_burnout,
@@ -187,8 +204,21 @@ class OrganizationalPulseService:
                 "behavioral_intelligence": bool(teams),
                 "network_analysis": bool(ona_analysis.get("nodes")),
                 "temporal_snapshots": bool(temporal_snapshots),
+                "anonymous_feedback": bool(feedback_signals),
+                "culture_metrics": bool(culture_signals),
+                "peer_recognition": bool(recognition_signals),
+                "okr_signals": bool(okr_signals),
             },
         }
+
+        # Add OKR health context if available
+        if okr_signals:
+            pulse["okr_context"] = {
+                "active_objectives": okr_signals.get("active_objectives", 0),
+                "critical_health_flags": okr_signals.get("critical_health", 0),
+                "capacity_pressure": okr_signals.get("capacity_pressure", 0),
+                "achievement_rate": okr_signals.get("achievement_rate", 0),
+            }
 
         # Persist snapshot
         await self._persist_snapshot(db, organization_id, pulse)
@@ -378,11 +408,18 @@ class OrganizationalPulseService:
     # ── Q4: Friction Trend Detection ─────────────────────────────────
 
     def _detect_friction_trends(
-        self, teams: List[Dict], temporal: List[Dict]
+        self,
+        teams: List[Dict],
+        temporal: List[Dict],
+        feedback_signals: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Detect where organizational friction is increasing by comparing
         current friction index with historical trajectory.
+
+        When feedback_signals are provided, anonymous feedback patterns
+        (toxic behavior, team dynamics, leadership concerns) amplify
+        friction detection for earlier warning.
         """
         # Detect org-wide network fragmentation trend
         fragmentation_increasing = False
@@ -391,6 +428,11 @@ class OrganizationalPulseService:
             older_communities = temporal[0].get("num_communities", 0)
             fragmentation_increasing = recent_communities > older_communities + 1
 
+        # Anonymous feedback amplifier: high concern ratio lowers thresholds
+        feedback_amplifier = 0
+        if feedback_signals and feedback_signals.get("concern_ratio", 0) > 0.3:
+            feedback_amplifier = 10  # Lower detection threshold
+
         friction_signals = []
         for team_data in teams:
             team_name = team_data.get("team_name", "Unknown")
@@ -398,12 +440,28 @@ class OrganizationalPulseService:
             friction_score = friction.get("score", 50)
             trend = friction.get("trend", "stable")
 
-            if friction_score > 50 or trend == "increasing":
+            detection_threshold = 50 - feedback_amplifier
+            if friction_score > detection_threshold or trend == "increasing":
                 severity = (
                     "critical"
                     if friction_score > 75
                     else "high" if friction_score > 60 else "moderate"
                 )
+                signal_parts = [
+                    f"{team_name} friction index is {friction_score}/100 "
+                    f"(trend: {trend}).",
+                ]
+                if fragmentation_increasing:
+                    signal_parts.append(
+                        "Organizational fragmentation is also increasing."
+                    )
+                if feedback_amplifier > 0:
+                    signal_parts.append(
+                        f"Anonymous feedback shows elevated concern ratio "
+                        f"({feedback_signals['concern_ratio']:.0%}) — "
+                        f"{feedback_signals.get('friction_reports', 0)} friction-related reports."
+                    )
+
                 friction_signals.append(
                     {
                         "team_name": team_name,
@@ -411,12 +469,9 @@ class OrganizationalPulseService:
                         "friction_score": friction_score,
                         "trend": trend,
                         "fragmentation_increasing": fragmentation_increasing,
+                        "feedback_amplified": feedback_amplifier > 0,
                         "severity": severity,
-                        "signal": (
-                            f"{team_name} friction index is {friction_score}/100 "
-                            f"(trend: {trend}). "
-                            f"{'Organizational fragmentation is also increasing.' if fragmentation_increasing else ''}"
-                        ).strip(),
+                        "signal": " ".join(signal_parts),
                         "factors": friction.get("factors", []),
                     }
                 )
@@ -430,6 +485,7 @@ class OrganizationalPulseService:
         teams: List[Dict],
         ona: Dict[str, Any],
         hris_signals: Optional[Dict[str, Any]] = None,
+        okr_signals: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Calculate talent flight risk per team by fusing:
@@ -438,6 +494,7 @@ class OrganizationalPulseService:
           - Engagement trajectory (declining = risk)
           - Manager health (poor management drives attrition)
           - HRIS signals: low tenure, high leave utilization (when available)
+          - OKR signals: high capacity pressure amplifies burnout-driven flight risk
         """
         flight_risks = []
         nodes = ona.get("nodes", [])
@@ -493,6 +550,11 @@ class OrganizationalPulseService:
             # HRIS amplifiers: tenure churn + leave exhaustion
             flight_score = min(100, flight_score + hris_tenure_risk + hris_leave_risk)
 
+            # OKR capacity pressure: overloaded teams with high burnout flee faster
+            if okr_signals and okr_signals.get("capacity_pressure", 0) > 40:
+                okr_amplifier = min(12, okr_signals["capacity_pressure"] * 0.15)
+                flight_score = min(100, flight_score + okr_amplifier)
+
             if flight_score >= 30:
                 risk_level = (
                     "critical"
@@ -528,13 +590,23 @@ class OrganizationalPulseService:
         teams: List[Dict],
         org_scores: Dict[str, Any],
         ona: Dict[str, Any],
+        feedback_signals: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Predict which organizational changes would reduce performance
         based on current change readiness, network dependencies, and
         psychological safety levels.
+
+        When feedback_signals are provided, workplace_environment reports
+        (stress, burnout, culture) increase vulnerability scores.
         """
         predictions = []
+
+        # Anonymous feedback amplifier for change vulnerability
+        feedback_change_amplifier = 0
+        if feedback_signals and feedback_signals.get("change_reports", 0) > 0:
+            # Each workplace environment report adds vulnerability
+            feedback_change_amplifier = min(10, feedback_signals["change_reports"] * 2)
 
         # Identify teams not ready for change
         for team_data in teams:
@@ -549,6 +621,7 @@ class OrganizationalPulseService:
                 (100 - change_readiness) * 0.5
                 + (100 - psych_safety) * 0.3
                 + friction * 0.2
+                + feedback_change_amplifier
             )
 
             if vulnerability > 50:

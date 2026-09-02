@@ -64,6 +64,9 @@ class ManagerIntelligenceService:
         )
         coaching_prompts = self._generate_coaching_prompts(bi_scores, network_insights)
         team_pulse = self._compute_team_pulse(bi_scores)
+        effectiveness = self._compute_manager_effectiveness(
+            bi_scores, member_risks, network_insights
+        )
 
         return {
             "team_id": team_id,
@@ -72,6 +75,7 @@ class ManagerIntelligenceService:
             "member_count": len(members),
             "generated_at": datetime.utcnow().isoformat(),
             "team_pulse": team_pulse,
+            "manager_effectiveness": effectiveness,
             "bi_scores": bi_scores,
             "members": member_risks,
             "network_insights": network_insights,
@@ -598,6 +602,85 @@ class ManagerIntelligenceService:
             "score": round(pulse, 1),
             "status": status,
             "label": label,
+        }
+
+    # ------------------------------------------------------------------
+    # Manager Effectiveness Composite
+    # ------------------------------------------------------------------
+
+    def _compute_manager_effectiveness(
+        self,
+        bi_scores: Dict,
+        member_risks: List[Dict],
+        network: Dict,
+    ) -> Dict[str, Any]:
+        """Multi-dimensional manager effectiveness score.
+
+        Dimensions:
+          - Team outcomes (40%): BI team_health + collaboration + low burnout
+          - People development (25%): member risk profile health
+          - Network leadership (15%): low dependency ratio, connected team
+          - Manager support (20%): manager_health BI score (includes pulse survey)
+        """
+        if not bi_scores:
+            return {"score": 0, "grade": "N/A", "dimensions": {}}
+
+        # Dimension 1: Team outcomes
+        th = bi_scores.get("team_health", {}).get("score", 50)
+        co = bi_scores.get("collaboration", {}).get("score", 50)
+        br = bi_scores.get("burnout_risk", {}).get("score", 50)
+        team_outcomes = th * 0.4 + co * 0.3 + (100 - br) * 0.3
+
+        # Dimension 2: People development (% of team not at elevated/critical risk)
+        if member_risks:
+            healthy = sum(1 for m in member_risks if m["risk_level"] == "low")
+            people_dev = (healthy / len(member_risks)) * 100
+        else:
+            people_dev = 50.0
+
+        # Dimension 3: Network leadership
+        network_score = 50.0
+        if network.get("available"):
+            dep = network.get("manager_dependency", {})
+            dep_ratio = dep.get("avg_dependency_ratio", 0.5)
+            # Lower dependency = better distributed leadership
+            network_score = max(0, min(100, (1 - dep_ratio) * 100))
+            # Bonus for having bridges (cross-team connectors)
+            bridges = len(network.get("bridges", []))
+            if bridges > 0:
+                network_score = min(100, network_score + bridges * 5)
+
+        # Dimension 4: Manager support (from BI manager_health which includes pulse survey)
+        mgr_support = bi_scores.get("manager_health", {}).get("score", 50)
+
+        composite = (
+            team_outcomes * 0.40
+            + people_dev * 0.25
+            + network_score * 0.15
+            + mgr_support * 0.20
+        )
+
+        # Grade
+        if composite >= 80:
+            grade = "A"
+        elif composite >= 65:
+            grade = "B"
+        elif composite >= 50:
+            grade = "C"
+        elif composite >= 35:
+            grade = "D"
+        else:
+            grade = "F"
+
+        return {
+            "score": round(composite, 1),
+            "grade": grade,
+            "dimensions": {
+                "team_outcomes": round(team_outcomes, 1),
+                "people_development": round(people_dev, 1),
+                "network_leadership": round(network_score, 1),
+                "manager_support": round(mgr_support, 1),
+            },
         }
 
     # ------------------------------------------------------------------

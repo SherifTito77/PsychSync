@@ -145,23 +145,120 @@ class GoogleCalendarConnector(CalendarConnector):
         start: datetime,
         end: datetime,
     ) -> List[CalendarEvent]:
-        """Fetch events from Google Calendar API."""
+        """Fetch events from Google Calendar API using OAuth2 access token."""
         events = []
+        access_token = await self._get_access_token(user_email)
+        if not access_token:
+            logger.warning(
+                "No access token for %s — skipping Google Calendar fetch", user_email
+            )
+            return events
+
         try:
             import httpx
 
-            # In production: use google-api-python-client
-            # GET https://www.googleapis.com/calendar/v3/calendars/{calendarId}/events
-            # with timeMin, timeMax, singleEvents=True, orderBy=startTime
+            time_min = (
+                start.isoformat() + "Z" if not start.tzinfo else start.isoformat()
+            )
+            time_max = end.isoformat() + "Z" if not end.tzinfo else end.isoformat()
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                page_token = None
+                while True:
+                    params = {
+                        "timeMin": time_min,
+                        "timeMax": time_max,
+                        "singleEvents": "true",
+                        "orderBy": "startTime",
+                        "maxResults": 250,
+                    }
+                    if page_token:
+                        params["pageToken"] = page_token
+
+                    response = await client.get(
+                        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+                        headers={"Authorization": f"Bearer {access_token}"},
+                        params=params,
+                    )
+
+                    if response.status_code == 401:
+                        access_token = await self._refresh_token(user_email)
+                        if not access_token:
+                            logger.error("Token refresh failed for %s", user_email)
+                            break
+                        continue
+
+                    response.raise_for_status()
+                    data = response.json()
+
+                    for raw in data.get("items", []):
+                        if raw.get("status") == "cancelled":
+                            continue
+                        try:
+                            event = self._normalize_event(raw)
+                            if event.response_status != "declined":
+                                events.append(event)
+                        except Exception as e:
+                            logger.debug("Skipping event: %s", e)
+
+                    page_token = data.get("nextPageToken")
+                    if not page_token:
+                        break
+
             logger.info(
-                "Google Calendar: would fetch events for %s from %s to %s",
-                user_email,
-                start,
-                end,
+                "Google Calendar: fetched %d events for %s", len(events), user_email
             )
         except ImportError:
             logger.warning("httpx not installed — Google Calendar connector disabled")
+        except Exception as e:
+            logger.error("Google Calendar fetch error for %s: %s", user_email, e)
         return events
+
+    async def _get_access_token(self, user_email: str) -> Optional[str]:
+        """Retrieve OAuth2 access token from connector credentials."""
+        try:
+            import json
+
+            if self.credentials_json:
+                creds = json.loads(self.credentials_json)
+                return creds.get("access_token")
+        except Exception as e:
+            logger.debug("Could not parse Google credentials: %s", e)
+        return None
+
+    async def _refresh_token(self, user_email: str) -> Optional[str]:
+        """Refresh expired Google OAuth2 token using stored refresh_token."""
+        try:
+            import json
+            import httpx
+            from app.core.config import settings
+
+            if not self.credentials_json:
+                return None
+            creds = json.loads(self.credentials_json)
+            refresh_token = creds.get("refresh_token")
+            if not refresh_token:
+                return None
+
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    "https://oauth2.googleapis.com/token",
+                    data={
+                        "client_id": getattr(settings, "GOOGLE_CLIENT_ID", ""),
+                        "client_secret": getattr(settings, "GOOGLE_CLIENT_SECRET", ""),
+                        "refresh_token": refresh_token,
+                        "grant_type": "refresh_token",
+                    },
+                )
+                response.raise_for_status()
+                tokens = response.json()
+
+            creds["access_token"] = tokens["access_token"]
+            self.credentials_json = json.dumps(creds)
+            return tokens["access_token"]
+        except Exception as e:
+            logger.error("Google token refresh failed: %s", e)
+        return None
 
     def _normalize_event(self, raw: dict) -> CalendarEvent:
         """Normalize a Google Calendar event to our schema."""
@@ -263,10 +360,164 @@ class OutlookCalendarConnector(CalendarConnector):
         end: datetime,
     ) -> List[CalendarEvent]:
         """Fetch from Microsoft Graph API /me/calendarView."""
-        logger.info(
-            "Outlook: would fetch events for %s from %s to %s", user_email, start, end
+        access_token = await self._get_access_token(user_email)
+        if not access_token:
+            logger.warning(
+                "No access token for %s — skipping Outlook fetch", user_email
+            )
+            return []
+
+        events = []
+        try:
+            import httpx
+
+            start_str = start.strftime("%Y-%m-%dT%H:%M:%S")
+            end_str = end.strftime("%Y-%m-%dT%H:%M:%S")
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                skip = 0
+                while True:
+                    response = await client.get(
+                        f"{self.base_url}/me/calendarView",
+                        headers={
+                            "Authorization": f"Bearer {access_token}",
+                            "Prefer": 'outlook.timezone="UTC"',
+                        },
+                        params={
+                            "startDateTime": start_str,
+                            "endDateTime": end_str,
+                            "$top": 100,
+                            "$skip": skip,
+                            "$select": "id,subject,start,end,attendees,organizer,type,isAllDay,isCancelled",
+                        },
+                    )
+
+                    if response.status_code == 401:
+                        access_token = await self._refresh_outlook_token(user_email)
+                        if not access_token:
+                            break
+                        continue
+
+                    response.raise_for_status()
+                    data = response.json()
+                    items = data.get("value", [])
+
+                    for raw in items:
+                        if raw.get("isCancelled"):
+                            continue
+                        try:
+                            event = self._normalize_outlook_event(raw)
+                            events.append(event)
+                        except Exception as e:
+                            logger.debug("Skipping Outlook event: %s", e)
+
+                    if "@odata.nextLink" not in data:
+                        break
+                    skip += len(items)
+
+            logger.info("Outlook: fetched %d events for %s", len(events), user_email)
+        except ImportError:
+            logger.warning("httpx not installed — Outlook connector disabled")
+        except Exception as e:
+            logger.error("Outlook fetch error for %s: %s", user_email, e)
+        return events
+
+    def _normalize_outlook_event(self, raw: dict) -> CalendarEvent:
+        """Normalize an Outlook event to our schema."""
+        start_str = raw.get("start", {}).get("dateTime", "")
+        end_str = raw.get("end", {}).get("dateTime", "")
+        start_dt = datetime.fromisoformat(start_str.replace("Z", "+00:00"))
+        end_dt = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
+        duration = int((end_dt - start_dt).total_seconds() / 60)
+
+        attendees = raw.get("attendees", [])
+        attendee_count = len(attendees)
+        organizer = raw.get("organizer", {})
+        organizer_email = organizer.get("emailAddress", {}).get("address", "")
+
+        response_status = "accepted"
+        for a in attendees:
+            addr = a.get("emailAddress", {}).get("address", "")
+            if addr == organizer_email:
+                status = a.get("status", {}).get("response", "accepted")
+                response_status = status
+                break
+
+        return CalendarEvent(
+            id=raw.get("id", ""),
+            title="Meeting",  # Anonymized by default
+            start=start_dt,
+            end=end_dt,
+            duration_minutes=duration,
+            attendee_count=attendee_count,
+            is_recurring=raw.get("type") in ("seriesMaster", "occurrence", "exception"),
+            is_organizer=True,  # Simplified; refine with user_email comparison
+            response_status=response_status,
+            meeting_type=self._classify_outlook_meeting(attendee_count),
+            is_after_hours=start_dt.hour < 9 or start_dt.hour >= 18,
         )
-        return []
+
+    def _classify_outlook_meeting(self, attendee_count: int) -> MeetingType:
+        if attendee_count <= 2:
+            return MeetingType.ONE_ON_ONE
+        elif attendee_count <= 5:
+            return MeetingType.SMALL_GROUP
+        elif attendee_count <= 15:
+            return MeetingType.LARGE_GROUP
+        return MeetingType.ALL_HANDS
+
+    async def _get_access_token(self, user_email: str) -> Optional[str]:
+        """Retrieve OAuth2 access token from connector credentials."""
+        try:
+            import json
+
+            # Credentials stored as JSON: {"access_token": "...", "refresh_token": "..."}
+            creds_str = (
+                self.client_secret
+            )  # Reuse client_secret field for encrypted creds
+            if creds_str and creds_str.startswith("{"):
+                creds = json.loads(creds_str)
+                return creds.get("access_token")
+        except Exception as e:
+            logger.debug("Could not parse Outlook credentials: %s", e)
+        return None
+
+    async def _refresh_outlook_token(self, user_email: str) -> Optional[str]:
+        """Refresh expired Microsoft OAuth2 token."""
+        try:
+            import json
+            import httpx
+
+            creds_str = self.client_secret
+            if not creds_str or not creds_str.startswith("{"):
+                return None
+            creds = json.loads(creds_str)
+            refresh_token = creds.get("refresh_token")
+            if not refresh_token:
+                return None
+
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(
+                    f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token",
+                    data={
+                        "client_id": self.client_id,
+                        "client_secret": creds.get("app_secret", ""),
+                        "refresh_token": refresh_token,
+                        "grant_type": "refresh_token",
+                        "scope": "https://graph.microsoft.com/Calendars.Read",
+                    },
+                )
+                response.raise_for_status()
+                tokens = response.json()
+
+            creds["access_token"] = tokens["access_token"]
+            if "refresh_token" in tokens:
+                creds["refresh_token"] = tokens["refresh_token"]
+            self.client_secret = json.dumps(creds)
+            return tokens["access_token"]
+        except Exception as e:
+            logger.error("Outlook token refresh failed: %s", e)
+        return None
 
 
 # ══════════════════════════════════════════════════════════════════

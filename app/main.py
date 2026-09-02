@@ -1098,8 +1098,10 @@ async def health_check_main() -> dict[str, Any]:
         logger.error(f"Database health check failed: {e}")
         db_status = "error"
 
-    return {
-        "status": "healthy",
+    is_healthy = db_status == "connected"
+
+    result = {
+        "status": "healthy" if is_healthy else "degraded",
         "version": AppInfo.VERSION,
         "timestamp": datetime.utcnow().isoformat(),
         "services": {
@@ -1113,6 +1115,42 @@ async def health_check_main() -> dict[str, Any]:
             "performance_monitoring": performance_monitoring_service.monitoring_status.value,
         },
     }
+
+    if not is_healthy:
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(status_code=503, content=result)
+
+    return result
+
+
+@app.get("/ready")
+async def readiness_check() -> dict[str, Any]:
+    """Readiness probe — returns 200 only when DB and Redis are both available."""
+    errors = []
+    try:
+        from app.core.database import check_db_health
+
+        if not await check_db_health():
+            errors.append("database")
+    except Exception:
+        errors.append("database")
+
+    try:
+        if not await redis_client.ping():
+            errors.append("redis")
+    except Exception:
+        errors.append("redis")
+
+    if errors:
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse(
+            status_code=503,
+            content={"ready": False, "unavailable": errors},
+        )
+
+    return {"ready": True}
 
 
 @app.get("/metrics/performance")

@@ -2,7 +2,9 @@
 
 from typing import List
 
+from ai.processors.belbin import BelbinProcessor
 from ai.processors.enneagram_processor import EnneagramProcessor
+from ai.processors.holland import HollandProcessor
 from ai.processors.mbti_processor import MBTIProcessor
 
 # from ai.processors.big_five_processor import BigFiveProcessor  # TODO: Create this file
@@ -13,7 +15,9 @@ from ai.processors.strengths import StrengthsProcessor
 
 # Processor registry for dynamic loading
 PROCESSOR_REGISTRY = {
+    "belbin": BelbinProcessor,
     "enneagram": EnneagramProcessor,
+    "holland": HollandProcessor,
     "mbti": MBTIProcessor,
     # 'big_five': BigFiveProcessor,  # TODO: Create this file
     "predictive_index": PredictiveIndexProcessor,
@@ -38,7 +42,9 @@ def get_available_frameworks() -> List[str]:
 
 __all__ = [
     "PersonalityFrameworkProcessor",
+    "BelbinProcessor",
     "EnneagramProcessor",
+    "HollandProcessor",
     "MBTIProcessor",
     # 'BigFiveProcessor',  # TODO: Create this file
     "PredictiveIndexProcessor",

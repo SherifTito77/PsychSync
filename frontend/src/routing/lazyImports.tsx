@@ -160,6 +160,30 @@ export const EquityDashboard = lazy(() => import('../components/equity/EquityDas
 export const OKRDashboard = lazy(() => import('../pages/OKRDashboard'));
 export const PeerRecognition = lazy(() => import('../pages/PeerRecognition'));
 
+// Metadata Intelligence
+export const EmailMetadataDashboard = lazy(() => import('../pages/EmailMetadataDashboard'));
+export const SlackMetadataDashboard = lazy(() => import('../pages/SlackMetadataDashboard'));
+export const TeamsMetadataDashboard = lazy(() => import('../pages/TeamsMetadataDashboard'));
+export const ComputerUsageDashboard = lazy(() => import('../pages/ComputerUsageDashboard'));
+export const BadgeAccessDashboard = lazy(() => import('../pages/BadgeAccessDashboard'));
+export const PTOPatternsDashboard = lazy(() => import('../pages/PTOPatternsDashboard'));
+export const GitMetadataDashboard = lazy(() => import('../pages/GitMetadataDashboard'));
+
+// Corporate Enhancement Layer
+export const ActionPlansDashboard = lazy(() => import('../pages/ActionPlansDashboard'));
+export const Feedback360Dashboard = lazy(() => import('../pages/Feedback360Dashboard'));
+export const MeetingEffectiveness = lazy(() => import('../pages/MeetingEffectiveness'));
+export const ExternalBenchmarks = lazy(() => import('../pages/ExternalBenchmarks'));
+export const OnboardingAnalytics = lazy(() => import('../pages/OnboardingAnalytics'));
+export const NudgeBotDashboard = lazy(() => import('../pages/NudgeBotDashboard'));
+
+// Video Conferencing & Knowledge Base Analytics
+export const VideoConferenceMetadataDashboard = lazy(() => import('../pages/VideoConferenceMetadataDashboard'));
+export const KnowledgeBaseAnalyticsDashboard = lazy(() => import('../pages/KnowledgeBaseAnalyticsDashboard'));
+
+// Toxicity & Burnout Intelligence
+export const ToxicityBurnoutDashboard = lazy(() => import('../pages/ToxicityBurnoutDashboard'));
+
 // Test & Demo Pages
 export const TestWellnessForm = lazy(() => import('../components/clinical/TestWellnessForm'));
 export const StressAssessmentTest = lazy(() => import('../pages/StressAssessmentTest'));

@@ -45,7 +45,7 @@ import axios from 'axios';
 import { useError } from '../../contexts/ErrorContext';
 import { handleError } from '../../utils/errorHandler';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : (import.meta.env.PROD ? '/api/v1' : 'http://localhost:8000/api/v1');
 
 interface LSASItem {
   item_number: number;

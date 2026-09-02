@@ -42,6 +42,12 @@ K_THRESHOLDS: Dict[Sensitivity, int] = {
     Sensitivity.SENSITIVE: 10,
 }
 
+# Epsilon values for differential privacy (lower = more privacy, more noise)
+EPSILON_CONFIG: Dict[Sensitivity, float] = {
+    Sensitivity.BASIC: 1.0,  # Less noise for basic metrics
+    Sensitivity.SENSITIVE: 0.5,  # More noise for sensitive metrics
+}
+
 SUPPRESSED_PLACEHOLDER = {
     "score": None,
     "label": "Suppressed",
@@ -278,6 +284,112 @@ class PrivacyGuard:
         if ctx.filter_count > 1:
             effective_k = effective_k + (ctx.filter_count - 1) * 3
         return group_size >= effective_k
+
+    # ─── Differential Privacy ─────────────────────────────────────
+    #
+    # Optional noise injection layer. Adds calibrated Laplace noise
+    # to scores that pass k-anonymity, so even with full algorithm
+    # knowledge an attacker cannot isolate individual contributions.
+    #
+    # epsilon controls the privacy-utility tradeoff:
+    #   - lower epsilon = more noise = more privacy
+    #   - higher epsilon = less noise = more utility
+    #
+    # Sensitivity for average-based scores = max_range / group_size
+    # (one person can shift the average by at most 100/group_size).
+
+    def apply_differential_privacy(
+        self,
+        score: float,
+        group_size: int,
+        metric: str,
+        epsilon: Optional[float] = None,
+    ) -> float:
+        """
+        Add Laplace noise to a score for differential privacy.
+
+        Args:
+            score: The true aggregate score (0-100)
+            group_size: Number of individuals in the group
+            metric: Metric name (determines epsilon)
+            epsilon: Override epsilon (default: auto from sensitivity tier)
+
+        Returns:
+            Noisy score, clamped to [0, 100]
+        """
+        import random
+
+        if epsilon is None:
+            sensitivity_level = SCORE_SENSITIVITY.get(metric, Sensitivity.SENSITIVE)
+            # Sensitive metrics get smaller epsilon (more noise)
+            epsilon = EPSILON_CONFIG.get(sensitivity_level, 0.5)
+
+        # Sensitivity: max change one individual can cause to the average
+        # For a 0-100 score averaged over group_size people: 100 / group_size
+        score_sensitivity = 100.0 / max(group_size, 1)
+
+        # Laplace scale parameter: sensitivity / epsilon
+        scale = score_sensitivity / epsilon
+
+        # Sample from Laplace(0, scale)
+        noise = self._laplace_sample(scale)
+
+        noisy_score = score + noise
+        return max(0.0, min(100.0, round(noisy_score, 1)))
+
+    def guard_dashboard_with_dp(
+        self,
+        dashboard: Dict[str, Any],
+        ctx: PrivacyContext,
+        epsilon: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """
+        Apply hybrid privacy: k-anonymity suppression + differential privacy noise.
+
+        First applies k-anonymity (suppress/generalize small groups).
+        Then adds Laplace noise to scores that passed k-anonymity.
+        """
+        # First pass: k-anonymity
+        guarded = self.guard_dashboard(dashboard, ctx)
+
+        # Second pass: add noise to non-suppressed scores
+        for team in guarded.get("teams", []):
+            mc = team.get("member_count", 0)
+            for metric, value in team.get("scores", {}).items():
+                if (
+                    isinstance(value, dict)
+                    and value.get("score") is not None
+                    and not value.get("suppressed")
+                ):
+                    value["score"] = self.apply_differential_privacy(
+                        value["score"], mc, metric, epsilon
+                    )
+
+        # Also noise the org-level aggregates
+        org_scores = guarded.get("scores", {})
+        total_members = sum(t.get("member_count", 0) for t in guarded.get("teams", []))
+        for metric, score in org_scores.items():
+            if score is not None:
+                org_scores[metric] = self.apply_differential_privacy(
+                    score, max(total_members, 1), metric, epsilon
+                )
+
+        guarded["privacy"]["differential_privacy"] = True
+        guarded["privacy"]["epsilon"] = epsilon or "auto"
+        return guarded
+
+    @staticmethod
+    def _laplace_sample(scale: float) -> float:
+        """Sample from Laplace(0, scale) distribution."""
+        import random
+
+        u = random.random() - 0.5
+        # Inverse CDF of Laplace: -scale * sign(u) * ln(1 - 2|u|)
+        import math
+
+        if abs(u) < 1e-10:
+            return 0.0
+        return -scale * (1 if u >= 0 else -1) * math.log(1 - 2 * abs(u))
 
     def get_suppression_summary(self, ctx: PrivacyContext) -> Dict[str, Any]:
         """Summary of all suppressions for audit logging."""

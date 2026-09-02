@@ -505,6 +505,48 @@ async def get_health_metrics(
     )
 
 
+@router.get("/connectors/status")
+async def get_connector_status(
+    current_user: User = Depends(get_current_user),
+):
+    """Real-time status of all DataSourceAggregator connector registries.
+
+    Returns the live availability of all 20 data source registries
+    (core, metadata intelligence, toxicity, and passive burnout).
+    """
+    from app.services.data_source_aggregator import data_source_aggregator
+
+    status = data_source_aggregator.get_data_source_status()
+
+    # Categorize for the frontend
+    categories = {
+        "core": {
+            k: v
+            for k, v in status.items()
+            if not k.startswith(("metadata_", "toxicity_", "burnout_"))
+        },
+        "metadata_intelligence": {
+            k: v for k, v in status.items() if k.startswith("metadata_")
+        },
+        "toxicity_detection": {
+            k: v for k, v in status.items() if k.startswith("toxicity_")
+        },
+        "passive_burnout": {
+            k: v for k, v in status.items() if k.startswith("burnout_")
+        },
+    }
+
+    total = len(status)
+    available = sum(1 for v in status.values() if v.get("available"))
+
+    return {
+        "total_registries": total,
+        "available_registries": available,
+        "categories": categories,
+        "all_sources": status,
+    }
+
+
 @router.post("/analyze", response_model=List[BehavioralInsight])
 async def analyze_behavioral_data(
     request: BehavioralAnalysisRequest,
